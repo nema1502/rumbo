@@ -10,6 +10,7 @@ import { translate, type Lang } from "../i18n/index.ts";
 import { base32Encode, bytesToBase64url } from "../lib/qr-codec.ts";
 import { STATION_CODE_LENGTH, isValidStationCode, normalizeStationCode } from "../lib/station-code.ts";
 import { dataDir, getEnv } from "./env.ts";
+import { describeForLog } from "./log.ts";
 import {
   getRepo,
   type Benefit,
@@ -504,7 +505,15 @@ export interface ChainSyncSummary {
   errors: string[];
 }
 
-const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
+/**
+ * Lo que el resumen dice de una consulta que falló. El detalle (direcciones del RPC, texto del SDK) va al
+ * registro del servidor y no al panel, que solo necesita saber que no se pudo.
+ */
+export const CHAIN_UNAVAILABLE = "unavailable";
+
+function logChainError(what: string, error: unknown): void {
+  console.error(`[panel] No se pudo consultar la cadena (${what}): ${describeForLog(error)}`);
+}
 
 async function mapLimit<T>(items: T[], limit: number, fn: (item: T) => Promise<void>): Promise<void> {
   let next = 0;
@@ -561,8 +570,9 @@ export async function refreshFromChain(event: EventRecord, repo: Repo = getRepo(
       summary.contracts.push({ contractId, label, issued: info.issued, checkedIn: info.checked_in, attendees: attendees.length, knownAttendees: known, error: null });
       summary.unknownOnChain += attendees.length - known;
     } catch (error) {
-      summary.contracts.push({ contractId, label, issued: 0, checkedIn: 0, attendees: 0, knownAttendees: 0, error: message(error) });
-      summary.errors.push(`${label}: ${message(error)}`);
+      logChainError(`contrato ${contractId}`, error);
+      summary.contracts.push({ contractId, label, issued: 0, checkedIn: 0, attendees: 0, knownAttendees: 0, error: CHAIN_UNAVAILABLE });
+      summary.errors.push(`${label}: ${CHAIN_UNAVAILABLE}`);
     }
   }
 
@@ -572,7 +582,8 @@ export async function refreshFromChain(event: EventRecord, repo: Repo = getRepo(
     try {
       status = await rumboPass.status(contractOf(pass) as string, pass.account as string);
     } catch (error) {
-      summary.errors.push(`${pass.id}: ${message(error)}`);
+      logChainError(`pase ${pass.id}`, error);
+      summary.errors.push(`${pass.id}: ${CHAIN_UNAVAILABLE}`);
       return;
     }
     summary.passesChecked++;

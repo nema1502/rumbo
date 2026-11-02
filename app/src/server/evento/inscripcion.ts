@@ -6,6 +6,7 @@
 import type { Lang } from "../../i18n/types.ts";
 import { getAccountProvider } from "../accounts.ts";
 import { baseUrl } from "../env.ts";
+import { describeForLog } from "../log.ts";
 import { getMailer } from "../mailer.ts";
 import { getRepo, normalizeEmail, type EventRecord, type Pass, type Person, type Repo, type TicketType } from "../repo.ts";
 import { isContractError, requireContractId, rumboPass } from "../stellar.ts";
@@ -114,8 +115,9 @@ async function sendPassEmail(args: { event: EventRecord; person: Person; pass: P
   try {
     await getMailer().send(buildPassEmail({ event: args.event, person: args.person, ticketType: args.ticketType, url, lang: args.lang }));
   } catch (error) {
-    // Sin correo la inscripción vale igual: el enlace se muestra en pantalla.
-    console.warn(`[inscripcion] No se pudo mandar el correo a ${args.person.email}: ${describe(error)}`);
+    // Sin correo la inscripción vale igual: el enlace se muestra en pantalla. En el registro del servidor
+    // va el id de la persona, nunca su correo (ni el que pueda traer el error del proveedor).
+    console.warn(`[inscripcion] No se pudo mandar el correo de la persona ${args.person.id} (pase ${args.pass.id}): ${describeForLog(error)}`);
   }
   return url;
 }

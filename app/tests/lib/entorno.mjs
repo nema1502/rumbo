@@ -2,11 +2,35 @@
 // propia carpeta de datos vacía (la base SQLite y los correos) y ninguna llave de la red de prueba.
 // Se llama antes de importar nada de src/server, porque la base y el correo se abren una vez por proceso.
 import { mkdtempSync, rmSync } from "node:fs";
+import { register } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const APP_DIR = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
+
+// Las rutas de la API importan con el alias "@/": se resuelve a src/, como en Next.
+register("./alias.mjs", import.meta.url);
+
+/** Un pedido como los que recibe una ruta de la API, desde una IP dada (la que pone la plataforma). */
+export async function pedido(url, { method = "POST", body, ip, headers = {} } = {}) {
+  const { NextRequest } = await import("next/server");
+  const h = new Headers({ "content-type": "application/json", ...headers });
+  if (ip) h.set("x-real-ip", ip);
+  return new NextRequest(url, { method, headers: h, body: body === undefined ? undefined : JSON.stringify(body) });
+}
+
+/** Lo que una prueba captura de la consola mientras corre fn. */
+export async function capturarConsola(fn) {
+  const lineas = [];
+  const originales = { log: console.log, warn: console.warn, error: console.error, info: console.info };
+  for (const k of Object.keys(originales)) console[k] = (...args) => lineas.push(args.map((a) => (a instanceof Error ? `${a.message}\n${a.stack}` : String(a))).join(" "));
+  try {
+    return { resultado: await fn(), lineas };
+  } finally {
+    Object.assign(console, originales);
+  }
+}
 
 export function entornoDePrueba() {
   process.chdir(APP_DIR);

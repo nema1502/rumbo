@@ -3,6 +3,7 @@
 // se acaba de crear; si el correo ya tenía la suya, se le reenvía por correo y acá no se muestra.
 import { NextResponse, type NextRequest } from "next/server";
 import { DEFAULT_LANG, isLang } from "@/i18n/index.ts";
+import { withoutEmails } from "@/server/log.ts";
 import {
   RegistrationNotFound,
   hasErrors,
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest, { params }: { params: Params })
   }
 
   if (result.kind === "failed") {
-    console.warn(`[inscripcion] ${result.reason}: ${result.detail}`);
+    console.warn(`[inscripcion] ${result.reason}: ${withoutEmails(result.detail)}`);
     return NextResponse.json({ error: result.reason }, { status: FAILURE_STATUS[result.reason] });
   }
   if (result.kind === "existing") return NextResponse.json({ status: "existing" });

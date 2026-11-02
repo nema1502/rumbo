@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { makeT } from "@/i18n/index.ts";
 import { getLang } from "@/i18n/server.ts";
+import { withoutEmails } from "@/server/log.ts";
 import {
   RegistrationNotFound,
   hasErrors,
@@ -75,7 +76,7 @@ export async function registerAction(_prev: FormState, formData: FormData): Prom
   }
 
   if (result.kind === "failed") {
-    console.warn(`[inscripcion] ${result.reason}: ${result.detail}`);
+    console.warn(`[inscripcion] ${result.reason}: ${withoutEmails(result.detail)}`);
     return { error: t(FAILURE_KEYS[result.reason]), values };
   }
   if (result.kind === "existing") return { existing: { email: result.person.email } };
