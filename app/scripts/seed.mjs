@@ -84,7 +84,7 @@ if (process.argv.includes("--demo")) {
   const { buildQrPayload } = await import("../src/server/qr.ts");
   const { rumboPass, isContractError } = await import("../src/server/stellar.ts");
 
-  const person = await repo.upsertPerson({ name: "Ana Quiroga", email: "ana@ejemplo.bo" });
+  const person = await repo.upsertPerson({ name: "Ana Quiroga", email: "ana@example.com" });
   let pass = await repo.findPass(event.id, person.id);
   if (!pass) {
     pass = await repo.createPass({ eventId: event.id, personId: person.id, ticketTypeId: freeTicket.id, status: "pending" });
