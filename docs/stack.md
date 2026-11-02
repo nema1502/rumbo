@@ -37,7 +37,7 @@ En la red de prueba el vale no es plata, pero el almuerzo sí es real: el contra
 
 ## Qué hace falta para levantarlo
 
-- Node 22 y pnpm; Rust estable con `stellar-cli`.
+- Node 24 y pnpm (la app usa la base SQLite que trae Node); Rust estable con `stellar-cli` para el contrato.
 - Cuentas en Vercel, Supabase, Resend y Pollar, todas con plan gratis al principio.
 - Un dominio propio para la app y para los correos.
 - USDC de la red de prueba, desde el grifo de Stellar.

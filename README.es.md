@@ -5,7 +5,7 @@
 ### Eventos de comunidad sobre Stellar. Inscribí gratis o cobrá entradas desde cualquier país, y operá todo tu evento desde un QR.
 
 [![Hecho sobre Stellar](https://img.shields.io/badge/hecho%20sobre-Stellar-7b61ff?style=flat-square)](https://stellar.org)
-[![Estado: diseño](https://img.shields.io/badge/estado-en%20dise%C3%B1o-ffc629?style=flat-square)](#dónde-está)
+[![Estado: MVP en testnet](https://img.shields.io/badge/estado-MVP%20en%20testnet-ffc629?style=flat-square)](#dónde-está)
 [![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-14b8a6?style=flat-square)](LICENSE)
 
 **[rumbo-eventos.vercel.app](https://rumbo-eventos.vercel.app)** | [English](README.md) | [Qué hace](#qué-hace) | [Por qué Stellar](#por-qué-stellar) | [Dónde está](#dónde-está) | [Principios](#principios) | [Quiénes](#quiénes)
@@ -70,9 +70,9 @@ Rumbo no es una entrada NFT ni un lugar para especular con la reventa. Si quien 
 
 ## Dónde está
 
-Rumbo está en etapa de diseño. El producto está especificado en detalle y el primer código entra en noviembre de 2026.
+La primera columna de la tabla de abajo está hecha y corre en la red de prueba de Stellar: el [contrato rumbo-pass](contracts/rumbo-pass/README.md) (pase gratis o pago con el reparto en la misma operación, una entrada y un canje por beneficio, con 33 pruebas) y la [app](app/README.md) (la página del evento, la inscripción, la credencial con QR, el escáner sin conexión, el panel de quien organiza y el informe para quien auspicia). Las cuentas las crea el servidor en modo de prueba; entrar con Google o con una passkey viene después. El flujo entero, corrido en la red de prueba con los ids de sus transacciones, está en [app/demo/e2e-testnet.txt](app/demo/e2e-testnet.txt).
 
-El contrato parte de un pase de evento escrito en septiembre de 2026 para Stellar Elite Bolivia: comprar el pase, entrar una sola vez, listar quiénes vinieron, con nueve pruebas y una corrida en testnet. Rumbo lo extiende con beneficios, canjes y pagos protegidos.
+El contrato partió de un pase de evento escrito en septiembre de 2026 para Stellar Elite Bolivia: comprar el pase, entrar una sola vez, listar quiénes vinieron. Rumbo lo extiende con beneficios, canjes y, más adelante, pagos protegidos.
 
 | Primero | Después | Más adelante |
 |---|---|---|
@@ -84,7 +84,7 @@ El contrato parte de un pase de evento escrito en septiembre de 2026 para Stella
 
 ## Cómo está hecho
 
-Un contrato en Soroban para pases y vales, una app en Next.js con Supabase debajo, cuentas creadas con Google o con una passkey con las comisiones de red patrocinadas, y un escáner que funciona sin conexión y sincroniza después. Las piezas, las decisiones y el orden de obra en cuatro semanas están en [docs/stack.md](docs/stack.md).
+Un contrato en Soroban para pases y vales, una app en Next.js con Supabase debajo, cuentas creadas con Google o con una passkey con las comisiones de red patrocinadas, y un escáner que funciona sin conexión y sincroniza después. Las piezas, las decisiones y el orden de obra en cuatro semanas están en [docs/stack.md](docs/stack.md). El código vive en [contracts/rumbo-pass](contracts/rumbo-pass/README.md) y en [app](app/README.md), cada uno con su guía.
 
 ## Principios
 

@@ -5,7 +5,7 @@
 ### Community events on Stellar. Free sign-up or paid tickets from anywhere, and the whole event run from one QR code.
 
 [![Built on Stellar](https://img.shields.io/badge/built%20on-Stellar-7b61ff?style=flat-square)](https://stellar.org)
-[![Status: design](https://img.shields.io/badge/status-design%20stage-ffc629?style=flat-square)](#where-it-stands)
+[![Status: MVP on testnet](https://img.shields.io/badge/status-MVP%20on%20testnet-ffc629?style=flat-square)](#where-it-stands)
 [![License: MIT](https://img.shields.io/badge/license-MIT-14b8a6?style=flat-square)](LICENSE)
 
 **[rumbo-eventos.vercel.app](https://rumbo-eventos.vercel.app)** | [Español](README.es.md) | [What it does](#what-it-does) | [Why Stellar](#why-stellar) | [Where it stands](#where-it-stands) | [Principles](#principles) | [Who](#who)
@@ -70,9 +70,9 @@ Rumbo is not a ticket NFT and not a place to speculate on resale. If the organiz
 
 ## Where it stands
 
-Rumbo is at the design stage. The product is specified in detail and the first code lands in November 2026.
+The first column of the table below is built and runs on Stellar's testnet: the [rumbo-pass contract](contracts/rumbo-pass/README.md) (free or paid pass with the split in the same operation, one check-in and one redemption per benefit, with 33 tests) and the [app](app/README.md) (event page, registration, pass with QR code, offline scanner, organizer panel and sponsor report). Accounts are created by the server in test mode; Google and passkey sign-in come next. The whole flow, run against testnet with its transaction ids, is in [app/demo/e2e-testnet.txt](app/demo/e2e-testnet.txt).
 
-The contract starts from an event pass written in September 2026 for Stellar Elite Bolivia: buy a pass, check in once, list who came, with nine tests and a run on testnet. Rumbo extends it with benefits, redemptions and protected payments.
+The contract started from an event pass written in September 2026 for Stellar Elite Bolivia: buy a pass, check in once, list who came. Rumbo extends it with benefits, redemptions and, later, protected payments.
 
 | First | Then | Later |
 |---|---|---|
@@ -84,7 +84,7 @@ The contract starts from an event pass written in September 2026 for Stellar Eli
 
 ## How it is built
 
-A Soroban contract for passes and vouchers, a Next.js app with Supabase underneath, accounts created with Google or a passkey with sponsored network fees, and a scanner that works offline and syncs later. The pieces, the decisions behind them and the four-week build order are in [docs/stack.md](docs/stack.md) (in Spanish).
+A Soroban contract for passes and vouchers, a Next.js app with Supabase underneath, accounts created with Google or a passkey with sponsored network fees, and a scanner that works offline and syncs later. The pieces, the decisions behind them and the four-week build order are in [docs/stack.md](docs/stack.md) (in Spanish). The code lives in [contracts/rumbo-pass](contracts/rumbo-pass/README.md) and [app](app/README.md), each with its own guide.
 
 ## Principles
 
