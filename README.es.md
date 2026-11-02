@@ -65,7 +65,7 @@ Rumbo no es una entrada NFT ni un lugar para especular con la reventa. Si quien 
 
 ## Con Tinkazo
 
-[Tinkazo](https://tinkazo.app) hace sorteos que cualquiera puede comprobar desde su celular. Rumbo y Tinkazo son productos distintos que encajan: Tinkazo decide quién gana, Rumbo entrega lo que se ganó y opera todo lo demás del evento. El premio de un sorteo de Tinkazo entra a la credencial de quien ganó, y el sorteo se hace sobre la lista de quienes de verdad hicieron el check-in.
+[Tinkazo](https://tinkazo.app) hace sorteos que cualquiera puede comprobar desde su celular. Rumbo y Tinkazo son productos distintos que encajan: Tinkazo decide quién gana, Rumbo entrega lo que se ganó y opera todo lo demás del evento. El premio de un sorteo de Tinkazo entra a la credencial de quien ganó, el sorteo se hace sobre quienes de verdad hicieron el check-in, y participar en el sorteo es gratis siempre, sea el evento pago o no.
 
 ## Dónde está
 
@@ -92,7 +92,7 @@ El contrato parte de un pase de evento escrito en septiembre de 2026 para Stella
 
 ## Quiénes
 
-Rumbo se hace en Santa Cruz de la Sierra, Bolivia. Lo hace [Nicolás Emir Mejía Agreda](https://github.com/nema1502), que organiza eventos de tecnología para la comunidad con n8n, Clerk, Chainlink, Supabase, Women Techmakers y Team1, con [Guido Salazar](https://github.com/GuidoSV7) en el frontend.
+Rumbo se hace en Santa Cruz de la Sierra, Bolivia. Lo fundan [Nicolás Emir Mejía Agreda](https://github.com/nema1502), que organiza eventos de tecnología para la comunidad con n8n, Clerk, Chainlink, Supabase, Women Techmakers y Team1 y escribe los contratos, y [Guido Salazar](https://github.com/GuidoSV7), que construye el frontend.
 
 Preguntas e ideas: abrí un issue.
 
