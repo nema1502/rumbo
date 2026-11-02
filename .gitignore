@@ -29,3 +29,7 @@ data/
 
 # Instantáneas que escribe el SDK de Soroban al correr las pruebas
 test_snapshots/
+
+# La app (Next.js): lo que genera al compilar
+app/.next/
+app/next-env.d.ts
