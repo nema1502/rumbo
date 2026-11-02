@@ -10,6 +10,8 @@
 
 **[rumbo-eventos.vercel.app](https://rumbo-eventos.vercel.app)** | [English](README.md) | [Qué hace](#qué-hace) | [Por qué Stellar](#por-qué-stellar) | [Dónde está](#dónde-está) | [Principios](#principios) | [Quiénes](#quiénes)
 
+<img src="site/assets/og.png" alt="Rumbo: tu evento entero en un QR. Una credencial de muestra con su QR y sus beneficios." width="820">
+
 </div>
 
 ---
@@ -70,7 +72,7 @@ Rumbo no es una entrada NFT ni un lugar para especular con la reventa. Si quien 
 
 ## Dónde está
 
-Rumbo está en etapa de diseño. El producto está especificado en detalle y el primer código entra en noviembre de 2026.
+Rumbo está en etapa de diseño: el producto está especificado en detalle y el primer código entra en noviembre de 2026. Lo que ya se puede ver: la [landing](https://rumbo-eventos.vercel.app) con una animación de 31 segundos del flujo entero, una [demo clickeable](https://rumbo-eventos.vercel.app/#probar) donde te inscribís, recibís la credencial, la escaneás como voluntario (también sin conexión) y hacés el sorteo como organizador, y el [contrato de septiembre en testnet](https://stellar.expert/explorer/testnet/contract/CDSXJR7MBV3ZLHLQPVTWZYVVP3CNABMGO6RRPLSI2KVFSJ2UX4SUD7DP).
 
 El contrato parte de un pase de evento escrito en septiembre de 2026 para Stellar Elite Bolivia: comprar el pase, entrar una sola vez, listar quiénes vinieron, con nueve pruebas y una corrida en testnet. Rumbo lo extiende con beneficios, canjes y pagos protegidos.
 

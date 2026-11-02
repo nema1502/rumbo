@@ -10,6 +10,8 @@
 
 **[rumbo-eventos.vercel.app](https://rumbo-eventos.vercel.app)** | [Español](README.es.md) | [What it does](#what-it-does) | [Why Stellar](#why-stellar) | [Where it stands](#where-it-stands) | [Principles](#principles) | [Who](#who)
 
+<img src="site/assets/og.png" alt="Rumbo: your whole event in one QR code. A sample pass with a QR code and its benefits." width="820">
+
 </div>
 
 ---
@@ -70,7 +72,7 @@ Rumbo is not a ticket NFT and not a place to speculate on resale. If the organiz
 
 ## Where it stands
 
-Rumbo is at the design stage. The product is specified in detail and the first code lands in November 2026.
+Rumbo is at the design stage: the product is specified in detail and the first code lands in November 2026. What you can see today: the [landing page](https://rumbo-eventos.vercel.app) with a 31-second animation of the whole flow, a [clickable demo](https://rumbo-eventos.vercel.app/#probar) where you sign up, get your pass, scan it as a volunteer (offline too) and run the draw as the organizer, and the [September contract on testnet](https://stellar.expert/explorer/testnet/contract/CDSXJR7MBV3ZLHLQPVTWZYVVP3CNABMGO6RRPLSI2KVFSJ2UX4SUD7DP).
 
 The contract starts from an event pass written in September 2026 for Stellar Elite Bolivia: buy a pass, check in once, list who came, with nine tests and a run on testnet. Rumbo extends it with benefits, redemptions and protected payments.
 
