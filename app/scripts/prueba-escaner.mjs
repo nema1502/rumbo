@@ -102,7 +102,7 @@ async function crearPase(nombre, ticket, fn) {
   return { nombre, person, pass, account, contract, qr: buildQrPayload(pass.id, key) };
 }
 
-paso(`El evento "${event.name}": puerta ${formatStationCode(gateCode)}, almuerzo ${formatStationCode(lunchCode)}. Creando tres pases en la red de prueba (de a uno, tarda)...`);
+paso(`El evento "${event.name}": puerta ${formatStationCode(gateCode)}, almuerzo ${formatStationCode(lunchCode)}. Creando cuatro pases en la red de prueba (de a uno, tarda)...`);
 const gratis = await crearPase("Valentina Prueba", freeTicket, "register");
 const almuerzo = await crearPase("Mateo Prueba", paidTicket, "buy");
 const doble = await crearPase("Sofia Prueba", freeTicket, "register");
