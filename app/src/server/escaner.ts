@@ -6,6 +6,7 @@
 import type { ScanEvent, ScanItem, ScanItemResult, ScanItemStatus, ScanPassInfo, ScanSnapshot, ScanStation } from "../lib/escaner-api.ts";
 import { GATE_STATION } from "../lib/escaner-api.ts";
 import { isValidPassId } from "../lib/qr-codec.ts";
+import { clientKey, stationCodeAttempts } from "./limites.ts";
 import { resolveStationCode, type StationAccess } from "./panel.ts";
 import { ClientIdTaken, type CheckIn, type EventRecord, type PassView, type Repo, type SyncMark } from "./repo.ts";
 import {
@@ -101,7 +102,6 @@ export async function buildSnapshot(repo: Repo, access: StationAccess): Promise<
 
 declare global {
   var __rumboScanInFlight: Set<string> | undefined;
-  var __rumboScanAttempts: Map<string, { count: number; until: number }> | undefined;
 }
 
 /** Los registros que están yendo al contrato ahora mismo: el mismo clientId no se manda dos veces a la vez. */
@@ -308,40 +308,24 @@ async function syncRedeem(repo: Repo, event: EventRecord, item: ScanItem, view: 
 // ---------- Los pedidos de /api/scan ----------
 
 const MAX_ITEMS_PER_SYNC = 20;
-const MAX_WRONG_CODES = 8;
-const WRONG_CODE_WINDOW_MS = 10 * 60 * 1000;
-
-/** Quién pide, para frenar a quien prueba códigos al azar. */
-function clientKey(request: Request): string {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "local";
-}
-
-function attempts(): Map<string, { count: number; until: number }> {
-  return (globalThis.__rumboScanAttempts ??= new Map());
-}
-
-function isLockedOut(key: string): boolean {
-  const entry = attempts().get(key);
-  if (!entry) return false;
-  if (Date.now() > entry.until) {
-    attempts().delete(key);
-    return false;
-  }
-  return entry.count >= MAX_WRONG_CODES;
-}
-
-function noteWrongCode(key: string): void {
-  const entry = attempts().get(key);
-  if (entry && Date.now() <= entry.until) entry.count++;
-  else attempts().set(key, { count: 1, until: Date.now() + WRONG_CODE_WINDOW_MS });
-}
 
 export type ScanAuth = { ok: true; access: StationAccess; body: Record<string, unknown> } | { ok: false; response: Response };
 
-/** Lee el cuerpo del pedido y resuelve el código del puesto: a qué evento y a qué puesto abre. */
+/**
+ * Lee el cuerpo del pedido y resuelve el código del puesto: a qué evento y a qué puesto abre. Los códigos
+ * equivocados se cuentan por la IP que pone la plataforma (no la que dice x-forwarded-for) y en total, con
+ * una espera que crece: ver stationCodeAttempts en limites.ts.
+ */
 export async function authorizeScanRequest(repo: Repo, request: Request): Promise<ScanAuth> {
-  const key = clientKey(request);
-  if (isLockedOut(key)) return { ok: false, response: Response.json({ error: "too_many_attempts" }, { status: 429 }) };
+  const attempts = stationCodeAttempts();
+  const key = clientKey(request.headers);
+  const wait = attempts.blockedFor(key);
+  if (wait > 0) {
+    return {
+      ok: false,
+      response: Response.json({ error: "too_many_attempts" }, { status: 429, headers: { "Retry-After": String(Math.ceil(wait / 1000)) } }),
+    };
+  }
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -352,7 +336,7 @@ export async function authorizeScanRequest(repo: Repo, request: Request): Promis
   if (!code) return { ok: false, response: Response.json({ error: "bad_request" }, { status: 400 }) };
   const access = await resolveStationCode(code, repo);
   if (!access) {
-    noteWrongCode(key);
+    attempts.note(key);
     return { ok: false, response: Response.json({ error: "wrong_code" }, { status: 401 }) };
   }
   return { ok: true, access, body };

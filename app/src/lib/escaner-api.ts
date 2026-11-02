@@ -86,7 +86,7 @@ export interface ScanItemResult {
 }
 
 export interface OpenRequest {
-  /** El código del puesto, como lo escribió el voluntario ("ABCD-EFGH", con o sin guion). */
+  /** El código del puesto, como lo escribió el voluntario ("ABCD-EFGH-JKLM", con o sin guiones). */
   code: string;
 }
 

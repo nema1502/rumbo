@@ -86,7 +86,7 @@ export function verifyOrganizerKey(eventId: string, key: string | null | undefin
 export type StationKind = "gate" | "benefit";
 
 export interface StationCode {
-  /** Ocho letras y números, sin guion. La interfaz lo muestra como "ABCD-EFGH" (src/lib/station-code.ts). */
+  /** Doce letras y números, sin guiones. La interfaz lo muestra como "ABCD-EFGH-JKLM" (src/lib/station-code.ts). */
   code: string;
   eventId: string;
   kind: StationKind;
@@ -130,9 +130,10 @@ const rowToStation = (row: StationRow): StationCode => ({
   createdAt: row.created_at,
 });
 
+/** Ocho bytes al azar dan trece letras en base32: se usan las primeras doce, sesenta bits. */
 function newStationCode(db: DatabaseSync): string {
   for (;;) {
-    const code = base32Encode(new Uint8Array(randomBytes(5))).slice(0, STATION_CODE_LENGTH);
+    const code = base32Encode(new Uint8Array(randomBytes(8))).slice(0, STATION_CODE_LENGTH);
     if (!db.prepare("SELECT 1 FROM station_codes WHERE code = ?").get(code)) return code;
   }
 }

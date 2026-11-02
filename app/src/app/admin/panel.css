@@ -133,6 +133,7 @@
   .panel-accion .boton { width: 100%; }
   .panel-accion-estado { display: none; }
   .puesto { grid-template-columns: minmax(0, 1fr) auto; }
+  .codigo { font-size: 1rem; letter-spacing: 0.04em; padding: 4px 8px; }
   .puesto .boton { grid-column: 1 / -1; width: 100%; }
   .informe-cifras { grid-template-columns: 1fr; }
   .informe-titular { padding: 20px; }

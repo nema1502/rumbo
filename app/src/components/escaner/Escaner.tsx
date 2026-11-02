@@ -10,6 +10,7 @@ import { useT } from "@/i18n/client.tsx";
 import { abrirCola, listoParaReintentar, nuevaEntrada, nuevoId, type ColaLocal, type QueueCounts, type ScanSession } from "@/lib/cola.ts";
 import { SYNC_BATCH_SIZE, decideVerdict, type ScanSnapshot, type ScanStation, type SyncResponse, type Verdict } from "@/lib/escaner-api.ts";
 import { importQrKey, verifyQrPayloadInBrowser } from "@/lib/qr-verify.ts";
+import { STATION_CODE_LENGTH } from "@/lib/station-code.ts";
 import { Camara, type CameraProblem } from "./Camara.tsx";
 import { Veredicto } from "./Veredicto.tsx";
 
@@ -374,7 +375,7 @@ export function Escaner() {
             autoComplete="off"
             spellCheck={false}
             inputMode="text"
-            maxLength={9}
+            maxLength={STATION_CODE_LENGTH + 4}
             required
           />
         </Pantalla>

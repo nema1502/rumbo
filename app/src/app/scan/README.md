@@ -30,7 +30,9 @@ Si no hay nada pendiente, cada minuto pide igual la foto fresca, para enterarse 
 
 ## El código del puesto
 
-Los emite el panel de quien organiza (`src/server/panel.ts`, tabla `station_codes`): uno para la puerta y uno por cada beneficio, de ocho letras y números, que se muestran como `ABCD-EFGH` y se aceptan en minúsculas y sin guion. El código dice a qué evento y a qué puesto abre, así que el servidor solo acepta de un código de puerta entradas, y de un código de mesa canjes de su beneficio. Quien escribe ocho códigos equivocados seguidos espera diez minutos.
+Los emite el panel de quien organiza (`src/server/panel.ts`, tabla `station_codes`): uno para la puerta y uno por cada beneficio, de doce letras y números (sesenta bits), que se muestran como `ABCD-EFGH-JKLM` y se aceptan en minúsculas y sin guiones. El código dice a qué evento y a qué puesto abre, así que el servidor solo acepta de un código de puerta entradas, y de un código de mesa canjes de su beneficio. Los códigos de ocho letras de antes se borraron (migración `005-codigos-largos.sql`) y el panel crea los nuevos al abrirse.
+
+Contra quien prueba códigos a la fuerza (`src/server/limites.ts`): los equivocados se cuentan por la IP que pone la plataforma (en Vercel `x-real-ip`; detrás de otro proxy, el encabezado de `RUMBO_TRUSTED_IP_HEADER`), nunca por lo que diga `x-forwarded-for` en el pedido. Sin plataforma ni proxy configurado, todos los pedidos cuentan como uno solo. Ocho equivocados en diez minutos frenan esa IP diez minutos, y cada freno siguiente dura el doble, hasta un día. Cincuenta equivocados en total en diez minutos (alguien prueba desde muchas IP) encienden una alarma: mientras dura, cada IP que ya falló una vez queda frenada, y quien escribe bien su código sigue entrando. La respuesta frenada es un 429 con `Retry-After`.
 
 ## Sin red, de verdad
 
