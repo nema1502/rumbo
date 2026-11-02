@@ -92,7 +92,7 @@ El contrato parte de un pase de evento escrito en septiembre de 2026 para Stella
 
 ## Quiénes
 
-Rumbo se hace en Santa Cruz de la Sierra, Bolivia. Lo fundan [Nicolás Emir Mejía Agreda](https://github.com/nema1502), que organiza eventos de tecnología para la comunidad con n8n, Clerk, Chainlink, Supabase, Women Techmakers y Team1 y escribe los contratos, y [Guido Salazar](https://github.com/GuidoSV7), que construye el frontend.
+Rumbo se hace en Santa Cruz de la Sierra, Bolivia. Lo fundan [Nicolás Emir Mejía Agreda](https://github.com/nema1502), producto y contratos, y [Guido Salazar](https://github.com/GuidoSV7), desarrollo full stack.
 
 Preguntas e ideas: abrí un issue.
 

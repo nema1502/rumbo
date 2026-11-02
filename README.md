@@ -92,7 +92,7 @@ The contract starts from an event pass written in September 2026 for Stellar Eli
 
 ## Who
 
-Rumbo is made in Santa Cruz de la Sierra, Bolivia, by its two founders: [Nicolás Emir Mejía Agreda](https://github.com/nema1502), who has organized community tech events with n8n, Clerk, Chainlink, Supabase, Women Techmakers and Team1 and writes the contracts, and [Guido Salazar](https://github.com/GuidoSV7), who builds the frontend.
+Rumbo is made in Santa Cruz de la Sierra, Bolivia, by its two founders: [Nicolás Emir Mejía Agreda](https://github.com/nema1502), product and smart contracts, and [Guido Salazar](https://github.com/GuidoSV7), full-stack development.
 
 Questions and ideas: open an issue.
 
