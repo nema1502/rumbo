@@ -4,9 +4,9 @@
   "rpcUrl": "https://soroban-testnet.stellar.org",
   "horizonUrl": "https://horizon-testnet.stellar.org",
   "friendbotUrl": "https://friendbot.stellar.org",
-  "deployedAt": "2026-11-02T18:13:15Z",
-  "wasmHash": "e0947b8bce2002582add7b1321da0c14b813334504437d96b0a5a9ca1228f574",
-  "wasmBytes": 10916,
+  "deployedAt": "2026-11-02T22:33:48Z",
+  "wasmHash": "a7806257421999959f6e9a77a3fe5c172fbc8c428b444ed277b822d7adfe248e",
+  "wasmBytes": 11939,
   "asset": {
     "code": "USDC",
     "issuer": "GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL",
@@ -22,20 +22,20 @@
   },
   "events": {
     "paid": {
-      "contract": "CBGPZQGK6XARBVJG47WM6S6M54ZMSIPM5HSICIHLVE6E3LZNZXQJ4HM5",
+      "contract": "CCO44LIYFNPI7ABI53JNJKNV5ADEWTK32R4S2NMYYCV6I6YSPZVABLDN",
       "price": "100000000",
       "feeBps": 250,
       "capacity": 50,
       "benefits": 2,
-      "explorer": "https://stellar.expert/explorer/testnet/contract/CBGPZQGK6XARBVJG47WM6S6M54ZMSIPM5HSICIHLVE6E3LZNZXQJ4HM5"
+      "explorer": "https://stellar.expert/explorer/testnet/contract/CCO44LIYFNPI7ABI53JNJKNV5ADEWTK32R4S2NMYYCV6I6YSPZVABLDN"
     },
     "free": {
-      "contract": "CCP3TW6E5F6H55C7TTNHDM5TFJPLRMY2OCFBZIGJVUW44UINZPILLA5D",
+      "contract": "CCTZXEYBU2PDMF4RRJPQJ3ORJROXF2G47RKJMCHX76DQA3S2AX4YAN7Y",
       "price": "0",
       "feeBps": 250,
       "capacity": 50,
       "benefits": 1,
-      "explorer": "https://stellar.expert/explorer/testnet/contract/CCP3TW6E5F6H55C7TTNHDM5TFJPLRMY2OCFBZIGJVUW44UINZPILLA5D"
+      "explorer": "https://stellar.expert/explorer/testnet/contract/CCTZXEYBU2PDMF4RRJPQJ3ORJROXF2G47RKJMCHX76DQA3S2AX4YAN7Y"
     }
   },
   "demoAccounts": {

@@ -77,7 +77,7 @@ Desde la raíz del repositorio, con Rust estable y el objetivo `wasm32v1-none`:
 
 ```bash
 cargo test --workspace     # 43 pruebas
-stellar contract build     # target/wasm32v1-none/release/rumbo_pass.wasm, 10,9 KB
+stellar contract build     # target/wasm32v1-none/release/rumbo_pass.wasm, 11,9 KB
 ```
 
 Las pruebas (`src/test.rs`) cubren cada función y cada error (también `NotConfigured`, borrando la configuración a mano, porque en la red el constructor siempre configura), el reparto exacto de la comisión con el activo de prueba del SDK (incluido el redondeo, la comisión cero, la comisión entera y el precio más alto), que si la segunda transferencia falla la primera se deshace (con un activo de prueba que se niega a pagarle la comisión a Rumbo: quien organiza no se queda con su parte y no hay pase), el cupo, el doble canje, la lista completa con mil cuentas y la entrada número mil con el presupuesto real, y quién tiene que firmar cada cosa: la compra solo la firma quien compra y cubre las dos transferencias; la entrada y el canje, solo la puerta (la persona no se marca a sí misma, ni con su firma). También que `extend_ttl` deja en 120 días la vida del pase, de la lista y de la instancia sin pedir firma, midiendo lo que le queda a cada entrada después de cien días sin movimiento.
@@ -108,13 +108,13 @@ La corrida se puede repetir: las cuentas y el activo se reusan y cada vez se des
 
 | Qué | Dónde |
 |---|---|
-| WASM (hash) | `e0947b8bce2002582add7b1321da0c14b813334504437d96b0a5a9ca1228f574` |
-| Evento pago | [`CBGPZQGK6XARBVJG47WM6S6M54ZMSIPM5HSICIHLVE6E3LZNZXQJ4HM5`](https://stellar.expert/explorer/testnet/contract/CBGPZQGK6XARBVJG47WM6S6M54ZMSIPM5HSICIHLVE6E3LZNZXQJ4HM5) |
-| Evento gratis | [`CCP3TW6E5F6H55C7TTNHDM5TFJPLRMY2OCFBZIGJVUW44UINZPILLA5D`](https://stellar.expert/explorer/testnet/contract/CCP3TW6E5F6H55C7TTNHDM5TFJPLRMY2OCFBZIGJVUW44UINZPILLA5D) |
+| WASM (hash) | `a7806257421999959f6e9a77a3fe5c172fbc8c428b444ed277b822d7adfe248e` |
+| Evento pago | [`CCO44LIYFNPI7ABI53JNJKNV5ADEWTK32R4S2NMYYCV6I6YSPZVABLDN`](https://stellar.expert/explorer/testnet/contract/CCO44LIYFNPI7ABI53JNJKNV5ADEWTK32R4S2NMYYCV6I6YSPZVABLDN) |
+| Evento gratis | [`CCTZXEYBU2PDMF4RRJPQJ3ORJROXF2G47RKJMCHX76DQA3S2AX4YAN7Y`](https://stellar.expert/explorer/testnet/contract/CCTZXEYBU2PDMF4RRJPQJ3ORJROXF2G47RKJMCHX76DQA3S2AX4YAN7Y) |
 | USDC de prueba (emisor) | `GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL` |
 | USDC de prueba (contrato) | `CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ` |
 
-Tres compraron, dos entraron, Ana canjeó su almuerzo y el segundo intento falló con `Error(Contract, #6)`. Quien organiza subió 29,25 USDC de prueba y Rumbo 0,75; el contrato quedó con 0.
+Es el contrato de ahora: la entrada la marca solo la puerta, el precio tiene tope y está `extend_ttl`. Tres compraron, dos entraron por la puerta (Beto quiso marcar su propia entrada y la red lo rechazó con `Error(Contract, #8)`), Ana canjeó su almuerzo y el segundo intento falló con `Error(Contract, #6)`, y `extend_ttl` sobre los cuatro de la corrida devolvió 3 (Dani no tiene pase en el evento pago). Quien organiza subió 29,25 USDC de prueba y Rumbo 0,75; el contrato quedó con 0. Los contratos de la corrida anterior (`CBGPZQGK...` y `CCP3TW6E...`) siguen en la red con el código viejo, que dejaba marcar la propia entrada: la app ya no los usa.
 
 ## Para la app
 
@@ -123,6 +123,7 @@ Tres compraron, dos entraron, Ana canjeó su almuerzo y el segundo intento fall�
 - El escáner manda `check_in(attendee, by = gate)` y `redeem(attendee, benefit)` firmados por la cuenta de puerta, con la comisión de red pagada por la cuenta patrocinadora. Si al sincronizar una cola llega un canje antes que la entrada de esa persona, la red responde `NotCheckedIn` (#5): se reintenta después de la entrada.
 - Una cuenta nueva necesita existir en la red y tener la línea de confianza al USDC de prueba antes de comprar; en la corrida lo hace friendbot y `change-trust`, en la app lo hace el servidor al crear la cuenta.
 - La red de prueba se reinicia el 16 de diciembre de 2026 y borra contratos y cuentas: ese día se vuelve a correr `scripts/demo_testnet.sh` y se actualiza `deploy/testnet.json`.
+- Después de cada despliegue nuevo, una base de la app que ya tenía el evento de muestra sigue apuntando a los contratos anteriores hasta correr `pnpm seed -- --refresh` (una base nueva, como la de `pnpm e2e`, toma los nuevos sola).
 
 ## Lo que falta
 

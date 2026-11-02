@@ -207,8 +207,10 @@ correr contract invoke --id "$SAC" --source rb-sponsor --network "$RED" --send=n
 nota "La lista de quienes entraron, en orden de llegada: la lista del sorteo"
 leer attendees
 
-nota "Antes del evento se mantiene vivo el contrato y los pases (extend_ttl, sin firma). Devuelve cuántos pases extendió"
-invocar extend_ttl --holders "[\"$(direccion rb-ana)\",\"$(direccion rb-beto)\",\"$(direccion rb-caro)\",\"$(direccion rb-dani)\"]"
+nota "Antes del evento se mantiene vivo el contrato y los pases (extend_ttl, sin firma: la manda y la paga la patrocinadora). Devuelve cuántos pases extendió; Dani no tiene pase en este evento"
+# Solo mueve vidas de entradas, así que el CLI la toma por una lectura y no la mandaría: --send=yes la manda igual.
+correr contract invoke --id "$ID" --source rb-sponsor --network "$RED" --send=yes -- \
+  extend_ttl --holders "[\"$(direccion rb-ana)\",\"$(direccion rb-beto)\",\"$(direccion rb-caro)\",\"$(direccion rb-dani)\"]"
 
 nota "Evento gratis: precio 0, cupo de 50, un beneficio"
 correr contract deploy --wasm-hash "$HASH" --source rb-sponsor --network "$RED" \
