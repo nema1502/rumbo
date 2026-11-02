@@ -40,5 +40,4 @@ El script inscribe a una persona de prueba, lee `status()` en la cadena, verific
 ## Lo que falta
 
 - El SVG se descarga; la versión en PDF (con `resvg`) todavía no está.
-- `reassignPendingPass` escribe en la tabla de pases desde acá para retomar una inscripción que quedó a medias con otra entrada: tendría que ser un método del repo.
 - Las claves de acceso solo existen con `RUMBO_REPO=sqlite`.

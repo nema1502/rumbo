@@ -2,7 +2,7 @@
 // que se entra al panel de cada evento, los códigos de puesto que reciben los voluntarios, los números
 // que salen del espejo en la base y el contraste con la cadena (status, attendees e info del contrato).
 // No importa nada de Next, así los scripts también lo pueden usar; lo que depende del pedido HTTP
-// (la cookie, las respuestas) está en panel-sesion.ts. Las tablas propias están en migrations/002-panel.sql.
+// (la cookie, las respuestas) está en panel-sesion.ts. Las tablas propias están en migrations/003-panel.sql.
 import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
@@ -30,7 +30,7 @@ declare global {
 
 /**
  * Una segunda conexión a la misma base SQLite, para las tablas del panel. getRepo() abre la base y
- * aplica las migraciones (002-panel.sql trae estas tablas); acá solo se leen y se escriben.
+ * aplica las migraciones (003-panel.sql trae estas tablas); acá solo se leen y se escriben.
  */
 function panelDb(): DatabaseSync {
   if (globalThis.__rumboPanelDb) return globalThis.__rumboPanelDb;

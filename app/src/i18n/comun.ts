@@ -52,8 +52,6 @@ export const comun = {
     "inicio.escaner": "Escáner del voluntario",
     "inicio.gratis": "Inscripción gratis",
 
-    "enConstruccion.titulo": "En construcción",
-    "enConstruccion.texto": "Esta pantalla está por llegar.",
     "error.titulo": "Algo salió mal",
     "error.texto": "Probá de nuevo en un momento.",
     "noEncontrado.titulo": "Esto no está acá",
@@ -85,7 +83,7 @@ export const comun = {
     "estado.listo": "Ready",
     "estado.canjeado": "Redeemed",
     "estado.yaCanjeado": "Already redeemed",
-    "estado.noCorresponde": "Not included",
+    "estado.noCorresponde": "Not valid here",
     "estado.ganado": "Won",
     "estado.entro": "Checked in",
     "estado.doble": "Duplicate, review",
@@ -112,8 +110,6 @@ export const comun = {
     "inicio.escaner": "Volunteer scanner",
     "inicio.gratis": "Free registration",
 
-    "enConstruccion.titulo": "Under construction",
-    "enConstruccion.texto": "This screen is on its way.",
     "error.titulo": "Something went wrong",
     "error.texto": "Try again in a moment.",
     "noEncontrado.titulo": "Nothing here",

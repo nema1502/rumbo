@@ -67,12 +67,3 @@ export function verifyAccessKey(passId: string, key: unknown): boolean {
   if (!stored || stored.length !== key.length) return false;
   return timingSafeEqual(Buffer.from(stored, "utf8"), Buffer.from(key, "utf8"));
 }
-
-/**
- * Cambia la entrada de un pase que quedó a medio inscribir (la red falló antes de activarlo) cuando la
- * persona vuelve y elige otra. Solo toca pases pendientes. Pendiente: llevarlo a Repo.updatePass.
- */
-export function reassignPendingPass(passId: string, ticketTypeId: string): boolean {
-  const result = connection().prepare("UPDATE passes SET ticket_type_id = ? WHERE id = ? AND status = 'pending'").run(ticketTypeId, passId);
-  return Number(result.changes) > 0;
-}

@@ -15,7 +15,9 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "setup:dev": "node scripts/setup-dev.mjs",
-    "seed": "node scripts/seed.mjs"
+    "seed": "node scripts/seed.mjs",
+    "e2e": "node scripts/e2e-testnet.mjs",
+    "capturas": "node scripts/capturas.mjs"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "17.4.0",

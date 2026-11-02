@@ -135,6 +135,8 @@ export interface NewPass {
 }
 
 export interface PassPatch {
+  /** Para retomar una inscripción que quedó pendiente con otra entrada. Solo se cambia en pases pendientes. */
+  ticketTypeId?: string;
   account?: string | null;
   status?: PassStatus;
   txHash?: string | null;
@@ -678,6 +680,10 @@ export class SqliteRepo implements Repo {
   }
 
   async updatePass(id: string, patch: PassPatch): Promise<Pass> {
+    if (patch.ticketTypeId !== undefined) {
+      // La entrada solo cambia mientras el pase está pendiente: una vez activo, el contrato ya es el de su entrada.
+      this.run("UPDATE passes SET ticket_type_id = ? WHERE id = ? AND status = 'pending'", patch.ticketTypeId, id);
+    }
     const columns: Record<string, SQLInputValue> = {};
     if (patch.account !== undefined) columns.account = patch.account;
     if (patch.status !== undefined) {

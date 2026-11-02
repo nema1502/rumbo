@@ -9,7 +9,7 @@ import { baseUrl } from "../env.ts";
 import { getMailer } from "../mailer.ts";
 import { getRepo, normalizeEmail, type EventRecord, type Pass, type Person, type Repo, type TicketType } from "../repo.ts";
 import { isContractError, requireContractId, rumboPass } from "../stellar.ts";
-import { getOrCreateAccessKey, reassignPendingPass } from "./acceso.ts";
+import { getOrCreateAccessKey } from "./acceso.ts";
 import { buildPassEmail } from "./correo.ts";
 
 export interface RegistrationFields {
@@ -145,8 +145,7 @@ export async function registerForEvent(input: RegistrationInput): Promise<Regist
   let pass = existingPass ?? (await findOrCreatePass(repo, event, person, ticketType));
   if (pass.ticketTypeId !== ticketType.id) {
     // Quedó una inscripción empezada con otra entrada (la red falló a mitad de camino): sigue con la de ahora.
-    reassignPendingPass(pass.id, ticketType.id);
-    pass = (await repo.getPass(pass.id)) ?? pass;
+    pass = await repo.updatePass(pass.id, { ticketTypeId: ticketType.id });
   }
 
   const accounts = getAccountProvider(repo);

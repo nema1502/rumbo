@@ -186,7 +186,7 @@ async function puertoOcupado(port) {
   }
 }
 
-export async function launch({ port = Number(process.env.CDP_PORT || 9222), width = 1280, height = 900 } = {}) {
+export async function launch({ port = Number(process.env.CDP_PORT || 9222), width = 1280, height = 900, args = [] } = {}) {
   limpiarViejos();
   // Con el puerto ya tomado (otra auditoría, o un Chrome que quedó suelto), la
   // espera de abajo se enganchaba a ese Chrome, que no es nuestro: cualquier
@@ -225,6 +225,8 @@ export async function launch({ port = Number(process.env.CDP_PORT || 9222), widt
       `--remote-debugging-port=${port}`,
       `--user-data-dir=${profile}`,
       `--window-size=${width},${height}`,
+      // Lo que pida quien llama (por ejemplo, una cámara de mentira para el escáner).
+      ...args,
       "about:blank",
     ],
     { stdio: "ignore" },

@@ -1,6 +1,6 @@
 # El panel de quien organiza y el informe para quien auspicia
 
-`/admin/<evento>` es el panel; `/admin/<evento>/informe`, el informe para imprimir. Lo que corre en el servidor está en `src/server/panel.ts` (los números, la clave, los códigos de puesto, el contraste con la cadena, el CSV) y `src/server/panel-sesion.ts` (la cookie); lo que se ve, en `src/components/panel/`; los textos, en `src/i18n/panel.ts`; las tablas propias, en `src/server/migrations/002-panel.sql`.
+`/admin/<evento>` es el panel; `/admin/<evento>/informe`, el informe para imprimir. Lo que corre en el servidor está en `src/server/panel.ts` (los números, la clave, los códigos de puesto, el contraste con la cadena, el CSV) y `src/server/panel-sesion.ts` (la cookie); lo que se ve, en `src/components/panel/`; los textos, en `src/i18n/panel.ts`; las tablas propias, en `src/server/migrations/003-panel.sql`.
 
 ## Entrar
 

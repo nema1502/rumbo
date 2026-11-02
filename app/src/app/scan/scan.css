@@ -28,20 +28,11 @@
 .esc-switch input:checked + .esc-switch-pista::after { transform: translateX(18px); }
 .esc-switch input:focus-visible + .esc-switch-pista { outline: 3px solid var(--acento); outline-offset: 2px; }
 
-/* Los puestos para elegir */
-.esc-puestos { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; min-width: 0; }
-.esc-puestos legend { padding: 0; margin-bottom: 6px; }
-.esc-puesto { display: grid; grid-template-columns: auto 1fr; column-gap: 12px; align-items: center; padding: 10px 14px; border: 1px solid var(--linea); border-radius: var(--radio-chico); background: var(--tarjeta); cursor: pointer; min-height: 52px; }
-.esc-puesto input { grid-row: 1 / span 2; width: 20px; height: 20px; accent-color: var(--acento); margin: 0; }
-.esc-puesto-elegido { border-color: var(--acento); box-shadow: 0 0 0 1px var(--acento); }
-.esc-puesto-nombre { font-weight: 600; }
+/* El campo del código del puesto */
 .esc-campo-codigo input { font-family: var(--display); font-size: 1.6rem; letter-spacing: 0.2em; text-transform: uppercase; text-align: center; }
 
 .esc-pie { justify-content: space-between; }
-.esc-pie .enlace, .esc-cambio .enlace { background: none; border: 0; cursor: pointer; font-size: 0.95rem; }
-.esc-cambio { display: grid; gap: 8px; }
-.esc-cambio .esc-puesto { text-align: left; font: inherit; color: inherit; }
-.esc-cambio .esc-puesto[aria-pressed="true"] { border-color: var(--acento); box-shadow: 0 0 0 1px var(--acento); }
+.esc-pie .enlace { background: none; border: 0; cursor: pointer; font-size: 0.95rem; }
 
 /* El veredicto: a pantalla entera, grande, con color y palabra. Los colores son fijos en los dos temas:
    verde con el texto en verde sobre un panel de papel (el verde no lleva texto encima), amarillo con tinta,
