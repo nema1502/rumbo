@@ -19,6 +19,7 @@ import {
   type ScanSession,
 } from "@/lib/cola.ts";
 import { SYNC_BATCH_SIZE, decideVerdict, type ScanSnapshot, type ScanStation, type SyncResponse, type Verdict } from "@/lib/escaner-api.ts";
+import { OPEN_TIMEOUT_MS, READ_REFRESH_TIMEOUT_MS, SYNC_TIMEOUT_MS, postJson } from "@/lib/http.ts";
 import { importQrKey, verifyQrPayloadInBrowser } from "@/lib/qr-verify.ts";
 import { STATION_CODE_LENGTH, normalizeStationCode } from "@/lib/station-code.ts";
 import { Camara, type CameraProblem } from "./Camara.tsx";
@@ -50,11 +51,6 @@ function deviceId(): string {
   }
 }
 
-async function postJson<T>(url: string, body: unknown): Promise<{ status: number; data: T | null }> {
-  const response = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-  const data = response.headers.get("content-type")?.includes("json") ? ((await response.json()) as T) : null;
-  return { status: response.status, data };
-}
 
 function vibrar(kind: Verdict["kind"]): void {
   if (typeof navigator === "undefined" || !("vibrate" in navigator)) return;
@@ -172,10 +168,11 @@ export function Escaner() {
 
       /** Manda un lote con su código. "cerrado": el código ya no es de ningún puesto. */
       const enviar = async (code: string, lote: QueueEntry[], actual: boolean): Promise<"ok" | "cerrado"> => {
-        const { status, data } = await postJson<SyncResponse>("/api/scan/sync", {
-          code,
-          items: lote.map(({ clientId, action, passId, benefitId, scannedAt, scannerId }) => ({ clientId, action, passId, benefitId, scannedAt, scannerId })),
-        });
+        const { status, data } = await postJson<SyncResponse>(
+          "/api/scan/sync",
+          { code, items: lote.map(({ clientId, action, passId, benefitId, scannedAt, scannerId }) => ({ clientId, action, passId, benefitId, scannedAt, scannerId })) },
+          SYNC_TIMEOUT_MS,
+        );
         if (status === 401 || status === 404) return "cerrado";
         if (!data || status !== 200) throw new Error(`HTTP ${status}`);
         for (const result of data.results) {
@@ -279,7 +276,7 @@ export function Escaner() {
     setErrorAbrir(null);
     try {
       const code = normalizeStationCode(codigo);
-      const { status, data } = await postJson<ScanSnapshot>("/api/scan/open", { code });
+      const { status, data } = await postJson<ScanSnapshot>("/api/scan/open", { code }, OPEN_TIMEOUT_MS);
       if (status === 401) return setErrorAbrir(t("escaner.codigoMal"));
       if (status === 429) return setErrorAbrir(t("escaner.demasiadosIntentos"));
       if (!data || status !== 200) return setErrorAbrir(t("escaner.errorRed"));
@@ -334,9 +331,10 @@ export function Escaner() {
         let snapshot = s.snapshot;
         let pass = verification.ok ? snapshot.passes.find((p) => p.id === verification.passId) : undefined;
         if (verification.ok && !pass && enLineaRef.current) {
-          // Un pase que no estaba al abrir el puesto: con red, se pide la foto fresca una vez.
+          // Un pase que no estaba al abrir el puesto: con red, se pide la foto fresca una vez, con poco
+          // tiempo de espera. Si no llega, se decide con lo que hay (en la puerta alcanza la firma).
           try {
-            const { status, data } = await postJson<ScanSnapshot>("/api/scan/open", { code: s.code });
+            const { status, data } = await postJson<ScanSnapshot>("/api/scan/open", { code: s.code }, READ_REFRESH_TIMEOUT_MS);
             if (status === 200 && data) {
               await actualizarSnapshot(data);
               ultimoRefreshRef.current = Date.now();
@@ -344,7 +342,7 @@ export function Escaner() {
               pass = data.passes.find((p) => p.id === verification.passId);
             }
           } catch {
-            /* sin red: se decide con lo que hay */
+            /* sin red, o no contestó a tiempo: se decide con lo que hay */
           }
         }
         const station = snapshot.station;
