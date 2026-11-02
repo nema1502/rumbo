@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Rumbo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
+    body {
+      font-family: "Inter", system-ui, sans-serif; color: #f4efe6; background: #0b1626;
+      background-image: radial-gradient(700px 420px at 90% -10%, rgba(255,122,69,.28), transparent 60%), radial-gradient(600px 400px at -5% 110%, rgba(47,191,166,.22), transparent 60%);
+      display: grid; grid-template-columns: 1fr 380px; align-items: center; padding: 72px 80px; box-sizing: border-box; gap: 40px;
+    }
+    .marca { display: flex; align-items: center; gap: 16px; font: 800 40px "Bricolage Grotesque", sans-serif; letter-spacing: -0.02em; }
+    .marca svg { width: 52px; height: 52px; }
+    h1 { font: 800 76px/1.02 "Bricolage Grotesque", sans-serif; letter-spacing: -0.03em; margin: 36px 0 24px; }
+    h1 em { font-style: normal; color: #ff7a45; }
+    p { font-size: 26px; line-height: 1.4; color: #c9c2b5; margin: 0; max-width: 640px; }
+    .pie { margin-top: 36px; font-size: 20px; color: #98a2b3; }
+    .credencial { background: #13223a; border: 1px solid rgba(244,239,230,.14); border-radius: 28px; padding: 26px; transform: rotate(-3deg); box-shadow: 0 30px 80px -30px rgba(0,0,0,.8); }
+    .ev { font: 800 22px "Bricolage Grotesque", sans-serif; letter-spacing: -0.02em; }
+    .tipo { color: #98a2b3; font-size: 15px; margin-top: 2px; }
+    .fila { display: flex; gap: 16px; align-items: center; margin-top: 20px; }
+    .qr { width: 120px; height: 120px; background: #fff; border-radius: 14px; padding: 6px; box-sizing: border-box; }
+    .qr img { width: 100%; height: 100%; display: block; }
+    .nombre { font: 700 26px "Bricolage Grotesque", sans-serif; letter-spacing: -0.02em; }
+    .estado { color: #2fbfa6; font-weight: 600; font-size: 16px; margin-top: 4px; }
+    ul { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 8px; }
+    li { display: flex; justify-content: space-between; gap: 10px; background: #0b1626; border-radius: 12px; padding: 11px 13px; font-size: 15px; }
+    .chip { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
+    .a { background: rgba(255,122,69,.16); color: #ff7a45; }
+    .b { background: rgba(47,191,166,.16); color: #2fbfa6; }
+    .c { background: rgba(245,196,81,.35); color: #f4efe6; }
+  </style>
+</head>
+<body>
+  <div>
+    <div class="marca">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29" fill="none" stroke="currentColor" stroke-width="3" opacity=".5"/><g transform="rotate(35 32 32)"><path d="M32 4 L41 32 L32 28 L23 32 Z" fill="#FF7A45"/><path d="M32 60 L23 32 L32 36 L41 32 Z" fill="currentColor" opacity=".85"/></g><circle cx="32" cy="32" r="4" fill="currentColor"/></svg>
+      Rumbo
+    </div>
+    <h1>Tu evento entero <em>en un QR</em>.</h1>
+    <p>Eventos de comunidad sobre Stellar. Cobrá entradas desde cualquier país y operá todo tu evento desde un QR.</p>
+    <div class="pie">Community events on Stellar. Made in Bolivia.</div>
+  </div>
+  <div class="credencial">
+    <div class="ev">Hackatón de la comunidad</div>
+    <div class="tipo">Entrada general</div>
+    <div class="fila">
+      <div class="qr"><img src="assets/qr.svg" alt=""></div>
+      <div><div class="nombre">Ana R.</div><div class="estado">Entró</div></div>
+    </div>
+    <ul>
+      <li><span>Almuerzo del sábado</span><span class="chip a">pendiente</span></li>
+      <li><span>Polera, talle M</span><span class="chip b">pagada, para retirar</span></li>
+      <li><span>Premio del sorteo</span><span class="chip c">ganado</span></li>
+    </ul>
+  </div>
+</body>
+</html>
