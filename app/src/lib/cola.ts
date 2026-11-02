@@ -5,12 +5,19 @@
 // (el contrato dijo que ya estaba hecho) o rechazado. Si el navegador no deja usar IndexedDB (una
 // ventana privada), todo queda en memoria y vale mientras la página esté abierta.
 import type { LocalUsage, ScanAction, ScanItem, ScanSnapshot } from "./escaner-api.ts";
+import { normalizeStationCode } from "./station-code.ts";
 
 export type QueueStatus = "pending" | "synced" | "duplicate" | "rejected";
 
 export interface QueueEntry extends ScanItem {
   eventId: string;
   stationId: string;
+  /**
+   * El código del puesto en que se registró. Viaja con el registro al sincronizar, así llega aunque el
+   * voluntario haya cerrado ese puesto y abierto otro (el servidor solo acepta de cada código lo de su
+   * puesto). Los registros de una versión anterior no lo tienen.
+   */
+  code?: string;
   status: QueueStatus;
   /** Cuántas veces se intentó llevar al servidor sin lograrlo. */
   attempts: number;
@@ -47,6 +54,8 @@ export interface ColaLocal {
   update(clientId: string, patch: QueuePatch): Promise<void>;
   list(eventId: string): Promise<QueueEntry[]>;
   listPending(eventId: string): Promise<QueueEntry[]>;
+  /** Lo pendiente de todos los eventos y puestos de este celular, para mandar cada cosa con su código. */
+  listPendingAll(): Promise<QueueEntry[]>;
   counts(eventId: string): Promise<QueueCounts>;
   /** Lo que este escáner registró de cada pase (pendiente, sincronizado o doble: todo cuenta como usado). */
   usage(eventId: string): Promise<Map<string, LocalUsage>>;
@@ -159,6 +168,12 @@ class ColaIndexedDb implements ColaLocal {
     return (await this.list(eventId)).filter((e) => e.status === "pending");
   }
 
+  async listPendingAll(): Promise<QueueEntry[]> {
+    const tx = this.db.transaction(STORE_QUEUE, "readonly");
+    const entries = (await request(tx.objectStore(STORE_QUEUE).getAll())) as QueueEntry[];
+    return entries.filter((e) => e.status === "pending").sort(byScannedAt);
+  }
+
   async counts(eventId: string): Promise<QueueCounts> {
     return countsOf(await this.list(eventId));
   }
@@ -196,6 +211,9 @@ class ColaMemoria implements ColaLocal {
   async listPending(eventId: string): Promise<QueueEntry[]> {
     return (await this.list(eventId)).filter((e) => e.status === "pending");
   }
+  async listPendingAll(): Promise<QueueEntry[]> {
+    return [...this.entries.values()].filter((e) => e.status === "pending").sort(byScannedAt);
+  }
   async counts(eventId: string): Promise<QueueCounts> {
     return countsOf(await this.list(eventId));
   }
@@ -214,10 +232,11 @@ export async function abrirCola(): Promise<ColaLocal> {
   }
 }
 
-/** Una entrada nueva para la cola, lista para registrar. */
+/** Una entrada nueva para la cola, lista para registrar, con el código del puesto en que se hizo. */
 export function nuevaEntrada(input: {
   eventId: string;
   stationId: string;
+  code: string;
   action: ScanAction;
   passId: string;
   benefitId: string | null;
@@ -228,6 +247,7 @@ export function nuevaEntrada(input: {
     clientId: nuevoId(),
     eventId: input.eventId,
     stationId: input.stationId,
+    code: input.code,
     action: input.action,
     passId: input.passId,
     benefitId: input.benefitId,
@@ -256,4 +276,33 @@ export function listoParaReintentar(entry: QueueEntry, at = Date.now()): boolean
   if (entry.attempts === 0) return true;
   const wait = Math.min(120_000, 10_000 * 2 ** (entry.attempts - 1));
   return at - new Date(entry.updatedAt).getTime() >= wait;
+}
+
+/** Lo pendiente de un puesto, que va junto al servidor con el código de ese puesto. */
+export interface GrupoParaSincronizar {
+  code: string;
+  /** Si es el puesto abierto ahora: su respuesta trae la foto fresca que usa la pantalla. */
+  actual: boolean;
+  entries: QueueEntry[];
+}
+
+/**
+ * Agrupa lo pendiente por el código del puesto en que se registró: cada registro viaja con su propio
+ * código, porque el servidor solo acepta de un código de puerta entradas y de uno de mesa canjes de su
+ * beneficio. Mandar lo de un puesto con el código de otro haría que se rechace para siempre. Un registro
+ * sin código (de una versión anterior) va con el de la sesión si es de su mismo evento y puesto; si no,
+ * espera a que se vuelva a abrir ese puesto. El grupo del puesto abierto va primero.
+ */
+export function agruparParaSincronizar(pendientes: QueueEntry[], sesion: { code: string; eventId: string; stationId: string }): GrupoParaSincronizar[] {
+  const grupos = new Map<string, GrupoParaSincronizar>();
+  const codigoSesion = normalizeStationCode(sesion.code);
+  for (const entry of pendientes) {
+    const esDeLaSesion = entry.eventId === sesion.eventId && entry.stationId === sesion.stationId;
+    const code = entry.code ? normalizeStationCode(entry.code) : esDeLaSesion ? codigoSesion : null;
+    if (!code) continue;
+    const grupo = grupos.get(code) ?? { code, actual: code === codigoSesion, entries: [] };
+    grupo.entries.push(entry);
+    grupos.set(code, grupo);
+  }
+  return [...grupos.values()].sort((a, b) => Number(b.actual) - Number(a.actual));
 }

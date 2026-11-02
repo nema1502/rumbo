@@ -7,10 +7,20 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Aviso, Boton, Campo, Chip, Pantalla } from "@/components/ui.tsx";
 import { useT } from "@/i18n/client.tsx";
-import { abrirCola, listoParaReintentar, nuevaEntrada, nuevoId, type ColaLocal, type QueueCounts, type ScanSession } from "@/lib/cola.ts";
+import {
+  abrirCola,
+  agruparParaSincronizar,
+  listoParaReintentar,
+  nuevaEntrada,
+  nuevoId,
+  type ColaLocal,
+  type QueueCounts,
+  type QueueEntry,
+  type ScanSession,
+} from "@/lib/cola.ts";
 import { SYNC_BATCH_SIZE, decideVerdict, type ScanSnapshot, type ScanStation, type SyncResponse, type Verdict } from "@/lib/escaner-api.ts";
 import { importQrKey, verifyQrPayloadInBrowser } from "@/lib/qr-verify.ts";
-import { STATION_CODE_LENGTH } from "@/lib/station-code.ts";
+import { STATION_CODE_LENGTH, normalizeStationCode } from "@/lib/station-code.ts";
 import { Camara, type CameraProblem } from "./Camara.tsx";
 import { Veredicto } from "./Veredicto.tsx";
 
@@ -138,49 +148,78 @@ export function Escaner() {
 
   /**
    * Vacía la cola contra el servidor, de a pocos: cada registro es una transacción. Lo que vuelve
-   * como "retry" espera a la próxima vuelta. Si no hay nada pendiente, cada tanto pide igual la foto
-   * fresca del evento, para enterarse de lo que registraron los otros puestos.
+   * como "retry" espera a la próxima vuelta. Cada registro viaja con el código del puesto en que se
+   * hizo: primero lo del puesto abierto (y su respuesta trae la foto fresca del evento, que se pide igual
+   * cada tanto aunque no haya nada pendiente), después lo que quedó de otros puestos de este celular.
    */
   const sincronizar = useCallback(
     async (forzarRefresh = false) => {
       const c = colaRef.current;
       const s = sesionRef.current;
       if (!c || !s || sincronizandoRef.current || !enLineaRef.current) return;
-      const eventId = s.snapshot.event.id;
-      const pendientes = (await c.listPending(eventId)).filter((e) => listoParaReintentar(e));
+      const sesionActual = { code: s.code, eventId: s.snapshot.event.id, stationId: s.snapshot.station.id };
+      const hechos = new Set<string>();
+      const listos = async () =>
+        agruparParaSincronizar(
+          (await c.listPendingAll()).filter((e) => !hechos.has(e.clientId) && listoParaReintentar(e)),
+          sesionActual,
+        );
+      const grupos = await listos();
       const necesitaRefresh = forzarRefresh || Date.now() - ultimoRefreshRef.current > REFRESH_EVERY_MS;
-      if (pendientes.length === 0 && !necesitaRefresh) return;
+      if (grupos.length === 0 && !necesitaRefresh) return;
       sincronizandoRef.current = true;
       setSincronizando(true);
+
+      /** Manda un lote con su código. "cerrado": el código ya no es de ningún puesto. */
+      const enviar = async (code: string, lote: QueueEntry[], actual: boolean): Promise<"ok" | "cerrado"> => {
+        const { status, data } = await postJson<SyncResponse>("/api/scan/sync", {
+          code,
+          items: lote.map(({ clientId, action, passId, benefitId, scannedAt, scannerId }) => ({ clientId, action, passId, benefitId, scannedAt, scannerId })),
+        });
+        if (status === 401 || status === 404) return "cerrado";
+        if (!data || status !== 200) throw new Error(`HTTP ${status}`);
+        for (const result of data.results) {
+          hechos.add(result.clientId);
+          if (result.status === "retry") {
+            const entry = lote.find((e) => e.clientId === result.clientId);
+            await c.update(result.clientId, { attempts: (entry?.attempts ?? 0) + 1, lastError: result.error });
+          } else {
+            await c.update(result.clientId, { status: result.status, txHash: result.txHash, lastError: result.error });
+          }
+        }
+        if (actual) {
+          await actualizarSnapshot(data.snapshot);
+          ultimoRefreshRef.current = Date.now();
+        }
+        return "ok";
+      };
+
       try {
-        let lote = pendientes.slice(0, SYNC_BATCH_SIZE);
-        const hechos = new Set<string>();
+        // El puesto abierto, aunque no tenga nada pendiente: así llega la foto fresca.
+        let lote = grupos.find((g) => g.actual)?.entries ?? [];
         do {
-          const { status, data } = await postJson<SyncResponse>("/api/scan/sync", {
-            code: s.code,
-            items: lote.map(({ clientId, action, passId, benefitId, scannedAt, scannerId }) => ({ clientId, action, passId, benefitId, scannedAt, scannerId })),
-          });
-          if (status === 401 || status === 404) {
+          if ((await enviar(s.code, lote.slice(0, SYNC_BATCH_SIZE), true)) === "cerrado") {
             setSesionInvalida(true);
             break;
           }
-          if (!data || status !== 200) throw new Error(`HTTP ${status}`);
-          for (const result of data.results) {
-            hechos.add(result.clientId);
-            if (result.status === "retry") {
-              const entry = lote.find((e) => e.clientId === result.clientId);
-              await c.update(result.clientId, { attempts: (entry?.attempts ?? 0) + 1, lastError: result.error });
-            } else {
-              await c.update(result.clientId, { status: result.status, txHash: result.txHash, lastError: result.error });
-            }
-          }
-          await actualizarSnapshot(data.snapshot);
-          ultimoRefreshRef.current = Date.now();
-          setFallaRed(false);
           setSesionInvalida(false);
           await refrescarLocal();
-          lote = (await c.listPending(eventId)).filter((e) => !hechos.has(e.clientId) && listoParaReintentar(e)).slice(0, SYNC_BATCH_SIZE);
+          lote = (await listos()).find((g) => g.actual)?.entries ?? [];
         } while (lote.length > 0 && enLineaRef.current);
+
+        // Lo que quedó de otros puestos, cada cosa con el código del suyo.
+        for (const grupo of (await listos()).filter((g) => !g.actual)) {
+          let pendientes = grupo.entries;
+          while (pendientes.length > 0 && enLineaRef.current) {
+            if ((await enviar(grupo.code, pendientes.slice(0, SYNC_BATCH_SIZE), false)) === "cerrado") {
+              // Ese puesto ya no existe: lo suyo no va a entrar nunca, y queda a la vista para revisar.
+              for (const e of grupo.entries) await c.update(e.clientId, { status: "rejected", lastError: "puesto cerrado" });
+              break;
+            }
+            pendientes = (await listos()).find((g) => g.code === grupo.code)?.entries ?? [];
+          }
+        }
+        setFallaRed(false);
       } catch {
         setFallaRed(true);
       } finally {
@@ -239,7 +278,7 @@ export function Escaner() {
     setAbriendo(true);
     setErrorAbrir(null);
     try {
-      const code = codigo.trim().toUpperCase();
+      const code = normalizeStationCode(codigo);
       const { status, data } = await postJson<ScanSnapshot>("/api/scan/open", { code });
       if (status === 401) return setErrorAbrir(t("escaner.codigoMal"));
       if (status === 429) return setErrorAbrir(t("escaner.demasiadosIntentos"));
@@ -258,7 +297,11 @@ export function Escaner() {
   }
 
   async function cerrarPuesto() {
-    if (conteo.pending > 0 && !window.confirm(t("escaner.salirConPendientes", { n: conteo.pending }))) return;
+    // Antes de cerrar, con conexión, se intenta mandar lo pendiente. Lo que quede se guarda en este
+    // celular con el código de su puesto y se manda solo la próxima vez que haya un puesto abierto acá.
+    if (conteo.pending > 0 && enLineaRef.current) await sincronizar();
+    const quedan = sesionRef.current && colaRef.current ? (await colaRef.current.counts(sesionRef.current.snapshot.event.id)).pending : 0;
+    if (quedan > 0 && !window.confirm(t("escaner.salirConPendientes", { n: quedan }))) return;
     await colaRef.current?.clearSession();
     sesionRef.current = null;
     claveRef.current = null;
@@ -312,6 +355,7 @@ export function Escaner() {
             nuevaEntrada({
               eventId: snapshot.event.id,
               stationId: station.id,
+              code: s.code,
               action: resultado.action,
               passId: resultado.passId,
               benefitId: station.kind === "benefit" ? station.id : null,

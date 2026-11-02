@@ -1,11 +1,13 @@
 // Prueba de punta a punta del escáner del voluntario, contra la red de prueba y con Chrome sin interfaz:
-//   1. crea tres personas con su pase y su cuenta de prueba: una inscripción gratis, una entrada con
-//      almuerzo (buy) y una tercera que ya entró en el contrato sin pasar por la app (para provocar un "doble"),
+//   1. crea cuatro personas con su pase y su cuenta de prueba: una inscripción gratis, una entrada con
+//      almuerzo (buy), una tercera que ya entró en el contrato sin pasar por la app (para provocar un "doble")
+//      y una cuarta para el cambio de puesto con pendientes,
 //   2. abre /scan con el código de la puerta (primero uno equivocado) y escribe las credenciales a mano,
 //   3. con red: entró, ya entró, y en la mesa del almuerzo "no corresponde" (sin entrar, y entrada que no lo incluye),
 //   4. sin red (Network.emulateNetworkConditions offline, también en el service worker): entró, ya entró,
 //      credencial inválida, y la página vuelve a abrir sin red con la sesión y la cola intactas,
-//   5. con red otra vez: la cola se vacía, el doble queda marcado, y el canje del almuerzo (con y sin red, dos veces),
+//   5. con red otra vez: la cola se vacía, el doble queda marcado, y el canje del almuerzo (con y sin red, dos veces);
+//      una entrada que quedó pendiente en la puerta llega con el código de la puerta aunque se haya abierto la mesa,
 //   6. comprueba en la cadena con status() que la entrada y el canje quedaron, y en la base el espejo,
 //   7. mide las tres pantallas en 1440x900, 973x700 y 390x844 (sin scroll horizontal, acción a la vista).
 // Tarda unos minutos (cada registro es una transacción). Deja capturas en --capturas (por defecto data/capturas-escaner).
@@ -104,7 +106,8 @@ paso(`El evento "${event.name}": puerta ${formatStationCode(gateCode)}, almuerzo
 const gratis = await crearPase("Valentina Prueba", freeTicket, "register");
 const almuerzo = await crearPase("Mateo Prueba", paidTicket, "buy");
 const doble = await crearPase("Sofia Prueba", freeTicket, "register");
-for (const p of [gratis, almuerzo, doble]) console.log(`  ${p.nombre}: pase ${p.pass.id} número ${p.pass.chainNumber}, QR ${p.qr}`);
+const cambio = await crearPase("Lucia Prueba", freeTicket, "register");
+for (const p of [gratis, almuerzo, doble, cambio]) console.log(`  ${p.nombre}: pase ${p.pass.id} número ${p.pass.chainNumber}, QR ${p.qr}`);
 paso("La tercera persona entra directo en el contrato, sin pasar por la app (así el escáner no lo sabe)");
 await conReintentos(() => stellar.rumboPass.checkIn(doble.contract, doble.account));
 
@@ -492,6 +495,25 @@ try {
   await capturarVeredicto(pagina, almuerzo.qr, "veredicto-ya-canjeado-390x844");
   await pagina.tamano(1440, 900);
   await offlineTotal(false);
+
+  paso("Pendientes de un puesto al abrir otro: la entrada de la puerta viaja con el código de la puerta, no con el de la mesa");
+  check(await cambiarPuesto(pagina, gateCode, "Puerta"), "la puerta otra vez");
+  await offlineTotal(true);
+  await pagina.waitFor(`__esc.chips().includes("Sin conexión")`, 10_000);
+  v = await escanear(pagina, cambio.qr);
+  check(v?.kind === "ok" && v.titulo === "Entró", `sin red, ${cambio.nombre} entra: ${JSON.stringify(v)}`);
+  check(await pagina.waitFor(`__esc.chips().some((c) => c === "1 por sincronizar")`, 5_000), "queda 1 por sincronizar");
+  await pagina.eval(`__esc.clickText("Cerrar el puesto")`);
+  check(await pagina.waitFor(`document.querySelector("#esc-codigo")`, 20_000), "el voluntario cierra la puerta con la entrada pendiente (acepta el aviso)");
+  await offlineTotal(false);
+  await abrirPuesto(pagina, lunchCode);
+  check(await pagina.waitFor(`__esc.text(".esc-puesto-titulo") === ${JSON.stringify(lunch.name)}`, 30_000), "y abre la mesa del almuerzo, ya con red");
+  sync = await esperarSincronizado(pagina, 120_000);
+  check(sync.ok && !sync.chips.some((c) => c.includes("sin registrar")), `la entrada pendiente de la puerta se sincronizó desde la mesa, sin rechazos: ${sync.chips.join(" | ")}`);
+  const espejoCambio = await repo.listCheckInsForPass(cambio.pass.id);
+  check(espejoCambio.length === 1 && espejoCambio[0].synced && !espejoCambio[0].duplicate, "el espejo tiene la entrada de la puerta sincronizada");
+  const enCadenaCambio = await stellar.rumboPass.status(cambio.contract, cambio.account);
+  check(enCadenaCambio.checked_in === true, `en la cadena, ${cambio.nombre} figura como entrada`);
 
   paso("El interruptor de simular sin conexión frena la sincronización y al apagarlo vuelve");
   check(await cambiarPuesto(pagina, gateCode, "Puerta"), "la puerta otra vez");

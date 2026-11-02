@@ -35,7 +35,7 @@ export const escaner = {
     "escaner.sincronizando": "Sincronizando",
     "escaner.simular": "Simular sin conexión",
     "escaner.salir": "Cerrar el puesto",
-    "escaner.salirConPendientes": "Hay {n} registros que todavía no llegaron al servidor. Si cerrás el puesto se van a sincronizar la próxima vez que lo abras.",
+    "escaner.salirConPendientes": "Hay {n} registros que todavía no llegaron al servidor. Quedan guardados en este celular y se mandan solos, con el código de su puesto, la próxima vez que abras un puesto acá. ¿Cerrás igual?",
     "escaner.sinPersistencia": "Este navegador no guarda la cola: si cerrás la página, lo que falte sincronizar se pierde.",
 
     "escaner.entro": "Entró",
@@ -83,7 +83,7 @@ export const escaner = {
     "escaner.sincronizando": "Syncing",
     "escaner.simular": "Simulate offline",
     "escaner.salir": "Close the station",
-    "escaner.salirConPendientes": "{n} records have not reached the server yet. If you close the station, they will sync the next time you open it.",
+    "escaner.salirConPendientes": "{n} records have not reached the server yet. They stay on this phone and go out on their own, with their station code, the next time you open a station here. Close anyway?",
     "escaner.sinPersistencia": "This browser does not keep the queue: if you close the page, anything left to sync is lost.",
 
     "escaner.entro": "Checked in",

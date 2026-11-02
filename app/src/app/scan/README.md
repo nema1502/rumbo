@@ -15,7 +15,7 @@ La regla está en `decideVerdict`, en `src/lib/escaner-api.ts`, sin dependencias
 
 ## La cola y la sincronización
 
-Cada entrada o canje va a IndexedDB (`src/lib/cola.ts`) con un `clientId` propio. Cuando hay red, cada cinco segundos la página manda de a cinco a `POST /api/scan/sync`. El servidor (`src/server/escaner.ts`) lleva cada uno al contrato con la cuenta de puerta (`check_in` o `redeem`, la comisión la paga la patrocinadora) y guarda el espejo en la base con el mismo `clientId`, así reintentar no duplica. Cada registro vuelve con su estado:
+Cada entrada o canje va a IndexedDB (`src/lib/cola.ts`) con un `clientId` propio y el código del puesto en que se registró. Cuando hay red, cada cinco segundos la página manda de a cinco a `POST /api/scan/sync`, cada registro con el código de su puesto (`agruparParaSincronizar`): primero lo del puesto abierto, después lo que haya quedado de otros. Así, si el voluntario cierra la puerta con entradas pendientes y abre la mesa del almuerzo, esas entradas llegan con el código de la puerta y no se rechazan. Al cerrar un puesto con pendientes, la página intenta mandarlos antes; lo que quede se guarda en el celular y sale solo la próxima vez que haya un puesto abierto ahí. Si el código de ese otro puesto ya no existe, lo suyo queda como "sin registrar, revisar". El servidor (`src/server/escaner.ts`) lleva cada uno al contrato con la cuenta de puerta (`check_in` o `redeem`, la comisión la paga la patrocinadora) y guarda el espejo en la base con el mismo `clientId`, así reintentar no duplica. Cada registro vuelve con su estado:
 
 | Estado | Qué pasó | Qué hace la página |
 |---|---|---|
