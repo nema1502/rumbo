@@ -57,11 +57,13 @@ const ORGANIZER_KEY_BYTES = 15;
 /** La clave con la que se entra al panel del evento. La crea la primera vez que hace falta. */
 export function getOrCreateOrganizerKey(eventId: string): string {
   const db = panelDb();
-  const row = db.prepare("SELECT key FROM organizer_keys WHERE event_id = ?").get(eventId) as { key: string } | undefined;
+  const select = db.prepare("SELECT key FROM organizer_keys WHERE event_id = ?");
+  const row = select.get(eventId) as { key: string } | undefined;
   if (row) return row.key;
+  // Si dos pedidos llegan a la vez, gana el primero y el otro lee la clave que quedó.
   const key = base32Encode(new Uint8Array(randomBytes(ORGANIZER_KEY_BYTES)));
-  db.prepare("INSERT INTO organizer_keys (event_id, key, created_at) VALUES (?, ?, ?)").run(eventId, key, now());
-  return key;
+  db.prepare("INSERT OR IGNORE INTO organizer_keys (event_id, key, created_at) VALUES (?, ?, ?)").run(eventId, key, now());
+  return (select.get(eventId) as { key: string }).key;
 }
 
 /** Si la clave abre el panel de ese evento. Se compara sin que el tiempo delate en qué letra difiere. */
@@ -140,7 +142,8 @@ export function listStationCodes(eventId: string): StationCode[] {
 export async function ensureStationCodes(event: EventRecord, repo: Repo = getRepo()): Promise<StationCode[]> {
   const db = panelDb();
   const existing = listStationCodes(event.id);
-  const insert = db.prepare("INSERT INTO station_codes (code, event_id, kind, benefit_id, created_at) VALUES (?, ?, ?, ?, ?)");
+  // OR IGNORE: si dos pedidos abren el panel a la vez, el segundo no choca con el código que ya creó el primero.
+  const insert = db.prepare("INSERT OR IGNORE INTO station_codes (code, event_id, kind, benefit_id, created_at) VALUES (?, ?, ?, ?, ?)");
   if (!existing.some((c) => c.kind === "gate")) insert.run(newStationCode(db), event.id, "gate", null, now());
   for (const benefit of await repo.listBenefits(event.id)) {
     if (!existing.some((c) => c.kind === "benefit" && c.benefitId === benefit.id)) {
