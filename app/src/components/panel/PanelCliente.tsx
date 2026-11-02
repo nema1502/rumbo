@@ -1,6 +1,6 @@
 "use client";
 // El panel en vivo: pinta el estado que le dio el servidor y lo vuelve a pedir cada cinco segundos
-// (cuando la pestaña está a la vista). "Actualizar desde la cadena" contrasta el espejo con el
+// (cuando la pestaña está a la vista). "Verificar el registro del evento" contrasta el espejo con el
 // contrato y trae lo que falte.
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";

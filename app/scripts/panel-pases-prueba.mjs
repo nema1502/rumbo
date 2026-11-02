@@ -3,7 +3,7 @@
 // dos dobles. Solo toca el espejo en la base, no la red, y se puede correr las veces que haga falta
 // (no duplica nada).
 //   --cadena   además hace entrar y canjear en el contrato a la persona de ejemplo del seed (--demo),
-//              sin tocar el espejo: así "Actualizar desde la cadena" tiene algo que traer. Tarda unos
+//              sin tocar el espejo: así "Verificar el registro del evento" tiene algo que traer. Tarda unos
 //              segundos y necesita las llaves del servidor en .env.local.
 // Uso: node scripts/panel-pases-prueba.mjs [slug] [--cadena]
 import { APP_DIR, loadEnv } from "./lib/env.mjs";
@@ -107,6 +107,6 @@ if (args.includes("--cadena")) {
     console.log(`En la cadena, sin tocar el espejo (${ana.name}, pase ${pass.id}):`);
     await tolerate("entrada por la puerta", () => rumboPass.checkIn(contract, pass.account));
     await tolerate("canje del beneficio 0", () => rumboPass.redeem(contract, pass.account, 0));
-    console.log('Ahora "Actualizar desde la cadena" en el panel tiene que traer esa entrada y ese canje.');
+    console.log('Ahora "Verificar el registro del evento" en el panel tiene que traer esa entrada y ese canje.');
   }
 }
