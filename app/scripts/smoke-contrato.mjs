@@ -1,6 +1,7 @@
 // Prueba de humo contra el contrato rumbo-pass en la red de prueba, con los helpers de src/server/stellar.ts:
 // crea una cuenta de un solo uso, la inscribe en el evento gratis, la hace entrar por la puerta, canjea
-// el beneficio 0, lee status, attendees e info, y comprueba que la red rechaza entrar y canjear dos veces.
+// el beneficio 0, mantiene vivo el pase con extend_ttl, lee status, attendees e info, y comprueba que la
+// red rechaza entrar y canjear dos veces.
 // Tarda alrededor de un minuto. No toca la base de la app.
 import { APP_DIR, loadEnv } from "./lib/env.mjs";
 
@@ -60,6 +61,10 @@ if (info.benefits > 0) {
     console.log(stellar.isContractError(error, "AlreadyRedeemed") ? `rechazado como se esperaba: ${error.message}` : `otro error: ${error.message}`);
   }
 }
+
+paso("extend_ttl([la cuenta, una sin pase]): sin firma, mantiene vivo el evento y el pase; devuelve cuántos pases extendió");
+const extended = await stellar.rumboPass.extendTtl(contract, [person.publicKey(), Keypair.random().publicKey()]);
+console.log(extended.extended === 1 ? `extendió 1 pase, transacción ${extended.hash}` : `ESTO NO TENDRIA QUE HABER PASADO: extendió ${extended.extended}`);
 
 paso("status(who) al final");
 console.log(await stellar.rumboPass.status(contract, person.publicKey()));

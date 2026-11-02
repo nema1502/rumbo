@@ -29,10 +29,12 @@ use soroban_sdk::{
 mod test;
 
 /// Ledgers por día, a un ledger cada cinco segundos.
-const DAY_LEDGERS: u32 = 17_280;
+pub const DAY_LEDGERS: u32 = 17_280;
 /// Cuando a una entrada le quedan menos de 30 días de vida, se la extiende a 120.
-const TTL_THRESHOLD: u32 = 30 * DAY_LEDGERS;
-const TTL_EXTEND_TO: u32 = 120 * DAY_LEDGERS;
+/// Cada venta, entrada y canje lo hace con lo que toca; `extend_ttl` lo hace a
+/// pedido, para los pases que pasan meses sin movimiento.
+pub const TTL_THRESHOLD: u32 = 30 * DAY_LEDGERS;
+pub const TTL_EXTEND_TO: u32 = 120 * DAY_LEDGERS;
 
 /// La lista de quienes entraron vive en una sola entrada de almacenamiento, y
 /// una entrada tiene tope de tamaño. Mil cuentas entran holgadas; más que eso
@@ -312,6 +314,30 @@ impl RumboPass {
 
         Redeemed { attendee, benefit }.publish(&env);
         Ok(())
+    }
+
+    /// Mantiene vivo el evento: deja en 120 días la vida de la instancia (con el
+    /// código del contrato), de la lista de quienes entraron y del pase de cada
+    /// cuenta de `holders` que tenga uno. No pide firma: extender la vida no
+    /// cambia nada del evento, y la renta la paga quien manda la operación.
+    /// Hace falta cuando la inscripción abre más de 120 días antes del evento, o
+    /// cuando pasan meses sin ventas, entradas ni canjes: sin esto, un pase
+    /// quedaría archivado el día de la puerta. Devuelve cuántos pases extendió.
+    pub fn extend_ttl(env: Env, holders: Vec<Address>) -> u32 {
+        env.storage().instance().extend_ttl(TTL_EXTEND_TO, TTL_EXTEND_TO);
+        let persistent = env.storage().persistent();
+        if persistent.has(&DataKey::Attendees) {
+            persistent.extend_ttl(&DataKey::Attendees, TTL_EXTEND_TO, TTL_EXTEND_TO);
+        }
+        let mut extended = 0;
+        for who in holders.iter() {
+            let key = DataKey::Pass(who);
+            if persistent.has(&key) {
+                persistent.extend_ttl(&key, TTL_EXTEND_TO, TTL_EXTEND_TO);
+                extended += 1;
+            }
+        }
+        extended
     }
 
     /// Lo que se sabe de una cuenta: si tiene pase, si entró y qué canjeó.

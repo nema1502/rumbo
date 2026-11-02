@@ -7,7 +7,10 @@ extern crate std;
 
 use super::*;
 use soroban_sdk::{
-    testutils::{Address as _, MockAuth, MockAuthInvoke},
+    testutils::{
+        storage::{Instance as _, Persistent as _},
+        Address as _, Ledger as _, MockAuth, MockAuthInvoke,
+    },
     token::{StellarAssetClient, TokenClient},
     vec, Address, Env, IntoVal,
 };
@@ -91,6 +94,21 @@ impl Setup {
         self.client().register(&a);
         self.client().check_in(&a, &self.gate);
         a
+    }
+
+    /// Cuántos ledgers de vida le quedan a una entrada persistente del contrato.
+    fn ttl(&self, key: &DataKey) -> u32 {
+        self.env.as_contract(&self.contract, || self.env.storage().persistent().get_ttl(key))
+    }
+
+    /// Cuántos ledgers de vida le quedan a la instancia del contrato.
+    fn instance_ttl(&self) -> u32 {
+        self.env.as_contract(&self.contract, || self.env.storage().instance().get_ttl())
+    }
+
+    /// Pasan `days` días de ledgers.
+    fn wait_days(&self, days: u32) {
+        self.env.ledger().with_mut(|li| li.sequence_number += days * DAY_LEDGERS);
     }
 }
 
@@ -439,6 +457,68 @@ fn the_gate_alone_cannot_buy_for_someone_else() {
     assert!(s.client().try_buy(&a).is_err());
     assert!(!s.client().status(&a).has_pass);
     assert_eq!(s.balance(&a), PRICE * 5);
+}
+
+// -------------------------------------------------------------- extend_ttl
+
+#[test]
+fn the_event_and_its_passes_are_kept_alive_on_request() {
+    let s = free(10);
+    let (a, b, stranger) = (s.person(), s.person(), s.person());
+    s.client().register(&a);
+    s.client().register(&b);
+    s.client().check_in(&b, &s.gate);
+    assert_eq!(s.ttl(&DataKey::Pass(a.clone())), TTL_EXTEND_TO);
+
+    // la inscripción abrió cien días antes del evento y nadie tocó el pase de a
+    s.wait_days(100);
+    assert_eq!(s.ttl(&DataKey::Pass(a.clone())), 20 * DAY_LEDGERS);
+    assert_eq!(s.instance_ttl(), 20 * DAY_LEDGERS);
+
+    // a tiene pase, stranger no: se extiende uno solo, más la instancia y la lista
+    assert_eq!(s.client().extend_ttl(&vec![&s.env, a.clone(), stranger.clone()]), 1);
+    assert_eq!(s.ttl(&DataKey::Pass(a.clone())), TTL_EXTEND_TO);
+    assert_eq!(s.ttl(&DataKey::Attendees), TTL_EXTEND_TO);
+    assert_eq!(s.instance_ttl(), TTL_EXTEND_TO);
+    // b no estaba en el pedido: su pase sigue con lo que tenía
+    assert_eq!(s.ttl(&DataKey::Pass(b.clone())), 20 * DAY_LEDGERS);
+    assert!(!s.client().status(&stranger).has_pass);
+
+    // cien días más, ciento veinte desde la inscripción: el pase de a llega vivo a la puerta
+    s.wait_days(100);
+    assert_eq!(s.ttl(&DataKey::Pass(a.clone())), 20 * DAY_LEDGERS);
+    assert_eq!(s.client().check_in(&a, &s.gate), 2);
+}
+
+#[test]
+fn keeping_the_event_alive_needs_no_signature_and_changes_nothing() {
+    let s = free(10);
+    let a = s.inside();
+    s.client().redeem(&a, &LUNCH);
+    let before = (s.client().status(&a), s.client().attendees(), s.client().info());
+    s.wait_days(95);
+    // nadie firma nada: cualquiera puede pagar la renta del evento
+    s.env.set_auths(&[]);
+    assert_eq!(s.client().extend_ttl(&vec![&s.env, a.clone()]), 1);
+    assert_eq!(s.env.auths().len(), 0);
+    assert_eq!((s.client().status(&a), s.client().attendees(), s.client().info()), before);
+    // sin pases en el pedido, igual extiende la instancia y la lista
+    s.wait_days(95);
+    assert_eq!(s.client().extend_ttl(&vec![&s.env]), 0);
+    assert_eq!(s.instance_ttl(), TTL_EXTEND_TO);
+    assert_eq!(s.ttl(&DataKey::Attendees), TTL_EXTEND_TO);
+}
+
+#[test]
+fn an_event_nobody_entered_yet_is_kept_alive_too() {
+    let s = free(10);
+    let a = s.person();
+    s.client().register(&a);
+    s.wait_days(100);
+    // todavía no hay lista de quienes entraron: no hay nada que extender ahí, y no falla
+    assert_eq!(s.client().extend_ttl(&vec![&s.env, a.clone()]), 1);
+    assert_eq!(s.instance_ttl(), TTL_EXTEND_TO);
+    assert_eq!(s.client().attendees().len(), 0);
 }
 
 // ------------------------------------------------------------ status, info

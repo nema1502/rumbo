@@ -41,6 +41,7 @@ export const CONTRACT_FN = {
   buy: "buy",
   checkIn: "check_in",
   redeem: "redeem",
+  extendTtl: "extend_ttl",
   status: "status",
   attendees: "attendees",
   info: "info",
@@ -540,6 +541,15 @@ export const rumboPass = {
   /** Un canje, una sola vez por pase y beneficio. Firma la puerta. Hay que haber entrado antes. */
   redeem(contractId: string, attendee: string, benefit: number): Promise<TxResult> {
     return invoke(contractId, CONTRACT_FN.redeem, [addressArg(attendee), u32Arg(benefit)], gateSigners());
+  },
+  /**
+   * Mantiene vivo el evento: la instancia, la lista de quienes entraron y el pase de cada cuenta de
+   * `holders` quedan con 120 días de vida. No pide firma; la paga la patrocinadora. Hace falta antes
+   * de un evento que abrió la inscripción con más de 120 días de anticipación. Devuelve cuántos pases extendió.
+   */
+  async extendTtl(contractId: string, holders: string[]): Promise<TxResult & { extended: number }> {
+    const result = await invoke(contractId, CONTRACT_FN.extendTtl, [xdr.ScVal.scvVec(holders.map(addressArg))]);
+    return { ...result, extended: Number(result.returnValue) };
   },
   async status(contractId: string, who: string): Promise<PassStatusOnChain> {
     const value = (await readContract(contractId, CONTRACT_FN.status, [addressArg(who)])) as Partial<PassStatusOnChain> | undefined;

@@ -23,6 +23,7 @@ En la cadena viven cuentas, números de beneficio y marcas de uso. Nombres, corr
 | `buy(buyer) -> u32` | quien compra | Cobra `price` y reparte: `price * fee_bps / 10000` a `treasury` (redondeado hacia abajo) y el resto a `organizer`. Devuelve el número de pase |
 | `check_in(attendee, by) -> u32` | `by`, que tiene que ser `gate` | Marca la entrada, una sola vez. Devuelve en qué lugar entró (el primero es 1) |
 | `redeem(attendee, benefit)` | `gate` | Canjea el beneficio `benefit` (de 0 a `benefits - 1`), una sola vez por pase y beneficio. Hay que haber entrado |
+| `extend_ttl(holders) -> u32` | nadie | Mantiene vivo el evento: deja en 120 días la vida de la instancia (con el código), de la lista de quienes entraron y del pase de cada cuenta de `holders` que tenga uno. No cambia nada más. Devuelve cuántos pases extendió |
 | `status(who) -> PassStatus` | nadie, es lectura | `has_pass`, `number`, `checked_in` y `redeemed` (los beneficios canjeados, en el orden en que se canjearon) |
 | `attendees() -> Vec<Address>` | nadie, es lectura | Quienes entraron, en orden de llegada |
 | `info() -> EventInfo` | nadie, es lectura | La configuración entera (`organizer`, `treasury`, `gate`, `asset`, `price`, `fee_bps`, `capacity`, `benefits`) y los contadores `issued` y `checked_in` |
@@ -66,6 +67,7 @@ Además, en cada compra el contrato del activo publica sus dos `transfer`: a qui
 
 - **Instancia:** la configuración y el contador de pases emitidos. Viven y mueren con el contrato.
 - **Persistente:** un `Pass` por cuenta (`number`, `checked_in`, `redeemed`) y la lista `Attendees`. Cada escritura extiende la vida de la entrada a 120 días cuando le quedan menos de 30.
+- **Las lecturas no extienden nada:** `status`, `info` y `attendees` se simulan y no se mandan. Un pase que nadie toca vive 120 días desde su última escritura, y la instancia lo mismo desde la última venta, entrada o canje. **Si la inscripción abre más de 120 días antes del evento, o pasan meses sin movimiento, hay que llamar a `extend_ttl` antes del evento** con las cuentas de los pases (de a tandas, si son muchas): no pide firma y la renta la paga quien la manda, en la app la cuenta patrocinadora. Sin eso, el día de la puerta el pase estaría archivado y habría que restaurarlo antes de marcar la entrada.
 - La lista de quienes entraron es una sola entrada, por eso el cupo tiene tope de 1000: mil cuentas entran holgadas en una entrada. Los beneficios tienen tope de 64 por evento.
 - La comisión se redondea hacia abajo y quien organiza recibe el resto, así la suma siempre es el precio exacto. El precio tiene tope (`MAX_PRICE`) para que `price * fee_bps` nunca desborde: un error de cuenta sería un pánico sin código y nadie podría comprar.
 
@@ -74,11 +76,11 @@ Además, en cada compra el contrato del activo publica sus dos `transfer`: a qui
 Desde la raíz del repositorio, con Rust estable y el objetivo `wasm32v1-none`:
 
 ```bash
-cargo test --workspace     # 37 pruebas
+cargo test --workspace     # 40 pruebas
 stellar contract build     # target/wasm32v1-none/release/rumbo_pass.wasm, 10,9 KB
 ```
 
-Las pruebas (`src/test.rs`) cubren cada función y cada error, el reparto exacto de la comisión con el activo de prueba del SDK (incluido el redondeo, la comisión cero y la comisión entera), el cupo, el doble canje, la lista completa con mil cuentas, y quién tiene que firmar cada cosa: la compra solo la firma quien compra y cubre las dos transferencias; la entrada y el canje, solo la puerta (la persona no se marca a sí misma, ni con su firma).
+Las pruebas (`src/test.rs`) cubren cada función y cada error, el reparto exacto de la comisión con el activo de prueba del SDK (incluido el redondeo, la comisión cero y la comisión entera), el cupo, el doble canje, la lista completa con mil cuentas, y quién tiene que firmar cada cosa: la compra solo la firma quien compra y cubre las dos transferencias; la entrada y el canje, solo la puerta (la persona no se marca a sí misma, ni con su firma). También que `extend_ttl` deja en 120 días la vida del pase, de la lista y de la instancia sin pedir firma, midiendo lo que le queda a cada entrada después de cien días sin movimiento.
 
 ## La corrida en la red de prueba
 
@@ -96,7 +98,7 @@ Qué hace:
 2. **El activo.** Un `USDC` emitido por `rb-issuer`, su contrato (`stellar contract asset deploy`), la línea de confianza de cada cuenta que lo recibe y 100 USDC de prueba para quienes compran.
 3. **El evento pago.** El WASM sube una vez y cada evento se despliega desde su hash. Precio 10 USDC de prueba, comisión del 2,5 por ciento, cupo de 50, dos beneficios. Tres compras con el reparto a la vista (9,75 a quien organiza y 0,25 a Rumbo en cada una), la entrada por la puerta, el canje del almuerzo, y todo lo que la red rechaza: comprar dos veces (#2), marcar la propia entrada sin la puerta (#8), entrar dos veces (#4), canjear dos veces (#6), canjear sin haber entrado (#5) y canjear un beneficio que no existe (#7).
 4. **El evento gratis.** Inscripción y entrada, y lo que la red rechaza: comprar en un evento gratis (#10) e inscribirse gratis en el pago (#9).
-5. **El estado final**, los saldos y la lista de quienes entraron.
+5. **El estado final**, los saldos, la lista de quienes entraron y `extend_ttl` sobre los tres pases, como se haría antes de un evento que abrió la inscripción con meses de anticipación.
 
 Las compras, las inscripciones y las entradas las paga `rb-sponsor` (`--source rb-sponsor`), y la persona o la puerta solo firman su autorización, que el CLI agrega desde la identidad local (`--auto-sign`) porque su nombre aparece en los argumentos. Así ninguna cuenta de persona necesita XLM, que es como lo hace la app: el servidor arma la transacción y la paga, y la cuenta de la persona firma solo su entrada de autorización. Los canjes los manda la propia cuenta de puerta (`--source rb-gate`): en `redeem` la puerta no es un argumento sino parte de la configuración, y el CLI no la asocia solo con una identidad local. La app no tiene ese límite, porque firma la autorización de la puerta con su llave de forma explícita.
 

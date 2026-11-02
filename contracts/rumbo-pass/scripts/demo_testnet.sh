@@ -18,8 +18,9 @@
 #      dos veces, canjear sin haber entrado, canjear un beneficio que no existe.
 #   4. Un evento gratis: la inscripción, la entrada, y lo que la red rechaza:
 #      comprar en un evento gratis e inscribirse gratis en uno pago.
-#   5. El estado final leído del contrato, los saldos y la lista de quienes
-#      entraron.
+#   5. El estado final leído del contrato, los saldos, la lista de quienes
+#      entraron y extend_ttl sobre los pases (sin firma: la paga la
+#      patrocinadora), como antes de un evento que abrió con meses de anticipación.
 #
 # Las compras, las inscripciones y las entradas las paga la cuenta patrocinadora
 # (--source rb-sponsor): la persona o la puerta solo firman su autorización, que
@@ -205,6 +206,9 @@ correr contract invoke --id "$SAC" --source rb-sponsor --network "$RED" --send=n
 
 nota "La lista de quienes entraron, en orden de llegada: la lista del sorteo"
 leer attendees
+
+nota "Antes del evento se mantiene vivo el contrato y los pases (extend_ttl, sin firma). Devuelve cuántos pases extendió"
+invocar extend_ttl --holders "[\"$(direccion rb-ana)\",\"$(direccion rb-beto)\",\"$(direccion rb-caro)\",\"$(direccion rb-dani)\"]"
 
 nota "Evento gratis: precio 0, cupo de 50, un beneficio"
 correr contract deploy --wasm-hash "$HASH" --source rb-sponsor --network "$RED" \
