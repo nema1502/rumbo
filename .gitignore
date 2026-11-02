@@ -1,0 +1,24 @@
+# Secretos: nunca se suben
+.env
+.env.*
+!.env.example
+
+# Enlace local al proyecto de Vercel
+.vercel
+
+# Stellar CLI: identidades locales (contienen semillas secretas)
+.stellar/
+
+# Dependencias y builds
+node_modules/
+dist/
+target/
+*.tsbuildinfo
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Listas de personas (exportes de Luma y otras): traen nombres y correos de
+# gente real. Se usan en el navegador y nunca se versionan.
+*.csv
