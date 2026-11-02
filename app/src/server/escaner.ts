@@ -7,8 +7,16 @@ import type { ScanEvent, ScanItem, ScanItemResult, ScanItemStatus, ScanPassInfo,
 import { GATE_STATION } from "../lib/escaner-api.ts";
 import { isValidPassId } from "../lib/qr-codec.ts";
 import { resolveStationCode, type StationAccess } from "./panel.ts";
-import { ClientIdTaken, type EventRecord, type PassView, type Repo } from "./repo.ts";
-import { PERMANENT_CONTRACT_ERRORS, isContractError, rumboPass } from "./stellar.ts";
+import { ClientIdTaken, type CheckIn, type EventRecord, type PassView, type Repo, type SyncMark } from "./repo.ts";
+import {
+  PERMANENT_CONTRACT_ERRORS,
+  TX_TIMEOUT_SECONDS,
+  isContractError,
+  rumboPass,
+  transactionOutcome,
+  type SubmitHooks,
+  type TxOutcome,
+} from "./stellar.ts";
 
 // ---------- El puesto y lo que baja el escáner ----------
 
@@ -109,19 +117,62 @@ function describe(error: unknown): string {
 }
 
 /**
+ * Lo que la sincronización necesita de la red: marcar la entrada y el canje (avisando el hash de la
+ * transacción apenas se manda) y saber cómo terminó una transacción mandada. Las pruebas usan otra.
+ */
+export interface ScanChain {
+  checkIn(contractId: string, account: string, hooks: SubmitHooks): Promise<{ hash: string }>;
+  redeem(contractId: string, account: string, benefit: number, hooks: SubmitHooks): Promise<{ hash: string }>;
+  outcome(hash: string): Promise<TxOutcome>;
+}
+
+/** La red de prueba de verdad, con la cuenta de puerta. */
+export const networkChain: ScanChain = {
+  checkIn: (contractId, account, hooks) => rumboPass.checkIn(contractId, account, hooks),
+  redeem: (contractId, account, benefit, hooks) => rumboPass.redeem(contractId, account, benefit, hooks),
+  outcome: (hash) => transactionOutcome(hash),
+};
+
+/**
+ * Cuánto puede tardar en entrar una transacción ya mandada: lo que vale (TX_TIMEOUT_SECONDS) y un margen.
+ * Pasado eso, si la red no la conoce, no va a entrar nunca y se puede mandar otra.
+ */
+export const TX_SETTLE_MS = (TX_TIMEOUT_SECONDS + 30) * 1000;
+
+/**
+ * Qué pasó con la transacción que un intento anterior mandó por este registro y no llegó a confirmar:
+ * entró (el registro está hecho, con ese hash), todavía puede entrar (hay que esperar antes de mandar
+ * otra, o quedarían dos y la segunda parecería un doble) o no entró ni va a entrar.
+ */
+async function previousAttempt(row: CheckIn, chain: ScanChain): Promise<"none" | "landed" | "pending" | "dead"> {
+  if (!row.txHash) return "none";
+  const outcome = await chain.outcome(row.txHash);
+  if (outcome === "success") return "landed";
+  if (outcome === "failed") return "dead";
+  const sentAt = row.txSentAt ? Date.parse(row.txSentAt) : 0;
+  return Date.now() - sentAt < TX_SETTLE_MS ? "pending" : "dead";
+}
+
+/**
  * Lleva al contrato lo que el escáner registró, en orden: primero las entradas, después los canjes,
  * cada grupo por hora de lectura. Cada registro es una transacción firmada por la puerta y pagada
  * por la patrocinadora; su espejo queda en la base con el clientId, así reintentar no duplica.
  * Un código de puerta solo registra entradas y el de una mesa solo canjes de su beneficio: lo demás
  * se rechaza.
  */
-export async function processScanItems(repo: Repo, event: EventRecord, station: ScanStation, items: ScanItem[]): Promise<ScanItemResult[]> {
+export async function processScanItems(
+  repo: Repo,
+  event: EventRecord,
+  station: ScanStation,
+  items: ScanItem[],
+  chain: ScanChain = networkChain,
+): Promise<ScanItemResult[]> {
   const ordered = [...items].sort((a, b) => {
     if (a.action !== b.action) return a.action === "checkin" ? -1 : 1;
     return a.scannedAt.localeCompare(b.scannedAt);
   });
   const results: ScanItemResult[] = [];
-  for (const item of ordered) results.push(await processOne(repo, event, station, item));
+  for (const item of ordered) results.push(await processOne(repo, event, station, item, chain));
   return results;
 }
 
@@ -130,7 +181,7 @@ function belongsToStation(station: ScanStation, item: ScanItem): boolean {
   return item.action === "redeem" && item.benefitId === station.id;
 }
 
-async function processOne(repo: Repo, event: EventRecord, station: ScanStation, item: ScanItem): Promise<ScanItemResult> {
+async function processOne(repo: Repo, event: EventRecord, station: ScanStation, item: ScanItem, chain: ScanChain): Promise<ScanItemResult> {
   const result = (status: ScanItemStatus, txHash: string | null = null, error: string | null = null): ScanItemResult => ({
     clientId: item.clientId,
     status,
@@ -145,7 +196,9 @@ async function processOne(repo: Repo, event: EventRecord, station: ScanStation, 
     if (!view || view.event.id !== event.id) return result("rejected", null, "pase desconocido");
     if (!view.pass.account || view.pass.status === "pending") return result("rejected", null, "pase sin activar");
     if (!view.contractId) return result("rejected", null, "evento sin contrato");
-    return item.action === "checkin" ? await syncCheckIn(repo, event, item, view, view.contractId) : await syncRedeem(repo, event, item, view, view.contractId);
+    return item.action === "checkin"
+      ? await syncCheckIn(repo, event, item, view, view.contractId, chain)
+      : await syncRedeem(repo, event, item, view, view.contractId, chain);
   } catch (error) {
     // Un clientId de otro registro no se reintenta: con el mismo id el servidor no daría nunca otra cosa.
     if (error instanceof ClientIdTaken) return result("rejected", null, "clientId de otro registro");
@@ -155,18 +208,39 @@ async function processOne(repo: Repo, event: EventRecord, station: ScanStation, 
   }
 }
 
-async function syncCheckIn(repo: Repo, event: EventRecord, item: ScanItem, view: PassView, contractId: string): Promise<ScanItemResult> {
+/** Guarda en el espejo el hash de la transacción apenas se manda, antes de saber cómo termina. */
+function rememberSent(mark: (id: string, m: SyncMark) => Promise<unknown>, id: string): SubmitHooks {
+  return {
+    onSubmitted: async (hash) => {
+      await mark(id, { txHash: hash, txSentAt: new Date().toISOString() });
+    },
+  };
+}
+
+async function syncCheckIn(repo: Repo, event: EventRecord, item: ScanItem, view: PassView, contractId: string, chain: ScanChain): Promise<ScanItemResult> {
   const account = view.pass.account as string;
   const row = await repo.recordCheckIn({ clientId: item.clientId, eventId: event.id, passId: view.pass.id, scannerId: item.scannerId, scannedAt: item.scannedAt });
   if (row.synced) return { clientId: item.clientId, status: "synced", txHash: row.txHash, error: null };
   if (row.duplicate) return { clientId: item.clientId, status: "duplicate", txHash: row.txHash, error: row.error };
-  try {
-    const tx = await rumboPass.checkIn(contractId, account);
-    await repo.markCheckIn(row.id, { synced: true, txHash: tx.hash, error: null });
+
+  const done = async (hash: string): Promise<ScanItemResult> => {
+    await repo.markCheckIn(row.id, { synced: true, txHash: hash, error: null });
     if (view.pass.status !== "checked_in") await repo.updatePass(view.pass.id, { status: "checked_in", checkedInAt: item.scannedAt });
-    return { clientId: item.clientId, status: "synced", txHash: tx.hash, error: null };
+    return { clientId: item.clientId, status: "synced", txHash: hash, error: null };
+  };
+  // Un intento anterior mandó su transacción y no supo cómo terminó: se le pregunta a la red antes de mandar otra.
+  const previous = row.txHash;
+  const before = await previousAttempt(row, chain);
+  if (before === "landed") return done(previous as string);
+  if (before === "pending") return { clientId: item.clientId, status: "retry", txHash: null, error: "en curso" };
+
+  try {
+    const tx = await chain.checkIn(contractId, account, rememberSent((id, m) => repo.markCheckIn(id, m), row.id));
+    return await done(tx.hash);
   } catch (error) {
     if (isContractError(error, "AlreadyCheckedIn")) {
+      // Antes de llamarlo doble: puede ser la transacción de este mismo registro, que entró tarde.
+      if (previous && (await chain.outcome(previous)) === "success") return done(previous);
       // Otro puesto ya marcó la entrada en el contrato: doble, a revisar en el panel.
       await repo.markCheckIn(row.id, { duplicate: true, error: error.errorName });
       if (view.pass.status !== "checked_in") await repo.updatePass(view.pass.id, { status: "checked_in" });
@@ -181,11 +255,12 @@ async function syncCheckIn(repo: Repo, event: EventRecord, item: ScanItem, view:
   }
 }
 
-async function syncRedeem(repo: Repo, event: EventRecord, item: ScanItem, view: PassView, contractId: string): Promise<ScanItemResult> {
+async function syncRedeem(repo: Repo, event: EventRecord, item: ScanItem, view: PassView, contractId: string, chain: ScanChain): Promise<ScanItemResult> {
   const account = view.pass.account as string;
   const benefit = item.benefitId ? view.benefits.find((b) => b.id === item.benefitId) : undefined;
   if (!item.benefitId || !benefit) return { clientId: item.clientId, status: "rejected", txHash: null, error: "la entrada no incluye ese beneficio" };
   if (benefit.chainIndex === null) return { clientId: item.clientId, status: "rejected", txHash: null, error: "beneficio sin lugar en el contrato" };
+  const chainIndex = benefit.chainIndex;
   const row = await repo.recordRedemption({
     clientId: item.clientId,
     eventId: event.id,
@@ -196,12 +271,23 @@ async function syncRedeem(repo: Repo, event: EventRecord, item: ScanItem, view: 
   });
   if (row.synced) return { clientId: item.clientId, status: "synced", txHash: row.txHash, error: null };
   if (row.duplicate) return { clientId: item.clientId, status: "duplicate", txHash: row.txHash, error: row.error };
+
+  const done = async (hash: string): Promise<ScanItemResult> => {
+    await repo.markRedemption(row.id, { synced: true, txHash: hash, error: null });
+    return { clientId: item.clientId, status: "synced", txHash: hash, error: null };
+  };
+  const previous = row.txHash;
+  const before = await previousAttempt(row, chain);
+  if (before === "landed") return done(previous as string);
+  if (before === "pending") return { clientId: item.clientId, status: "retry", txHash: null, error: "en curso" };
+
   try {
-    const tx = await rumboPass.redeem(contractId, account, benefit.chainIndex);
-    await repo.markRedemption(row.id, { synced: true, txHash: tx.hash, error: null });
-    return { clientId: item.clientId, status: "synced", txHash: tx.hash, error: null };
+    const tx = await chain.redeem(contractId, account, chainIndex, rememberSent((id, m) => repo.markRedemption(id, m), row.id));
+    return await done(tx.hash);
   } catch (error) {
     if (isContractError(error, "AlreadyRedeemed")) {
+      // Antes de llamarlo doble: puede ser la transacción de este mismo canje, que entró tarde.
+      if (previous && (await chain.outcome(previous)) === "success") return done(previous);
       await repo.markRedemption(row.id, { duplicate: true, error: error.errorName });
       return { clientId: item.clientId, status: "duplicate", txHash: null, error: error.errorName };
     }

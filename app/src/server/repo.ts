@@ -173,7 +173,10 @@ export interface CheckIn {
   scannedAt: string;
   synced: boolean;
   duplicate: boolean;
+  /** La transacción que lo llevó al contrato. Sin `synced`, la que se mandó y todavía no se sabe cómo terminó. */
   txHash: string | null;
+  /** Cuándo se mandó `txHash`. */
+  txSentAt: string | null;
   error: string | null;
   createdAt: string;
 }
@@ -212,6 +215,7 @@ export interface SyncMark {
   synced?: boolean;
   duplicate?: boolean;
   txHash?: string | null;
+  txSentAt?: string | null;
   error?: string | null;
 }
 
@@ -387,6 +391,7 @@ function rowToCheckIn(row: Row): CheckIn {
     synced: bool(row.synced),
     duplicate: bool(row.duplicate),
     txHash: strOrNull(row.tx_hash),
+    txSentAt: strOrNull(row.tx_sent_at),
     error: strOrNull(row.error),
     createdAt: str(row.created_at),
   };
@@ -895,6 +900,7 @@ function syncColumns(mark: SyncMark): Record<string, SQLInputValue> {
   if (mark.synced !== undefined) columns.synced = mark.synced ? 1 : 0;
   if (mark.duplicate !== undefined) columns.duplicate = mark.duplicate ? 1 : 0;
   if (mark.txHash !== undefined) columns.tx_hash = mark.txHash;
+  if (mark.txSentAt !== undefined) columns.tx_sent_at = mark.txSentAt;
   if (mark.error !== undefined) columns.error = mark.error;
   return columns;
 }

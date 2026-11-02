@@ -22,7 +22,9 @@ Cada entrada o canje va a IndexedDB (`src/lib/cola.ts`) con un `clientId` propio
 | `synced` | Llegó al contrato | Lo da por hecho |
 | `duplicate` | El contrato dijo que ya estaba hecho (otro puesto lo registró sin red) | Lo cuenta como "doble, revisar"; el panel lo ve en el espejo con `duplicate = 1` |
 | `retry` | Sin red, o un canje antes de que llegue la entrada de otro puesto (`NotCheckedIn`) | Lo deja pendiente y espera 10 s, 20 s, 40 s, hasta 2 minutos |
-| `rejected` | No va a entrar nunca: un pase desconocido, sin activar, un beneficio que la entrada no trae, o un registro que no es de este puesto | Lo cuenta como "sin registrar, revisar" |
+| `rejected` | No va a entrar nunca: un pase desconocido, sin activar, un beneficio que la entrada no trae, un registro que no es de este puesto o un `clientId` que ya es de otro registro | Lo cuenta como "sin registrar, revisar" |
+
+Una transacción que se mandó y cuya confirmación no llegó a tiempo (o cuya respuesta se cortó) no se pierde ni se vuelve un doble falso: el hash queda en el espejo apenas se manda (`tx_hash` y `tx_sent_at`, sin `synced`), y el próximo intento del mismo registro le pregunta a la red cómo terminó antes de mandar otra. Si entró, el registro queda `synced` con ese hash; si todavía puede entrar (la transacción vale 60 segundos), espera; si no entró y ya venció, manda otra. Y si el contrato contesta que ya estaba hecho, primero se mira si lo hecho era la transacción anterior de ese mismo registro: solo si no lo era, es un doble.
 
 Si no hay nada pendiente, cada minuto pide igual la foto fresca, para enterarse de lo que registraron los otros puestos. El interruptor "Simular sin conexión" frena todo eso sin tocar la red: sirve para probar.
 

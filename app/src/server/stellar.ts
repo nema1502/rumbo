@@ -376,13 +376,25 @@ const AUTH_VALID_LEDGERS = 120;
 /** Un margen sobre la comisión mínima que calcula la simulación. Lo que sobra se devuelve. */
 const RESOURCE_FEE_MARGIN = 1.2;
 
+/** Lo que quien manda una operación quiere saber en el camino. */
+export interface SubmitHooks {
+  /**
+   * El hash de la transacción ya firmada, justo antes de mandarla. Si después la confirmación no llega a
+   * tiempo (o se corta la respuesta), con ese hash se puede preguntar cómo terminó antes de mandar otra.
+   */
+  onSubmitted?: (hash: string) => void | Promise<void>;
+}
+
+/** Cuánto vale una transacción armada: después de esto la red ya no la incluye. */
+export const TX_TIMEOUT_SECONDS = 60;
+
 /**
  * Simula, firma las autorizaciones de cada cuenta con su firmante, arma la transacción con la
  * comisión de la simulación, la firma con la patrocinadora, la manda y espera el resultado.
  * La transacción tiene que tener a la patrocinadora como fuente y una sola operación de contrato.
  * Quien la construyó ya consumió un número de secuencia: construir y mandar van dentro de withSponsorLock.
  */
-export async function submitSponsored(tx: Transaction, signers: AuthSigner[] = []): Promise<TxResult> {
+export async function submitSponsored(tx: Transaction, signers: AuthSigner[] = [], hooks: SubmitHooks = {}): Promise<TxResult> {
   const server = getRpc();
   const sponsor = getSponsor();
   const op = tx.operations[0];
@@ -417,6 +429,7 @@ export async function submitSponsored(tx: Transaction, signers: AuthSigner[] = [
     .addOperation(Operation.invokeHostFunction({ source: op.source, func: op.func, auth }))
     .build();
   built.sign(sponsor);
+  await hooks.onSubmitted?.(Buffer.from(built.hash()).toString("hex"));
 
   const sent = await server.sendTransaction(built);
   if (sent.status === "ERROR" || sent.status === "DUPLICATE" || sent.status === "TRY_AGAIN_LATER") {
@@ -435,19 +448,29 @@ export async function submitSponsored(tx: Transaction, signers: AuthSigner[] = [
   throw new ContractError(`La transacción ${sent.hash} no se confirmó a tiempo`, null);
 }
 
+/** Cómo terminó una transacción mandada: entró bien, entró y falló, o la red no la conoce (todavía, o nunca). */
+export type TxOutcome = "success" | "failed" | "missing";
+
+export async function transactionOutcome(hash: string): Promise<TxOutcome> {
+  const tx = await getRpc().getTransaction(hash);
+  if (tx.status === rpc.Api.GetTransactionStatus.SUCCESS) return "success";
+  if (tx.status === rpc.Api.GetTransactionStatus.FAILED) return "failed";
+  return "missing";
+}
+
 /** Construye una transacción de contrato con la patrocinadora como fuente. Consume un número de secuencia. */
 export async function buildInvoke(contractId: string, fn: ContractFn, args: xdr.ScVal[]): Promise<Transaction> {
   const sponsor = getSponsor();
   const account = await getRpc().getAccount(sponsor.publicKey());
   return new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: NETWORK_PASSPHRASE })
     .addOperation(new Contract(requireContractId(contractId)).call(fn, ...args))
-    .setTimeout(60)
+    .setTimeout(TX_TIMEOUT_SECONDS)
     .build();
 }
 
 /** Construye, firma y manda una operación del contrato, en orden con las demás de la patrocinadora. */
-export function invoke(contractId: string, fn: ContractFn, args: xdr.ScVal[], signers: AuthSigner[] = []): Promise<TxResult> {
-  return withSponsorLock(async () => submitSponsored(await buildInvoke(contractId, fn, args), signers));
+export function invoke(contractId: string, fn: ContractFn, args: xdr.ScVal[], signers: AuthSigner[] = [], hooks: SubmitHooks = {}): Promise<TxResult> {
+  return withSponsorLock(async () => submitSponsored(await buildInvoke(contractId, fn, args), signers, hooks));
 }
 
 /** Lee del contrato sin mandar nada: simula y devuelve el valor convertido. */
@@ -534,13 +557,13 @@ export const rumboPass = {
     return { ...result, number: Number(result.returnValue) };
   },
   /** La entrada, una sola vez. La marca la puerta. Devuelve en qué lugar entró (el primero es 1). */
-  async checkIn(contractId: string, attendee: string): Promise<TxResult & { arrival: number }> {
-    const result = await invoke(contractId, CONTRACT_FN.checkIn, [addressArg(attendee), addressArg(getGate().publicKey())], gateSigners());
+  async checkIn(contractId: string, attendee: string, hooks: SubmitHooks = {}): Promise<TxResult & { arrival: number }> {
+    const result = await invoke(contractId, CONTRACT_FN.checkIn, [addressArg(attendee), addressArg(getGate().publicKey())], gateSigners(), hooks);
     return { ...result, arrival: Number(result.returnValue) };
   },
   /** Un canje, una sola vez por pase y beneficio. Firma la puerta. Hay que haber entrado antes. */
-  redeem(contractId: string, attendee: string, benefit: number): Promise<TxResult> {
-    return invoke(contractId, CONTRACT_FN.redeem, [addressArg(attendee), u32Arg(benefit)], gateSigners());
+  redeem(contractId: string, attendee: string, benefit: number, hooks: SubmitHooks = {}): Promise<TxResult> {
+    return invoke(contractId, CONTRACT_FN.redeem, [addressArg(attendee), u32Arg(benefit)], gateSigners(), hooks);
   },
   /**
    * Mantiene vivo el evento: la instancia, la lista de quienes entraron y el pase de cada cuenta de
