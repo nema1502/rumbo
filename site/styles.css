@@ -80,7 +80,7 @@ a { color: inherit; }
 img, svg { display: block; max-width: 100%; }
 h1, h2, h3 { font-family: var(--display); letter-spacing: -0.02em; line-height: 1.05; margin: 0; }
 h1 { font-size: clamp(2.6rem, 7vw, 5rem); font-weight: 800; text-wrap: balance; }
-h2 { font-size: clamp(2rem, 4.4vw, 3.1rem); font-weight: 800; text-wrap: balance; }
+h2 { font-size: clamp(1.75rem, 3.6vw, 2.6rem); font-weight: 800; text-wrap: balance; }
 h3 { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.01em; }
 p { margin: 0; }
 .contenedor { width: min(var(--ancho), 100% - 32px); margin-inline: auto; }
@@ -216,11 +216,12 @@ p { margin: 0; }
 .credencial-estado.espera::before { background: var(--apagado); }
 
 /* Secciones */
-.seccion { padding: clamp(56px, 8vw, 104px) 0; }
+.seccion { padding: clamp(30px, 4vw, 52px) 0; }
 .seccion + .seccion { border-top: 1px solid var(--linea); }
-.encabezado { max-width: 46rem; margin-bottom: clamp(28px, 4vw, 48px); }
-.encabezado p { margin-top: 14px; color: var(--tinta-2); font-size: 1.1rem; }
-.encabezado .antetitulo { margin-top: 0; margin-bottom: 16px; }
+.encabezado { margin-bottom: clamp(18px, 2.4vw, 28px); }
+.encabezado > p, .encabezado > .plegable { max-width: 46rem; }
+.encabezado p { margin-top: 10px; color: var(--tinta-2); font-size: 1.05rem; }
+.encabezado .antetitulo { margin-top: 0; margin-bottom: 12px; }
 .rejilla { display: grid; gap: 16px; }
 .rejilla-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .rejilla-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -261,7 +262,7 @@ p { margin: 0; }
 .herramienta span:last-child { color: var(--apagado); text-align: right; }
 .remate { margin-top: 24px; padding: 24px 28px; border-radius: var(--radio); background: var(--tinta); color: var(--papel); display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: center; }
 :root[data-theme="dark"] .remate { background: var(--tarjeta); color: var(--tinta); }
-.remate strong { font-family: var(--display); font-size: 1.6rem; letter-spacing: -0.02em; color: var(--acento); text-wrap: balance; max-width: 14ch; }
+.remate strong { font-family: var(--display); font-size: 1.6rem; letter-spacing: -0.02em; color: var(--acento); text-wrap: balance; }
 .remate p { opacity: 0.9; }
 .remate-claro { background: var(--tarjeta); color: var(--tinta); border: 1px solid var(--linea); }
 .remate-claro strong { color: var(--acento-texto); }
@@ -292,14 +293,12 @@ p { margin: 0; }
 .arq-puntos circle { fill: var(--acento); }
 .arquitectura-lista { display: none; margin: 0; padding-left: 20px; color: var(--tinta-2); }
 .arquitectura-lista li + li { margin-top: 8px; }
-.hecho-datos h3 { font-size: 1.1rem; }
 
 /* Cómo crece */
 .etapas { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; position: relative; }
 .etapa { position: relative; padding-top: 30px; display: flex; flex-direction: column; gap: 10px; }
 .etapa h3 { margin-bottom: 0; }
 .etapa .etiqueta { align-self: flex-start; }
-.etapa ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 6px; font-size: 0.95rem; }
 .etapa-num {
   position: absolute; z-index: 2; top: -18px; left: 24px; width: 40px; height: 40px; border-radius: 50%;
   background: var(--acento); color: #0f1c2e; font: 800 1.1rem var(--display); display: grid; place-items: center;
@@ -315,21 +314,17 @@ p { margin: 0; }
   .etapa:last-child::before { width: 45px; }
 }
 
-/* Quién paga */
-.pago h3 { font-size: 1.05rem; }
-
 /* Al pasar el mouse: la tarjeta sube y el ícono toma el acento */
 @media (hover: hover) {
   .tarjeta:hover { box-shadow: var(--sombra-alzada); }
   .motivo:hover .icono { background: var(--acento); color: #0f1c2e; }
 }
-.pago-gratis { background: color-mix(in srgb, var(--acento) 10%, var(--tarjeta)); border-color: transparent; }
-.pago-gratis p { color: var(--tinta); }
 
 /* Principios */
-.principios { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.principios li { padding: 18px 20px; border-radius: 16px; background: var(--tarjeta); border: 1px solid var(--linea); color: var(--tinta-2); }
-.principios strong { color: var(--tinta); display: block; margin-bottom: 4px; }
+.principios { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.principios li { padding: 12px 18px; border-radius: 16px; background: var(--tarjeta); border: 1px solid var(--linea); color: var(--tinta-2); }
+.principios strong { color: var(--tinta); }
+@media (min-width: 861px) { .principios { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* Equipo */
 .persona { display: grid; gap: 6px; }
@@ -360,7 +355,6 @@ p { margin: 0; }
   .rejilla-2 { grid-template-columns: 1fr; }
   .remate { grid-template-columns: 1fr; }
   .remate strong { max-width: none; }
-  .principios { grid-template-columns: 1fr; }
 }
 @media (max-width: 700px) {
   .arquitectura-svg { display: none; }
@@ -543,4 +537,152 @@ p { margin: 0; }
   .portada .credencial { order: 1; margin: 26px 0 6px; }
   .portada .sellos { order: 2; margin-top: 18px; }
   .portada .nota-portada, .portada .estado { order: 3; }
+}
+
+/* Lo plegado: un enlace discreto con una flecha chica que gira al abrir. Funciona sin JS, y lo de
+   adentro sigue en la página para quien lo quiera leer. */
+.plegable, .rol { interpolate-size: allow-keywords; }
+.plegable > summary, .rol > summary { list-style: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.plegable > summary::-webkit-details-marker, .rol > summary::-webkit-details-marker { display: none; }
+.plegable > summary {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 6px; margin-left: -6px;
+  border-radius: 10px; color: var(--acento-texto); font-weight: 600; font-size: 0.95rem; line-height: 1.3;
+}
+.plegable > summary::after, .ver::after {
+  content: ""; flex: none; width: 7px; height: 7px; margin-top: -4px;
+  border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+details[open] > summary::after, details[open] > summary .ver::after { margin-top: 3px; transform: rotate(-135deg); }
+@media (hover: hover) {
+  .plegable > summary:hover, :is(.rol, .en-linea) > summary:hover .ver { text-decoration: underline; text-underline-offset: 4px; }
+  .en-linea > summary:hover { text-decoration: none; }
+}
+.plegable > summary:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.plegado { margin: 4px 0 0; }
+div.plegado { display: grid; gap: 14px; }
+.plegado p, .plegado li { color: var(--tinta-2); }
+div.plegado > p { max-width: 52rem; }
+.encabezado .plegable { margin-top: 6px; }
+/* Una frase que abre su detalle desde la misma línea: se lee como texto, y "Ver más" va al final */
+.en-linea > summary { display: block; min-height: 0; padding: 0; margin: 0; border-radius: 6px; color: var(--tinta-2); font-weight: 400; font-size: inherit; line-height: inherit; }
+.en-linea > summary::after { content: none; }
+.encabezado .en-linea { margin-top: 10px; font-size: 1.05rem; }
+.encabezado .plegado p { margin-top: 0; font-size: 1rem; }
+@media (prefers-reduced-motion: no-preference) {
+  .plegable > summary::after, .ver::after { transition: transform 0.25s var(--suave), margin-top 0.25s var(--suave); }
+  :is(.plegable, .rol)::details-content { block-size: 0; overflow: clip; transition: block-size 0.35s var(--suave), content-visibility 0.35s allow-discrete; }
+  :is(.plegable, .rol)[open]::details-content { block-size: auto; }
+  :is(.plegable, .rol)[open] > .plegado { animation: aparecer 0.45s ease; }
+}
+
+/* Lo que se abre adentro de un plegable: cajas chicas con su título */
+.datos { gap: 12px; }
+.dato { padding: 16px 18px; border-radius: 16px; background: var(--tarjeta); border: 1px solid var(--linea); }
+.dato h4 { margin: 0 0 6px; font: 700 1rem/1.25 var(--display); letter-spacing: -0.01em; color: var(--tinta); }
+.dato p, .dato li { font-size: 0.95rem; }
+.dato ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+
+/* Cómo funciona: cada rol es una tarjeta que se abre entera, con "Ver más" al final de su línea */
+.roles { align-items: start; }
+.rol { padding: 0; }
+.rol > summary { display: grid; gap: 6px; padding: 22px 22px 20px; border-radius: inherit; }
+.rol > summary:focus-visible { outline: 2px solid var(--acento); outline-offset: -2px; }
+.rol h3 { margin-bottom: 0; }
+.rol-linea { color: var(--tinta-2); }
+.ver { display: inline-flex; align-items: center; gap: 7px; margin-left: 2px; color: var(--acento-texto); font-weight: 600; font-size: 0.95rem; white-space: nowrap; }
+.rol .plegado { margin: -6px 0 0; padding: 0 22px 20px 40px; font-size: 0.95rem; }
+.herramientas { margin-top: 2px; }
+
+/* Para qué sirve: cuatro casos que se abren al tocarlos */
+.casos { margin-top: clamp(24px, 3vw, 36px); }
+.casos h3 { font-size: 1.15rem; margin-bottom: 12px; text-wrap: balance; }
+.casos-lista { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: start; }
+.caso > summary {
+  display: flex; width: 100%; margin: 0; padding: 0 18px; justify-content: space-between; gap: 10px;
+  border: 1px solid var(--linea); border-radius: 999px; background: var(--tarjeta); color: var(--tinta);
+}
+.caso > summary::after { color: var(--acento-texto); }
+.caso[open] > summary { background: var(--acento-suave); border-color: color-mix(in srgb, var(--acento) 40%, transparent); }
+@media (hover: hover) { .caso > summary:hover { text-decoration: none; border-color: color-mix(in srgb, var(--acento) 45%, transparent); } }
+.caso .plegado { padding: 8px 10px 4px; font-size: 0.95rem; }
+
+/* Cómo se paga y quién paga */
+.motivo h3 { margin-bottom: 4px; }
+.quien-paga { margin-top: clamp(22px, 3vw, 30px); padding-top: clamp(22px, 3vw, 30px); border-top: 1px solid var(--linea); }
+.quien-paga h3 { font-size: 1.3rem; }
+.quien-paga > p { margin-top: 4px; color: var(--tinta-2); }
+.fichas { list-style: none; margin: 14px 0 4px; padding: 0; display: flex; flex-wrap: wrap; gap: 7px; }
+.fichas li { padding: 5px 11px; border-radius: 999px; background: var(--tarjeta); border: 1px solid var(--linea); font-size: 0.85rem; font-weight: 600; color: var(--tinta-2); line-height: 1.3; }
+.fichas .ficha-gratis { background: var(--acento-suave); border-color: transparent; color: var(--acento-chip); }
+
+/* Por qué Stellar: tres motivos de una línea; los otros tres, plegados */
+.motivos .motivo p strong { color: var(--tinta); }
+.motivos + .plegable, .principios + .plegable, .etapas + .plegable { margin-top: 8px; }
+
+/* Cómo está hecho: el diagrama y una línea */
+/* El diagrama ya trae aire arriba */
+@media (min-width: 701px) { #hecho .encabezado { margin-bottom: 0; } }
+.hecho-linea { color: var(--tinta-2); }
+.hecho-linea a { color: var(--acento-texto); font-weight: 600; }
+
+/* Abierto y conectado: seis fichas con ícono */
+.conectores { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }
+.conectores li { display: inline-flex; align-items: center; gap: 8px; padding: 9px 15px; border-radius: 999px; background: var(--tarjeta); border: 1px solid var(--linea); font-weight: 600; font-size: 0.95rem; color: var(--tinta); white-space: nowrap; }
+.conectores svg { width: 18px; height: 18px; color: var(--acento-texto); flex: none; }
+.abierto-linea { margin-top: 14px; font-size: 1.05rem; }
+
+/* Principios: el detalle de cada uno, plegado */
+.principios-detalle { padding-left: 18px; display: grid; gap: 8px; max-width: 52rem; }
+.principios-detalle strong { color: var(--tinta); }
+
+/* En escritorio, las secciones cortas van en dos columnas: el encabezado y lo demás */
+@media (min-width: 1001px) {
+  .seccion-partida .contenedor { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: 56px; align-items: start; }
+  .seccion-partida .encabezado { margin-bottom: 0; }
+  .seccion-partida .motivos { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .seccion-partida .datos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .seccion-partida .motivo { padding: 15px 20px; }
+}
+@media (max-width: 1000px) {
+  .casos-lista { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rejilla-4.datos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* En celular: los roles se recorren de costado, y todo lo demás más junto */
+@media (max-width: 560px) {
+  .encabezado p { font-size: 1rem; }
+  .rejilla { gap: 10px; }
+  .casos-lista, .rejilla-4.datos { grid-template-columns: 1fr; }
+  .conectores li, .fichas li { white-space: normal; }
+  .conectores { gap: 8px; }
+  .conectores li { gap: 6px; padding: 7px 11px; font-size: 0.88rem; }
+  .conectores svg { width: 16px; height: 16px; }
+  .roles {
+    grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 82%; gap: 10px;
+    overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none;
+    margin-inline: -16px; padding: 2px 16px 6px; scroll-padding-inline: 16px;
+  }
+  .roles::-webkit-scrollbar { display: none; }
+  .rol { scroll-snap-align: start; }
+  .rol > summary { padding: 18px 18px 16px; }
+  .rol .plegado { padding: 0 18px 16px 34px; }
+  .demo-pasos { gap: 8px; }
+  .demo-pasos > span { padding: 10px 12px; }
+  .tarjeta.motivo { padding: 14px 16px; gap: 12px; grid-template-columns: 36px 1fr; }
+  .motivo .icono { width: 36px; height: 36px; border-radius: 10px; }
+  .motivo .icono svg { width: 19px; height: 19px; }
+  .etapas { gap: 0; }
+  .etapa { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 10px; row-gap: 4px; padding: 5px 0 22px 50px; background: none; border: 0; border-radius: 0; }
+  .etapa:last-child { padding-bottom: 6px; }
+  .etapa p { grid-column: 1 / -1; }
+  .etapa-num { top: 0; left: 0; width: 34px; height: 34px; font-size: 1rem; box-shadow: 0 0 0 4px var(--papel); }
+  .etapa::after { content: ""; position: absolute; left: 16px; top: 40px; bottom: 4px; width: 2px; border-radius: 2px; background: var(--linea); }
+  .etapa:last-child::after { content: none; }
+  .remate { padding: 16px 18px; gap: 6px; }
+  .remate strong { font-size: 1.25rem; }
+  .llamado { margin-top: 22px; padding: 18px; }
+  .principios li { padding: 10px 14px; }
+  .persona { grid-template-columns: 48px 1fr; column-gap: 14px; row-gap: 0; align-items: center; padding: 16px 18px; }
+  .persona .avatar { grid-row: span 2; width: 48px; height: 48px; margin-bottom: 0; }
+  .persona a { padding: 6px 0 2px; }
 }

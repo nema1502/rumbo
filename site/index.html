@@ -78,7 +78,7 @@
       <div class="portada-texto">
         <p class="antetitulo" data-i18n="portada.ante">Eventos de comunidad sobre Stellar</p>
         <h1 data-i18n="portada.titulo">Tu evento entero <em>en&nbsp;un&nbsp;QR</em>.</h1>
-        <p class="bajada" data-i18n="portada.bajada">Inscribí gratis o cobrá entradas en segundos desde cualquier país, en dólares digitales o con el QR de tu banco. Credencial, check-in, refrigerio, merch y premios en un solo lugar, y cada canje una sola vez.</p>
+        <p class="bajada" data-i18n="portada.bajada">Inscribí gratis o cobrá entradas desde cualquier país, y manejá la puerta, los canjes y los premios con un solo QR.</p>
         <div class="cta">
           <a class="boton boton-primario" href="#asi-se-ve" data-i18n="portada.cta">Ver cómo funciona</a>
           <a class="boton boton-secundario" href="https://github.com/nema1502/rumbo" rel="noopener" data-i18n="portada.codigo">El código, en GitHub</a>
@@ -127,7 +127,7 @@
       <div class="encabezado">
         <p class="antetitulo" data-i18n="demo.ante">Así se ve</p>
         <h2 data-i18n="demo.titulo">De la inscripción al informe, en medio minuto.</h2>
-        <p data-i18n="demo.bajada">La gente se inscribe gratis, o compra su entrada o su merch y la plata llega repartida. Aparece la credencial, un voluntario escanea y canjea una sola vez, y el panel cuenta lo que pasó.</p>
+        <p data-i18n="demo.bajada">Así lo vive una persona, y así lo ve quien organiza.</p>
       </div>
       <figure class="demo" id="asi-se-ve">
         <video id="demo-video" class="demo-video" autoplay muted loop playsinline preload="metadata" poster="assets/flujo-es.jpg" aria-label="Animación del flujo de Rumbo" data-i18n-aria="aria.video">
@@ -138,10 +138,10 @@
           <span class="demo-play"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg><span data-i18n="demo.abrir">Ver la animación</span></span>
         </a>
         <figcaption class="demo-pasos">
-          <span><b>1</b> <span data-i18n="demo.p1">Inscribirse es gratis. Si el evento cobra una entrada o vende su merch, la plata llega a quien organiza con la comisión separada, en la misma operación.</span></span>
-          <span><b>2</b> <span data-i18n="demo.p2">La credencial con QR queda en el celular, con lo que le toca a cada persona.</span></span>
-          <span><b>3</b> <span data-i18n="demo.p3">El voluntario escanea y canjea. Si ya se canjó, lo ve en grande. Y sin conexión, la fila sigue.</span></span>
-          <span><b>4</b> <span data-i18n="demo.p4">El panel cuenta credenciales, entradas y canjes, y el informe para quien auspicia queda listo.</span></span>
+          <span><b>1</b> <span data-i18n="demo.p1">Se inscribe gratis, o paga y la plata llega ya repartida.</span></span>
+          <span><b>2</b> <span data-i18n="demo.p2">La credencial con QR llega al celular, con lo que le toca.</span></span>
+          <span><b>3</b> <span data-i18n="demo.p3">El voluntario canjea, y si ya se canjeó, lo ve en grande.</span></span>
+          <span><b>4</b> <span data-i18n="demo.p4">El panel cuenta todo y el informe para quien auspicia sale solo.</span></span>
         </figcaption>
       </figure>
       <p class="estado" data-i18n="demo.nota">Es una maqueta animada de lo que se construye en noviembre, no una grabación del producto.</p>
@@ -161,98 +161,96 @@
     </div>
   </section>
 
-  <section class="seccion" id="problema">
-    <div class="contenedor">
-      <div class="encabezado">
-        <p class="antetitulo" data-i18n="problema.ante">El problema</p>
-        <h2 data-i18n="problema.titulo">Un evento de comunidad hoy son seis herramientas y una planilla.</h2>
-        <p data-i18n="problema.bajada">Las inscripciones en un lado, las credenciales en otro, los vales del almuerzo en papel, el merch por mensajes, los premios en una foto y el informe para quien auspicia armado de memoria.</p>
-      </div>
-      <div class="rejilla rejilla-3">
-        <div class="herramienta"><span data-i18n="problema.h1">Inscripciones</span><span data-i18n="problema.h1b">Luma</span></div>
-        <div class="herramienta"><span data-i18n="problema.h2">Credenciales</span><span data-i18n="problema.h2b">Canva</span></div>
-        <div class="herramienta"><span data-i18n="problema.h3">Refrigerios</span><span data-i18n="problema.h3b">tickets de papel o una columna marcada a mano</span></div>
-        <div class="herramienta"><span data-i18n="problema.h4">Merch</span><span data-i18n="problema.h4b">mensajes de Instagram y WhatsApp</span></div>
-        <div class="herramienta"><span data-i18n="problema.h5">Premios</span><span data-i18n="problema.h5b">una foto</span></div>
-        <div class="herramienta"><span data-i18n="problema.h6">Informe para quien auspicia</span><span data-i18n="problema.h6b">armado de memoria</span></div>
-      </div>
-      <div class="remate">
-        <strong data-i18n="problema.remate.t">Y muchas veces, sin forma de cobrar.</strong>
-        <p data-i18n="problema.remate.p">En buena parte del mundo quien organiza no puede cobrar entradas: las plataformas que ya usa piden una cuenta de Stripe, y Stripe no paga en su país. Bolivia es uno de esos países.</p>
-      </div>
-    </div>
-  </section>
-
   <section class="seccion" id="como">
     <div class="contenedor">
       <div class="encabezado">
         <p class="antetitulo" data-i18n="como.ante">Cómo funciona</p>
-        <h2 data-i18n="como.titulo">Un solo lugar para todos los que están en el evento.</h2>
-        <p data-i18n="como.bajada">Rumbo está pensado para eventos de 80 a 500 personas con auspiciantes y varios beneficios: hackatones, DevFests, congresos de comunidad, bootcamps, meetups de capítulos.</p>
+        <h2 data-i18n="como.titulo">Todos los del evento, en un solo lugar.</h2>
+        <details class="plegable en-linea">
+          <summary><span data-i18n="como.bajada">Hoy un evento de comunidad son seis herramientas y una planilla, y en muchos países no se puede cobrar.</span> <span class="ver" data-i18n="ver.detalle">Ver el detalle</span></summary>
+          <div class="plegado">
+            <div class="rejilla rejilla-2 herramientas">
+              <div class="herramienta"><span data-i18n="problema.h1">Inscripciones</span><span data-i18n="problema.h1b">Luma</span></div>
+              <div class="herramienta"><span data-i18n="problema.h2">Credenciales</span><span data-i18n="problema.h2b">Canva</span></div>
+              <div class="herramienta"><span data-i18n="problema.h3">Refrigerios</span><span data-i18n="problema.h3b">tickets de papel o una columna marcada a mano</span></div>
+              <div class="herramienta"><span data-i18n="problema.h4">Merch</span><span data-i18n="problema.h4b">mensajes de Instagram y WhatsApp</span></div>
+              <div class="herramienta"><span data-i18n="problema.h5">Premios</span><span data-i18n="problema.h5b">una foto</span></div>
+              <div class="herramienta"><span data-i18n="problema.h6">Informe para quien auspicia</span><span data-i18n="problema.h6b">armado de memoria</span></div>
+            </div>
+            <p data-i18n="problema.remate.p">En buena parte del mundo quien organiza no puede cobrar entradas: las plataformas que ya usa piden una cuenta de Stripe, y Stripe no paga en su país. Bolivia es uno de esos países.</p>
+            <p data-i18n="como.para">Rumbo está pensado para eventos de 80 a 500 personas con auspiciantes y varios beneficios: hackatones, DevFests, congresos de comunidad, bootcamps, meetups de capítulos.</p>
+            <p data-i18n="casos.bajada">Lo que hoy hacés con un formulario, un grupo de WhatsApp y una planilla, en un solo lugar, y con lo que se entrega bajo control.</p>
+          </div>
+        </details>
       </div>
-      <div class="rejilla rejilla-4">
-        <article class="tarjeta rol">
-          <h3 data-i18n="como.r1.n">Si organizás</h3>
-          <ul>
+      <div class="rejilla rejilla-4 roles">
+        <details class="tarjeta rol">
+          <summary>
+            <h3 data-i18n="como.r1.n">Si organizás</h3>
+            <span class="rol-linea"><span data-i18n="como.r1.l">Armá la página, cobrá y seguí todo en vivo.</span> <span class="ver" data-i18n="ver.mas">Ver más</span></span>
+          </summary>
+          <ul class="plegado">
             <li data-i18n="como.r1.a">Armá el evento y publicá la página, con inscripción gratis o paga.</li>
             <li data-i18n="como.r1.b">Cobrá en dólares digitales (USDC) o con el QR del banco. La plata te llega ya repartida.</li>
             <li data-i18n="como.r1.c">Imprimí las credenciales o dejalas en cada celular.</li>
             <li data-i18n="como.r1.d">Mirá el panel en vivo y mandale su informe a cada auspiciante.</li>
             <li data-i18n="como.r1.e">Si tu evento es gratis, Rumbo es gratis. Si cobrás, la comisión está a la vista antes de publicar y es la misma hasta el final.</li>
           </ul>
-        </article>
-        <article class="tarjeta rol">
-          <h3 data-i18n="como.r2.n">Si asistís</h3>
-          <ul>
+        </details>
+        <details class="tarjeta rol">
+          <summary>
+            <h3 data-i18n="como.r2.n">Si asistís</h3>
+            <span class="rol-linea"><span data-i18n="como.r2.l">Sin contraseña nueva, y con la credencial en el celular.</span> <span class="ver" data-i18n="ver.mas">Ver más</span></span>
+          </summary>
+          <ul class="plegado">
             <li data-i18n="como.r2.a">Entrás con Google o con la huella de tu celular (una passkey). Sin contraseña nueva.</li>
             <li data-i18n="como.r2.b">Recibís un correo con un enlace personal. Nunca llaves ni contraseñas.</li>
             <li data-i18n="como.r2.c">Tenés tu credencial en el celular y ves lo que te toca.</li>
             <li data-i18n="como.r2.d">Si pagaste y el evento se cancela, con pago protegido la plata te vuelve sola.</li>
           </ul>
-        </article>
-        <article class="tarjeta rol">
-          <h3 data-i18n="como.r3.n">Si sos voluntario</h3>
-          <ul>
+        </details>
+        <details class="tarjeta rol">
+          <summary>
+            <h3 data-i18n="como.r3.n">Si sos voluntario</h3>
+            <span class="rol-linea"><span data-i18n="como.r3.l">Escaneás y ves qué le toca a cada persona, sin entrenamiento.</span> <span class="ver" data-i18n="ver.mas">Ver más</span></span>
+          </summary>
+          <ul class="plegado">
             <li data-i18n="como.r3.a">Escaneás el QR y ves qué le toca a esa persona.</li>
-            <li data-i18n="como.r3.b">Marcás el canje. Si ya se canjó, el escáner lo dice en grande y la fila sigue.</li>
+            <li data-i18n="como.r3.b">Marcás el canje. Si ya se canjeó, el escáner lo dice en grande y la fila sigue.</li>
             <li data-i18n="como.r3.c">Sin cuenta y sin entrenamiento. Funciona sin conexión y sincroniza después.</li>
           </ul>
-        </article>
-        <article class="tarjeta rol">
-          <h3 data-i18n="como.r4.n">Si auspiciás</h3>
-          <ul>
+        </details>
+        <details class="tarjeta rol">
+          <summary>
+            <h3 data-i18n="como.r4.n">Si auspiciás</h3>
+            <span class="rol-linea"><span data-i18n="como.r4.l">Ponés un beneficio y sabés cuántos se entregaron de verdad.</span> <span class="ver" data-i18n="ver.mas">Ver más</span></span>
+          </summary>
+          <ul class="plegado">
             <li data-i18n="como.r4.a">Ponés un beneficio, como un café para cada asistente, y ves cuántos se canjearon.</li>
             <li data-i18n="como.r4.b">Te quedás con el contacto de quienes aceptan compartirlo en tu stand.</li>
             <li data-i18n="como.r4.c">Recibís el informe con lo que de verdad se entregó.</li>
           </ul>
-        </article>
+        </details>
       </div>
-    </div>
-  </section>
-
-  <section class="seccion" id="casos">
-    <div class="contenedor">
-      <div class="encabezado">
-        <p class="antetitulo" data-i18n="casos.ante">Para qué sirve</p>
-        <h2 data-i18n="casos.titulo">Un meetup de veinte personas o una hackatón de trescientas.</h2>
-        <p data-i18n="casos.bajada">Lo que hoy hacés con un formulario, un grupo de WhatsApp y una planilla, en un solo lugar, y con lo que se entrega bajo control.</p>
-      </div>
-      <div class="rejilla rejilla-2">
-        <div class="tarjeta caso">
-          <h3 data-i18n="casos.c1.t">Una hackatón</h3>
-          <p data-i18n="casos.c1.p">Inscripción por equipos y pases por día. Credenciales para mentores y jurado. Almuerzos y cenas con canje, para que nadie coma dos veces mientras a otro le falta. El orden de las presentaciones por sorteo, y el premio entra a la credencial de quien ganó.</p>
-        </div>
-        <div class="tarjeta caso">
-          <h3 data-i18n="casos.c2.t">Un meetup o un DevFest</h3>
-          <p data-i18n="casos.c2.p">Lista gratis, confirmación por correo y check-in en la puerta. Refrigerio y merch con canje, y un sorteo entre quienes de verdad vinieron.</p>
-        </div>
-        <div class="tarjeta caso">
-          <h3 data-i18n="casos.c3.t">Una conferencia o un congreso</h3>
-          <p data-i18n="casos.c3.p">Entradas de varios tipos y precios, talleres con cupo, stands que juntan contactos con permiso de cada persona, y un informe para cada auspiciante.</p>
-        </div>
-        <div class="tarjeta caso">
-          <h3 data-i18n="casos.c4.t">Una comunidad con calendario</h3>
-          <p data-i18n="casos.c4.p">Todos los eventos de un GDG, de un capítulo o de una universidad en una sola página, con la gente que ya vino y su historial de asistencia.</p>
+      <div class="casos" id="casos">
+        <h3 data-i18n="casos.titulo">Para un meetup de veinte o una hackatón de trescientas.</h3>
+        <div class="casos-lista">
+          <details class="plegable caso">
+            <summary data-i18n="casos.c1.t">Una hackatón</summary>
+            <p class="plegado" data-i18n="casos.c1.p">Inscripción por equipos y pases por día. Credenciales para mentores y jurado. Almuerzos y cenas con canje, para que nadie coma dos veces mientras a otro le falta. El orden de las presentaciones por sorteo, y el premio entra a la credencial de quien ganó.</p>
+          </details>
+          <details class="plegable caso">
+            <summary data-i18n="casos.c2.t">Un meetup</summary>
+            <p class="plegado" data-i18n="casos.c2.p">Un meetup o un DevFest: lista gratis, confirmación por correo y check-in en la puerta. Refrigerio y merch con canje, y un sorteo entre quienes de verdad vinieron.</p>
+          </details>
+          <details class="plegable caso">
+            <summary data-i18n="casos.c3.t">Una conferencia</summary>
+            <p class="plegado" data-i18n="casos.c3.p">Una conferencia o un congreso: entradas de varios tipos y precios, talleres con cupo, stands que juntan contactos con permiso de cada persona, y un informe para cada auspiciante.</p>
+          </details>
+          <details class="plegable caso">
+            <summary data-i18n="casos.c4.t">Una comunidad</summary>
+            <p class="plegado" data-i18n="casos.c4.p">Una comunidad con calendario: todos los eventos de un GDG, de un capítulo o de una universidad en una sola página, con la gente que ya vino y su historial de asistencia.</p>
+          </details>
         </div>
       </div>
     </div>
@@ -262,66 +260,57 @@
     <div class="contenedor">
       <div class="encabezado">
         <p class="antetitulo" data-i18n="pagos.ante">Cómo se paga</p>
-        <h2 data-i18n="pagos.titulo">En tu moneda, con el QR de tu banco. O en USDC, desde cualquier país.</h2>
-        <p data-i18n="pagos.bajada">En buena parte de Latinoamérica no se puede cobrar con Stripe, y las pasarelas locales piden empresa, papeles y días de espera. Acá la plata va de quien compra a quien organiza en una sola operación.</p>
+        <h2 data-i18n="pagos.titulo">Cobrá aunque Stripe no llegue a tu país.</h2>
       </div>
-      <div class="rejilla rejilla-3">
+      <div class="rejilla rejilla-3 cobros">
         <div class="tarjeta motivo">
-          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM21 14v7h-4"/></svg></div>
-          <div><h3 data-i18n="pagos.m1.t">Con el QR de tu banco, en bolivianos</h3><p data-i18n="pagos.m1.p">La persona paga como paga todo: escanea el QR de su banco. Una rampa con licencia convierte los bolivianos, y quien organiza recibe USDC al momento. Primero Bolivia, después cada país con su rampa.</p></div>
-        </div>
-        <div class="tarjeta motivo">
-          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></div>
-          <div><h3 data-i18n="pagos.m2.t">En USDC, desde cualquier país</h3><p data-i18n="pagos.m2.p">Con la cuenta que se crea sola con Google o con una passkey, o desde cualquier billetera de Stellar. Sin tarjeta, sin XLM y sin cuenta bancaria del otro lado.</p></div>
+          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M3 7h18v4H3zM12 7v14"/><path d="M12 7C10.5 4 7 3.5 7 5.5S10 7 12 7zm0 0c1.5-3 5-3.5 5-1.5S14 7 12 7z"/></svg></div>
+          <div><h3 data-i18n="pagos.g.t">Gratis es gratis</h3><p data-i18n="pagos.g.p">Si tu evento no cobra, Rumbo tampoco.</p></div>
         </div>
         <div class="tarjeta motivo">
           <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></div>
-          <div><h3 data-i18n="pagos.m3.t">Sin plata en el medio</h3><p data-i18n="pagos.m3.p">El contrato reparte en la misma operación lo de quien organiza, la comisión y lo de quien auspicia. Rumbo nunca tiene la plata, y si el evento se cancela, el pago protegido la devuelve sola.</p></div>
+          <div><h3 data-i18n="pagos.c.t">Si cobrás</h3><p data-i18n="pagos.c.p">Ves la comisión antes de publicar, y la plata llega ya repartida.</p></div>
+        </div>
+        <div class="tarjeta motivo">
+          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM21 14v7h-4"/></svg></div>
+          <div><h3 data-i18n="pagos.m.t">En tu moneda o en USDC</h3><p data-i18n="pagos.m.p">Con el QR de tu banco, en bolivianos, o en USDC desde cualquier país.</p></div>
         </div>
       </div>
-    </div>
-  </section>
-
-  <section class="seccion" id="negocio">
-    <div class="contenedor">
-      <div class="encabezado">
-        <p class="antetitulo" data-i18n="paga.ante">Quién paga</p>
-        <h2 data-i18n="paga.titulo">Las comunidades casi no tienen plata. Por eso paga otro.</h2>
-        <p data-i18n="paga.bajada">Los eventos gratis son gratis, y por ahí llega la gente. La comisión aparece cuando hay plata de por medio, y quien auspicia paga por saber qué pasó con lo que puso.</p>
-      </div>
-      <div class="rejilla rejilla-4">
-        <div class="tarjeta pago">
-          <h3 data-i18n="paga.c1.t">Si vendés entradas</h3>
-          <p data-i18n="paga.c1.p">Una comisión por entrada paga, a la vista antes de publicar y menor que la de las plataformas con tarjeta en su plan gratis. Se cobra en la misma operación: nadie tiene la plata en el medio.</p>
-        </div>
-        <div class="tarjeta pago">
-          <h3 data-i18n="paga.c8.t">Si vendés merch o talleres</h3>
-          <p data-i18n="paga.c8.p">La misma comisión que una entrada. Lo que el evento vende se paga en su propia página y entra a la credencial como un canje más.</p>
-        </div>
-        <div class="tarjeta pago">
-          <h3 data-i18n="paga.c2.t">Si auspiciás</h3>
-          <p data-i18n="paga.c2.p">Por campaña: "un café para cada asistente", con canje verificado, informe y los contactos del stand de quienes aceptan compartirlos.</p>
-        </div>
-        <div class="tarjeta pago">
-          <h3 data-i18n="paga.c3.t">Los eventos grandes</h3>
-          <p data-i18n="paga.c3.p">Por persona: credenciales, escáneres, varios días y tipos de entrada, informes. Hackatones, DevFests, congresos.</p>
-        </div>
-        <div class="tarjeta pago">
-          <h3 data-i18n="paga.c7.t">Si organizás seguido</h3>
-          <p data-i18n="paga.c7.p">Un plan mensual accesible, en USDC o en bolivianos, con más cupo, tu marca en la página y el historial de tu gente. Las comunidades chicas siguen gratis.</p>
-        </div>
-        <div class="tarjeta pago">
-          <h3 data-i18n="paga.c4.t">Las redes de comunidades</h3>
-          <p data-i18n="paga.c4.p">Una licencia por red, para todos sus capítulos, con los datos agregados. Es la forma de crecer sin vender de a uno.</p>
-        </div>
-        <div class="tarjeta pago">
-          <h3 data-i18n="paga.c5.t">Otras apps y agentes</h3>
-          <p data-i18n="paga.c5.p">Por uso, cuando crean eventos a volumen por la API, pagando centavos en USDC. Para tus propios eventos, la API y el MCP son gratis.</p>
-        </div>
-        <div class="tarjeta pago pago-gratis">
-          <h3 data-i18n="paga.c6.t">Las comunidades chicas</h3>
-          <p data-i18n="paga.c6.p">Gratis, con un tope de personas por evento. Así empieza cualquier comunidad, y así se corre la voz.</p>
-        </div>
+      <div class="quien-paga" id="negocio">
+        <h3 data-i18n="paga.ante">Quién paga</h3>
+        <p data-i18n="paga.titulo">Las comunidades casi no tienen plata. Por eso paga otro.</p>
+        <ul class="fichas">
+          <li data-i18n="paga.f1">Entradas</li>
+          <li data-i18n="paga.f2">Merch y talleres</li>
+          <li data-i18n="paga.f3">Auspicios</li>
+          <li data-i18n="paga.f4">Eventos grandes</li>
+          <li data-i18n="paga.f5">Plan mensual</li>
+          <li data-i18n="paga.f7">Apps por uso</li>
+          <li data-i18n="paga.f6">Redes de comunidades</li>
+          <li class="ficha-gratis" data-i18n="paga.f8">Comunidades chicas, gratis</li>
+        </ul>
+        <details class="plegable">
+          <summary data-i18n="ver.detalle">Ver el detalle</summary>
+          <div class="plegado">
+            <div class="rejilla rejilla-3 datos">
+              <div class="dato"><h4 data-i18n="pagos.m1.t">Con el QR de tu banco, en bolivianos</h4><p data-i18n="pagos.m1.p">La persona paga como paga todo: escanea el QR de su banco. Una rampa con licencia convierte los bolivianos, y quien organiza recibe USDC al momento. Primero Bolivia, después cada país con su rampa.</p></div>
+              <div class="dato"><h4 data-i18n="pagos.m2.t">En USDC, desde cualquier país</h4><p data-i18n="pagos.m2.p">Con la cuenta que se crea sola con Google o con una passkey, o desde la cuenta de Stellar que ya tengas. Sin tarjeta, sin XLM y sin cuenta bancaria del otro lado.</p></div>
+              <div class="dato"><h4 data-i18n="pagos.m3.t">Sin plata en el medio</h4><p data-i18n="pagos.m3.p">El contrato reparte en la misma operación lo de quien organiza, la comisión y lo de quien auspicia. Rumbo nunca tiene la plata, y si el evento se cancela, el pago protegido la devuelve sola.</p></div>
+            </div>
+            <p data-i18n="pagos.bajada">En buena parte de Latinoamérica no se puede cobrar con Stripe, y las pasarelas locales piden empresa, papeles y días de espera. Acá la plata va de quien compra a quien organiza en una sola operación.</p>
+            <p data-i18n="paga.bajada">Los eventos gratis son gratis, y por ahí llega la gente. La comisión aparece cuando hay plata de por medio, y quien auspicia paga por saber qué pasó con lo que puso.</p>
+            <div class="rejilla rejilla-4 datos">
+              <div class="dato"><h4 data-i18n="paga.c1.t">Si vendés entradas</h4><p data-i18n="paga.c1.p">Una comisión por entrada paga, a la vista antes de publicar y menor que la de las plataformas con tarjeta en su plan gratis. Se cobra en la misma operación: nadie tiene la plata en el medio.</p></div>
+              <div class="dato"><h4 data-i18n="paga.c8.t">Si vendés merch o talleres</h4><p data-i18n="paga.c8.p">La misma comisión que una entrada. Lo que el evento vende se paga en su propia página y entra a la credencial como un canje más.</p></div>
+              <div class="dato"><h4 data-i18n="paga.c2.t">Si auspiciás</h4><p data-i18n="paga.c2.p">Por campaña: "un café para cada asistente", con canje verificado, informe y los contactos del stand de quienes aceptan compartirlos.</p></div>
+              <div class="dato"><h4 data-i18n="paga.c3.t">Los eventos grandes</h4><p data-i18n="paga.c3.p">Por persona: credenciales, escáneres, varios días y tipos de entrada, informes. Hackatones, DevFests, congresos.</p></div>
+              <div class="dato"><h4 data-i18n="paga.c7.t">Si organizás seguido</h4><p data-i18n="paga.c7.p">Un plan mensual accesible, en USDC o en bolivianos, con más cupo, tu marca en la página y el historial de tu gente. Las comunidades chicas siguen gratis.</p></div>
+              <div class="dato"><h4 data-i18n="paga.c4.t">Las redes de comunidades</h4><p data-i18n="paga.c4.p">Una licencia por red, para todos sus capítulos, con los datos agregados. Es la forma de crecer sin vender de a uno.</p></div>
+              <div class="dato"><h4 data-i18n="paga.c5.t">Otras apps y agentes</h4><p data-i18n="paga.c5.p">Por uso, cuando crean eventos a volumen por la API, pagando centavos en USDC. Para tus propios eventos, la API y el MCP son gratis.</p></div>
+              <div class="dato"><h4 data-i18n="paga.c6.t">Las comunidades chicas</h4><p data-i18n="paga.c6.p">Gratis, con un tope de personas por evento. Así empieza cualquier comunidad, y así se corre la voz.</p></div>
+            </div>
+          </div>
+        </details>
       </div>
       <p class="estado" data-i18n="paga.nota">Los precios se fijan con las primeras comunidades que lo usen, no antes.</p>
       <div class="llamado">
@@ -331,38 +320,47 @@
     </div>
   </section>
 
-  <section class="seccion" id="stellar">
+  <section class="seccion seccion-partida" id="stellar">
     <div class="contenedor">
       <div class="encabezado">
         <p class="antetitulo" data-i18n="stellar.ante">Por qué Stellar</p>
         <h2 data-i18n="stellar.titulo">Lo que una base de datos no puede.</h2>
-        <p data-i18n="stellar.bajada">Para contar almuerzos alcanza una planilla. Esto es lo que suma Stellar.</p>
       </div>
-      <div class="rejilla rejilla-2">
-        <div class="tarjeta motivo">
-          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></div>
-          <div><h3 data-i18n="stellar.m1.t">Cobrar desde cualquier país, en segundos</h3><p data-i18n="stellar.m1.p">Aunque los procesadores de tarjeta no paguen ahí. Una sola operación le paga a quien organiza y separa la comisión, sin que nadie tenga la plata en el medio.</p></div>
+      <div class="partida-cuerpo">
+        <div class="rejilla rejilla-3 motivos">
+          <div class="tarjeta motivo">
+            <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></div>
+            <p data-i18n="stellar.v1"><strong>Cobrar desde cualquier país,</strong> con la comisión separada en la misma operación.</p>
+          </div>
+          <div class="tarjeta motivo">
+            <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v1a2 2 0 0 0 0 4v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a2 2 0 0 0 0-4z"/><path d="M13 7v10"/></svg></div>
+            <p data-i18n="stellar.v2"><strong>Vales de un solo uso,</strong> y premios con una prueba que no depende de Rumbo.</p>
+          </div>
+          <div class="tarjeta motivo">
+            <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div>
+            <p data-i18n="stellar.v3"><strong>Una cuenta que queda</strong> para el próximo evento, sin necesitar XLM.</p>
+          </div>
         </div>
-        <div class="tarjeta motivo">
-          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M9 12l2 2 4-4"/></svg></div>
-          <div><h3 data-i18n="stellar.m2.t">Pagos protegidos</h3><p data-i18n="stellar.m2.p">La entrada queda en un contrato hasta que el evento ocurre. Si se cancela, el reembolso sale solo.</p></div>
-        </div>
-        <div class="tarjeta motivo">
-          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v1a2 2 0 0 0 0 4v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a2 2 0 0 0 0-4z"/><path d="M13 7v10"/></svg></div>
-          <div><h3 data-i18n="stellar.m3.t">Vales que se usan una sola vez</h3><p data-i18n="stellar.m3.p">Cada beneficio se canjea exactamente una vez, y los premios se entregan con una prueba que no depende de Rumbo. En la red de prueba el vale no es plata, pero el almuerzo sí es real.</p></div>
-        </div>
-        <div class="tarjeta motivo">
-          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div>
-          <div><h3 data-i18n="stellar.m4.t">Una cuenta que queda</h3><p data-i18n="stellar.m4.p">Cada asistente sale con una cuenta de Stellar que le sirve en el próximo evento, creada con Google o con una passkey, con las comisiones patrocinadas para que nadie necesite XLM.</p></div>
-        </div>
-        <div class="tarjeta motivo">
-          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M14 6l6 6-6 6"/></svg></div>
-          <div><h3 data-i18n="stellar.m5.t">Pagos a oradores y voluntarios</h3><p data-i18n="stellar.m5.p">En cualquier país, en un clic. Sin cuentas bancarias de por medio ni comisiones de giro.</p></div>
-        </div>
-        <div class="tarjeta motivo">
-          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M14 5l-4 14"/></svg></div>
-          <div><h3 data-i18n="stellar.m6.t">Una API que otras apps pagan por uso</h3><p data-i18n="stellar.m6.p">Otras plataformas y agentes crean eventos, credenciales y vales a volumen, pagando centavos en USDC con x402. Para tus propios eventos, la API es gratis.</p></div>
-        </div>
+        <details class="plegable">
+          <summary data-i18n="ver.seis">Ver los seis</summary>
+          <div class="plegado">
+            <div class="rejilla rejilla-3 motivos">
+              <div class="tarjeta motivo">
+                <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M9 12l2 2 4-4"/></svg></div>
+                <div><h3 data-i18n="stellar.m2.t">Pagos protegidos</h3><p data-i18n="stellar.m2.p">La entrada queda en un contrato hasta que el evento ocurre. Si se cancela, el reembolso sale solo.</p></div>
+              </div>
+              <div class="tarjeta motivo">
+                <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M14 6l6 6-6 6"/></svg></div>
+                <div><h3 data-i18n="stellar.m5.t">Pagos a oradores y voluntarios</h3><p data-i18n="stellar.m5.p">En cualquier país, en un clic. Sin cuentas bancarias de por medio ni comisiones de giro.</p></div>
+              </div>
+              <div class="tarjeta motivo">
+                <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M14 5l-4 14"/></svg></div>
+                <div><h3 data-i18n="stellar.m6.t">Una API que otras apps pagan por uso</h3><p data-i18n="stellar.m6.p">Otras plataformas y agentes crean eventos, credenciales y vales a volumen, pagando centavos en USDC con x402. Para tus propios eventos, la API es gratis.</p></div>
+              </div>
+            </div>
+            <p><span data-i18n="stellar.bajada">Para contar almuerzos alcanza una planilla. Esto es lo que suma Stellar.</span> <span data-i18n="stellar.nota">En la red de prueba el vale no es plata, pero el almuerzo sí es real.</span></p>
+          </div>
+        </details>
       </div>
     </div>
   </section>
@@ -371,8 +369,7 @@
     <div class="contenedor">
       <div class="encabezado">
         <p class="antetitulo" data-i18n="hecho.ante">Cómo está hecho</p>
-        <h2 data-i18n="hecho.titulo">Un contrato, una app y un escáner. Nada más en el medio.</h2>
-        <p data-i18n="hecho.bajada">Lo que garantiza que un vale se use una sola vez y que la plata llegue repartida vive en un contrato en Stellar. Todo lo demás es una app que cualquiera abre desde el celular.</p>
+        <h2 data-i18n="hecho.titulo">Un contrato, una app y un escáner.</h2>
       </div>
       <figure class="arquitectura" aria-label="Cómo se conectan las piezas" data-i18n-aria="aria.arquitectura">
         <svg class="arquitectura-svg" viewBox="0 0 1120 350" role="img" aria-hidden="true">
@@ -431,46 +428,47 @@
           <li data-i18n="arq.l4">El escáner del voluntario valida el QR sin red y sincroniza después. Quien organiza recibe la plata al momento y quien auspicia ve los canjes.</li>
         </ul>
       </figure>
-      <div class="rejilla rejilla-3 hecho-datos">
-        <div class="tarjeta"><h3 data-i18n="hecho.d1.t">Con qué se hace</h3><p data-i18n="hecho.d1.p">Un contrato en Soroban, una app en Next.js con Supabase debajo, cuentas con Google o passkey con las comisiones patrocinadas, y un escáner que funciona sin conexión. <a href="https://github.com/nema1502/rumbo/blob/main/docs/stack.md" rel="noopener">El stack, pieza por pieza</a>.</p></div>
-        <div class="tarjeta"><h3 data-i18n="hecho.d2.t">Nadie necesita XLM</h3><p data-i18n="hecho.d2.p">Las comisiones de red las patrocina Rumbo. La persona entra con Google o con una passkey y no ve nada técnico.</p></div>
-        <div class="tarjeta"><h3 data-i18n="hecho.d3.t">Ya hay una semilla</h3><p data-i18n="hecho.d3.p">El contrato parte de un pase de evento escrito en septiembre de 2026 para Stellar Elite Bolivia, con nueve pruebas y una corrida en la red de prueba.</p></div>
-      </div>
+      <p class="hecho-linea" data-i18n="hecho.linea">Un contrato en Soroban y una app en Next.js con Supabase. <a href="https://github.com/nema1502/rumbo/blob/main/docs/stack.md" rel="noopener">El stack, pieza por pieza</a>.</p>
+      <details class="plegable">
+        <summary data-i18n="ver.detalle">Ver el detalle</summary>
+        <div class="plegado">
+          <p data-i18n="hecho.bajada">Lo que garantiza que un vale se use una sola vez y que la plata llegue repartida vive en un contrato en Stellar. Todo lo demás es una app que cualquiera abre desde el celular.</p>
+          <div class="rejilla rejilla-3 datos">
+            <div class="dato"><h4 data-i18n="hecho.d1.t">Con qué se hace</h4><p data-i18n="hecho.d1.p">Un contrato en Soroban, una app en Next.js con Supabase debajo, cuentas con Google o passkey con las comisiones patrocinadas, y un escáner que funciona sin conexión.</p></div>
+            <div class="dato"><h4 data-i18n="hecho.d2.t">Nadie necesita XLM</h4><p data-i18n="hecho.d2.p">Las comisiones de red las patrocina Rumbo. La persona entra con Google o con una passkey y no ve nada técnico.</p></div>
+            <div class="dato"><h4 data-i18n="hecho.d3.t">Ya hay una semilla</h4><p data-i18n="hecho.d3.p">El contrato parte de un pase de evento escrito en septiembre de 2026 para Stellar Elite Bolivia, con nueve pruebas y una corrida en la red de prueba.</p></div>
+          </div>
+        </div>
+      </details>
     </div>
   </section>
 
-  <section class="seccion" id="abierto">
+  <section class="seccion seccion-partida" id="abierto">
     <div class="contenedor">
       <div class="encabezado">
         <p class="antetitulo" data-i18n="abierto.ante">Abierto y conectado</p>
-        <h2 data-i18n="abierto.titulo">Conectarse es gratis: API, MCP y código abierto.</h2>
-        <p data-i18n="abierto.bajada">Rumbo no quiere ser otra isla. Lo que ya usás se conecta, los datos son tuyos, y lo que otros quieran construir encima, pueden.</p>
+        <h2 data-i18n="abierto.titulo">Rumbo no quiere ser otra isla.</h2>
       </div>
-      <div class="rejilla rejilla-3">
-        <div class="tarjeta motivo">
-          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M14 5l-4 14"/></svg></div>
-          <div><h3 data-i18n="abierto.m1.t">API y webhooks</h3><p data-i18n="abierto.m1.p">Creá eventos, inscribí gente y leé check-ins y canjes desde tu sistema. Gratis para tus propios eventos; las plataformas que crean eventos a volumen pagan por uso.</p></div>
-        </div>
-        <div class="tarjeta motivo">
-          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.6L18 9l-4.2 1.4L12 15l-1.8-4.6L6 9l4.2-1.4z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg></div>
-          <div><h3 data-i18n="abierto.m2.t">Un servidor MCP</h3><p data-i18n="abierto.m2.p">El asistente que ya usás arma el evento, carga la lista, manda los recordatorios y te lee el informe, con las mismas herramientas que usa la app.</p></div>
-        </div>
-        <div class="tarjeta motivo">
-          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
-          <div><h3 data-i18n="abierto.m3.t">Importar y exportar</h3><p data-i18n="abierto.m3.p">Traé tu lista de Luma o de una planilla, y llevate todo a CSV o a Google Sheets cuando quieras.</p></div>
-        </div>
-        <div class="tarjeta motivo">
-          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21a2 2 0 0 0 4 0"/></svg></div>
-          <div><h3 data-i18n="abierto.m4.t">Avisos donde está la gente</h3><p data-i18n="abierto.m4.p">La credencial, los recordatorios y los cambios de último momento llegan por correo, al calendario y por Telegram.</p></div>
-        </div>
-        <div class="tarjeta motivo">
-          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/><circle cx="16" cy="8" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="8" cy="16" r="1.2" fill="currentColor"/><circle cx="16" cy="16" r="1.2" fill="currentColor"/></svg></div>
-          <div><h3 data-i18n="abierto.m5.t">Sorteos comprobables</h3><p data-i18n="abierto.m5.p">Un sorteo entre quienes de verdad vinieron, con un resultado que cualquiera puede verificar, y el premio entrando a la credencial de quien ganó.</p></div>
-        </div>
-        <div class="tarjeta motivo">
-          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 7h8M8 11h8M8 15h5"/></svg></div>
-          <div><h3 data-i18n="abierto.m6.t">Código abierto con MIT</h3><p data-i18n="abierto.m6.p">El contrato, el escáner y la plantilla del evento están en GitHub. Cualquier comunidad los monta, los adapta y aprende Stellar con su propio evento.</p></div>
-        </div>
+      <div class="partida-cuerpo">
+        <ul class="conectores">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M14 5l-4 14"/></svg><span data-i18n="abierto.c1">API y webhooks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.6L18 9l-4.2 1.4L12 15l-1.8-4.6L6 9l4.2-1.4z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span data-i18n="abierto.c2">Servidor MCP</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span data-i18n="abierto.c3">Importar y exportar</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21a2 2 0 0 0 4 0"/></svg><span data-i18n="abierto.c4">Avisos</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/><circle cx="16" cy="8" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="8" cy="16" r="1.2" fill="currentColor"/><circle cx="16" cy="16" r="1.2" fill="currentColor"/></svg><span data-i18n="abierto.c5">Sorteos comprobables</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 7h8M8 11h8M8 15h5"/></svg><span data-i18n="abierto.c6">Código abierto</span></li>
+        </ul>
+        <details class="plegable en-linea abierto-linea">
+          <summary><span data-i18n="abierto.linea">Conectarse es gratis para tus eventos, y los datos son tuyos.</span> <span class="ver" data-i18n="ver.mas">Ver más</span></summary>
+          <div class="plegado rejilla rejilla-3 datos">
+            <div class="dato"><h4 data-i18n="abierto.m1.t">API y webhooks</h4><p data-i18n="abierto.m1.p">Creá eventos, inscribí gente y leé check-ins y canjes desde tu sistema. Gratis para tus propios eventos; las plataformas que crean eventos a volumen pagan por uso.</p></div>
+            <div class="dato"><h4 data-i18n="abierto.m2.t">Un servidor MCP</h4><p data-i18n="abierto.m2.p">El asistente que ya usás arma el evento, carga la lista, manda los recordatorios y te lee el informe, con las mismas herramientas que usa la app.</p></div>
+            <div class="dato"><h4 data-i18n="abierto.m3.t">Importar y exportar</h4><p data-i18n="abierto.m3.p">Traé tu lista de Luma o de una planilla, y llevate todo a CSV o a Google Sheets cuando quieras.</p></div>
+            <div class="dato"><h4 data-i18n="abierto.m4.t">Avisos donde está la gente</h4><p data-i18n="abierto.m4.p">La credencial, los recordatorios y los cambios de último momento llegan por correo, al calendario y por Telegram.</p></div>
+            <div class="dato"><h4 data-i18n="abierto.m5.t">Sorteos comprobables</h4><p data-i18n="abierto.m5.p">Un sorteo entre quienes de verdad vinieron, con un resultado que cualquiera puede verificar, y el premio entrando a la credencial de quien ganó.</p></div>
+            <div class="dato"><h4 data-i18n="abierto.m6.t">Código abierto con MIT</h4><p data-i18n="abierto.m6.p">El contrato, el escáner y la plantilla del evento están en GitHub. Cualquier comunidad los monta, los adapta y aprende Stellar con su propio evento.</p></div>
+          </div>
+        </details>
       </div>
     </div>
   </section>
@@ -479,8 +477,8 @@
     <div class="contenedor">
       <div class="encabezado">
         <p class="antetitulo" data-i18n="crece.ante">Cómo crece</p>
-        <h2 data-i18n="crece.titulo">Empieza en una comunidad y termina en una red.</h2>
-        <p data-i18n="crece.bajada">Cada etapa paga la siguiente: las comunidades traen a quienes auspician, los eventos que cobran traen a las redes, y las redes traen a las plataformas que quieren construir encima.</p>
+        <h2 data-i18n="crece.titulo">De una comunidad a una red.</h2>
+        <p data-i18n="crece.bajada">Cada etapa paga la siguiente.</p>
       </div>
       <ol class="etapas">
         <li class="tarjeta etapa">
@@ -488,44 +486,62 @@
           <span class="etiqueta etiqueta-ahora" data-i18n="crece.e1.tag">Primero</span>
           <h3 data-i18n="crece.e1.t">Una comunidad</h3>
           <p data-i18n="crece.e1.p">Credenciales, check-in y canjes en la red de prueba, gratis.</p>
-          <ul>
-            <li data-i18n="crece.e1.a">Página del evento con inscripción gratis o paga</li>
-            <li data-i18n="crece.e1.b">Cuenta con Google o passkey, sin necesitar XLM</li>
-            <li data-i18n="crece.e1.c">Credencial con QR, en el celular y para imprimir</li>
-            <li data-i18n="crece.e1.d">Check-in y canjes con un escáner que funciona sin conexión</li>
-            <li data-i18n="crece.e1.e">Panel de quien organiza</li>
-          </ul>
         </li>
         <li class="tarjeta etapa">
           <span class="etapa-num">2</span>
           <span class="etiqueta etiqueta-despues" data-i18n="crece.e2.tag">Después</span>
           <h3 data-i18n="crece.e2.t">Eventos que cobran</h3>
-          <p data-i18n="crece.e2.p">Entradas con pagos reales en USDC, y los auspiciantes con canje verificado e informe.</p>
-          <ul>
-            <li data-i18n="crece.e2.a">Pago protegido con reembolso automático</li>
-            <li data-i18n="crece.e2.b">Describir el evento en una frase y aprobar la propuesta</li>
-            <li data-i18n="crece.e2.c">El premio de un sorteo entrando a la credencial de quien ganó</li>
-            <li data-i18n="crece.e2.d">Informe para quien auspicia</li>
-            <li data-i18n="crece.e2.e">Importar la lista de Luma</li>
-          </ul>
+          <p data-i18n="crece.e2.p">Entradas con pagos reales en USDC y auspicios con canje verificado.</p>
         </li>
         <li class="tarjeta etapa">
           <span class="etapa-num">3</span>
           <span class="etiqueta etiqueta-luego" data-i18n="crece.e3.tag">Más adelante</span>
           <h3 data-i18n="crece.e3.t">Redes y plataformas</h3>
-          <p data-i18n="crece.e3.p">Licencias para redes de comunidades, y una API que otras apps y agentes pagan por uso.</p>
-          <ul>
-            <li data-i18n="crece.e3.a">Pagos con el QR del banco en bolivianos</li>
-            <li data-i18n="crece.e3.b">Reventa al precio original</li>
-            <li data-i18n="crece.e3.c">API pagada por uso</li>
-            <li data-i18n="crece.e3.d">Pagos a oradores</li>
-            <li data-i18n="crece.e3.e">Licencias para redes de comunidades</li>
-          </ul>
+          <p data-i18n="crece.e3.p">Licencias para redes y una API que otras apps pagan por uso.</p>
         </li>
       </ol>
+      <details class="plegable">
+        <summary data-i18n="ver.ruta">Ver la hoja de ruta</summary>
+        <div class="plegado">
+          <p data-i18n="crece.porque">Las comunidades traen a quienes auspician, los eventos que cobran traen a las redes, y las redes traen a las plataformas que quieren construir encima.</p>
+          <div class="rejilla rejilla-3 datos ruta">
+            <div class="dato">
+              <h4><span data-i18n="crece.e1.tag">Primero</span>: <span data-i18n="crece.e1.t">Una comunidad</span></h4>
+              <ul>
+                <li data-i18n="crece.e1.a">Página del evento con inscripción gratis o paga</li>
+                <li data-i18n="crece.e1.b">Cuenta con Google o passkey, sin necesitar XLM</li>
+                <li data-i18n="crece.e1.c">Credencial con QR, en el celular y para imprimir</li>
+                <li data-i18n="crece.e1.d">Check-in y canjes con un escáner que funciona sin conexión</li>
+                <li data-i18n="crece.e1.e">Panel de quien organiza</li>
+              </ul>
+            </div>
+            <div class="dato">
+              <h4><span data-i18n="crece.e2.tag">Después</span>: <span data-i18n="crece.e2.t">Eventos que cobran</span></h4>
+              <ul>
+                <li data-i18n="crece.e2.a">Pago protegido con reembolso automático</li>
+                <li data-i18n="crece.e2.b">Describir el evento en una frase y aprobar la propuesta</li>
+                <li data-i18n="crece.e2.c">El premio de un sorteo entrando a la credencial de quien ganó</li>
+                <li data-i18n="crece.e2.d">Informe para quien auspicia</li>
+                <li data-i18n="crece.e2.e">Importar la lista de Luma</li>
+              </ul>
+            </div>
+            <div class="dato">
+              <h4><span data-i18n="crece.e3.tag">Más adelante</span>: <span data-i18n="crece.e3.t">Redes y plataformas</span></h4>
+              <ul>
+                <li data-i18n="crece.e3.a">Pagos con el QR del banco en bolivianos</li>
+                <li data-i18n="crece.e3.b">Reventa al precio original</li>
+                <li data-i18n="crece.e3.c">API pagada por uso</li>
+                <li data-i18n="crece.e3.d">Pagos a oradores</li>
+                <li data-i18n="crece.e3.e">Licencias para redes de comunidades</li>
+              </ul>
+            </div>
+          </div>
+          <p data-i18n="crece.alojado">Quienes programan en un GDG o en WTM aprenden Stellar adaptando el sistema de su propio evento. El servicio alojado es lo cómodo: el armado del evento, los correos, el tiempo real, los pagos y los informes.</p>
+        </div>
+      </details>
       <div class="remate remate-claro">
         <strong data-i18n="crece.remate.t">Núcleo abierto, servicio alojado.</strong>
-        <p data-i18n="crece.remate.p">Quienes programan en un GDG o en WTM aprenden Stellar adaptando el sistema de su propio evento. Lo cómodo, y lo que se cobra, es el servicio alojado: el armado del evento, los correos, el tiempo real, los pagos y los informes.</p>
+        <p data-i18n="crece.remate.p">Se aprende Stellar adaptando el código, y se cobra el servicio alojado.</p>
       </div>
     </div>
   </section>
@@ -537,13 +553,24 @@
         <h2 data-i18n="principios.titulo">Lo que Rumbo nunca hace</h2>
       </div>
       <ul class="principios">
-        <li><strong data-i18n="principios.p1.t">Tener tu plata.</strong><span data-i18n="principios.p1.p">Va directo a quien organiza o queda en el contrato de un pago protegido.</span></li>
-        <li><strong data-i18n="principios.p2.t">Cambiar moneda por su cuenta.</strong><span data-i18n="principios.p2.p">Los bolivianos los convierte quien tiene la licencia.</span></li>
-        <li><strong data-i18n="principios.p3.t">Poner datos personales en la cadena.</strong><span data-i18n="principios.p3.p">Los nombres y los correos quedan fuera de la cadena y se usan solo para avisar. Los contactos del stand se comparten solo con permiso, en ese stand.</span></li>
-        <li><strong data-i18n="principios.p4.t">Cobrar por eventos gratis.</strong><span data-i18n="principios.p4.p">La comisión aparece cuando hay plata de por medio.</span></li>
-        <li><strong data-i18n="principios.p5.t">Mostrar tecnicismos.</strong><span data-i18n="principios.p5.p">Nadie en la puerta tiene que saber qué hay abajo. Lo técnico va plegado, para quien lo quiera leer.</span></li>
-        <li><strong data-i18n="principios.p6.t">Cerrar lo que abrió.</strong><span data-i18n="principios.p6.p">El contrato de canjes, el escáner y la plantilla del evento son de código abierto con MIT. El servicio alojado es lo que Rumbo cobra.</span></li>
+        <li><strong data-i18n="principios.p1.t">Tener tu plata.</strong> <span data-i18n="principios.p1.c">Va directo a quien organiza.</span></li>
+        <li><strong data-i18n="principios.p2.t">Cambiar moneda por su cuenta.</strong> <span data-i18n="principios.p2.c">Lo hace quien tiene licencia.</span></li>
+        <li><strong data-i18n="principios.p3.t">Poner datos personales en la cadena.</strong> <span data-i18n="principios.p3.c">Ni nombres ni correos.</span></li>
+        <li><strong data-i18n="principios.p4.t">Cobrar por eventos gratis.</strong></li>
+        <li><strong data-i18n="principios.p5.t">Mostrar tecnicismos.</strong> <span data-i18n="principios.p5.c">Lo técnico va plegado.</span></li>
+        <li><strong data-i18n="principios.p6.t">Cerrar lo que abrió.</strong></li>
       </ul>
+      <details class="plegable">
+        <summary data-i18n="ver.detalle">Ver el detalle</summary>
+        <ul class="plegado principios-detalle">
+          <li><strong data-i18n="principios.p1.t">Tener tu plata.</strong> <span data-i18n="principios.p1.p">Va directo a quien organiza o queda en el contrato de un pago protegido.</span></li>
+          <li><strong data-i18n="principios.p2.t">Cambiar moneda por su cuenta.</strong> <span data-i18n="principios.p2.p">Los bolivianos los convierte quien tiene la licencia.</span></li>
+          <li><strong data-i18n="principios.p3.t">Poner datos personales en la cadena.</strong> <span data-i18n="principios.p3.p">Los nombres y los correos quedan fuera de la cadena y se usan solo para avisar. Los contactos del stand se comparten solo con permiso, en ese stand.</span></li>
+          <li><strong data-i18n="principios.p4.t">Cobrar por eventos gratis.</strong> <span data-i18n="principios.p4.p">La comisión aparece cuando hay plata de por medio.</span></li>
+          <li><strong data-i18n="principios.p5.t">Mostrar tecnicismos.</strong> <span data-i18n="principios.p5.p">Nadie en la puerta tiene que saber qué hay abajo. Lo técnico va plegado, para quien lo quiera leer.</span></li>
+          <li><strong data-i18n="principios.p6.t">Cerrar lo que abrió.</strong> <span data-i18n="principios.p6.p">El contrato de canjes, el escáner y la plantilla del evento son de código abierto con MIT. El servicio alojado es lo que Rumbo cobra.</span></li>
+        </ul>
+      </details>
     </div>
   </section>
 
@@ -580,7 +607,7 @@
     <span data-i18n="pie.hecho">Hecho en Santa Cruz de la Sierra, Bolivia.</span>
     <nav aria-label="Enlaces" data-i18n-aria="aria.enlaces">
       <a href="https://github.com/nema1502/rumbo" rel="noopener" data-i18n="pie.codigo">Código</a>
-      <a href="https://github.com/nema1502/rumbo/blob/main/LICENSE" rel="noopener" data-i18n="pie.licencia">Licencia MIT</a>
+      <a href="https://github.com/nema1502/rumbo/blob/main/LICENSE" rel="noopener" data-i18n="pie.licencia">Licencia</a>
       <a href="?lang=en" id="pie-idioma" data-i18n="pie.idioma">English</a>
     </nav>
   </div>
