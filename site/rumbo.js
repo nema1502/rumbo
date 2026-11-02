@@ -3,8 +3,8 @@
 
 // Los pasos de "Así se ve" se resaltan siguiendo el video: cada uno desde su segundo, y
 // ninguno antes de PASOS_DEMO[0] ni después de FIN_DEMO. Si el video cambia, se ajusta acá.
-const PASOS_DEMO = [3.5, 11.5, 16.5, 24.5];
-const FIN_DEMO = 29.5;
+const PASOS_DEMO = [4.3, 12.6, 16.3, 24.7];
+const FIN_DEMO = 29.2;
 
 // Lo que se anima solo se oculta con la clase js (la cabecera de la página ya la pone).
 document.documentElement.classList.add("js");

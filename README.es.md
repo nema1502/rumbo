@@ -82,6 +82,10 @@ El contrato parte de un pase de evento escrito en septiembre de 2026 para Stella
 | Check-in y canjes con un escáner que funciona sin conexión | Informe para quien auspicia | Pagos a oradores |
 | Panel de quien organiza | Importar el CSV de Luma | Licencias para redes de comunidades |
 
+## Cómo está hecho
+
+Un contrato en Soroban para pases y vales, una app en Next.js con Supabase debajo, cuentas creadas con Google o con una passkey con las comisiones de red patrocinadas, y un escáner que funciona sin conexión y sincroniza después. Las piezas, las decisiones y el orden de obra en cuatro semanas están en [docs/stack.md](docs/stack.md).
+
 ## Principios
 
 - **Sin custodia.** La plata va directo a quien organiza o queda en el contrato de un pago protegido. Rumbo nunca la tiene.

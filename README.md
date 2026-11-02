@@ -82,6 +82,10 @@ The contract starts from an event pass written in September 2026 for Stellar Eli
 | Check-in and redemptions with an offline scanner | Sponsor report | Payments to speakers |
 | Organizer dashboard | Luma CSV import | Licenses for community networks |
 
+## How it is built
+
+A Soroban contract for passes and vouchers, a Next.js app with Supabase underneath, accounts created with Google or a passkey with sponsored network fees, and a scanner that works offline and syncs later. The pieces, the decisions behind them and the four-week build order are in [docs/stack.md](docs/stack.md) (in Spanish).
+
 ## Principles
 
 - **No custody.** Money goes straight to the organizer or sits in the contract of a protected payment. Rumbo never holds it.
