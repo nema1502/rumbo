@@ -250,7 +250,7 @@ const EN = {
   "abierto.m1.t": "API and webhooks",
   "abierto.m1.p": "Create events, sign people up and read check-ins and redemptions from your own system. Free for your own events; platforms that create events at volume pay per use.",
   "abierto.m2.t": "An MCP server",
-  "abierto.m2.p": "Your AI assistant sets up the event, loads the list, sends the reminders and reads you the report, with the same tools the app uses.",
+  "abierto.m2.p": "The assistant you already use sets up the event, loads the list, sends the reminders and reads you the report, with the same tools the app uses.",
   "abierto.m3.t": "Import and export",
   "abierto.m3.p": "Bring your list from Luma or a spreadsheet, and take everything to CSV or Google Sheets whenever you want.",
   "abierto.m4.t": "Notices where people are",

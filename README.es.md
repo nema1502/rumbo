@@ -60,7 +60,7 @@ Para contar almuerzos alcanza una base de datos. Stellar suma lo que una base de
 - **Cada asistente sale con una cuenta de Stellar** que le sirve en el próximo evento, creada con Google o con una passkey, con las comisiones de red patrocinadas para que nadie tenga que tener XLM.
 - **Pagos a oradores y voluntarios** en cualquier país.
 - **Pagar en tu moneda.** En Bolivia, con el QR del banco por medio de una rampa con licencia; quien organiza recibe USDC al momento. Sin Stripe, sin pasarela local, sin papeles.
-- **Una API, webhooks y un servidor MCP,** gratis para tus propios eventos. Las plataformas y los agentes que crean eventos a volumen pagan por uso, con x402.
+- **Una API, webhooks y un servidor MCP,** gratis para tus propios eventos. Las plataformas y agentes que crean eventos a volumen pagan por uso, con x402.
 
 Rumbo no es una entrada NFT ni un lugar para especular con la reventa. Si quien organiza la permite, la reventa va al precio original.
 
