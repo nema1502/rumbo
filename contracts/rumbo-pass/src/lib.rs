@@ -42,6 +42,9 @@ pub const MAX_CAPACITY: u32 = 1_000;
 pub const MAX_BENEFITS: u32 = 64;
 /// La comisión se expresa en puntos básicos: 10000 es el 100 por ciento.
 pub const BPS: u32 = 10_000;
+/// El precio más alto que acepta un evento: con él, `price * fee_bps` no desborda
+/// ni con la comisión entera, así que `buy` siempre puede calcular el reparto.
+pub const MAX_PRICE: i128 = i128::MAX / BPS as i128;
 
 #[contracttype]
 #[derive(Clone)]
@@ -137,6 +140,7 @@ pub enum Error {
     /// No hubo pago: `buy` en un evento gratis, o el activo no se pudo mover
     /// (sin saldo, sin línea de confianza).
     NotPaid = 10,
+    /// El precio es negativo o pasa de `MAX_PRICE`.
     InvalidPrice = 11,
     InvalidFee = 12,
     InvalidCapacity = 13,
@@ -190,7 +194,7 @@ impl RumboPass {
         capacity: u32,
         benefits: u32,
     ) {
-        if price < 0 {
+        if !(0..=MAX_PRICE).contains(&price) {
             panic_with_error!(&env, Error::InvalidPrice);
         }
         if fee_bps > BPS {
@@ -238,6 +242,7 @@ impl RumboPass {
         }
         let number = next_pass_number(&env, &cfg, &buyer)?;
 
+        // No desborda: el constructor acota el precio a MAX_PRICE y la comisión a BPS.
         let fee = cfg.price * i128::from(cfg.fee_bps) / i128::from(BPS);
         let token = TokenClient::new(&env, &cfg.asset);
         pay(&token, &buyer, &cfg.organizer, cfg.price - fee)?;

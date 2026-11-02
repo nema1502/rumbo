@@ -481,6 +481,26 @@ fn a_negative_price_is_rejected_at_deploy() {
 }
 
 #[test]
+#[should_panic(expected = "Error(Contract, #11)")]
+fn a_price_that_would_overflow_the_fee_is_rejected_at_deploy() {
+    setup_with(MAX_PRICE + 1, FEE_BPS, 10, 1);
+}
+
+#[test]
+fn the_highest_price_splits_without_overflow() {
+    // con la comisión casi entera, price * fee_bps queda al borde de i128 y no desborda
+    let s = setup_with(MAX_PRICE, BPS - 1, 10, 1);
+    let a = s.person();
+    StellarAssetClient::new(&s.env, &s.asset).mint(&a, &MAX_PRICE);
+    assert_eq!(s.client().buy(&a), 1);
+    let fee = MAX_PRICE * i128::from(BPS - 1) / i128::from(BPS);
+    assert_eq!(s.balance(&s.treasury), fee);
+    assert_eq!(s.balance(&s.organizer), MAX_PRICE - fee);
+    assert_eq!(s.balance(&a), 0);
+    assert_eq!(s.balance(&s.contract), 0);
+}
+
+#[test]
 #[should_panic(expected = "Error(Contract, #12)")]
 fn a_fee_above_one_hundred_percent_is_rejected_at_deploy() {
     setup_with(PRICE, BPS + 1, 10, 1);

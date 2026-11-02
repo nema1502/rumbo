@@ -18,7 +18,7 @@ En la cadena viven cuentas, números de beneficio y marcas de uso. Nombres, corr
 
 | Función | Quién firma | Qué hace |
 |---|---|---|
-| `__constructor(organizer, treasury, gate, asset, price, fee_bps, capacity, benefits)` | quien despliega | Fija la configuración una sola vez. `price` en la unidad mínima del activo (siete decimales en USDC), `fee_bps` de 0 a 10000, `capacity` de 1 a 1000, `benefits` de 0 a 64. Una configuración inválida hace fallar el despliegue |
+| `__constructor(organizer, treasury, gate, asset, price, fee_bps, capacity, benefits)` | quien despliega | Fija la configuración una sola vez. `price` en la unidad mínima del activo (siete decimales en USDC), de 0 a `MAX_PRICE` (`i128::MAX / 10000`, para que la comisión nunca desborde), `fee_bps` de 0 a 10000, `capacity` de 1 a 1000, `benefits` de 0 a 64. Una configuración inválida hace fallar el despliegue |
 | `register(attendee) -> u32` | la persona | Emite un pase gratis. Solo en eventos con `price` 0. Devuelve el número de pase (el primero es 1) |
 | `buy(buyer) -> u32` | quien compra | Cobra `price` y reparte: `price * fee_bps / 10000` a `treasury` (redondeado hacia abajo) y el resto a `organizer`. Devuelve el número de pase |
 | `check_in(attendee, by) -> u32` | `by`, que tiene que ser `gate` | Marca la entrada, una sola vez. Devuelve en qué lugar entró (el primero es 1) |
@@ -45,7 +45,7 @@ Los códigos son parte de la interfaz y no se renumeran. En la red se ven como `
 | 8 | `NotAuthorized` | `by` no es la cuenta de puerta |
 | 9 | `NotFree` | `register` en un evento pago |
 | 10 | `NotPaid` | No hubo pago: `buy` en un evento gratis, o el activo no se pudo mover (sin saldo, sin línea de confianza) |
-| 11 a 14 | `InvalidPrice`, `InvalidFee`, `InvalidCapacity`, `InvalidBenefits` | Configuración inválida al desplegar |
+| 11 a 14 | `InvalidPrice`, `InvalidFee`, `InvalidCapacity`, `InvalidBenefits` | Configuración inválida al desplegar (el precio, negativo o por encima de `MAX_PRICE`) |
 | 15 | `NotConfigured` | No debería verse: el constructor siempre configura |
 
 Las firmas que faltan no son errores del contrato sino de la red: `Error(Auth, InvalidAction)`.
@@ -67,14 +67,14 @@ Además, en cada compra el contrato del activo publica sus dos `transfer`: a qui
 - **Instancia:** la configuración y el contador de pases emitidos. Viven y mueren con el contrato.
 - **Persistente:** un `Pass` por cuenta (`number`, `checked_in`, `redeemed`) y la lista `Attendees`. Cada escritura extiende la vida de la entrada a 120 días cuando le quedan menos de 30.
 - La lista de quienes entraron es una sola entrada, por eso el cupo tiene tope de 1000: mil cuentas entran holgadas en una entrada. Los beneficios tienen tope de 64 por evento.
-- La comisión se redondea hacia abajo y quien organiza recibe el resto, así la suma siempre es el precio exacto.
+- La comisión se redondea hacia abajo y quien organiza recibe el resto, así la suma siempre es el precio exacto. El precio tiene tope (`MAX_PRICE`) para que `price * fee_bps` nunca desborde: un error de cuenta sería un pánico sin código y nadie podría comprar.
 
 ## Cómo se prueba y se compila
 
 Desde la raíz del repositorio, con Rust estable y el objetivo `wasm32v1-none`:
 
 ```bash
-cargo test --workspace     # 35 pruebas
+cargo test --workspace     # 37 pruebas
 stellar contract build     # target/wasm32v1-none/release/rumbo_pass.wasm, 10,9 KB
 ```
 
