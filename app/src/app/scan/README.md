@@ -1,0 +1,60 @@
+# El escáner del voluntario
+
+La página `/scan`: el voluntario escribe el código de su puesto (la puerta, la mesa del almuerzo, el stand de la polera; quien organiza se lo manda desde el panel) y desde ahí lee credenciales con la cámara del celular. Cada lectura da uno de tres veredictos a pantalla entera: verde (entró, canjeado), amarillo (ya entró, ya canjeado, con la hora) y neutro (no corresponde, con el motivo). Funciona sin red una vez que el puesto se abrió con conexión, y se puede instalar en la pantalla de inicio.
+
+## Cómo decide sin red
+
+Al abrir el puesto, con red, el escáner baja la foto del evento (`POST /api/scan/open`): su puesto, la llave del evento y cada pase activo con el nombre, los beneficios que trae, si ya entró y qué ya canjeó. Con eso decide solo:
+
+1. Verifica la firma del QR con WebCrypto (`src/lib/qr-verify.ts`). Si no cierra, no corresponde: la credencial no es de este evento.
+2. Mira el pase en la foto y en su propia cola (lo que este mismo escáner registró y todavía no subió).
+3. En la puerta: si ya entró, amarillo; si no, verde y a la cola. Una credencial auténtica de un pase que no estaba en la foto entra igual: la firma prueba que es del evento y el servidor la revisa al sincronizar.
+4. En una mesa de canje: si la entrada no incluye el beneficio, o la persona todavía no pasó por la puerta, no corresponde; si ya lo canjeó, amarillo; si no, verde y a la cola. Un pase que no está en la foto no se canjea sin red (no se sabe qué trae); con red, el escáner pide la foto fresca y vuelve a decidir.
+
+La regla está en `decideVerdict`, en `src/lib/escaner-api.ts`, sin dependencias, para poder probarla sola.
+
+## La cola y la sincronización
+
+Cada entrada o canje va a IndexedDB (`src/lib/cola.ts`) con un `clientId` propio. Cuando hay red, cada cinco segundos la página manda de a cinco a `POST /api/scan/sync`. El servidor (`src/server/escaner.ts`) lleva cada uno al contrato con la cuenta de puerta (`check_in` o `redeem`, la comisión la paga la patrocinadora) y guarda el espejo en la base con el mismo `clientId`, así reintentar no duplica. Cada registro vuelve con su estado:
+
+| Estado | Qué pasó | Qué hace la página |
+|---|---|---|
+| `synced` | Llegó al contrato | Lo da por hecho |
+| `duplicate` | El contrato dijo que ya estaba hecho (otro puesto lo registró sin red, o la persona entró con su propia cuenta) | Lo cuenta como "doble, revisar"; el panel lo ve en el espejo con `duplicate = 1` |
+| `retry` | Sin red, o un canje antes de que llegue la entrada de otro puesto (`NotCheckedIn`) | Lo deja pendiente y espera 10 s, 20 s, 40 s, hasta 2 minutos |
+| `rejected` | No va a entrar nunca: un pase desconocido, sin activar, un beneficio que la entrada no trae, o un registro que no es de este puesto | Lo cuenta como "sin registrar, revisar" |
+
+Si no hay nada pendiente, cada minuto pide igual la foto fresca, para enterarse de lo que registraron los otros puestos. El interruptor "Simular sin conexión" frena todo eso sin tocar la red: sirve para probar.
+
+## El código del puesto
+
+Los emite el panel de quien organiza (`src/server/panel.ts`, tabla `station_codes`): uno para la puerta y uno por cada beneficio, de ocho letras y números, que se muestran como `ABCD-EFGH` y se aceptan en minúsculas y sin guion. El código dice a qué evento y a qué puesto abre, así que el servidor solo acepta de un código de puerta entradas, y de un código de mesa canjes de su beneficio. Quien escribe ocho códigos equivocados seguidos espera diez minutos.
+
+## Sin red, de verdad
+
+`public/sw.js` es el service worker, registrado solo desde `/scan` y con ese alcance. Va a la red primero y guarda lo que pasa (el HTML, los scripts, los estilos, las fuentes); sin red sirve lo guardado. Al cargar, la página le pasa la lista de todo lo que ya usó (la lista de recursos del navegador), para que la primera visita también quede guardada. Lo de `/api` no pasa por él: de eso se encarga la cola. `public/scan/manifest.webmanifest` hace la página instalable.
+
+## Las rutas
+
+| Ruta | Qué recibe | Qué devuelve |
+|---|---|---|
+| `POST /api/scan/open` | `{ code }` | La foto del evento (`ScanSnapshot`, con el puesto), o 401 si el código no es de ningún puesto |
+| `POST /api/scan/sync` | `{ code, items: ScanItem[] }` (hasta 20) | `{ results: ScanItemResult[], snapshot }` |
+
+Las formas están en `src/lib/escaner-api.ts`.
+
+## Cómo se prueba
+
+Con el servidor levantado y el evento de muestra creado (`pnpm seed`):
+
+```bash
+node scripts/prueba-escaner.mjs --base http://localhost:3000
+```
+
+Crea tres pases en la red de prueba (una inscripción gratis, una entrada con almuerzo y una persona que ya entró en el contrato sin pasar por la app), abre `/scan` en Chrome sin interfaz con el código de la puerta, escribe las credenciales a mano, corta la red (también la del service worker), vuelve a abrir la página sin red, la restablece, abre la mesa del almuerzo con su código y comprueba en la cadena con `status()` que la entrada y el canje quedaron, y en la base que el doble quedó marcado. Deja capturas de las tres pantallas en 1440x900, 973x700 y 390x844.
+
+## Lo que falta
+
+- Un voluntario con dos puestos cierra uno y abre el otro con su código: no hay cambio rápido.
+- El informe de los dobles y los rechazados es del panel: acá quedan contados en la página y marcados en el espejo.
+- La cámara necesita HTTPS (o localhost). En celular, con la página servida por Vercel, alcanza.

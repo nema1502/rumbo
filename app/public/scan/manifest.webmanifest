@@ -1,0 +1,17 @@
+{
+  "name": "Rumbo, escáner del voluntario",
+  "short_name": "Escáner",
+  "description": "El escáner del voluntario: la entrada y los canjes del evento, también sin conexión.",
+  "lang": "es",
+  "start_url": "/scan",
+  "scope": "/scan",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f2e8",
+  "theme_color": "#e8541e",
+  "icons": [
+    { "src": "/scan/icono-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/scan/icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/scan/icono.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

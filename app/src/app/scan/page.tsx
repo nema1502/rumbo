@@ -1,12 +1,19 @@
-// El escáner del voluntario: lo construye el frente del escáner. Por ahora, un cartel.
-import { Pantalla } from "@/components/ui.tsx";
+// El escáner del voluntario: una página instalable, con cola local, que funciona sin red una vez
+// que se abrió el puesto con conexión. Todo lo que hace está en src/components/escaner.
+import type { Metadata } from "next";
+import { Escaner } from "@/components/escaner/Escaner.tsx";
 import { getT } from "@/i18n/server.ts";
+import "./scan.css";
 
-export default async function ScanPage() {
+export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
-  return (
-    <Pantalla titulo={t("enConstruccion.titulo")} bajada={t("enConstruccion.texto")}>
-      <p className="apagado chico">/scan</p>
-    </Pantalla>
-  );
+  return {
+    title: t("inicio.escaner"),
+    manifest: "/scan/manifest.webmanifest",
+    appleWebApp: { capable: true, title: "Rumbo", statusBarStyle: "default" },
+  };
+}
+
+export default function ScanPage() {
+  return <Escaner />;
 }

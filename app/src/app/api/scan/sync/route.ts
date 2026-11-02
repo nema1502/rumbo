@@ -1,0 +1,19 @@
+// La cola del escáner llega acá cuando hay red: cada entrada y cada canje van al contrato con la
+// cuenta de puerta y quedan en el espejo. Devuelve qué pasó con cada uno y la foto fresca del
+// evento, para que el escáner se entere de lo que registraron los otros puestos.
+import { authorizeScanRequest, buildSnapshot, parseScanItems, processScanItems, stationOf } from "@/server/escaner.ts";
+import { getRepo } from "@/server/repo.ts";
+import type { SyncResponse } from "@/lib/escaner-api.ts";
+
+export const dynamic = "force-dynamic";
+
+export async function POST(request: Request): Promise<Response> {
+  const repo = getRepo();
+  const auth = await authorizeScanRequest(repo, request);
+  if (!auth.ok) return auth.response;
+  const items = parseScanItems(auth.body.items ?? []);
+  if (!items) return Response.json({ error: "bad_items" }, { status: 400 });
+  const results = await processScanItems(repo, auth.access.event, stationOf(auth.access), items);
+  const response: SyncResponse = { results, snapshot: await buildSnapshot(repo, auth.access) };
+  return Response.json(response);
+}
