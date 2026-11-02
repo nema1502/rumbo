@@ -8,7 +8,7 @@ import { GATE_STATION } from "../lib/escaner-api.ts";
 import { isValidPassId } from "../lib/qr-codec.ts";
 import { resolveStationCode, type StationAccess } from "./panel.ts";
 import type { EventRecord, PassView, Repo } from "./repo.ts";
-import { isContractError, rumboPass, type ContractErrorName } from "./stellar.ts";
+import { PERMANENT_CONTRACT_ERRORS, isContractError, rumboPass } from "./stellar.ts";
 
 // ---------- El puesto y lo que baja el escáner ----------
 
@@ -101,8 +101,8 @@ function inFlight(): Set<string> {
   return (globalThis.__rumboScanInFlight ??= new Set());
 }
 
-/** Los errores del contrato con los que no tiene sentido volver a intentar. */
-const PERMANENT_ERRORS: ReadonlySet<ContractErrorName> = new Set<ContractErrorName>(["NoPass", "NoSuchBenefit", "NotAuthorized", "NotConfigured"]);
+/** Los errores del contrato con los que no tiene sentido volver a intentar (el panel los cuenta como rechazados, no como pendientes). */
+const PERMANENT_ERRORS: ReadonlySet<string> = PERMANENT_CONTRACT_ERRORS;
 
 function describe(error: unknown): string {
   return (error instanceof Error ? error.message : String(error)).slice(0, 200);

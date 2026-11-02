@@ -68,6 +68,17 @@ export const CONTRACT_ERRORS = {
 export type ContractErrorCode = keyof typeof CONTRACT_ERRORS;
 export type ContractErrorName = (typeof CONTRACT_ERRORS)[ContractErrorCode];
 
+/**
+ * Los errores del contrato con los que no tiene sentido volver a intentar un registro del escáner: el pase
+ * no existe en la cadena, el beneficio no está, la puerta no es la del evento o el contrato no se configuró.
+ * Un registro del espejo con uno de estos errores quedó rechazado, no pendiente de sincronizar.
+ */
+export const PERMANENT_CONTRACT_ERRORS: ReadonlySet<string> = new Set<ContractErrorName>(["NoPass", "NoSuchBenefit", "NotAuthorized", "NotConfigured"]);
+
+export function isPermanentContractError(error: string | null | undefined): boolean {
+  return Boolean(error && PERMANENT_CONTRACT_ERRORS.has(error));
+}
+
 /** Lo que devuelve status(who). */
 export interface PassStatusOnChain {
   has_pass: boolean;

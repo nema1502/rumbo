@@ -20,7 +20,7 @@ import {
   type PassStatus,
   type Repo,
 } from "./repo.ts";
-import { rumboPass, type PassStatusOnChain } from "./stellar.ts";
+import { isPermanentContractError, rumboPass, type PassStatusOnChain } from "./stellar.ts";
 
 // ---------- La base ----------
 
@@ -48,6 +48,9 @@ function panelDb(): DatabaseSync {
 }
 
 const now = () => new Date().toISOString();
+
+/** Un registro del espejo que la cola del escáner todavía va a llevar al contrato: ni llegó, ni fue doble, ni lo rechazó el contrato para siempre. */
+const isPendingSync = (row: { synced: boolean; duplicate: boolean; error: string | null }): boolean => !row.synced && !row.duplicate && !isPermanentContractError(row.error);
 
 // ---------- La clave de organizador ----------
 
@@ -376,7 +379,8 @@ async function collect(event: EventRecord, repo: Repo): Promise<Collected> {
       lunch: tally("lunch"),
       prizes: tally("prize"),
     },
-    pendingSync: checkIns.filter((c) => !c.synced && !c.duplicate).length + redemptions.filter((r) => !r.synced && !r.duplicate).length,
+    // Lo que la cola del escáner todavía va a mandar. Lo que el contrato rechazó para siempre no está pendiente.
+    pendingSync: checkIns.filter(isPendingSync).length + redemptions.filter(isPendingSync).length,
     ticketTypes: ticketTypeRows,
     benefits: benefitRows,
     passes: panelPasses,
@@ -603,7 +607,7 @@ async function reconcilePass(pass: Pass, status: PassStatusOnChain, repo: Repo, 
       for (const c of real.filter((c) => !c.synced)) await repo.markCheckIn(c.id, { synced: true });
     }
   } else if (pass.status === "checked_in") {
-    if (checkIns.some((c) => !c.synced && !c.duplicate)) summary.pendingSync++;
+    if (checkIns.some(isPendingSync)) summary.pendingSync++;
     else summary.mismatches.push({ passId: pass.id, reason: "checked_in_only_in_mirror", detail: null });
   }
 
@@ -633,7 +637,7 @@ async function reconcilePass(pass: Pass, status: PassStatusOnChain, repo: Repo, 
   for (const r of realRedemptions) {
     const benefit = ticketBenefits.find((b) => b.id === r.benefitId);
     if (!benefit || status.redeemed.includes(benefit.chainIndex)) continue;
-    if (!r.synced) summary.pendingSync++;
+    if (isPendingSync(r)) summary.pendingSync++;
     else summary.mismatches.push({ passId: pass.id, reason: "redeemed_only_in_mirror", detail: benefit.name });
   }
 }
