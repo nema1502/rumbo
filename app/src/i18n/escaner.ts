@@ -49,7 +49,7 @@ export const escaner = {
     "escaner.motivo.not_included": "La entrada no incluye {beneficio}.",
     "escaner.motivo.not_checked_in": "Primero tiene que pasar por la puerta.",
     "escaner.siguiente": "Siguiente",
-    "escaner.sinNombre": "Pase {id}",
+    "escaner.sinNombre": "Credencial {id}",
   },
   en: {
     "escaner.titulo": "Scanner",

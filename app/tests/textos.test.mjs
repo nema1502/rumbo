@@ -38,3 +38,18 @@ test("la gente no ve comandos de consola: la pista para quien desarrolla va al s
   assert.equal(comun.es["inicio.vacio"], "Todavía no hay eventos.");
   assert.equal(comun.en["inicio.vacio"], "No events yet.");
 });
+
+test("en el escáner y el panel, la misma cosa se llama igual: credencial en castellano, pass en inglés", () => {
+  const enCastellano = [...Object.entries(escaner.es), ...Object.entries(panel.es)].filter(([, texto]) => /\bpases?\b/i.test(texto));
+  assert.deepEqual(enCastellano.map(([clave, texto]) => `${clave}: ${texto}`), []);
+  const enIngles = [...Object.entries(escaner.en), ...Object.entries(panel.en)].filter(([, texto]) => /\b(credentials?|badges?)\b/i.test(texto));
+  assert.deepEqual(enIngles.map(([clave, texto]) => `${clave}: ${texto}`), []);
+  assert.equal(panel.es["panel.pases.titulo"], panel.es["panel.contador.credenciales"]);
+});
+
+test("en ningún lado: hashes, firmas, direcciones, billeteras, tokens, contratos ni el punto medio", () => {
+  assert.deepEqual(conPalabra("es", /\b(hash|hashes|firma digital|ledger|direcci[oó]n|wallet|billetera|token|nft|contrato|xlm)\b/i), []);
+  assert.deepEqual(conPalabra("en", /\b(hash|hashes|signature|ledger|address|wallet|token|nft|contract|xlm)\b/i), []);
+  assert.deepEqual(conPalabra("es", /·/), []);
+  assert.deepEqual(conPalabra("en", /·/), []);
+});
