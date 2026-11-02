@@ -51,7 +51,6 @@ function deviceId(): string {
   }
 }
 
-
 function vibrar(kind: Verdict["kind"]): void {
   if (typeof navigator === "undefined" || !("vibrate" in navigator)) return;
   try {
