@@ -7,7 +7,7 @@ import type { ScanEvent, ScanItem, ScanItemResult, ScanItemStatus, ScanPassInfo,
 import { GATE_STATION } from "../lib/escaner-api.ts";
 import { isValidPassId } from "../lib/qr-codec.ts";
 import { resolveStationCode, type StationAccess } from "./panel.ts";
-import type { EventRecord, PassView, Repo } from "./repo.ts";
+import { ClientIdTaken, type EventRecord, type PassView, type Repo } from "./repo.ts";
 import { PERMANENT_CONTRACT_ERRORS, isContractError, rumboPass } from "./stellar.ts";
 
 // ---------- El puesto y lo que baja el escáner ----------
@@ -147,6 +147,8 @@ async function processOne(repo: Repo, event: EventRecord, station: ScanStation, 
     if (!view.contractId) return result("rejected", null, "evento sin contrato");
     return item.action === "checkin" ? await syncCheckIn(repo, event, item, view, view.contractId) : await syncRedeem(repo, event, item, view, view.contractId);
   } catch (error) {
+    // Un clientId de otro registro no se reintenta: con el mismo id el servidor no daría nunca otra cosa.
+    if (error instanceof ClientIdTaken) return result("rejected", null, "clientId de otro registro");
     return result("retry", null, describe(error));
   } finally {
     inFlight().delete(item.clientId);

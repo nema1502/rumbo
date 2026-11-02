@@ -195,6 +195,19 @@ export interface NewRedemption extends NewCheckIn {
   benefitId: string;
 }
 
+/**
+ * El clientId ya está en un registro de otro pase, de otro evento o de otro beneficio. Con el mismo
+ * clientId se reintenta lo mismo, nunca otra cosa: quien lo manda no recibe el registro ajeno.
+ */
+export class ClientIdTaken extends Error {
+  readonly clientId: string;
+  constructor(clientId: string) {
+    super(`El clientId ${clientId} ya es de otro registro`);
+    this.name = "ClientIdTaken";
+    this.clientId = clientId;
+  }
+}
+
 export interface SyncMark {
   synced?: boolean;
   duplicate?: boolean;
@@ -269,12 +282,14 @@ export interface Repo {
   grantTicketBenefits(passId: string): Promise<PassBenefit[]>;
 
   // Check-ins (espejo de la cadena)
+  /** Registra la entrada, o devuelve la que ya tenía ese clientId. Si el clientId es de otro pase u otro evento, lanza ClientIdTaken. */
   recordCheckIn(input: NewCheckIn): Promise<CheckIn>;
   listCheckIns(eventId: string): Promise<CheckIn[]>;
   listCheckInsForPass(passId: string): Promise<CheckIn[]>;
   markCheckIn(id: string, mark: SyncMark): Promise<CheckIn>;
 
   // Canjes (espejo de la cadena)
+  /** Registra el canje, o devuelve el que ya tenía ese clientId. Si el clientId es de otro pase, evento o beneficio, lanza ClientIdTaken. */
   recordRedemption(input: NewRedemption): Promise<Redemption>;
   listRedemptions(eventId: string): Promise<Redemption[]>;
   listRedemptionsForPass(passId: string): Promise<Redemption[]>;
@@ -736,7 +751,10 @@ export class SqliteRepo implements Repo {
   async recordCheckIn(input: NewCheckIn): Promise<CheckIn> {
     if (input.clientId) {
       const existing = this.one("SELECT * FROM checkins WHERE client_id = ?", input.clientId);
-      if (existing) return rowToCheckIn(existing);
+      if (existing) {
+        if (str(existing.event_id) !== input.eventId || str(existing.pass_id) !== input.passId) throw new ClientIdTaken(input.clientId);
+        return rowToCheckIn(existing);
+      }
     }
     const id = randomUUID();
     this.run(
@@ -772,7 +790,11 @@ export class SqliteRepo implements Repo {
   async recordRedemption(input: NewRedemption): Promise<Redemption> {
     if (input.clientId) {
       const existing = this.one("SELECT * FROM redemptions WHERE client_id = ?", input.clientId);
-      if (existing) return rowToRedemption(existing);
+      if (existing) {
+        const same = str(existing.event_id) === input.eventId && str(existing.pass_id) === input.passId && str(existing.benefit_id) === input.benefitId;
+        if (!same) throw new ClientIdTaken(input.clientId);
+        return rowToRedemption(existing);
+      }
     }
     const id = randomUUID();
     this.run(
