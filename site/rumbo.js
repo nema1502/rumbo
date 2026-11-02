@@ -243,21 +243,7 @@ function aplicarIdioma(lang) {
     ? "Community events on Stellar. Register for free or sell tickets from anywhere and run the whole event from one QR code."
     : "Eventos de comunidad sobre Stellar. Inscribí gratis o cobrá entradas desde cualquier país y operá todo tu evento desde un QR.");
 
-  const video = document.getElementById("demo-video");
-  if (video) {
-    const fuente = video.querySelector("source");
-    const nuevo = `assets/flujo-${lang}.mp4`;
-    if (fuente && !fuente.getAttribute("src").endsWith(nuevo)) {
-      fuente.setAttribute("src", nuevo);
-      video.setAttribute("poster", `assets/flujo-${lang}.jpg`);
-      video.load();
-      if (!reducirMovimiento) video.play().catch(() => { /* sin autoplay */ });
-    }
-  }
-  const abrir = document.getElementById("demo-abrir");
-  if (abrir) abrir.setAttribute("href", `assets/flujo-${lang}.mp4`);
-  const poster = document.getElementById("demo-poster");
-  if (poster) poster.setAttribute("src", `assets/flujo-${lang}.jpg`);
+  ajustarDemo(lang);
 
   const boton = document.getElementById("idioma");
   if (boton) {
@@ -268,6 +254,45 @@ function aplicarIdioma(lang) {
   if (pie) pie.setAttribute("href", lang === "en" ? "?lang=es" : "?lang=en");
   try { localStorage.setItem("rumbo.lang", lang); } catch { /* sin almacenamiento */ }
 }
+
+// La animación: horizontal en pantallas grandes; en el celular, la vertical si existe,
+// y si no, un cartel con botón que abre el video.
+const esCelular = () => matchMedia("(max-width: 560px)").matches;
+const verticales = {};
+async function hayVertical(lang) {
+  if (verticales[lang] === undefined) {
+    try {
+      const r = await fetch(`assets/flujo-${lang}-vertical.mp4`, { method: "HEAD" });
+      verticales[lang] = r.ok;
+    } catch {
+      verticales[lang] = false;
+    }
+  }
+  return verticales[lang];
+}
+async function ajustarDemo(lang) {
+  const video = document.getElementById("demo-video");
+  const abrir = document.getElementById("demo-abrir");
+  const poster = document.getElementById("demo-poster");
+  if (!video || !abrir) return;
+  const vertical = esCelular() && (await hayVertical(lang));
+  if (document.documentElement.lang !== lang) return;
+  const sufijo = vertical ? "-vertical" : "";
+  const archivo = `assets/flujo-${lang}${sufijo}.mp4`;
+  const cartel = `assets/flujo-${lang}${sufijo}.jpg`;
+  video.classList.toggle("vertical", vertical);
+  abrir.hidden = vertical;
+  abrir.setAttribute("href", `assets/flujo-${lang}.mp4`);
+  if (poster) poster.setAttribute("src", `assets/flujo-${lang}.jpg`);
+  const fuente = video.querySelector("source");
+  if (fuente && !fuente.getAttribute("src").endsWith(archivo)) {
+    fuente.setAttribute("src", archivo);
+    video.setAttribute("poster", cartel);
+    video.load();
+    if (!reducirMovimiento) video.play().catch(() => { /* sin autoplay */ });
+  }
+}
+matchMedia("(max-width: 560px)").addEventListener("change", () => ajustarDemo(document.documentElement.lang));
 
 function aplicarTema(tema) {
   document.documentElement.setAttribute("data-theme", tema);
