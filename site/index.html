@@ -28,6 +28,8 @@
   <link rel="stylesheet" href="styles.css">
   <script>
     (function () {
+      // Con JS, lo que se anima ya arranca oculto cuando se pinta la página; sin JS se ve todo.
+      document.documentElement.classList.add("js");
       try {
         var q = new URLSearchParams(location.search).get("theme");
         var t = q || localStorage.getItem("rumbo.theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
@@ -100,13 +102,13 @@
           <div class="credencial-qr"><img src="assets/qr.svg" alt="" width="112" height="112"></div>
           <div>
             <div class="credencial-nombre" data-i18n="cred.nombre">Ana R.</div>
-            <div class="credencial-estado" data-i18n="cred.estado">Entró</div>
+            <div class="credencial-estado" data-paso="1"><span class="cambia"><span class="antes" data-i18n="cred.estado0" aria-hidden="true">Inscripta</span><span class="despues" data-i18n="cred.estado">Entró</span></span></div>
           </div>
         </div>
         <ul class="beneficios">
-          <li><span data-i18n="cred.b1">Almuerzo del sábado</span><span class="chip chip-pendiente" data-i18n="cred.b1e">pendiente</span></li>
-          <li><span data-i18n="cred.b2">Polera, talle M</span><span class="chip chip-listo" data-i18n="cred.b2e">pagada, para retirar</span></li>
-          <li><span data-i18n="cred.b3">Premio del sorteo: auriculares</span><span class="chip chip-premio" data-i18n="cred.b3e">ganado</span></li>
+          <li data-paso="2"><span data-i18n="cred.b1">Almuerzo del sábado</span><span class="cambia"><span class="chip chip-pendiente antes" data-i18n="cred.b1e" aria-hidden="true">pendiente</span><span class="chip chip-listo despues"><svg class="check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span data-i18n="cred.b1c">canjeado</span></span></span></li>
+          <li data-paso="3"><span data-i18n="cred.b2">Polera, talle M</span><span class="cambia"><span class="chip chip-listo antes" data-i18n="cred.b2e" aria-hidden="true">pagada, para retirar</span><span class="chip chip-listo despues"><svg class="check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span data-i18n="cred.b2c">retirada</span></span></span></li>
+          <li class="sorteo" data-paso="4"><span data-i18n="cred.b3">Premio del sorteo: auriculares</span><span class="cambia"><span class="chip chip-sorteo antes" data-i18n="cred.b3s" aria-hidden="true">en el sorteo</span><span class="chip chip-premio despues" data-i18n="cred.b3e">ganado</span></span></li>
         </ul>
       </div>
     </div>
@@ -553,6 +555,6 @@
   </div>
 </footer>
 
-<script src="rumbo.js"></script>
+<script src="rumbo.js" onerror="document.documentElement.classList.remove('js')"></script>
 </body>
 </html>

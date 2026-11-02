@@ -18,6 +18,9 @@
   --brillo-1: rgba(232, 84, 30, 0.07);
   --brillo-2: rgba(11, 122, 104, 0.05);
   --sombra: 0 24px 60px -28px rgba(15, 28, 46, 0.35);
+  --sombra-alzada: 0 16px 34px -22px rgba(15, 28, 46, 0.45);
+  --sombra-fina: 0 10px 24px -20px rgba(15, 28, 46, 0.55);
+  --suave: cubic-bezier(0.2, 0.7, 0.2, 1);
   --radio: 20px;
   --ancho: 1120px;
   --display: "Bricolage Grotesque", "Inter", system-ui, sans-serif;
@@ -43,6 +46,8 @@
   --brillo-1: rgba(255, 122, 69, 0.16);
   --brillo-2: rgba(47, 191, 166, 0.12);
   --sombra: 0 24px 60px -28px rgba(0, 0, 0, 0.7);
+  --sombra-alzada: 0 18px 38px -20px rgba(0, 0, 0, 0.8);
+  --sombra-fina: 0 10px 26px -18px rgba(0, 0, 0, 0.9);
   color-scheme: dark;
 }
 
@@ -95,6 +100,16 @@ p { margin: 0; }
 .nav { display: flex; gap: 4px; margin-left: 8px; order: 2; }
 .nav a { text-decoration: none; color: var(--tinta-2); padding: 10px 12px; border-radius: 999px; font-weight: 500; font-size: 0.95rem; white-space: nowrap; }
 .nav a:hover { background: var(--acento-suave); color: var(--tinta); }
+@media (hover: hover) {
+  .nav a { position: relative; }
+  .nav a::after {
+    content: ""; position: absolute; left: 12px; right: 12px; bottom: 6px; height: 2px; border-radius: 2px;
+    background: var(--acento); transform: scaleX(0); transform-origin: left center;
+  }
+  .nav a:hover { background: transparent; }
+  .nav a:hover::after, .nav a:focus-visible::after { transform: scaleX(1); }
+}
+.cabecera.compacta { background: color-mix(in srgb, var(--papel) 94%, transparent); box-shadow: var(--sombra-fina); }
 .acciones { margin-left: auto; display: flex; align-items: center; gap: 8px; order: 3; }
 .boton-icono {
   appearance: none; border: 1px solid var(--linea); background: transparent; color: var(--tinta);
@@ -116,6 +131,13 @@ p { margin: 0; }
 .boton-secundario { background: transparent; color: var(--tinta); border-color: var(--linea); }
 .boton-secundario:hover { background: var(--acento-suave); }
 .boton svg { width: 18px; height: 18px; }
+/* Las flechas de la portada dicen adónde lleva cada botón: abajo, a la animación; afuera, a GitHub */
+.cta .boton::after {
+  content: ""; flex: none; width: 16px; height: 16px; background: currentColor;
+  -webkit-mask: var(--flecha) center / contain no-repeat; mask: var(--flecha) center / contain no-repeat;
+}
+.cta .boton-primario { --flecha: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 5v14M6 13l6 6 6-6'/%3E%3C/svg%3E"); }
+.cta .boton-secundario { --flecha: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 17 17 7M8 7h9v9'/%3E%3C/svg%3E"); }
 
 /* Etiquetas y chips */
 .etiqueta { display: inline-block; font-size: 0.8rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; line-height: 1.3; }
@@ -127,11 +149,12 @@ p { margin: 0; }
 .chip-listo { background: var(--verde-suave); color: var(--verde-chip); }
 .chip-premio { background: color-mix(in srgb, var(--amarillo) 35%, transparent); color: var(--tinta); }
 .chip-ejemplo { background: var(--linea); color: var(--tinta-2); font-weight: 600; }
+.chip-sorteo { background: var(--linea); color: var(--tinta-2); }
 .estado { display: inline-flex; align-items: flex-start; gap: 8px; color: var(--apagado); font-size: 0.95rem; margin-top: 14px; }
 .estado::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--amarillo); margin-top: 0.5em; }
 
 /* Portada */
-.portada { padding: clamp(28px, 5vw, 96px) 0 clamp(40px, 6vw, 80px); }
+.portada { padding: clamp(28px, 5vw, 96px) 0 clamp(40px, 6vw, 80px); overflow-x: clip; }
 .portada .contenedor { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: clamp(32px, 5vw, 72px); align-items: center; }
 .antetitulo { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.9rem; color: var(--acento-texto); margin-bottom: 20px; }
 .antetitulo::before { content: ""; width: 28px; height: 2px; background: var(--acento); border-radius: 2px; }
@@ -181,6 +204,16 @@ p { margin: 0; }
 .credencial-estado::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--verde); }
 .beneficios { list-style: none; margin: 20px 0 0; padding: 0; display: grid; gap: 8px; }
 .beneficios li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--papel); font-size: 0.95rem; }
+/* Lo que cambia en la credencial: las dos versiones de cada estado ocupan el mismo lugar,
+   así el cambio no mueve nada. Sin la clase espera se ve el estado final. */
+.cambia { display: inline-grid; justify-items: end; align-items: center; flex: none; }
+.cambia > * { grid-area: 1 / 1; }
+.credencial-estado .cambia { justify-items: start; }
+.credencial [data-paso]:not(.espera) .antes, .credencial .espera .despues { opacity: 0; }
+.chip.despues { display: inline-flex; align-items: center; gap: 4px; }
+.check { width: 12px; height: 12px; flex: none; fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+.credencial-estado.espera { color: var(--apagado); }
+.credencial-estado.espera::before { background: var(--apagado); }
 
 /* Secciones */
 .seccion { padding: clamp(56px, 8vw, 104px) 0; }
@@ -217,6 +250,10 @@ p { margin: 0; }
 .demo-pasos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 18px; color: var(--tinta-2); font-size: 0.95rem; }
 .demo-pasos > span { display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; border-radius: 14px; background: var(--tarjeta); border: 1px solid var(--linea); }
 .demo-pasos b { flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--acento); color: #0f1c2e; font: 700 0.85rem var(--display); display: grid; place-items: center; }
+/* Mientras corre el video, se resalta el paso que muestra */
+.demo-pasos.sincronizado > span:not(.activo) { color: var(--apagado); }
+.demo-pasos.sincronizado > span:not(.activo) b { background: transparent; color: var(--acento); box-shadow: inset 0 0 0 1.5px var(--acento); }
+.demo-pasos > span.activo { background: var(--acento-suave); border-color: color-mix(in srgb, var(--acento) 45%, transparent); color: var(--tinta); }
 
 /* El problema */
 .herramienta { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-radius: 16px; background: var(--tarjeta); border: 1px solid var(--linea); }
@@ -251,7 +288,8 @@ p { margin: 0; }
 .arq-nodo-contrato .arq-sub { fill: var(--papel); opacity: 0.82; }
 .arq-flechas { color: var(--tinta-2); }
 .arq-flechas path { fill: none; stroke: currentColor; stroke-width: 2.5; marker-end: url(#flecha); }
-.arq-etiquetas text { font: 600 13px var(--texto); fill: var(--acento-texto); }
+.arq-etiquetas text { font: 600 13px var(--texto); fill: var(--acento-texto); transform-box: fill-box; transform-origin: center; }
+.arq-puntos circle { fill: var(--acento); }
 .arquitectura-lista { display: none; margin: 0; padding-left: 20px; color: var(--tinta-2); }
 .arquitectura-lista li + li { margin-top: 8px; }
 .hecho-datos h3 { font-size: 1.1rem; }
@@ -263,16 +301,28 @@ p { margin: 0; }
 .etapa .etiqueta { align-self: flex-start; }
 .etapa ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 6px; font-size: 0.95rem; }
 .etapa-num {
-  position: absolute; top: -18px; left: 24px; width: 40px; height: 40px; border-radius: 50%;
+  position: absolute; z-index: 2; top: -18px; left: 24px; width: 40px; height: 40px; border-radius: 50%;
   background: var(--acento); color: #0f1c2e; font: 800 1.1rem var(--display); display: grid; place-items: center;
   box-shadow: 0 0 0 6px var(--papel);
 }
-.etapa:not(:last-child)::after {
-  content: ""; position: absolute; top: 50%; right: -16px; width: 16px; height: 2px; background: var(--linea);
+/* Una línea une los tres números, por tramos: cada tarjeta dibuja el suyo, debajo de su número */
+@media (min-width: 1001px) {
+  .etapa::before {
+    content: ""; position: absolute; z-index: 1; top: 1px; left: -1px; width: calc(100% + 18px); height: 2px;
+    background: var(--acento); transform-origin: left center;
+  }
+  .etapa:first-child::before { left: 44px; width: calc(100% - 27px); }
+  .etapa:last-child::before { width: 45px; }
 }
 
 /* Quién paga */
 .pago h3 { font-size: 1.05rem; }
+
+/* Al pasar el mouse: la tarjeta sube y el ícono toma el acento */
+@media (hover: hover) {
+  .tarjeta:hover { box-shadow: var(--sombra-alzada); }
+  .motivo:hover .icono { background: var(--acento); color: #0f1c2e; }
+}
 .pago-gratis { background: color-mix(in srgb, var(--acento) 10%, var(--tarjeta)); border-color: transparent; }
 .pago-gratis p { color: var(--tinta); }
 
@@ -298,7 +348,6 @@ p { margin: 0; }
 @media (max-width: 1000px) {
   .rejilla-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .etapas { grid-template-columns: 1fr; gap: 28px; }
-  .etapa:not(:last-child)::after { display: none; }
   .demo-pasos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 860px) {
@@ -334,4 +383,107 @@ p { margin: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+}
+
+/* Movimiento. Cada animación cuenta algo del producto o guía la lectura. Lo que se oculta
+   para animar se oculta solo con JS (la clase js), solo en pantalla y solo si nadie pidió
+   menos movimiento: si no, todo se ve quieto y la credencial queda en su estado final. */
+@keyframes subir { from { opacity: 0; transform: translateY(14px); } }
+@keyframes palabra { from { opacity: 0; transform: translateY(0.3em); } }
+@keyframes aparecer { from { opacity: 0; } }
+@keyframes entrar-cred {
+  from { opacity: 0; transform: translateX(var(--desde-x, 48px)) rotate(var(--desde-giro, 4deg)); }
+  to { opacity: 1; transform: translateX(0) rotate(var(--giro, -2deg)); }
+}
+@keyframes pop { from { opacity: 0; transform: scale(0.4); } 60% { opacity: 1; transform: scale(1.12); } to { transform: scale(1); } }
+@keyframes pulso { from { opacity: 0.6; transform: scale(1); } to { opacity: 0; transform: scale(3.6); } }
+@keyframes brillo { from { transform: translateX(-101%); } to { transform: translateX(101%); } }
+@keyframes tinte { 30% { background-color: color-mix(in srgb, var(--amarillo) 28%, var(--papel)); } }
+
+@media screen and (prefers-reduced-motion: no-preference) {
+  /* La portada entra una sola vez, al cargar */
+  .js .portada:not(.entra) :is(.antetitulo, h1, .bajada, .cta, .sellos li, .nota-portada, .estado) { opacity: 0; }
+  .portada.entra .antetitulo { animation: subir 0.6s var(--suave) backwards; }
+  .portada.entra .palabra { display: inline-block; animation: palabra 0.7s var(--suave) backwards; animation-delay: calc(80ms + var(--i) * 70ms); }
+  .portada.entra .bajada { animation: subir 0.6s var(--suave) 0.38s backwards; }
+  .portada.entra .cta { animation: subir 0.6s var(--suave) 0.47s backwards; }
+  .portada.entra .sellos li { animation: subir 0.5s var(--suave) 0.6s backwards; }
+  .portada.entra .sellos li:nth-child(2) { animation-delay: 0.68s; }
+  .portada.entra .sellos li:nth-child(3) { animation-delay: 0.76s; }
+  .portada.entra :is(.nota-portada, .estado) { animation: aparecer 0.6s ease 0.86s backwards; }
+  .js .credencial:not(.entra) { opacity: 0; animation: none; }
+  .js .credencial.entra { animation: entrar-cred 0.9s var(--suave) 0.25s backwards, flotar 7s ease-in-out 1.15s infinite; }
+
+  /* Al recorrer la página. La misma lista que revelarAlRecorrer, en rumbo.js */
+  .js :is(.encabezado, .tarjeta, .herramienta, .remate, .principios li, .arquitectura-lista li, .demo):not(.visto) { opacity: 0; }
+  .visto:is(.encabezado, .tarjeta, .herramienta, .remate, .principios li, .arquitectura-lista li, .demo) { animation: subir 0.6s var(--suave) backwards; }
+
+  /* La credencial: el estado nuevo sube y el viejo se va, el check crece, el punto late */
+  .cambia > * { transition: opacity 0.35s ease, transform 0.35s var(--suave); }
+  .credencial .espera .despues { transform: translateY(7px); }
+  /* El estado viejo se va rápido y el nuevo entra apenas después, sin encimarse */
+  .credencial [data-paso]:not(.espera) .antes { transform: translateY(-7px); transition-duration: 0.18s; }
+  .credencial [data-paso]:not(.espera) .despues { transition-delay: 0.14s; }
+  .check { transition: transform 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) 0.32s; }
+  .credencial .espera .check { transform: scale(0); }
+  .credencial-estado { position: relative; transition: color 0.4s ease, opacity 0.5s ease; }
+  .credencial-estado::before { transition: background-color 0.4s ease; }
+  .credencial-estado::after {
+    content: ""; position: absolute; left: 0; top: 50%; width: 8px; height: 8px; margin-top: -4px;
+    border-radius: 50%; background: var(--verde); opacity: 0; pointer-events: none;
+  }
+  .credencial-estado.fx::after { animation: pulso 0.9s ease-out; }
+  .beneficios .cambia { transition: opacity 0.5s ease; }
+  .beneficios .sorteo { position: relative; overflow: hidden; }
+  .beneficios .sorteo::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none; transform: translateX(-101%);
+    background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--amarillo) 55%, transparent) 50%, transparent 70%);
+  }
+  .beneficios .sorteo.fx { animation: tinte 1.6s ease; }
+  .beneficios .sorteo.fx::after { animation: brillo 1.1s ease-in-out 0.1s; }
+  /* Vuelta al inicio: se apaga, cambia sin transición y se vuelve a prender */
+  .credencial.reinicio :is(.beneficios .cambia, .credencial-estado) { opacity: 0; }
+  .credencial.reinicio .credencial-estado { transition: opacity 0.5s ease; }
+  .credencial.reinicio :is(.cambia > *, .check), .credencial.reinicio .credencial-estado::before { transition: none; }
+
+  /* El diagrama: las piezas de izquierda a derecha y las flechas que se dibujan */
+  .js .arquitectura-svg .arq-flechas path { stroke-dasharray: var(--largo, 200); }
+  .js .arquitectura-svg:not(.visto) .arq-flechas path { stroke-dashoffset: var(--largo, 200); }
+  .js .arquitectura-svg .arq-flechas path:not(.llego) { marker-end: none; }
+  .arquitectura-svg.visto .arq-flechas path { transition: stroke-dashoffset 0.45s cubic-bezier(0.45, 0, 0.25, 1); }
+  .js .arquitectura-svg:not(.visto) :is(.arq-nodo, .arq-etiquetas) { opacity: 0; }
+  .arquitectura-svg.visto .arq-nodo { animation: subir 0.5s var(--suave) backwards; }
+  .arquitectura-svg.visto .arq-etiquetas { animation: aparecer 0.4s ease 0.75s backwards; }
+
+  /* Cómo crece: la línea avanza a velocidad pareja y cada número aparece cuando llega */
+  .js .etapa:not(.visto)::before { transform: scaleX(0); }
+  .etapa.visto::before { transition: transform 0.5s linear 0.74s; }
+  .etapa.visto:first-child::before { transition-duration: 0.44s; transition-delay: 0.3s; }
+  .etapa.visto:last-child::before { transition-duration: 0.06s; transition-delay: 1.24s; }
+  .etapa.visto .etapa-num { animation: pop 0.5s cubic-bezier(0.3, 1.5, 0.5, 1) 0.3s backwards; }
+
+  /* "Así se ve" */
+  .demo-pasos > span, .demo-pasos b { transition: background-color 0.35s ease, border-color 0.35s ease, color 0.35s ease, box-shadow 0.35s ease; }
+
+  /* La cabecera se compacta sin cambiar de alto: sube 8 px y su contenido baja 4 */
+  .cabecera, .cabecera .contenedor { transition: transform 0.3s var(--suave), box-shadow 0.3s ease, background-color 0.3s ease; }
+  .cabecera.compacta { transform: translateY(-8px); }
+  .cabecera.compacta .contenedor { transform: translateY(4px); }
+}
+/* En el celular la credencial no gira ni flota: entra más corto, con el mismo nombre para no repetirse al rotar */
+@media screen and (prefers-reduced-motion: no-preference) and (max-width: 860px) {
+  .js .credencial.entra { --desde-x: 28px; --desde-giro: 2deg; --giro: 0deg; animation: entrar-cred 0.7s var(--suave) 0.1s backwards; }
+}
+@media screen and (prefers-reduced-motion: no-preference) and (min-width: 1001px) {
+  .etapa.visto:nth-child(2) .etapa-num { animation-delay: 0.8s; }
+  .etapa.visto:nth-child(3) .etapa-num { animation-delay: 1.3s; }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .tarjeta { transition: transform 0.2s var(--suave), box-shadow 0.2s ease; }
+  .tarjeta:hover { transform: translateY(-2px); }
+  .motivo .icono { transition: background-color 0.2s ease, color 0.2s ease; }
+  .nav a::after { transition: transform 0.25s var(--suave); }
+  .cta .boton::after { transition: transform 0.2s var(--suave); }
+  .cta .boton-primario:hover::after { transform: translateY(2px); }
+  .cta .boton-secundario:hover::after { transform: translate(2px, -2px); }
 }

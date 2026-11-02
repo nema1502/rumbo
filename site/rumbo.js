@@ -1,6 +1,16 @@
 // Idioma y tema de la página. El castellano vive en el HTML; acá está el inglés.
 // Elegir: ?lang=en o ?lang=es, ?theme=dark o ?theme=light; lo elegido se recuerda en el navegador.
 
+// Los pasos de "Así se ve" se resaltan siguiendo el video: cada uno desde su segundo, y
+// ninguno antes de PASOS_DEMO[0] ni después de FIN_DEMO. Si el video cambia, se ajusta acá.
+const PASOS_DEMO = [3.5, 11.5, 16.5, 24.5];
+const FIN_DEMO = 29.5;
+
+// Lo que se anima solo se oculta con la clase js (la cabecera de la página ya la pone).
+document.documentElement.classList.add("js");
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", animar);
+else setTimeout(animar);
+
 const EN = {
   "nav.como": "How it works",
   "nav.demo": "How it looks",
@@ -35,12 +45,16 @@ const EN = {
   "cred.ejemplo": "Example",
   "cred.numero": "Pass 37 of 120",
   "cred.nombre": "Ana R.",
+  "cred.estado0": "Registered",
   "cred.estado": "Checked in",
   "cred.b1": "Saturday lunch",
   "cred.b1e": "pending",
+  "cred.b1c": "redeemed",
   "cred.b2": "T-shirt, size M",
   "cred.b2e": "paid, pick up",
+  "cred.b2c": "picked up",
   "cred.b3": "Draw prize: headphones",
+  "cred.b3s": "in the draw",
   "cred.b3e": "won",
 
   "demo.ante": "How it looks",
@@ -375,3 +389,270 @@ document.getElementById("pie-idioma")?.addEventListener("click", (e) => {
 document.getElementById("tema")?.addEventListener("click", () => {
   aplicarTema(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
 });
+
+// El movimiento de la página: cada animación cuenta algo del producto o guía la lectura.
+// Con movimiento reducido no se oculta nada y la credencial queda en su estado final.
+function animar() {
+  try {
+    const quieto = matchMedia("(prefers-reduced-motion: reduce)");
+    entradaPortada(quieto.matches);
+    revelarAlRecorrer();
+    credencialViva(quieto);
+    arquitecturaViva(quieto);
+    pasosDelDemo();
+    cabeceraCompacta();
+  } catch {
+    document.documentElement.classList.remove("js"); // si algo falla, se ve todo quieto
+  }
+}
+
+// Si se ve al menos el umbral; con margen, porque hay navegadores que avisan con el primer píxel.
+function seVe(e, umbral) {
+  return e.isIntersecting && e.intersectionRatio >= umbral * 0.9;
+}
+
+// Avisa cada vez que el elemento entra en la pantalla o sale de ella.
+function observar(el, alCambiar, umbral) {
+  if (!("IntersectionObserver" in window)) return alCambiar(true);
+  new IntersectionObserver((es) => alCambiar(seVe(es[es.length - 1], umbral)), { threshold: umbral }).observe(el);
+}
+
+// La portada entra una sola vez, al cargar: el título por palabras y después lo demás.
+function entradaPortada(quieto) {
+  const portada = document.querySelector(".portada");
+  const h1 = portada && portada.querySelector("h1");
+  if (h1 && !quieto) partirPalabras(h1);
+  if (portada) portada.classList.add("entra");
+}
+
+// Cada palabra del título va en su span con su formato adentro (el <em>), y lo que no
+// tiene espacio antes, como el punto final, queda pegado a la palabra anterior.
+function partirPalabras(h1) {
+  const grupos = [[]];
+  (function recorrer(nodo, formato) {
+    for (const n of nodo.childNodes) {
+      if (n.nodeType === 1) recorrer(n, [...formato, n]);
+      else if (n.nodeType === 3) {
+        for (const t of n.data.split(/([ \t\n\r]+)/)) {
+          if (/^[ \t\n\r]+$/.test(t)) grupos.push([]);
+          else if (t) grupos[grupos.length - 1].push([t, formato]);
+        }
+      }
+    }
+  })(h1, []);
+  h1.textContent = "";
+  grupos.filter((g) => g.length).forEach((g, i) => {
+    const palabra = document.createElement("span");
+    palabra.className = "palabra";
+    palabra.style.setProperty("--i", i);
+    for (const [t, formato] of g) {
+      let nodo = document.createTextNode(t);
+      for (const el of [...formato].reverse()) {
+        const copia = el.cloneNode(false);
+        copia.append(nodo);
+        nodo = copia;
+      }
+      palabra.append(nodo);
+    }
+    if (i) h1.append(" ");
+    h1.append(palabra);
+  });
+}
+
+// Los bloques entran al recorrer la página, una sola vez y de a uno dentro de cada tanda.
+// La lista es la misma que en styles.css.
+function revelarAlRecorrer() {
+  const bloques = document.querySelectorAll(".encabezado, .tarjeta, .herramienta, .remate, .principios li, .arquitectura-lista li, .demo");
+  const ver = (el, i) => {
+    el.style.animationDelay = Math.min(i, 6) * 70 + "ms";
+    el.classList.add("visto");
+  };
+  if (!("IntersectionObserver" in window)) return bloques.forEach((el) => ver(el, 0));
+  const io = new IntersectionObserver((entradas) => {
+    entradas
+      .filter((e) => seVe(e, 0.15))
+      .map((e) => e.target)
+      .sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
+      .forEach((el, i) => {
+        io.unobserve(el);
+        ver(el, i);
+      });
+  }, { threshold: 0.15 });
+  bloques.forEach((el) => io.observe(el));
+}
+
+// La credencial de la portada cuenta su historia: Ana entra, almuerza, retira la polera y
+// gana el premio; se sostiene y vuelve a empezar. Cada parte que cambia lleva en data-paso
+// el paso en que cambia. Se pausa fuera de la pantalla y con la pestaña oculta.
+function credencialViva(quieto) {
+  const tarjeta = document.querySelector(".credencial");
+  if (!tarjeta) return;
+  const partes = tarjeta.querySelectorAll("[data-paso]");
+  // Cuánto dura cada paso, en ms: el inicial incluye el fundido de entrada; con la vuelta, 12 s.
+  const ESPERAS = [2500, 2000, 2000, 2000, 3000];
+  let paso = 4;
+  let reloj = 0;
+  let enPantalla = false;
+  const poner = (n, efecto) => {
+    paso = n;
+    for (const p of partes) {
+      p.classList.toggle("espera", +p.dataset.paso > n);
+      p.classList.toggle("fx", efecto && +p.dataset.paso === n);
+    }
+  };
+  const detener = () => {
+    clearTimeout(reloj);
+    if (tarjeta.classList.contains("reinicio")) {
+      poner(0, false);
+      tarjeta.classList.remove("reinicio");
+    }
+  };
+  const seguir = () => {
+    detener();
+    if (enPantalla && !document.hidden && !quieto.matches) reloj = setTimeout(avanzar, ESPERAS[paso]);
+  };
+  const avanzar = () => {
+    if (paso < 4) {
+      poner(paso + 1, true);
+      return seguir();
+    }
+    tarjeta.classList.add("reinicio"); // fundido de salida
+    reloj = setTimeout(() => {
+      poner(0, false);
+      void tarjeta.offsetWidth; // el cambio queda hecho antes de volver a mostrarse
+      tarjeta.classList.remove("reinicio");
+      seguir();
+    }, 500);
+  };
+  if (!quieto.matches) poner(0, false);
+  quieto.addEventListener("change", () => {
+    detener();
+    poner(quieto.matches ? 4 : 0, false);
+    seguir();
+  });
+  observar(tarjeta, (si) => {
+    enPantalla = si;
+    if (si) tarjeta.classList.add("entra");
+    seguir();
+  }, 0.25);
+  document.addEventListener("visibilitychange", seguir);
+}
+
+// El diagrama de cómo está hecho: las piezas aparecen de izquierda a derecha, las flechas
+// se dibujan y un punto lleva el pago de la persona al organizador, pasando por la app y
+// el contrato; otro, más tenue, sale del contrato hacia quien auspicia.
+function arquitecturaViva(quieto) {
+  const svg = document.querySelector(".arquitectura-svg");
+  if (!svg) return;
+  const nodos = svg.querySelectorAll(".arq-nodo");
+  const flechas = [...svg.querySelectorAll(".arq-flechas path")];
+  const usdc = svg.querySelector(".arq-etiquetas text");
+  // Persona, app, contrato, organizador, auspiciante y escáner, en el orden del HTML.
+  [0, 90, 180, 330, 390, 260].forEach((ms, i) => nodos[i] && (nodos[i].style.animationDelay = ms + "ms"));
+  // Cuándo empieza cada flecha: a la app, al contrato, al organizador, al auspiciante, del escáner.
+  const DIBUJO = [160, 310, 520, 560, 420];
+  // El recorrido, en un ciclo de 4,4 s: [flecha, desde, hasta], en milisegundos.
+  const CICLO = 4400;
+  const PAGO = [[0, 0, 700], [1, 1050, 1750], [2, 2100, 2800]];
+  const AVISO = [3, 2100, 2800];
+  let largos = [];
+  let puntos = [];
+  let inicio = 0;
+  let raf = 0;
+  let enPantalla = false;
+  const tramo = (tr, t) => (t >= tr[1] && t < tr[2] ? tr : null);
+  const ubicar = (punto, tr, t, alfa) => {
+    if (!tr) return punto.setAttribute("opacity", 0);
+    const u = (t - tr[1]) / (tr[2] - tr[1]);
+    const e = u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u); // sale y llega suave
+    const p = flechas[tr[0]].getPointAtLength(largos[tr[0]] * e);
+    punto.setAttribute("transform", `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`);
+    punto.setAttribute("opacity", (alfa * Math.min(1, u * 5, (1 - u) * 5)).toFixed(2));
+  };
+  const cuadro = () => {
+    const t = (((performance.now() - inicio) % CICLO) + CICLO) % CICLO;
+    ubicar(puntos[0], PAGO.find((tr) => tramo(tr, t)), t, 1);
+    ubicar(puntos[1], tramo(AVISO, t), t, 0.5);
+    // La etiqueta USDC late cuando el pago pasa por debajo.
+    const k = tramo(PAGO[1], t) ? Math.sin((Math.PI * (t - PAGO[1][1])) / (PAGO[1][2] - PAGO[1][1])) : 0;
+    if (usdc) usdc.style.transform = k > 0 ? `scale(${(1 + 0.1 * k).toFixed(3)})` : "";
+    raf = requestAnimationFrame(cuadro);
+  };
+  const correr = () => {
+    const anda = puntos.length > 0 && enPantalla && !document.hidden && !quieto.matches;
+    if (anda && !raf) raf = requestAnimationFrame(cuadro);
+    if (!anda && raf) {
+      cancelAnimationFrame(raf);
+      raf = 0;
+      puntos.forEach((p) => p.setAttribute("opacity", 0));
+      if (usdc) usdc.style.transform = "";
+    }
+  };
+  const ver = () => {
+    if (puntos.length) return;
+    largos = flechas.map((f) => f.getTotalLength());
+    flechas.forEach((f, i) => {
+      f.style.setProperty("--largo", largos[i]);
+      f.style.transitionDelay = DIBUJO[i] + "ms";
+      setTimeout(() => f.classList.add("llego"), DIBUJO[i] + 450);
+    });
+    svg.getBoundingClientRect(); // el largo queda puesto antes de empezar a dibujar
+    svg.classList.add("visto");
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("class", "arq-puntos");
+    puntos = [5.5, 4.5].map((r) => {
+      const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      c.setAttribute("r", r);
+      c.setAttribute("opacity", 0);
+      return g.appendChild(c);
+    });
+    svg.querySelector(".arq-etiquetas").before(g);
+    inicio = performance.now() + 1300; // arranca cuando las flechas ya están dibujadas
+  };
+  observar(svg, (si) => {
+    enPantalla = si;
+    if (si) ver();
+    correr();
+  }, 0.3);
+  document.addEventListener("visibilitychange", correr);
+  quieto.addEventListener("change", correr);
+}
+
+// "Así se ve": debajo del video se resalta el paso que se está mostrando.
+function pasosDelDemo() {
+  const video = document.getElementById("demo-video");
+  const lista = document.querySelector(".demo-pasos");
+  if (!video || !lista) return;
+  const pasos = [...lista.children];
+  let actual = null;
+  const marcar = () => {
+    // Solo si el video se ve y ya arrancó: en el celular sin la versión vertical queda oculto.
+    const sigue = video.getClientRects().length > 0 && video.played.length > 0;
+    const t = video.currentTime;
+    let n = -1;
+    if (sigue && t < FIN_DEMO) PASOS_DEMO.forEach((desde, i) => { if (t >= desde) n = i; });
+    lista.classList.toggle("sincronizado", sigue);
+    if (n === actual) return;
+    actual = n;
+    pasos.forEach((p, i) => p.classList.toggle("activo", i === n));
+  };
+  for (const ev of ["timeupdate", "playing", "seeked", "emptied"]) video.addEventListener(ev, marcar);
+}
+
+// La cabecera se compacta y toma una sombra fina cuando la página bajó más de 40 px.
+function cabeceraCompacta() {
+  const cabecera = document.querySelector(".cabecera");
+  if (!cabecera) return;
+  let pedido = false;
+  const mirar = () => {
+    pedido = false;
+    cabecera.classList.toggle("compacta", scrollY > 40);
+  };
+  addEventListener("scroll", () => {
+    if (!pedido) {
+      pedido = true;
+      requestAnimationFrame(mirar);
+    }
+  }, { passive: true });
+  mirar();
+}
