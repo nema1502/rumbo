@@ -46,7 +46,7 @@ export const comun = {
 
     "inicio.titulo": "Eventos",
     "inicio.bajada": "Elegí un evento para inscribirte o ver tu credencial.",
-    "inicio.vacio": "Todavía no hay eventos. Para crear el de muestra, corré pnpm seed.",
+    "inicio.vacio": "Todavía no hay eventos.",
     "inicio.abrir": "Ver el evento",
     "inicio.panel": "Panel de quien organiza",
     "inicio.escaner": "Escáner del voluntario",
@@ -104,7 +104,7 @@ export const comun = {
 
     "inicio.titulo": "Events",
     "inicio.bajada": "Pick an event to register or to see your pass.",
-    "inicio.vacio": "No events yet. To create the sample one, run pnpm seed.",
+    "inicio.vacio": "No events yet.",
     "inicio.abrir": "See the event",
     "inicio.panel": "Organizer panel",
     "inicio.escaner": "Volunteer scanner",

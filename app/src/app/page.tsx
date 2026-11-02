@@ -14,6 +14,10 @@ export default async function HomePage() {
   const repo = getRepo();
   const events = await repo.listEvents();
   const cards = await Promise.all(events.map(async (event) => ({ event, tickets: await repo.listTicketTypes(event.id) })));
+  // La pista para quien desarrolla va a la consola del servidor, no a la pantalla de la gente.
+  if (cards.length === 0 && process.env.NODE_ENV !== "production") {
+    console.info("[inicio] Todavía no hay eventos. Para crear el de muestra: pnpm seed");
+  }
 
   return (
     <section className="pantalla pantalla-ancha">

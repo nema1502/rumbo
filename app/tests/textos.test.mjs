@@ -31,3 +31,10 @@ test("al voluntario no se le habla de la red sino de la conexión, y nadie habla
   assert.deepEqual(conPalabra("en", /\bnetwork\b/i), []);
   assert.deepEqual(conPalabra("es", /\b(pude|puedo|tengo|tuve)\b/i), []);
 });
+
+test("la gente no ve comandos de consola: la pista para quien desarrolla va al servidor", () => {
+  assert.deepEqual(conPalabra("es", /\b(pnpm|npm|seed|node)\b/i), []);
+  assert.deepEqual(conPalabra("en", /\b(pnpm|npm|seed|node)\b/i), []);
+  assert.equal(comun.es["inicio.vacio"], "Todavía no hay eventos.");
+  assert.equal(comun.en["inicio.vacio"], "No events yet.");
+});
