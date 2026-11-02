@@ -80,9 +80,13 @@ const EN = {
   "stellar.m6.t": "An API other apps can pay per use",
   "stellar.m6.p": "Other platforms and agents create events, passes and vouchers paying cents in USDC, with x402.",
 
-  "tinkazo.titulo": "With Tinkazo",
-  "tinkazo.p": "Tinkazo runs draws anyone can check from their phone. Tinkazo decides who wins; Rumbo delivers what was won and runs everything else at the event. The prize lands on the winner's pass, the draw runs over the people who actually checked in, and entering a draw is always free, whether the event is paid or not.",
-  "tinkazo.cta": "See Tinkazo",
+  "demo.titulo": "This is how it looks, from the ticket to the report.",
+  "demo.bajada": "Twenty-five seconds: the ticket is paid and the money arrives split, the pass appears, a volunteer scans and redeems once, and the dashboard counts what happened.",
+  "demo.p1": "The ticket is paid and the money reaches the organizer, with the fee separated in the same operation.",
+  "demo.p2": "The pass with its QR code stays on the phone, with what each person is entitled to.",
+  "demo.p3": "The volunteer scans and redeems. A second attempt does not go through, and offline the queue keeps moving.",
+  "demo.p4": "The dashboard counts passes, check-ins and redemptions, and the sponsor report is ready.",
+  "demo.nota": "An animated mock-up of what gets built in November, not a recording of the product.",
 
   "ruta.titulo": "Where it stands",
   "ruta.bajada": "Rumbo is at the design stage: the product is specified in detail and the first code lands in November 2026. The contract starts from an event pass written in September 2026 for Stellar Elite Bolivia, with nine tests and a run on testnet.",
@@ -96,7 +100,7 @@ const EN = {
   "ruta.a5": "Organizer dashboard",
   "ruta.d1": "Protected payment with automatic refund",
   "ruta.d2": "Describe the event in plain words and approve the draft",
-  "ruta.d3": "Prize from a Tinkazo draw landing on the pass",
+  "ruta.d3": "The prize from a draw landing on the winner's pass",
   "ruta.d4": "Sponsor report",
   "ruta.d5": "Luma CSV import",
   "ruta.l1": "Bank QR payments in bolivianos on mainnet",
@@ -151,6 +155,17 @@ function aplicarIdioma(lang) {
   if (desc) desc.setAttribute("content", lang === "en"
     ? "Community events on Stellar. Sell tickets from anywhere and run the whole event from one QR code."
     : "Eventos de comunidad sobre Stellar. Cobrá entradas desde cualquier país y operá todo tu evento desde un QR.");
+  const video = document.getElementById("demo-video");
+  if (video) {
+    const fuente = video.querySelector("source");
+    const nuevo = `assets/flujo-${lang}.mp4`;
+    if (fuente && !fuente.getAttribute("src").endsWith(nuevo)) {
+      fuente.setAttribute("src", nuevo);
+      video.setAttribute("poster", `assets/flujo-${lang}.jpg`);
+      video.load();
+      video.play().catch(() => { /* sin autoplay */ });
+    }
+  }
   const boton = document.getElementById("idioma");
   if (boton) {
     boton.textContent = lang === "en" ? "ES" : "EN";

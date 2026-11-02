@@ -170,6 +170,18 @@ p { margin: 0; }
 .tarjeta p, .tarjeta li { color: var(--tinta-2); }
 .tarjeta ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
 
+/* Así se ve */
+.demo { margin: 0; }
+.demo-video {
+  display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: var(--radio);
+  border: 1px solid var(--linea); background: #f7f2e8; box-shadow: var(--sombra);
+}
+.demo-pasos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 18px; color: var(--tinta-2); font-size: 0.95rem; }
+.demo-pasos > span { display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; border-radius: 14px; background: var(--tarjeta); border: 1px solid var(--linea); }
+.demo-pasos b { flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--acento); color: #0f1c2e; font: 700 0.85rem var(--display); display: grid; place-items: center; }
+@media (max-width: 1000px) { .demo-pasos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .demo-pasos { grid-template-columns: 1fr; } }
+
 /* El problema */
 .herramienta { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-radius: 16px; background: var(--tarjeta); border: 1px solid var(--linea); }
 .herramienta span:first-child { font-weight: 600; }
