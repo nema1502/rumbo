@@ -26,6 +26,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="demo.css">
   <script>
     (function () {
       // Con JS, lo que se anima ya arranca oculto cuando se pinta la página; sin JS se ve todo.
@@ -144,6 +145,19 @@
         </figcaption>
       </figure>
       <p class="estado" data-i18n="demo.nota">Es una maqueta animada de lo que se construye en noviembre, no una grabación del producto.</p>
+      <p class="pb-ir"><a class="boton boton-secundario" href="#probar"><span data-pb="ir">Ahora probalo vos</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg></a></p>
+    </div>
+  </section>
+
+  <section class="seccion" id="probar">
+    <div class="contenedor pb">
+      <div class="encabezado">
+        <p class="antetitulo" data-pb="ante">Probalo</p>
+        <h2 data-pb="titulo">Hacé de cuenta que estás en el evento.</h2>
+        <p data-pb="bajada">Tocá y recorré el flujo entero: te inscribís, te llega la credencial, un voluntario la escanea y el panel se entera. Es una maqueta: nada se guarda ni toca la red.</p>
+      </div>
+      <div class="pb-guia demo" id="pb-guia"></div>
+      <div class="pb-escenario demo" id="pb-escenario"></div>
     </div>
   </section>
 
@@ -573,5 +587,6 @@
 </footer>
 
 <script src="rumbo.js" onerror="document.documentElement.classList.remove('js')"></script>
+<script src="demo.js" defer></script>
 </body>
 </html>
