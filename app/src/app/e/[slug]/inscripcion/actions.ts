@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { makeT } from "@/i18n/index.ts";
 import { getLang } from "@/i18n/server.ts";
+import { clientKey } from "@/server/limites.ts";
 import { withoutEmails } from "@/server/log.ts";
 import {
   RegistrationNotFound,
@@ -39,6 +40,7 @@ const FAILURE_KEYS: Record<FailureReason, string> = {
   not_paid: "evento.error.sinPago",
   network: "evento.error.red",
   misconfigured: "evento.error.configuracion",
+  too_many: "evento.error.demasiados",
 };
 
 /** De dónde llegó el pedido, para que el enlace del correo abra en el mismo servidor en desarrollo. */
@@ -68,7 +70,7 @@ export async function registerAction(_prev: FormState, formData: FormData): Prom
 
   let result: RegistrationResult;
   try {
-    result = await registerForEvent({ slug, ticketTypeId, ...values, lang, origin: await requestOrigin() });
+    result = await registerForEvent({ slug, ticketTypeId, ...values, lang, origin: await requestOrigin(), clientKey: clientKey(await headers()) });
   } catch (error) {
     if (error instanceof RegistrationNotFound) return { error: t("evento.error.entrada"), values };
     console.error("[inscripcion]", error);

@@ -3,6 +3,7 @@
 // se acaba de crear; si el correo ya tenía la suya, se le reenvía por correo y acá no se muestra.
 import { NextResponse, type NextRequest } from "next/server";
 import { DEFAULT_LANG, isLang } from "@/i18n/index.ts";
+import { clientKey } from "@/server/limites.ts";
 import { withoutEmails } from "@/server/log.ts";
 import {
   RegistrationNotFound,
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
 
 type Params = Promise<{ slug: string }>;
 
-const FAILURE_STATUS: Record<FailureReason, number> = { sold_out: 409, not_paid: 402, network: 502, misconfigured: 500 };
+const FAILURE_STATUS: Record<FailureReason, number> = { sold_out: 409, not_paid: 402, network: 502, misconfigured: 500, too_many: 429 };
 
 export async function POST(request: NextRequest, { params }: { params: Params }) {
   const { slug } = await params;
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest, { params }: { params: Params })
 
   let result: RegistrationResult;
   try {
-    result = await registerForEvent({ slug, ticketTypeId, ...fields, lang, origin: request.nextUrl.origin });
+    result = await registerForEvent({ slug, ticketTypeId, ...fields, lang, origin: request.nextUrl.origin, clientKey: clientKey(request.headers) });
   } catch (error) {
     if (error instanceof RegistrationNotFound) return NextResponse.json({ error: "not_found", what: error.what }, { status: 404 });
     console.error("[inscripcion]", error);

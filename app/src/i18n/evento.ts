@@ -38,10 +38,11 @@ export const evento = {
     "evento.error.red": "No pudimos confirmar la inscripción. Probá de nuevo en un momento.",
     "evento.error.entrada": "Esa entrada no existe.",
     "evento.error.configuracion": "Esta entrada no está lista para inscripciones. Avisale a quien organiza.",
+    "evento.error.demasiados": "Llegaron muchas inscripciones seguidas desde tu conexión. Probá de nuevo en unos minutos.",
 
     // Ya tenía su credencial
     "evento.existente.titulo": "Ya tenés tu credencial",
-    "evento.existente.texto": "Con ese correo ya hay una inscripción a este evento. Te mandamos el enlace de nuevo a {correo}: buscalo ahí y abrilo.",
+    "evento.existente.texto": "Con ese correo ya hay una inscripción a este evento. Te mandamos el enlace a {correo}: buscalo ahí y abrilo. Si no llega, probá de nuevo en diez minutos.",
 
     // La confirmación
     "evento.listo.tituloGratis": "Inscripción lista",
@@ -117,9 +118,10 @@ export const evento = {
     "evento.error.red": "We could not confirm your registration. Try again in a moment.",
     "evento.error.entrada": "That ticket does not exist.",
     "evento.error.configuracion": "This ticket is not ready for registration. Let the organizer know.",
+    "evento.error.demasiados": "Too many registrations in a row from your connection. Try again in a few minutes.",
 
     "evento.existente.titulo": "You already have your pass",
-    "evento.existente.texto": "That email is already registered for this event. We sent the link again to {correo}: look for it there and open it.",
+    "evento.existente.texto": "That email is already registered for this event. We sent the link to {correo}: look for it there and open it. If it does not arrive, try again in ten minutes.",
 
     "evento.listo.tituloGratis": "You are registered",
     "evento.listo.tituloPago": "Ticket paid",

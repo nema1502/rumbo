@@ -16,7 +16,7 @@ import { getEnv } from "./env.ts";
  * servidor sin proxy delante) ningún encabezado es de fiar: todos los pedidos cuentan como uno solo,
  * "local", y el freno queda global. Lo que diga x-forwarded-for por su cuenta no se cree nunca.
  */
-export function clientKey(headers: Headers): string {
+export function clientKey(headers: { get(name: string): string | null }): string {
   const header = getEnv("RUMBO_TRUSTED_IP_HEADER") ?? (getEnv("VERCEL") ? "x-real-ip" : undefined);
   if (!header) return "local";
   const value = headers.get(header);

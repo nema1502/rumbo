@@ -6,6 +6,7 @@
 import type { Lang } from "../../i18n/types.ts";
 import { getAccountProvider } from "../accounts.ts";
 import { baseUrl } from "../env.ts";
+import { linkResendAttempts, registrationAttempts } from "../limites.ts";
 import { describeForLog } from "../log.ts";
 import { getMailer } from "../mailer.ts";
 import { getRepo, normalizeEmail, type EventRecord, type Pass, type Person, type Repo, type TicketType } from "../repo.ts";
@@ -50,9 +51,11 @@ export interface RegistrationInput extends RegistrationFields {
   lang: Lang;
   /** De dónde se pidió (http://localhost:3000): en desarrollo el enlace del correo sale de ahí. */
   origin?: string | null;
+  /** Quién pide, para el freno de pedidos (clientKey de limites.ts, con la IP que pone la plataforma). */
+  clientKey?: string | null;
 }
 
-export type FailureReason = "sold_out" | "not_paid" | "network" | "misconfigured";
+export type FailureReason = "sold_out" | "not_paid" | "network" | "misconfigured" | "too_many";
 
 export type RegistrationResult =
   | {
@@ -133,13 +136,27 @@ export async function registerForEvent(input: RegistrationInput): Promise<Regist
   const email = normalizeEmail(input.email);
   const name = input.name.trim();
 
+  // El freno: cada inscripción nueva crea una cuenta, la fondea y manda una transacción que paga el
+  // servidor, y con correos inventados se llenaría el cupo. Cuenta todos los pedidos de quien pide, con
+  // correo nuevo o conocido (así el freno tampoco dice cuál es cuál).
+  const attempts = registrationAttempts();
+  const requester = input.clientKey ?? "local";
+  if (attempts.blockedFor(requester) > 0) return { kind: "failed", reason: "too_many", detail: "demasiados pedidos seguidos" };
+  attempts.note(requester);
+
   // Quien ya tiene su credencial recibe el enlace de nuevo por correo, y nada más: la pantalla no se la
-  // muestra a quien escriba el correo de otra persona.
+  // muestra a quien escriba el correo de otra persona. El enlace se reenvía una vez cada diez minutos por
+  // correo y evento, para que nadie use el formulario para llenarle el correo a otra persona.
   const known = await repo.getPersonByEmail(email);
   const existingPass = known ? await repo.findPass(event.id, known.id) : null;
   if (known && existingPass && existingPass.status !== "pending") {
     const existingTicket = (await repo.getTicketType(existingPass.ticketTypeId)) ?? ticketType;
-    await sendPassEmail({ event, person: known, pass: existingPass, ticketType: existingTicket, lang: input.lang, origin: input.origin });
+    const resend = linkResendAttempts();
+    const resendKey = `${event.id}:${known.id}`;
+    if (resend.blockedFor(resendKey) === 0) {
+      resend.note(resendKey);
+      await sendPassEmail({ event, person: known, pass: existingPass, ticketType: existingTicket, lang: input.lang, origin: input.origin });
+    }
     return { kind: "existing", pass: existingPass, person: known, event, ticketType: existingTicket };
   }
 

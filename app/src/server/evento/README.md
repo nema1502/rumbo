@@ -23,9 +23,16 @@ El enlace personal lleva `k=<clave>`: un secreto al azar por pase (dieciséis by
 | Ruta | Qué hace |
 |---|---|
 | `GET /api/evento/<slug>` | Lo público del evento, sus entradas con lo que incluye cada una y el catálogo de beneficios |
-| `POST /api/evento/<slug>/inscripcion` | Inscribe o cobra, igual que el formulario. Cuerpo `{ ticketTypeId, name, email, lang? }`. Devuelve `201 { status: "created", passId, url, paid }` o `200 { status: "existing" }`; `400` campos, `402` sin pago, `404` evento o entrada, `409` sin lugares, `502` red |
+| `POST /api/evento/<slug>/inscripcion` | Inscribe o cobra, igual que el formulario. Cuerpo `{ ticketTypeId, name, email, lang? }`. Devuelve `201 { status: "created", passId, url, paid }` o `200 { status: "existing" }`; `400` campos, `402` sin pago, `404` evento o entrada, `409` sin lugares, `429` demasiados pedidos seguidos, `502` red |
 | `GET /api/pase/<id>?k=<clave>` | La credencial como datos, con el contenido del QR |
 | `GET /api/pase/<id>/svg?k=<clave>[&lang=es\|en][&ver=1]` | La credencial para imprimir. Por defecto se descarga; con `ver=1` se muestra |
+
+## Los frenos
+
+Cada inscripción nueva crea una cuenta, la fondea, le abre la línea de confianza, le da saldo y manda una transacción, todo pagado por el servidor; con correos inventados, además, se llenaría el cupo. Por eso (`src/server/limites.ts`):
+
+- **Por quién pide:** sesenta pedidos por IP en diez minutos (generoso para una fila que se inscribe en la puerta con el wifi del evento), y seiscientos en total. La IP es la que pone la plataforma, no la que dice el pedido (ver `RUMBO_TRUSTED_IP_HEADER` en `.env.example`). Se cuentan todos los pedidos, con correo nuevo o conocido, y el freno responde igual para los dos: `429 { error: "too_many" }`.
+- **Por correo:** a quien ya tenía su credencial el enlace se le reenvía una vez cada diez minutos por evento, se pida desde donde se pida. La respuesta es la misma, se mande o no.
 
 ## Probarlo
 
@@ -41,3 +48,5 @@ El script inscribe a una persona de prueba, lee `status()` en la cadena, verific
 
 - El SVG se descarga; la versión en PDF (con `resvg`) todavía no está.
 - Las claves de acceso solo existen con `RUMBO_REPO=sqlite`.
+- Un desafío contra bots en el formulario (Turnstile, hCaptcha o parecido): pide elegir el servicio.
+- Que la respuesta no diga si el correo ya estaba inscripto: hoy una inscripción nueva muestra el enlace en pantalla y una conocida no (y tarda distinto, porque la nueva pasa por la red). Igualarlas pide decidir el recorrido, por ejemplo confirmar siempre por correo antes de mostrar la credencial.
