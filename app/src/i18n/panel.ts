@@ -41,7 +41,7 @@ export const panel = {
     "panel.cadena.consultados": "Credenciales verificadas en el registro: {n}",
 
     "panel.puestos.titulo": "Códigos de puesto",
-    "panel.puestos.bajada": "Cada voluntario abre el escáner con el código de su puesto. Después funciona aunque se vaya la red.",
+    "panel.puestos.bajada": "Cada voluntario abre el escáner con el código de su puesto. Después funciona aunque se quede sin conexión.",
     "panel.puestos.puerta": "Puerta",
     "panel.puestos.copiar": "Copiar",
     "panel.puestos.copiado": "Copiado",
@@ -145,7 +145,7 @@ export const panel = {
     "panel.cadena.consultados": "Passes verified in the record: {n}",
 
     "panel.puestos.titulo": "Station codes",
-    "panel.puestos.bajada": "Each volunteer opens the scanner with the code of their station. After that it keeps working if the network drops.",
+    "panel.puestos.bajada": "Each volunteer opens the scanner with the code of their station. After that it keeps working even if the connection drops.",
     "panel.puestos.puerta": "Gate",
     "panel.puestos.copiar": "Copy",
     "panel.puestos.copiado": "Copied",

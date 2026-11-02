@@ -25,3 +25,9 @@ test("el panel no habla de la cadena: dice el registro del evento", () => {
   assert.equal(panel.es["panel.cadena.boton"], "Verificar el registro del evento");
   assert.equal(panel.en["panel.cadena.boton"], "Verify the event record");
 });
+
+test("al voluntario no se le habla de la red sino de la conexión, y nadie habla en primera persona", () => {
+  assert.deepEqual(conPalabra("es", /\b(red|redes)\b/i), []);
+  assert.deepEqual(conPalabra("en", /\bnetwork\b/i), []);
+  assert.deepEqual(conPalabra("es", /\b(pude|puedo|tengo|tuve)\b/i), []);
+});

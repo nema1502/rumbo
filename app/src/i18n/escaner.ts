@@ -13,7 +13,7 @@ export const escaner = {
     "escaner.abrir": "Abrir el puesto",
     "escaner.abriendo": "Abriendo",
     "escaner.sinRedParaAbrir": "Para abrir un puesto hace falta conexión la primera vez. Después, el escáner sigue solo.",
-    "escaner.errorRed": "No pude hablar con el servidor. Probá de nuevo.",
+    "escaner.errorRed": "No se pudo hablar con el servidor. Probá de nuevo.",
     "escaner.demasiadosIntentos": "Demasiados intentos. Esperá unos minutos y probá de nuevo.",
     "escaner.puestoCerrado": "Este puesto ya no se puede sincronizar. Cerralo y abrilo de nuevo.",
 
@@ -45,7 +45,7 @@ export const escaner = {
     "escaner.noCorresponde": "No corresponde",
     "escaner.aLas": "a las {hora}",
     "escaner.motivo.invalid": "Esta credencial no es de este evento.",
-    "escaner.motivo.unknown": "No tengo este pase cargado. Con conexión se actualiza solo.",
+    "escaner.motivo.unknown": "Esta credencial no está cargada acá. Con conexión se actualiza sola.",
     "escaner.motivo.not_included": "La entrada no incluye {beneficio}.",
     "escaner.motivo.not_checked_in": "Primero tiene que pasar por la puerta.",
     "escaner.siguiente": "Siguiente",
