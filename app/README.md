@@ -90,6 +90,7 @@ src/server/         lo que corre solo en el servidor: repo, accounts, stellar, m
 src/lib/            lo que comparten servidor y navegador: la forma del QR y su verificación, el veredicto del escáner, la cola local, los códigos de puesto
 public/             el service worker del escáner (sw.js) y su manifiesto
 scripts/            setup-dev, seed, e2e-testnet, capturas, las pruebas de cada área y lib/ (env, browser)
+tests/              las pruebas sin red (pnpm test): el CSV, los frenos, el escáner y su cola, los errores, los textos; lib/ arma una base vacía por archivo
 demo/               la transcripción del flujo entero en la red de prueba
 ```
 
