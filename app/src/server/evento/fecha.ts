@@ -15,7 +15,10 @@ interface EventTimes {
   timezone: string;
 }
 
-const HOUR: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit" };
+/** "09:00" en castellano (reloj de 24 horas); "9:00 AM" en inglés. */
+function hourOptions(lang: Lang): Intl.DateTimeFormatOptions {
+  return { hour: lang === "es" ? "2-digit" : "numeric", minute: "2-digit" };
+}
 
 function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
@@ -24,8 +27,8 @@ function capitalize(text: string): string {
 export function formatEventWhen(lang: Lang, event: EventTimes): EventWhen {
   const t = makeT(lang);
   const date = capitalize(formatDate(lang, event.startsAt, event.timezone, { weekday: "long", day: "numeric", month: "long" }));
-  const start = formatDate(lang, event.startsAt, event.timezone, HOUR);
-  const end = event.endsAt ? formatDate(lang, event.endsAt, event.timezone, HOUR) : null;
+  const start = formatDate(lang, event.startsAt, event.timezone, hourOptions(lang));
+  const end = event.endsAt ? formatDate(lang, event.endsAt, event.timezone, hourOptions(lang)) : null;
   return { date, time: end ? t("evento.horario", { desde: start, hasta: end }) : start };
 }
 

@@ -14,9 +14,11 @@ export const dynamic = "force-dynamic";
 type Params = Promise<{ slug: string }>;
 type Search = Promise<Record<string, string | string[] | undefined>>;
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({ searchParams }: { searchParams: Search }): Promise<Metadata> {
   const t = await getT();
-  return { title: t("evento.form.tituloGratis"), robots: { index: false } };
+  const { entrada } = await searchParams;
+  const ticket = typeof entrada === "string" ? await getRepo().getTicketType(entrada) : null;
+  return { title: ticket && ticket.priceUsdc > 0 ? t("evento.form.tituloPago") : t("evento.form.tituloGratis"), robots: { index: false } };
 }
 
 export default async function RegistrationPage({ params, searchParams }: { params: Params; searchParams: Search }) {

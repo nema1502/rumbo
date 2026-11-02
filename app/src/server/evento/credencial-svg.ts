@@ -136,7 +136,10 @@ export function renderCredentialSvg(view: CredentialView, lang: Lang): string {
     .join("\n  ");
   const afterName = nameTop + (name.lines.length - 1) * name.lineHeight;
 
-  const status = view.checkedIn ? t("estado.entro") : view.paid ? t("evento.credencial.paga") : t("evento.credencial.inscripta");
+  // La entrada y, si hay algo que decir, el estado: "Con almuerzo. Entrada paga." Para una inscripción
+  // gratis sin entrar todavía, el nombre de la entrada alcanza.
+  const status = view.checkedIn ? t("estado.entro") : view.paid ? t("evento.credencial.paga") : null;
+  const ticketLine = status ? `${view.ticketType.name}. ${status}.` : view.ticketType.name;
   const ticketY = afterName + 24;
   const dividerY = ticketY + 16;
 
@@ -179,7 +182,7 @@ export function renderCredentialSvg(view: CredentialView, lang: Lang): string {
   <rect x="${qrX - 1}" y="${qrY - 1}" width="${QR_SIZE + 2}" height="${QR_SIZE + 2}" rx="12" fill="${COLOR.blanco}" stroke="${COLOR.linea}"/>
   <path d="${qrPath(view.qrPayload, qrX, qrY, QR_SIZE)}" fill="${COLOR.tinta}"/>
   ${nameText}
-  ${text(center, ticketY, `${view.ticketType.name}. ${status}.`, `font-family="${FONT_TEXT}" font-weight="600" font-size="12" text-anchor="middle" fill="${COLOR.tinta2}"`)}
+  ${text(center, ticketY, ticketLine, `font-family="${FONT_TEXT}" font-weight="600" font-size="12" text-anchor="middle" fill="${COLOR.tinta2}"`)}
   <line x1="${left}" y1="${dividerY}" x2="${right}" y2="${dividerY}" stroke="${COLOR.linea}"/>
   ${benefitRows}
   ${extraText}
