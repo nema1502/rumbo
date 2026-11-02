@@ -1,7 +1,7 @@
 #![cfg(test)]
 //! Las pruebas del pase: cada función, cada error, el reparto exacto de la
 //! comisión con el activo de prueba del SDK, el cupo, el doble canje y quién
-//! tiene que firmar cada cosa.
+//! tiene que firmar cada cosa (la entrada, solo la puerta).
 
 extern crate std;
 
@@ -239,21 +239,55 @@ fn capacity_is_respected_and_the_extra_buyer_is_not_charged() {
 // ---------------------------------------------------------------- check_in
 
 #[test]
-fn one_enters_by_oneself_or_by_the_gate_and_only_once() {
+fn one_enters_through_the_gate_and_only_once() {
     let s = free(10);
     let (a, b) = (s.person(), s.person());
     s.client().register(&a);
     s.client().register(&b);
 
-    assert_eq!(s.client().check_in(&a, &a), 1);
+    assert_eq!(s.client().check_in(&a, &s.gate), 1);
     assert_eq!(s.client().check_in(&b, &s.gate), 2);
     assert_eq!(s.client().try_check_in(&a, &s.gate), Err(Ok(Error::AlreadyCheckedIn)));
-    assert_eq!(s.client().try_check_in(&b, &b), Err(Ok(Error::AlreadyCheckedIn)));
+    assert_eq!(s.client().try_check_in(&b, &s.gate), Err(Ok(Error::AlreadyCheckedIn)));
 
     assert!(s.client().status(&a).checked_in);
     assert!(s.client().status(&b).checked_in);
     assert_eq!(s.client().attendees(), vec![&s.env, a, b]);
     assert_eq!(s.client().info().checked_in, 2);
+}
+
+#[test]
+fn nobody_marks_their_own_entry() {
+    let s = free(10);
+    let a = s.person();
+    s.client().register(&a);
+    // aunque la persona firme, su propia cuenta no marca la entrada: la marca solo la puerta
+    assert_eq!(s.client().try_check_in(&a, &a), Err(Ok(Error::NotAuthorized)));
+    assert!(!s.client().status(&a).checked_in);
+    assert_eq!(s.client().attendees().len(), 0);
+    assert_eq!(s.client().info().checked_in, 0);
+    // y como no entró, tampoco canjea nada
+    assert_eq!(s.client().try_redeem(&a, &LUNCH), Err(Ok(Error::NotCheckedIn)));
+}
+
+#[test]
+fn the_attendee_signature_alone_does_not_mark_the_entry_by_the_gate() {
+    let s = free(10);
+    let a = s.person();
+    s.client().register(&a);
+    // de acá en más solo firma la persona: que diga que la marca la puerta no alcanza
+    s.env.mock_auths(&[MockAuth {
+        address: &a,
+        invoke: &MockAuthInvoke {
+            contract: &s.contract,
+            fn_name: "check_in",
+            args: (a.clone(), s.gate.clone()).into_val(&s.env),
+            sub_invokes: &[],
+        },
+    }]);
+    assert!(s.client().try_check_in(&a, &s.gate).is_err());
+    assert!(!s.client().status(&a).checked_in);
+    assert_eq!(s.client().attendees().len(), 0);
 }
 
 #[test]
@@ -270,7 +304,7 @@ fn nobody_else_marks_an_entry() {
 }
 
 #[test]
-fn the_entry_is_signed_by_whoever_marks_it() {
+fn the_entry_is_signed_by_the_gate() {
     let s = free(10);
     let a = s.person();
     s.client().register(&a);
@@ -285,7 +319,8 @@ fn without_a_pass_there_is_no_entry() {
     let s = free(10);
     let intruder = s.person();
     assert_eq!(s.client().try_check_in(&intruder, &s.gate), Err(Ok(Error::NoPass)));
-    assert_eq!(s.client().try_check_in(&intruder, &intruder), Err(Ok(Error::NoPass)));
+    // por su cuenta ni siquiera llega a mirar el pase: quien marca no es la puerta
+    assert_eq!(s.client().try_check_in(&intruder, &intruder), Err(Ok(Error::NotAuthorized)));
     assert!(!s.client().status(&intruder).has_pass);
     assert_eq!(s.client().attendees().len(), 0);
 }

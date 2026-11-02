@@ -165,7 +165,7 @@ async function syncCheckIn(repo: Repo, event: EventRecord, item: ScanItem, view:
     return { clientId: item.clientId, status: "synced", txHash: tx.hash, error: null };
   } catch (error) {
     if (isContractError(error, "AlreadyCheckedIn")) {
-      // Otro puesto (o la propia persona) ya marcó la entrada en el contrato: doble, a revisar en el panel.
+      // Otro puesto ya marcó la entrada en el contrato: doble, a revisar en el panel.
       await repo.markCheckIn(row.id, { duplicate: true, error: error.errorName });
       if (view.pass.status !== "checked_in") await repo.updatePass(view.pass.id, { status: "checked_in" });
       return { clientId: item.clientId, status: "duplicate", txHash: null, error: error.errorName };

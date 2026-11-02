@@ -20,7 +20,7 @@ Cada entrada o canje va a IndexedDB (`src/lib/cola.ts`) con un `clientId` propio
 | Estado | Qué pasó | Qué hace la página |
 |---|---|---|
 | `synced` | Llegó al contrato | Lo da por hecho |
-| `duplicate` | El contrato dijo que ya estaba hecho (otro puesto lo registró sin red, o la persona entró con su propia cuenta) | Lo cuenta como "doble, revisar"; el panel lo ve en el espejo con `duplicate = 1` |
+| `duplicate` | El contrato dijo que ya estaba hecho (otro puesto lo registró sin red) | Lo cuenta como "doble, revisar"; el panel lo ve en el espejo con `duplicate = 1` |
 | `retry` | Sin red, o un canje antes de que llegue la entrada de otro puesto (`NotCheckedIn`) | Lo deja pendiente y espera 10 s, 20 s, 40 s, hasta 2 minutos |
 | `rejected` | No va a entrar nunca: un pase desconocido, sin activar, un beneficio que la entrada no trae, o un registro que no es de este puesto | Lo cuenta como "sin registrar, revisar" |
 

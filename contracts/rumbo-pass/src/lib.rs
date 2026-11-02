@@ -13,7 +13,9 @@
 //! - al comprar, la plata va de quien compra a quien organiza y la comisión a
 //!   Rumbo en la misma invocación: el contrato nunca retiene saldo;
 //! - se entra una sola vez, y cada beneficio se canjea una sola vez por pase;
-//! - `attendees()` es la lista de quienes de verdad entraron, en orden.
+//! - la entrada la marca solo la cuenta de puerta (el escáner del voluntario),
+//!   nunca la propia persona: así `attendees()` es la lista de quienes de verdad
+//!   pasaron por la puerta, en orden, y nadie entra al sorteo desde su casa.
 //!
 //! En la cadena viven cuentas, números de beneficio y marcas de uso. Nombres,
 //! correos y todo lo personal quedan fuera, en la base de datos de la app.
@@ -128,7 +130,7 @@ pub enum Error {
     AlreadyRedeemed = 6,
     /// El evento no tiene ese beneficio.
     NoSuchBenefit = 7,
-    /// Quien firma no es ni la cuenta del pase ni la cuenta de puerta.
+    /// Quien marca la entrada no es la cuenta de puerta.
     NotAuthorized = 8,
     /// `register` en un evento pago: hay que comprar.
     NotFree = 9,
@@ -246,12 +248,15 @@ impl RumboPass {
         Ok(number)
     }
 
-    /// Marca la entrada, una sola vez. Firma `by`, que tiene que ser la propia
-    /// cuenta del pase o la cuenta de puerta: en el evento es el escáner del
-    /// voluntario el que marca. Devuelve en qué lugar entró (el primero es 1).
+    /// Marca la entrada, una sola vez. Firma `by`, que tiene que ser la cuenta
+    /// de puerta: la marca el escáner del voluntario en la puerta, nunca la
+    /// propia persona, que de otro modo podría entrar a la lista (y al sorteo)
+    /// sin haber ido. `attendee` es solo el dato de quién entró. `by` queda como
+    /// parámetro para que, si un día hay varias puertas, la firma siga siendo de
+    /// una cuenta concreta. Devuelve en qué lugar entró (el primero es 1).
     pub fn check_in(env: Env, attendee: Address, by: Address) -> Result<u32, Error> {
         let cfg = config(&env)?;
-        if by != attendee && by != cfg.gate {
+        if by != cfg.gate {
             return Err(Error::NotAuthorized);
         }
         by.require_auth();

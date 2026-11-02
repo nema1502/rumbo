@@ -13,9 +13,9 @@
 #      para quienes compran.
 #   3. Un evento pago: la subida del WASM, el despliegue con comisión del 2,5
 #      por ciento, tres compras con el reparto a la vista, la entrada por la
-#      puerta y por la propia persona, el canje del almuerzo, y todo lo que la
-#      red rechaza: comprar dos veces, entrar dos veces, canjear dos veces,
-#      canjear sin haber entrado, canjear un beneficio que no existe.
+#      puerta, el canje del almuerzo, y todo lo que la red rechaza: comprar dos
+#      veces, marcar la propia entrada sin la puerta, entrar dos veces, canjear
+#      dos veces, canjear sin haber entrado, canjear un beneficio que no existe.
 #   4. Un evento gratis: la inscripción, la entrada, y lo que la red rechaza:
 #      comprar en un evento gratis e inscribirse gratis en uno pago.
 #   5. El estado final leído del contrato, los saldos y la lista de quienes
@@ -167,9 +167,14 @@ done
 nota "Ana intenta comprar otro: es un pase por cuenta (AlreadyHasPass, #2)"
 rechaza invocar buy --buyer rb-ana
 
-nota "Ana entra por la puerta (firma la cuenta de puerta). Beto entra con su propia cuenta. Caro compró pero no vino"
+nota "Ana entra por la puerta (firma la cuenta de puerta). Caro compró pero no vino"
 invocar check_in --attendee rb-ana --by rb-gate
-invocar check_in --attendee rb-beto --by rb-beto
+
+nota "Beto intenta marcar su propia entrada desde su casa: la marca solo la pone la puerta (NotAuthorized, #8)"
+rechaza invocar check_in --attendee rb-beto --by rb-beto
+
+nota "Beto llega y entra por la puerta"
+invocar check_in --attendee rb-beto --by rb-gate
 
 nota "Ana intenta entrar otra vez: se entra una sola vez (AlreadyCheckedIn, #4)"
 rechaza invocar check_in --attendee rb-ana --by rb-gate
