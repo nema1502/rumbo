@@ -31,7 +31,9 @@ Dos temas, con los contrastes medidos. Los pares que se usan para texto cumplen 
 | Texto terciario | apagado | `#5B6675` | 5,2 |
 | Acento (fondos de botón, aguja, detalles) | naranja | `#E8541E` | 3,3 (solo para texto grande o fondos) |
 | Acento como texto | naranja oscuro | `#C2410C` | 4,6 |
+| Acento en chips y etiquetas (texto chico sobre naranja suave) | naranja chip | `#B43A0A` | 4,6 sobre el naranja suave, 5,1 sobre blanco |
 | Canjeado, listo | verde | `#0B7A68` | 4,7 |
+| Verde en chips y etiquetas (texto chico sobre verde suave) | verde chip | `#0A7060` | 4,6 sobre el verde suave, 5,1 sobre blanco |
 | Resalte | amarillo | `#F5C451` | 10,5 con tinta encima |
 
 ### Tema noche

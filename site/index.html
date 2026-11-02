@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Rumbo: tu evento entero en un QR</title>
-  <meta name="description" content="Eventos de comunidad sobre Stellar. Cobrá entradas desde cualquier país y operá todo tu evento desde un QR.">
+  <meta name="description" content="Eventos de comunidad sobre Stellar. Inscribí gratis o cobrá entradas desde cualquier país y operá todo tu evento desde un QR.">
   <meta name="theme-color" content="#0f1c2e">
   <link rel="icon" type="image/svg+xml" href="assets/mark.svg">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Rumbo: tu evento entero en un QR">
-  <meta property="og:description" content="Eventos de comunidad sobre Stellar. Cobrá entradas desde cualquier país y operá todo tu evento desde un QR.">
+  <meta property="og:description" content="Eventos de comunidad sobre Stellar. Inscribí gratis o cobrá entradas desde cualquier país y operá todo tu evento desde un QR.">
   <meta property="og:image" content="https://rumbo-eventos.vercel.app/assets/og.png">
   <meta property="og:locale" content="es_BO">
   <meta property="og:locale:alternate" content="en_US">
@@ -32,18 +32,13 @@
 
 <header class="cabecera">
   <div class="contenedor">
-    <a class="marca" href="#" aria-label="Rumbo, inicio">
+    <a class="marca" href="#" aria-label="Rumbo, inicio" data-i18n-aria="aria.inicio">
       <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29" fill="none" stroke="currentColor" stroke-width="3" opacity=".5"/><g transform="rotate(35 32 32)"><path d="M32 4 L41 32 L32 28 L23 32 Z" fill="#E8541E"/><path d="M32 60 L23 32 L32 36 L41 32 Z" fill="currentColor" opacity=".85"/></g><circle cx="32" cy="32" r="4" fill="currentColor"/></svg>
       Rumbo
     </a>
-    <nav class="nav" aria-label="Secciones">
-      <a href="#como" data-i18n="nav.que">Qué hace</a>
-      <a href="#stellar" data-i18n="nav.stellar">Por qué Stellar</a>
-      <a href="#equipo" data-i18n="nav.equipo">El equipo</a>
-    </nav>
     <div class="acciones">
       <button class="boton-icono" id="idioma" type="button" aria-label="Switch to English" data-i18n="nav.idioma">EN</button>
-      <button class="boton-icono" id="tema" type="button" aria-label="Cambiar el tema">
+      <button class="boton-icono" id="tema" type="button" aria-label="Cambiar el tema" data-i18n-aria="aria.tema">
         <svg class="solo-dia" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
         <svg class="solo-noche" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
       </button>
@@ -52,6 +47,13 @@
         <span class="texto-boton" data-i18n="nav.github">GitHub</span>
       </a>
     </div>
+    <nav class="nav" aria-label="Secciones" data-i18n-aria="aria.secciones">
+      <a href="#como" data-i18n="nav.como">Cómo funciona</a>
+      <a href="#demo" data-i18n="nav.demo">Así se ve</a>
+      <a href="#stellar" data-i18n="nav.stellar">Por qué Stellar</a>
+      <a href="#crece" data-i18n="nav.crece">Cómo crece</a>
+      <a href="#equipo" data-i18n="nav.equipo">El equipo</a>
+    </nav>
   </div>
 </header>
 
@@ -60,21 +62,30 @@
     <div class="contenedor">
       <div>
         <p class="antetitulo" data-i18n="portada.ante">Eventos de comunidad sobre Stellar</p>
-        <h1 data-i18n="portada.titulo">Tu evento entero <em>en un QR</em>.</h1>
-        <p class="bajada" data-i18n="portada.bajada">Cobrá entradas en segundos desde cualquier país, en dólares digitales o con el QR de tu banco. Credencial, check-in, refrigerio, merch y premios en un solo lugar, y cada canje una sola vez.</p>
+        <h1 data-i18n="portada.titulo">Tu evento entero <em>en&nbsp;un&nbsp;QR</em>.</h1>
+        <p class="bajada" data-i18n="portada.bajada">Inscribí gratis o cobrá entradas en segundos desde cualquier país, en dólares digitales o con el QR de tu banco. Credencial, check-in, refrigerio, merch y premios en un solo lugar, y cada canje una sola vez.</p>
         <div class="cta">
-          <a class="boton boton-primario" href="https://github.com/nema1502/rumbo" rel="noopener" data-i18n="portada.cta">Ver el proyecto en GitHub</a>
-          <a class="boton boton-secundario" href="#como" data-i18n="portada.como">Cómo funciona</a>
+          <a class="boton boton-primario" href="#demo" data-i18n="portada.cta">Ver cómo funciona</a>
+          <a class="boton boton-secundario" href="https://github.com/nema1502/rumbo" rel="noopener" data-i18n="portada.codigo">El código, en GitHub</a>
         </div>
+        <ul class="sellos" aria-label="Lo esencial" data-i18n-aria="aria.esencial">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg><span data-i18n="portada.s1">Cobro en segundos</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg><span data-i18n="portada.s2">Canje una sola vez</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01M2 2l20 20"/></svg><span data-i18n="portada.s3">Funciona sin conexión</span></li>
+        </ul>
         <p class="nota-portada" data-i18n="portada.nota">Hecho en Bolivia, en castellano y en inglés desde el primer día. Núcleo abierto con licencia MIT.</p>
+        <p class="estado" data-i18n="portada.estado">En diseño. El contrato de pases ya tiene nueve pruebas y una corrida en la red de prueba de Stellar. El primer código, en noviembre de 2026.</p>
       </div>
-      <div class="credencial" aria-label="Una credencial de muestra">
+      <div class="credencial" aria-label="Una credencial de muestra" data-i18n-aria="aria.credencial">
         <div class="credencial-cabecera">
           <div>
             <div class="credencial-evento" data-i18n="cred.evento">Hackatón de la comunidad</div>
             <div class="credencial-tipo" data-i18n="cred.tipo">Entrada general</div>
           </div>
-          <div class="credencial-numero" data-i18n="cred.numero">Credencial 37 de 120</div>
+          <div class="credencial-meta">
+            <span class="chip chip-ejemplo" data-i18n="cred.ejemplo">Ejemplo</span>
+            <span class="credencial-numero" data-i18n="cred.numero">Credencial 37 de 120</span>
+          </div>
         </div>
         <div class="credencial-persona">
           <div class="credencial-qr"><img src="assets/qr.svg" alt="" width="112" height="112"></div>
@@ -95,13 +106,18 @@
   <section class="seccion seccion-demo" id="demo">
     <div class="contenedor">
       <div class="encabezado">
-        <h2 data-i18n="demo.titulo">Así se ve, de la entrada al informe.</h2>
-        <p data-i18n="demo.bajada">Veinticinco segundos: se paga la entrada y la plata llega repartida, aparece la credencial, un voluntario escanea y canjea una sola vez, y el panel cuenta lo que pasó.</p>
+        <p class="antetitulo" data-i18n="demo.ante">Así se ve</p>
+        <h2 data-i18n="demo.titulo">De la entrada al informe, en medio minuto.</h2>
+        <p data-i18n="demo.bajada">Se paga la entrada y la plata llega repartida, aparece la credencial, un voluntario escanea y canjea una sola vez, y el panel cuenta lo que pasó.</p>
       </div>
       <figure class="demo">
-        <video id="demo-video" class="demo-video" autoplay muted loop playsinline preload="metadata" poster="assets/flujo-es.jpg" aria-label="Animación del flujo de Rumbo">
+        <video id="demo-video" class="demo-video" autoplay muted loop playsinline preload="metadata" poster="assets/flujo-es.jpg" aria-label="Animación del flujo de Rumbo" data-i18n-aria="aria.video">
           <source src="assets/flujo-es.mp4" type="video/mp4">
         </video>
+        <a class="demo-abrir" id="demo-abrir" href="assets/flujo-es.mp4">
+          <img id="demo-poster" src="assets/flujo-es.jpg" alt="" width="1280" height="720">
+          <span class="demo-play"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg><span data-i18n="demo.abrir">Ver la animación</span></span>
+        </a>
         <figcaption class="demo-pasos">
           <span><b>1</b> <span data-i18n="demo.p1">Se paga la entrada y la plata llega a quien organiza, con la comisión separada en la misma operación.</span></span>
           <span><b>2</b> <span data-i18n="demo.p2">La credencial con QR queda en el celular, con lo que le toca a cada persona.</span></span>
@@ -116,6 +132,7 @@
   <section class="seccion" id="problema">
     <div class="contenedor">
       <div class="encabezado">
+        <p class="antetitulo" data-i18n="problema.ante">El problema</p>
         <h2 data-i18n="problema.titulo">Un evento de comunidad hoy son seis herramientas y una planilla.</h2>
         <p data-i18n="problema.bajada">Las inscripciones en un lado, las credenciales en otro, los vales del almuerzo en papel, el merch por mensajes, los premios en una foto y el informe para quien auspicia armado de memoria.</p>
       </div>
@@ -137,37 +154,38 @@
   <section class="seccion" id="como">
     <div class="contenedor">
       <div class="encabezado">
+        <p class="antetitulo" data-i18n="como.ante">Cómo funciona</p>
         <h2 data-i18n="como.titulo">Un solo lugar para todos los que están en el evento.</h2>
         <p data-i18n="como.bajada">Rumbo está pensado para eventos de 80 a 500 personas con auspiciantes y varios beneficios: hackatones, DevFests, congresos de comunidad, bootcamps, meetups de capítulos.</p>
       </div>
       <div class="rejilla rejilla-4">
         <article class="tarjeta rol">
-          <div class="numero" data-i18n="como.r1.n">Si organizás</div>
+          <h3 data-i18n="como.r1.n">Si organizás</h3>
           <ul>
-            <li data-i18n="como.r1.a">Armá el evento con un formulario, o describilo en una frase y aprobá la propuesta.</li>
-            <li data-i18n="como.r1.b">Publicá la página con inscripción gratis o paga. Importá tu lista como CSV.</li>
-            <li data-i18n="como.r1.c">Cobrá en USDC desde cualquier país, o en bolivianos con el QR del banco. La plata te llega en la misma operación que separa la comisión de Rumbo.</li>
-            <li data-i18n="como.r1.d">Imprimí las credenciales o dejalas en cada celular. Mirá el panel en vivo y mandale a cada auspiciante su informe.</li>
+            <li data-i18n="como.r1.a">Armá el evento y publicá la página, con inscripción gratis o paga.</li>
+            <li data-i18n="como.r1.b">Cobrá en USDC o con el QR del banco. La plata te llega ya repartida.</li>
+            <li data-i18n="como.r1.c">Imprimí las credenciales o dejalas en cada celular.</li>
+            <li data-i18n="como.r1.d">Mirá el panel en vivo y mandale su informe a cada auspiciante.</li>
           </ul>
         </article>
         <article class="tarjeta rol">
-          <div class="numero" data-i18n="como.r2.n">Si asistís</div>
+          <h3 data-i18n="como.r2.n">Si asistís</h3>
           <ul>
-            <li data-i18n="como.r2.a">Te inscribís con Google o con una passkey. Debajo se te crea una cuenta de Stellar sin que tengas que saberlo.</li>
+            <li data-i18n="como.r2.a">Entrás con Google o con una passkey. Debajo se te crea una cuenta de Stellar sin que tengas que saberlo.</li>
             <li data-i18n="como.r2.b">Recibís un correo con un enlace personal. Nunca llaves ni contraseñas.</li>
             <li data-i18n="como.r2.c">Tenés tu credencial en el celular y ves lo que te toca.</li>
           </ul>
         </article>
         <article class="tarjeta rol">
-          <div class="numero" data-i18n="como.r3.n">Si sos voluntario</div>
+          <h3 data-i18n="como.r3.n">Si sos voluntario</h3>
           <ul>
             <li data-i18n="como.r3.a">Escaneás el QR y ves qué le toca a esa persona.</li>
             <li data-i18n="como.r3.b">Marcás el canje. No se puede repetir.</li>
-            <li data-i18n="como.r3.c">Sin cuenta y sin entrenamiento. Funciona sin conexión y sincroniza después: la fila nunca espera a la red.</li>
+            <li data-i18n="como.r3.c">Sin cuenta y sin entrenamiento. Funciona sin conexión y sincroniza después.</li>
           </ul>
         </article>
         <article class="tarjeta rol">
-          <div class="numero" data-i18n="como.r4.n">Si auspiciás</div>
+          <h3 data-i18n="como.r4.n">Si auspiciás</h3>
           <ul>
             <li data-i18n="como.r4.a">Ponés un beneficio, como un café para cada asistente, y ves cuántos se canjearon.</li>
             <li data-i18n="como.r4.b">Te quedás con el contacto de quienes aceptan compartirlo en tu stand.</li>
@@ -181,8 +199,9 @@
   <section class="seccion" id="stellar">
     <div class="contenedor">
       <div class="encabezado">
-        <h2 data-i18n="stellar.titulo">Por qué Stellar, y no solo una base de datos.</h2>
-        <p data-i18n="stellar.bajada">Para contar almuerzos alcanza una base de datos. Stellar suma lo que una base de datos no puede.</p>
+        <p class="antetitulo" data-i18n="stellar.ante">Por qué Stellar</p>
+        <h2 data-i18n="stellar.titulo">Lo que una base de datos no puede.</h2>
+        <p data-i18n="stellar.bajada">Para contar almuerzos alcanza una planilla. Esto es lo que suma Stellar.</p>
       </div>
       <div class="rejilla rejilla-2">
         <div class="tarjeta motivo">
@@ -195,7 +214,7 @@
         </div>
         <div class="tarjeta motivo">
           <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v1a2 2 0 0 0 0 4v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a2 2 0 0 0 0-4z"/><path d="M13 7v10"/></svg></div>
-          <div><h3 data-i18n="stellar.m3.t">Vales que se usan una sola vez</h3><p data-i18n="stellar.m3.p">Cada beneficio se canjea exactamente una vez, y los premios se entregan con una prueba que no depende de Rumbo. En testnet el vale no es plata, pero el almuerzo sí es real.</p></div>
+          <div><h3 data-i18n="stellar.m3.t">Vales que se usan una sola vez</h3><p data-i18n="stellar.m3.p">Cada beneficio se canjea exactamente una vez, y los premios se entregan con una prueba que no depende de Rumbo. En la red de prueba el vale no es plata, pero el almuerzo sí es real.</p></div>
         </div>
         <div class="tarjeta motivo">
           <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div>
@@ -203,7 +222,7 @@
         </div>
         <div class="tarjeta motivo">
           <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M14 6l6 6-6 6"/></svg></div>
-          <div><h3 data-i18n="stellar.m5.t">Pagos a oradores y voluntarios</h3><p data-i18n="stellar.m5.p">En cualquier país, en un clic.</p></div>
+          <div><h3 data-i18n="stellar.m5.t">Pagos a oradores y voluntarios</h3><p data-i18n="stellar.m5.p">En cualquier país, en un clic. Sin cuentas bancarias de por medio ni comisiones de giro.</p></div>
         </div>
         <div class="tarjeta motivo">
           <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M14 5l-4 14"/></svg></div>
@@ -213,59 +232,182 @@
     </div>
   </section>
 
-  <section class="seccion" id="ruta">
+  <section class="seccion" id="hecho">
     <div class="contenedor">
       <div class="encabezado">
-        <h2 data-i18n="ruta.titulo">Dónde está</h2>
-        <p data-i18n="ruta.bajada">Rumbo está en etapa de diseño: el producto está especificado en detalle y el primer código entra en noviembre de 2026. El contrato parte de un pase de evento escrito en septiembre de 2026 para Stellar Elite Bolivia, con nueve pruebas y una corrida en testnet.</p>
+        <p class="antetitulo" data-i18n="hecho.ante">Cómo está hecho</p>
+        <h2 data-i18n="hecho.titulo">Un contrato, una app y un escáner. Nada más en el medio.</h2>
+        <p data-i18n="hecho.bajada">Lo que garantiza que un vale se use una sola vez y que la plata llegue repartida vive en un contrato en Stellar. Todo lo demás es una app que cualquiera abre desde el celular.</p>
       </div>
-      <div class="ruta">
-        <div class="tarjeta">
-          <span class="etiqueta etiqueta-ahora" data-i18n="ruta.ahora">Primero</span>
-          <ol>
-            <li data-i18n="ruta.a1">Página del evento con inscripción gratis o paga (USDC en testnet)</li>
-            <li data-i18n="ruta.a2">Cuenta con Google o passkey, con comisiones patrocinadas</li>
-            <li data-i18n="ruta.a3">Credencial con QR, en el celular y en SVG o PDF</li>
-            <li data-i18n="ruta.a4">Check-in y canjes con un escáner que funciona sin conexión</li>
-            <li data-i18n="ruta.a5">Panel de quien organiza</li>
-          </ol>
+      <figure class="arquitectura" aria-label="Cómo se conectan las piezas" data-i18n-aria="aria.arquitectura">
+        <svg class="arquitectura-svg" viewBox="0 0 1120 350" role="img" aria-hidden="true">
+          <defs>
+            <marker id="flecha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker>
+          </defs>
+          <g class="arq-nodo">
+            <rect x="10" y="100" width="240" height="130" rx="18"/>
+            <text x="130" y="152" text-anchor="middle" class="arq-titulo" data-i18n="arq.n1">La persona</text>
+            <text x="130" y="180" text-anchor="middle" class="arq-sub" data-i18n="arq.n1b">se inscribe y paga desde el celular</text>
+          </g>
+          <g class="arq-nodo arq-nodo-app">
+            <rect x="300" y="85" width="250" height="160" rx="18"/>
+            <text x="425" y="133" text-anchor="middle" class="arq-titulo" data-i18n="arq.n2">La app de Rumbo</text>
+            <text x="425" y="161" text-anchor="middle" class="arq-sub" data-i18n="arq.n2b">página del evento, credencial, panel</text>
+            <text x="425" y="185" text-anchor="middle" class="arq-sub" data-i18n="arq.n2c">cuenta con Google o passkey</text>
+            <text x="425" y="209" text-anchor="middle" class="arq-sub" data-i18n="arq.n2d">en castellano y en inglés</text>
+          </g>
+          <g class="arq-nodo arq-nodo-contrato">
+            <rect x="600" y="85" width="290" height="160" rx="18"/>
+            <text x="745" y="133" text-anchor="middle" class="arq-titulo" data-i18n="arq.n3">El contrato en Stellar</text>
+            <text x="745" y="161" text-anchor="middle" class="arq-sub" data-i18n="arq.n3b">cobra y reparte en una operación</text>
+            <text x="745" y="185" text-anchor="middle" class="arq-sub" data-i18n="arq.n3c">check-in y cada canje, una sola vez</text>
+            <text x="745" y="209" text-anchor="middle" class="arq-sub" data-i18n="arq.n3d">sin nombres ni correos adentro</text>
+          </g>
+          <g class="arq-nodo">
+            <rect x="920" y="40" width="190" height="90" rx="18"/>
+            <text x="1015" y="78" text-anchor="middle" class="arq-titulo" data-i18n="arq.n4">El organizador</text>
+            <text x="1015" y="104" text-anchor="middle" class="arq-sub" data-i18n="arq.n4b">recibe la plata al momento</text>
+          </g>
+          <g class="arq-nodo arq-nodo-suave">
+            <rect x="920" y="150" width="190" height="90" rx="18"/>
+            <text x="1015" y="188" text-anchor="middle" class="arq-titulo" data-i18n="arq.n5">El auspiciante</text>
+            <text x="1015" y="214" text-anchor="middle" class="arq-sub" data-i18n="arq.n5b">ve los canjes y el informe</text>
+          </g>
+          <g class="arq-nodo arq-nodo-suave">
+            <rect x="600" y="275" width="290" height="66" rx="18"/>
+            <text x="745" y="303" text-anchor="middle" class="arq-titulo" data-i18n="arq.n6">El escáner del voluntario</text>
+            <text x="745" y="326" text-anchor="middle" class="arq-sub" data-i18n="arq.n6b">valida el QR sin red y sincroniza después</text>
+          </g>
+          <g class="arq-flechas">
+            <path d="M250 165 H296"/>
+            <path d="M550 165 H596"/>
+            <path d="M890 145 C905 145 905 85 916 85"/>
+            <path d="M890 185 C905 185 905 195 916 195"/>
+            <path d="M745 271 V249"/>
+          </g>
+          <g class="arq-etiquetas">
+            <text x="573" y="153" text-anchor="middle" data-i18n="arq.f2">USDC</text>
+          </g>
+        </svg>
+        <ul class="arquitectura-lista">
+          <li data-i18n="arq.l1">Quien asiste se inscribe y paga desde el celular, con una cuenta de Google o una passkey.</li>
+          <li data-i18n="arq.l2">La app arma la página del evento, la credencial y el panel, en castellano y en inglés.</li>
+          <li data-i18n="arq.l3">El contrato en Stellar cobra y reparte en una operación, y marca el check-in y cada canje una sola vez. Adentro no hay nombres ni correos.</li>
+          <li data-i18n="arq.l4">El escáner del voluntario valida el QR sin red y sincroniza después. Quien organiza recibe la plata al momento y quien auspicia ve los canjes.</li>
+        </ul>
+      </figure>
+      <div class="rejilla rejilla-3 hecho-datos">
+        <div class="tarjeta"><h3 data-i18n="hecho.d1.t">Núcleo abierto</h3><p data-i18n="hecho.d1.p">El contrato, el escáner y la plantilla del evento, con licencia MIT. Cualquier comunidad los monta y los adapta.</p></div>
+        <div class="tarjeta"><h3 data-i18n="hecho.d2.t">Nadie necesita XLM</h3><p data-i18n="hecho.d2.p">Las comisiones de red las patrocina Rumbo. La persona entra con Google o con una passkey y no ve nada técnico.</p></div>
+        <div class="tarjeta"><h3 data-i18n="hecho.d3.t">Ya hay una semilla</h3><p data-i18n="hecho.d3.p">El contrato parte de un pase de evento escrito en septiembre de 2026 para Stellar Elite Bolivia, con nueve pruebas y una corrida en la red de prueba.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="seccion" id="crece">
+    <div class="contenedor">
+      <div class="encabezado">
+        <p class="antetitulo" data-i18n="crece.ante">Cómo crece</p>
+        <h2 data-i18n="crece.titulo">Empieza en una comunidad y termina en una red.</h2>
+        <p data-i18n="crece.bajada">Cada etapa paga la siguiente: las comunidades traen a quienes auspician, los eventos que cobran traen a las redes, y las redes traen a las plataformas que quieren construir encima.</p>
+      </div>
+      <ol class="etapas">
+        <li class="tarjeta etapa">
+          <span class="etapa-num">1</span>
+          <span class="etiqueta etiqueta-ahora" data-i18n="crece.e1.tag">Primero</span>
+          <h3 data-i18n="crece.e1.t">Una comunidad</h3>
+          <p data-i18n="crece.e1.p">Credenciales, check-in y canjes en la red de prueba, gratis. El vale no es plata, pero el almuerzo sí es real.</p>
+          <ul>
+            <li data-i18n="crece.e1.a">Página del evento con inscripción gratis o paga</li>
+            <li data-i18n="crece.e1.b">Cuenta con Google o passkey, sin necesitar XLM</li>
+            <li data-i18n="crece.e1.c">Credencial con QR, en el celular y para imprimir</li>
+            <li data-i18n="crece.e1.d">Check-in y canjes con un escáner que funciona sin conexión</li>
+            <li data-i18n="crece.e1.e">Panel de quien organiza</li>
+          </ul>
+        </li>
+        <li class="tarjeta etapa">
+          <span class="etapa-num">2</span>
+          <span class="etiqueta etiqueta-despues" data-i18n="crece.e2.tag">Después</span>
+          <h3 data-i18n="crece.e2.t">Eventos que cobran</h3>
+          <p data-i18n="crece.e2.p">Entradas con pagos reales en USDC, y los auspiciantes con canje verificado e informe.</p>
+          <ul>
+            <li data-i18n="crece.e2.a">Pago protegido con reembolso automático</li>
+            <li data-i18n="crece.e2.b">Describir el evento en una frase y aprobar la propuesta</li>
+            <li data-i18n="crece.e2.c">El premio de un sorteo entrando a la credencial de quien ganó</li>
+            <li data-i18n="crece.e2.d">Informe para quien auspicia</li>
+            <li data-i18n="crece.e2.e">Importar la lista de Luma</li>
+          </ul>
+        </li>
+        <li class="tarjeta etapa">
+          <span class="etapa-num">3</span>
+          <span class="etiqueta etiqueta-luego" data-i18n="crece.e3.tag">Más adelante</span>
+          <h3 data-i18n="crece.e3.t">Redes y plataformas</h3>
+          <p data-i18n="crece.e3.p">Licencias para redes de comunidades, y una API que otras apps y agentes pagan por uso.</p>
+          <ul>
+            <li data-i18n="crece.e3.a">Pagos con el QR del banco en bolivianos</li>
+            <li data-i18n="crece.e3.b">Reventa al precio original</li>
+            <li data-i18n="crece.e3.c">API pagada por uso</li>
+            <li data-i18n="crece.e3.d">Pagos a oradores</li>
+            <li data-i18n="crece.e3.e">Licencias para redes de comunidades</li>
+          </ul>
+        </li>
+      </ol>
+      <div class="remate remate-claro">
+        <strong data-i18n="crece.remate.t">Núcleo abierto, servicio alojado.</strong>
+        <p data-i18n="crece.remate.p">Quienes programan en un GDG o en WTM aprenden Stellar adaptando el sistema de su propio evento. Lo cómodo, y lo que se cobra, es el servicio alojado: el armado del evento, los correos, el tiempo real, los pagos y los informes.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="seccion" id="negocio">
+    <div class="contenedor">
+      <div class="encabezado">
+        <p class="antetitulo" data-i18n="paga.ante">Quién paga</p>
+        <h2 data-i18n="paga.titulo">Las comunidades casi no tienen plata. Por eso paga otro.</h2>
+        <p data-i18n="paga.bajada">Los eventos gratis son gratis, y por ahí llega la gente. La comisión aparece cuando hay plata de por medio, y quien auspicia paga por saber qué pasó con lo que puso.</p>
+      </div>
+      <div class="rejilla rejilla-3">
+        <div class="tarjeta pago">
+          <h3 data-i18n="paga.c1.t">Si vendés entradas</h3>
+          <p data-i18n="paga.c1.p">Una comisión por entrada paga, menor que la de las plataformas con tarjeta en su plan gratis. Se cobra en la misma operación: nadie tiene la plata en el medio.</p>
         </div>
-        <div class="tarjeta">
-          <span class="etiqueta etiqueta-despues" data-i18n="ruta.despues">Después</span>
-          <ol>
-            <li data-i18n="ruta.d1">Pago protegido con reembolso automático</li>
-            <li data-i18n="ruta.d2">Describir el evento en una frase y aprobar la propuesta</li>
-            <li data-i18n="ruta.d3">El premio de un sorteo entrando a la credencial de quien ganó</li>
-            <li data-i18n="ruta.d4">Informe para quien auspicia</li>
-            <li data-i18n="ruta.d5">Importar el CSV de Luma</li>
-          </ol>
+        <div class="tarjeta pago">
+          <h3 data-i18n="paga.c2.t">Si auspiciás</h3>
+          <p data-i18n="paga.c2.p">Por campaña: "un café para cada asistente", con canje verificado, informe y los contactos del stand de quienes aceptan compartirlos.</p>
         </div>
-        <div class="tarjeta">
-          <span class="etiqueta etiqueta-luego" data-i18n="ruta.luego">Más adelante</span>
-          <ol>
-            <li data-i18n="ruta.l1">Pagos con el QR del banco en bolivianos, en mainnet</li>
-            <li data-i18n="ruta.l2">Reventa al precio original</li>
-            <li data-i18n="ruta.l3">API pagada por uso con x402</li>
-            <li data-i18n="ruta.l4">Pagos a oradores</li>
-            <li data-i18n="ruta.l5">Licencias para redes de comunidades</li>
-          </ol>
+        <div class="tarjeta pago">
+          <h3 data-i18n="paga.c3.t">Los eventos grandes</h3>
+          <p data-i18n="paga.c3.p">Por persona: credenciales, escáneres, varios días y tipos de entrada, informes. Hackatones, DevFests, congresos.</p>
+        </div>
+        <div class="tarjeta pago">
+          <h3 data-i18n="paga.c4.t">Las redes de comunidades</h3>
+          <p data-i18n="paga.c4.p">Una licencia por red, para todos sus capítulos, con los datos agregados. Es la forma de crecer sin vender de a uno.</p>
+        </div>
+        <div class="tarjeta pago">
+          <h3 data-i18n="paga.c5.t">Otras apps y agentes</h3>
+          <p data-i18n="paga.c5.p">Por uso: crean eventos, credenciales y vales por la API pagando centavos en USDC.</p>
+        </div>
+        <div class="tarjeta pago pago-gratis">
+          <h3 data-i18n="paga.c6.t">Las comunidades chicas</h3>
+          <p data-i18n="paga.c6.p">Gratis, con un tope de personas por evento. Son la distribución, como en toda plataforma de eventos.</p>
         </div>
       </div>
-      <p class="estado" data-i18n="ruta.estado">En diseño. El primer código, en noviembre de 2026.</p>
+      <p class="estado" data-i18n="paga.nota">Los precios se fijan con las primeras comunidades que lo usen, no antes.</p>
     </div>
   </section>
 
   <section class="seccion" id="principios">
     <div class="contenedor">
       <div class="encabezado">
+        <p class="antetitulo" data-i18n="principios.ante">Principios</p>
         <h2 data-i18n="principios.titulo">Lo que Rumbo nunca hace</h2>
       </div>
       <ul class="principios">
         <li><strong data-i18n="principios.p1.t">Tener tu plata.</strong><span data-i18n="principios.p1.p">Va directo a quien organiza o queda en el contrato de un pago protegido.</span></li>
         <li><strong data-i18n="principios.p2.t">Cambiar moneda por su cuenta.</strong><span data-i18n="principios.p2.p">Los bolivianos los convierte quien tiene la licencia.</span></li>
-        <li><strong data-i18n="principios.p3.t">Poner datos personales en la cadena.</strong><span data-i18n="principios.p3.p">Los nombres y los correos quedan fuera del ledger y se usan solo para avisar. Los contactos del stand se comparten solo con permiso, en ese stand.</span></li>
+        <li><strong data-i18n="principios.p3.t">Poner datos personales en la cadena.</strong><span data-i18n="principios.p3.p">Los nombres y los correos quedan fuera de la cadena y se usan solo para avisar. Los contactos del stand se comparten solo con permiso, en ese stand.</span></li>
         <li><strong data-i18n="principios.p4.t">Cobrar por eventos gratis.</strong><span data-i18n="principios.p4.p">La comisión aparece cuando hay plata de por medio.</span></li>
-        <li><strong data-i18n="principios.p5.t">Mostrar tecnicismos.</strong><span data-i18n="principios.p5.p">Nadie en la puerta tiene que saber que abajo hay una blockchain.</span></li>
+        <li><strong data-i18n="principios.p5.t">Mostrar tecnicismos.</strong><span data-i18n="principios.p5.p">Nadie en la puerta tiene que saber qué hay abajo. Lo técnico va plegado, para quien lo quiera leer.</span></li>
         <li><strong data-i18n="principios.p6.t">Cerrar lo que abrió.</strong><span data-i18n="principios.p6.p">El contrato de canjes, el escáner y la plantilla del evento son de código abierto con MIT. El servicio alojado es lo que Rumbo cobra.</span></li>
       </ul>
     </div>
@@ -274,8 +416,9 @@
   <section class="seccion" id="equipo">
     <div class="contenedor">
       <div class="encabezado">
+        <p class="antetitulo" data-i18n="equipo.ante">Las personas</p>
         <h2 data-i18n="equipo.titulo">El equipo</h2>
-        <p data-i18n="equipo.bajada">Rumbo se hace en Santa Cruz de la Sierra, Bolivia. Lo fundan dos personas.</p>
+        <p data-i18n="equipo.bajada">Rumbo se hace en Santa Cruz de la Sierra, Bolivia, por dos fundadores que organizan y viven estos eventos.</p>
       </div>
       <div class="rejilla rejilla-2">
         <div class="tarjeta persona">
@@ -297,7 +440,7 @@
 <footer class="pie">
   <div class="contenedor">
     <span data-i18n="pie.hecho">Hecho en Santa Cruz de la Sierra, Bolivia.</span>
-    <nav aria-label="Enlaces">
+    <nav aria-label="Enlaces" data-i18n-aria="aria.enlaces">
       <a href="https://github.com/nema1502/rumbo" rel="noopener" data-i18n="pie.codigo">Código</a>
       <a href="https://github.com/nema1502/rumbo/blob/main/LICENSE" rel="noopener" data-i18n="pie.licencia">Licencia MIT</a>
       <a href="?lang=en" id="pie-idioma" data-i18n="pie.idioma">English</a>
