@@ -428,8 +428,18 @@ export async function getSponsorReport(event: EventRecord, repo: Repo = getRepo(
 
 // ---------- El CSV ----------
 
-function csvCell(value: string | number): string {
-  const text = String(value);
+/** Cómo empieza una celda que una hoja de cálculo toma como fórmula: =, +, -, @, una tabulación o un retorno. */
+const FORMULA_START = /^[=+\-@\t\r]/;
+
+/**
+ * Una celda del CSV. El nombre y el correo los escribe quien se inscribe, y un "=HYPERLINK(...)" o un
+ * "=cmd|..." se ejecutaría como fórmula al abrir el CSV en Excel o en Sheets, en la computadora de quien
+ * organiza. Al texto que empieza así se le antepone una comilla simple, que la hoja muestra como texto;
+ * después se entrecomilla si lleva comas, comillas, punto y coma o saltos de línea.
+ */
+export function csvCell(value: string | number): string {
+  if (typeof value === "number") return String(value);
+  const text = FORMULA_START.test(value) ? `'${value}` : value;
   return /[",;\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 

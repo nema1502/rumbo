@@ -67,6 +67,7 @@ Cada parte tiene su guía: [la inscripción y la credencial](src/server/evento/R
 
 ```bash
 pnpm typecheck                     # TypeScript estricto, sin errores
+pnpm test                          # las pruebas sin red (tests/*.test.mjs, con node --test): cada una con su base propia y vacía
 pnpm build                         # la app entera compila
 pnpm e2e                           # el flujo entero contra la red de prueba, con su propio servidor (abajo)
 node scripts/inscribir-prueba.mjs [--pago] [--api http://localhost:3000]   # una inscripción, con todas sus comprobaciones
