@@ -96,8 +96,11 @@
 /* Entrar con la clave */
 .acceso-form { display: grid; gap: 16px; }
 
-/* El informe para quien auspicia */
+/* El informe para quien auspicia. Ninguna tarjeta puede ensanchar la página: una tabla más ancha que
+   el celular se desplaza dentro de su tarjeta. */
 .informe { width: min(760px, 100%); margin-inline: auto; display: grid; gap: 20px; }
+.informe > * { min-width: 0; }
+.informe .tarjeta { overflow-x: auto; }
 .informe .pantalla-cabecera h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); }
 .informe-titular {
   background: var(--tarjeta); border: 1px solid var(--linea); border-radius: var(--radio);
@@ -133,6 +136,11 @@
   .puesto .boton { grid-column: 1 / -1; width: 100%; }
   .informe-cifras { grid-template-columns: 1fr; }
   .informe-titular { padding: 20px; }
+  /* Las tablas del informe entran en 390 px sin desplazarse: letra apenas menor y celdas más juntas */
+  .tabla { font-size: 0.85rem; }
+  .tabla th, .tabla td { padding: 8px; }
+  .tabla th:first-child, .tabla td:first-child { padding-left: 0; }
+  .tabla th:last-child, .tabla td:last-child { padding-right: 0; }
 }
 
 /* Impreso: en blanco y negro, sin la cabecera ni los botones, con el pie de Rumbo */
