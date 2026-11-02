@@ -147,7 +147,7 @@ p { margin: 0; }
 .chip { font-size: 0.78rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap; line-height: 1.3; }
 .chip-pendiente { background: var(--acento-suave); color: var(--acento-chip); }
 .chip-listo { background: var(--verde-suave); color: var(--verde-chip); }
-.chip-premio { background: color-mix(in srgb, var(--amarillo) 35%, transparent); color: var(--tinta); }
+.chip-premio { background: color-mix(in srgb, var(--amarillo) 40%, var(--papel)); color: var(--tinta); }
 .chip-ejemplo { background: var(--linea); color: var(--tinta-2); font-weight: 600; }
 .chip-sorteo { background: var(--linea); color: var(--tinta-2); }
 .estado { display: inline-flex; align-items: flex-start; gap: 8px; color: var(--apagado); font-size: 0.95rem; margin-top: 14px; }
@@ -209,7 +209,7 @@ p { margin: 0; }
 .cambia { display: inline-grid; justify-items: end; align-items: center; flex: none; }
 .cambia > * { grid-area: 1 / 1; }
 .credencial-estado .cambia { justify-items: start; }
-.credencial [data-paso]:not(.espera) .antes, .credencial .espera .despues { opacity: 0; }
+.credencial [data-paso]:not(.espera) .antes, .credencial .espera .despues { opacity: 0; visibility: hidden; }
 .chip.despues { display: inline-flex; align-items: center; gap: 4px; }
 .check { width: 12px; height: 12px; flex: none; fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
 .credencial-estado.espera { color: var(--apagado); }
@@ -395,6 +395,7 @@ p { margin: 0; }
   from { opacity: 0; transform: translateX(var(--desde-x, 48px)) rotate(var(--desde-giro, 4deg)); }
   to { opacity: 1; transform: translateX(0) rotate(var(--giro, -2deg)); }
 }
+@keyframes acercar { from { transform: translateY(14px); } }
 @keyframes pop { from { opacity: 0; transform: scale(0.4); } 60% { opacity: 1; transform: scale(1.12); } to { transform: scale(1); } }
 @keyframes pulso { from { opacity: 0.6; transform: scale(1); } to { opacity: 0; transform: scale(3.6); } }
 @keyframes brillo { from { transform: translateX(-101%); } to { transform: translateX(101%); } }
@@ -402,10 +403,11 @@ p { margin: 0; }
 
 @media screen and (prefers-reduced-motion: no-preference) {
   /* La portada entra una sola vez, al cargar */
-  .js .portada:not(.entra) :is(.antetitulo, h1, .bajada, .cta, .sellos li, .nota-portada, .estado) { opacity: 0; }
+  .js .portada:not(.entra) :is(.antetitulo, h1, .cta, .sellos li, .nota-portada, .estado) { opacity: 0; }
   .portada.entra .antetitulo { animation: subir 0.6s var(--suave) backwards; }
   .portada.entra .palabra { display: inline-block; animation: palabra 0.7s var(--suave) backwards; animation-delay: calc(80ms + var(--i) * 70ms); }
-  .portada.entra .bajada { animation: subir 0.6s var(--suave) 0.38s backwards; }
+  /* La bajada no se oculta nunca: es lo primero grande que se pinta, y solo se acerca */
+  .portada.entra .bajada { animation: acercar 0.6s var(--suave) 0.1s backwards; }
   .portada.entra .cta { animation: subir 0.6s var(--suave) 0.47s backwards; }
   .portada.entra .sellos li { animation: subir 0.5s var(--suave) 0.6s backwards; }
   .portada.entra .sellos li:nth-child(2) { animation-delay: 0.68s; }
@@ -419,11 +421,12 @@ p { margin: 0; }
   .visto:is(.encabezado, .tarjeta, .herramienta, .remate, .principios li, .arquitectura-lista li, .demo) { animation: subir 0.6s var(--suave) backwards; }
 
   /* La credencial: el estado nuevo sube y el viejo se va, el check crece, el punto late */
-  .cambia > * { transition: opacity 0.35s ease, transform 0.35s var(--suave); }
+  .cambia > * { transition: opacity 0.35s ease, transform 0.35s var(--suave), visibility 0s linear 0.35s; }
+  .credencial .espera .antes { transition-delay: 0s; }
   .credencial .espera .despues { transform: translateY(7px); }
   /* El estado viejo se va rápido y el nuevo entra apenas después, sin encimarse */
-  .credencial [data-paso]:not(.espera) .antes { transform: translateY(-7px); transition-duration: 0.18s; }
-  .credencial [data-paso]:not(.espera) .despues { transition-delay: 0.14s; }
+  .credencial [data-paso]:not(.espera) .antes { transform: translateY(-7px); transition-duration: 0.18s, 0.18s, 0s; transition-delay: 0s, 0s, 0.18s; }
+  .credencial [data-paso]:not(.espera) .despues { transition-delay: 0.14s, 0.14s, 0s; }
   .check { transition: transform 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) 0.32s; }
   .credencial .espera .check { transform: scale(0); }
   .credencial-estado { position: relative; transition: color 0.4s ease, opacity 0.5s ease; }
@@ -434,9 +437,9 @@ p { margin: 0; }
   }
   .credencial-estado.fx::after { animation: pulso 0.9s ease-out; }
   .beneficios .cambia { transition: opacity 0.5s ease; }
-  .beneficios .sorteo { position: relative; overflow: hidden; }
+  .beneficios .sorteo { position: relative; overflow: hidden; isolation: isolate; }
   .beneficios .sorteo::after {
-    content: ""; position: absolute; inset: 0; pointer-events: none; transform: translateX(-101%);
+    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; transform: translateX(-101%);
     background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--amarillo) 55%, transparent) 50%, transparent 70%);
   }
   .beneficios .sorteo.fx { animation: tinte 1.6s ease; }
@@ -467,8 +470,10 @@ p { margin: 0; }
 
   /* La cabecera se compacta sin cambiar de alto: sube 8 px y su contenido baja 4 */
   .cabecera, .cabecera .contenedor { transition: transform 0.3s var(--suave), box-shadow 0.3s ease, background-color 0.3s ease; }
-  .cabecera.compacta { transform: translateY(-8px); }
-  .cabecera.compacta .contenedor { transform: translateY(4px); }
+  @media (min-width: 861px) {
+    .cabecera.compacta { transform: translateY(-8px); }
+    .cabecera.compacta .contenedor { transform: translateY(4px); }
+  }
 }
 /* En el celular la credencial no gira ni flota: entra más corto, con el mismo nombre para no repetirse al rotar */
 @media screen and (prefers-reduced-motion: no-preference) and (max-width: 860px) {
@@ -480,7 +485,7 @@ p { margin: 0; }
 }
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
   .tarjeta { transition: transform 0.2s var(--suave), box-shadow 0.2s ease; }
-  .tarjeta:hover { transform: translateY(-2px); }
+  .tarjeta:not(.etapa):hover { transform: translateY(-2px); }
   .motivo .icono { transition: background-color 0.2s ease, color 0.2s ease; }
   .nav a::after { transition: transform 0.25s var(--suave); }
   .cta .boton::after { transition: transform 0.2s var(--suave); }
@@ -513,4 +518,19 @@ p { margin: 0; }
   .portada .contenedor { gap: 20px; }
   .nav { padding-right: 40px; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
   .llamado p { font-size: 1.1rem; }
+}
+
+/* El botón para pausar la credencial (y el punto del diagrama): solo aparece cuando hay movimiento. */
+.credencial-pausa { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--linea); background: transparent; color: var(--tinta-2); display: grid; place-items: center; padding: 0; cursor: pointer; }
+.credencial-pausa[hidden] { display: none; }
+.credencial-pausa svg { width: 13px; height: 13px; fill: currentColor; }
+.credencial-pausa .seguir, .credencial-pausa[aria-pressed="true"] .pausar { display: none; }
+.credencial-pausa[aria-pressed="true"] .seguir { display: block; }
+.credencial-pausa:hover { color: var(--tinta); border-color: var(--tinta-2); }
+.credencial-pausa:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+/* En un celular chico, el chip baja a su propia línea en vez de partir la etiqueta. */
+@media (max-width: 360px) {
+  .beneficios li { flex-wrap: wrap; }
+  .beneficios .cambia { margin-left: auto; }
 }

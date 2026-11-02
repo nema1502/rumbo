@@ -30,6 +30,9 @@
     (function () {
       // Con JS, lo que se anima ya arranca oculto cuando se pinta la página; sin JS se ve todo.
       document.documentElement.classList.add("js");
+      // Si el script principal no corre (no carga, no se interpreta o falla), se ve todo quieto.
+      addEventListener("error", function () { document.documentElement.classList.remove("js"); });
+      setTimeout(function () { if (!window.rumboAnimo) document.documentElement.classList.remove("js"); }, 3000);
       try {
         var q = new URLSearchParams(location.search).get("theme");
         var t = q || localStorage.getItem("rumbo.theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
@@ -96,6 +99,10 @@
           <div class="credencial-meta">
             <span class="chip chip-ejemplo" data-i18n="cred.ejemplo">Ejemplo</span>
             <span class="credencial-numero" data-i18n="cred.numero">Credencial 37 de 120</span>
+            <button type="button" class="credencial-pausa" aria-pressed="false" aria-label="Pausar la animación de la credencial" data-i18n-aria="aria.pausar" hidden>
+              <svg class="pausar" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+              <svg class="seguir" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+            </button>
           </div>
         </div>
         <div class="credencial-persona">
@@ -400,7 +407,7 @@
             <path d="M745 271 V249"/>
           </g>
           <g class="arq-etiquetas">
-            <text x="573" y="153" text-anchor="middle" data-i18n="arq.f2">USDC</text>
+            <text x="575" y="153" text-anchor="middle" data-i18n="arq.f2">USDC</text>
           </g>
         </svg>
         <ul class="arquitectura-lista">
@@ -549,7 +556,7 @@
         <p data-i18n="llamado.p">¿Organizás un evento en diciembre? Queremos armarlo con vos.</p>
         <a class="boton boton-primario" href="https://github.com/nema1502/rumbo/issues/new?title=Mi%20evento%20de%20diciembre&body=Comunidad%3A%20%0AFecha%20y%20ciudad%3A%20%0ACu%C3%A1ntas%20personas%3A%20%0AQu%C3%A9%20se%20entrega%20(almuerzo%2C%20merch%2C%20premios)%3A%20%0AC%C3%B3mo%20te%20contactamos%3A%20" rel="noopener" data-i18n="llamado.boton">Contanos de tu evento</a>
       </div>
-      <p class="estado"><span data-i18n="equipo.cta">Si programás, las preguntas y las ideas van en</span> <a href="https://github.com/nema1502/rumbo/issues" rel="noopener" data-i18n="equipo.issue">un issue en GitHub</a>.</p>
+      <p class="estado"><span data-i18n="equipo.cta">Si programás, las preguntas y las ideas van en</span> <a href="https://github.com/nema1502/rumbo/issues" rel="noopener" data-i18n="equipo.issue">un issue en GitHub.</a></p>
     </div>
   </section>
 </main>

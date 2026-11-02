@@ -41,7 +41,7 @@ const EN = {
   "portada.estado": "Design stage. The pass contract already has nine tests and a run on Stellar's test network. First code in November 2026.",
 
   "cred.evento": "Community hackathon",
-  "cred.tipo": "General ticket",
+  "cred.tipo": "General admission",
   "cred.ejemplo": "Example",
   "cred.numero": "Pass 37 of 120",
   "cred.nombre": "Ana R.",
@@ -136,9 +136,9 @@ const EN = {
   "arq.n3c": "check-in and each redemption, once",
   "arq.n3d": "no names or emails inside",
   "arq.n4": "The organizer",
-  "arq.n4b": "receives the money right away",
+  "arq.n4b": "is paid right away",
   "arq.n5": "The sponsor",
-  "arq.n5b": "sees redemptions and the report",
+  "arq.n5b": "sees the redemptions",
   "arq.n6": "The volunteer's scanner",
   "arq.n6b": "validates the QR offline and syncs later",
   "arq.f2": "USDC",
@@ -267,7 +267,8 @@ const EN = {
   "como.r2.d": "If you paid and the event is cancelled, with a protected payment your money comes back on its own.",
   "llamado.p": "Organizing an event in December? We want to build it with you.",
   "llamado.boton": "Tell us about your event",
-  "equipo.issue": "a GitHub issue",
+  "equipo.issue": "a GitHub issue.",
+  "aria.pausar": "Pause the pass animation",
   "pie.hecho": "Made in Santa Cruz de la Sierra, Bolivia.",
   "pie.codigo": "Code",
   "pie.licencia": "MIT license",
@@ -399,6 +400,7 @@ document.getElementById("tema")?.addEventListener("click", () => {
 // Con movimiento reducido no se oculta nada y la credencial queda en su estado final.
 function animar() {
   try {
+    window.rumboAnimo = true; // le avisa a la cabecera que el script corre
     const quieto = matchMedia("(prefers-reduced-motion: reduce)");
     entradaPortada(quieto.matches);
     revelarAlRecorrer();
@@ -475,7 +477,7 @@ function revelarAlRecorrer() {
   if (!("IntersectionObserver" in window)) return bloques.forEach((el) => ver(el, 0));
   const io = new IntersectionObserver((entradas) => {
     entradas
-      .filter((e) => seVe(e, 0.15))
+      .filter((e) => seVe(e, 0.02))
       .map((e) => e.target)
       .sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
       .forEach((el, i) => {
@@ -493,20 +495,30 @@ function credencialViva(quieto) {
   const tarjeta = document.querySelector(".credencial");
   if (!tarjeta) return;
   const partes = tarjeta.querySelectorAll("[data-paso]");
+  const boton = tarjeta.querySelector(".credencial-pausa");
   // Cuánto dura cada paso, en ms: el inicial incluye el fundido de entrada; con la vuelta, 12 s.
   const ESPERAS = [2500, 2000, 2000, 2000, 3000];
   let paso = 4;
   let reloj = 0;
   let enPantalla = false;
+  let pausado = false;
+  // Lo que falta del paso actual: al pausar o salir de pantalla se guarda, y al volver se retoma.
+  let restante = ESPERAS[0];
+  let inicioPaso = 0;
   const poner = (n, efecto) => {
     paso = n;
+    restante = ESPERAS[n];
     for (const p of partes) {
       p.classList.toggle("espera", +p.dataset.paso > n);
       p.classList.toggle("fx", efecto && +p.dataset.paso === n);
     }
   };
   const detener = () => {
-    clearTimeout(reloj);
+    if (reloj) {
+      restante = Math.max(0, restante - (performance.now() - inicioPaso));
+      clearTimeout(reloj);
+      reloj = 0;
+    }
     if (tarjeta.classList.contains("reinicio")) {
       poner(0, false);
       tarjeta.classList.remove("reinicio");
@@ -514,15 +526,21 @@ function credencialViva(quieto) {
   };
   const seguir = () => {
     detener();
-    if (enPantalla && !document.hidden && !quieto.matches) reloj = setTimeout(avanzar, ESPERAS[paso]);
+    if (enPantalla && !document.hidden && !quieto.matches && !pausado) {
+      inicioPaso = performance.now();
+      reloj = setTimeout(avanzar, restante);
+    }
   };
   const avanzar = () => {
+    reloj = 0;
     if (paso < 4) {
       poner(paso + 1, true);
       return seguir();
     }
     tarjeta.classList.add("reinicio"); // fundido de salida
+    inicioPaso = performance.now();
     reloj = setTimeout(() => {
+      reloj = 0;
       poner(0, false);
       void tarjeta.offsetWidth; // el cambio queda hecho antes de volver a mostrarse
       tarjeta.classList.remove("reinicio");
@@ -533,8 +551,20 @@ function credencialViva(quieto) {
   quieto.addEventListener("change", () => {
     detener();
     poner(quieto.matches ? 4 : 0, false);
+    if (boton) boton.hidden = quieto.matches;
     seguir();
   });
+  // El botón de pausar: detiene la credencial y también el punto que recorre el diagrama.
+  if (boton) {
+    boton.hidden = quieto.matches;
+    boton.addEventListener("click", () => {
+      pausado = !pausado;
+      boton.setAttribute("aria-pressed", String(pausado));
+      document.documentElement.classList.toggle("pausado", pausado);
+      document.dispatchEvent(new CustomEvent("rumbo:pausa", { detail: pausado }));
+      seguir();
+    });
+  }
   observar(tarjeta, (si) => {
     enPantalla = si;
     if (si) tarjeta.classList.add("entra");
@@ -580,11 +610,11 @@ function arquitecturaViva(quieto) {
     ubicar(puntos[1], tramo(AVISO, t), t, 0.5);
     // La etiqueta USDC late cuando el pago pasa por debajo.
     const k = tramo(PAGO[1], t) ? Math.sin((Math.PI * (t - PAGO[1][1])) / (PAGO[1][2] - PAGO[1][1])) : 0;
-    if (usdc) usdc.style.transform = k > 0 ? `scale(${(1 + 0.1 * k).toFixed(3)})` : "";
+    if (usdc) usdc.style.transform = k > 0 ? `scale(${(1 + 0.06 * k).toFixed(3)})` : "";
     raf = requestAnimationFrame(cuadro);
   };
   const correr = () => {
-    const anda = puntos.length > 0 && enPantalla && !document.hidden && !quieto.matches;
+    const anda = puntos.length > 0 && enPantalla && !document.hidden && !quieto.matches && !document.documentElement.classList.contains("pausado");
     if (anda && !raf) raf = requestAnimationFrame(cuadro);
     if (!anda && raf) {
       cancelAnimationFrame(raf);
@@ -593,15 +623,16 @@ function arquitecturaViva(quieto) {
       if (usdc) usdc.style.transform = "";
     }
   };
+  document.addEventListener("rumbo:pausa", correr);
   const ver = () => {
     if (puntos.length) return;
     largos = flechas.map((f) => f.getTotalLength());
+    flechas.forEach((f, i) => f.style.setProperty("--largo", largos[i]));
+    svg.getBoundingClientRect(); // el largo queda puesto antes de empezar a dibujar
     flechas.forEach((f, i) => {
-      f.style.setProperty("--largo", largos[i]);
       f.style.transitionDelay = DIBUJO[i] + "ms";
       setTimeout(() => f.classList.add("llego"), DIBUJO[i] + 450);
     });
-    svg.getBoundingClientRect(); // el largo queda puesto antes de empezar a dibujar
     svg.classList.add("visto");
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("class", "arq-puntos");
