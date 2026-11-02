@@ -534,3 +534,13 @@ p { margin: 0; }
   .beneficios li { flex-wrap: wrap; }
   .beneficios .cambia { margin-left: auto; }
 }
+
+/* En celular la credencial va justo debajo de los botones, para que asome en la primera pantalla;
+   los sellos y las notas pasan debajo de ella. */
+@media (max-width: 560px) {
+  .portada .contenedor { row-gap: 0; }
+  .portada-texto { display: contents; }
+  .portada .credencial { order: 1; margin: 26px 0 6px; }
+  .portada .sellos { order: 2; margin-top: 18px; }
+  .portada .nota-portada, .portada .estado { order: 3; }
+}
