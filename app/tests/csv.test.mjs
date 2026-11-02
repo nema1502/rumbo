@@ -30,14 +30,14 @@ test("el texto común y los números quedan como estaban", () => {
 test("en el CSV del evento, un nombre y un correo con fórmula llegan como texto", async () => {
   const repo = getRepo();
   const datos = await eventoDePrueba(repo);
-  await paseDePrueba(repo, datos, { name: '=HYPERLINK("http://malo.example","clic")', email: "=1+1@malo.example" });
+  await paseDePrueba(repo, datos, { name: '=HYPERLINK("http://malo.example","clic")', email: "=1+1@example.com" });
   await paseDePrueba(repo, datos, { name: "Beto Prueba", email: "beto@example.com" });
   const csv = await buildPassesCsv(datos.event, "es", repo);
   const filas = csv.replace(/^\uFEFF/, "").trim().split("\r\n");
   assert.equal(filas.length, 3);
   const malo = filas.find((f) => f.includes("HYPERLINK"));
   assert.ok(malo.includes(`"'=HYPERLINK(""http://malo.example"",""clic"")"`), malo);
-  assert.ok(malo.includes(",'=1+1@malo.example,"), malo);
+  assert.ok(malo.includes(",'=1+1@example.com,"), malo);
   // ninguna celda, ya sin comillas, empieza como fórmula
   for (const fila of filas) {
     for (const celda of fila.match(/("([^"]|"")*"|[^,]*)(,|$)/g).map((c) => c.replace(/,$/, "").replace(/^"|"$/g, ""))) {
