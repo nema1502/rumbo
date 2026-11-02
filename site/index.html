@@ -76,7 +76,7 @@
         <h1 data-i18n="portada.titulo">Tu evento entero <em>en&nbsp;un&nbsp;QR</em>.</h1>
         <p class="bajada" data-i18n="portada.bajada">Inscribí gratis o cobrá entradas en segundos desde cualquier país, en dólares digitales o con el QR de tu banco. Credencial, check-in, refrigerio, merch y premios en un solo lugar, y cada canje una sola vez.</p>
         <div class="cta">
-          <a class="boton boton-primario" href="#demo" data-i18n="portada.cta">Ver cómo funciona</a>
+          <a class="boton boton-primario" href="#asi-se-ve" data-i18n="portada.cta">Ver cómo funciona</a>
           <a class="boton boton-secundario" href="https://github.com/nema1502/rumbo" rel="noopener" data-i18n="portada.codigo">El código, en GitHub</a>
         </div>
         <ul class="sellos" aria-label="Lo esencial" data-i18n-aria="aria.esencial">
@@ -121,7 +121,7 @@
         <h2 data-i18n="demo.titulo">De la inscripción al informe, en medio minuto.</h2>
         <p data-i18n="demo.bajada">La gente se inscribe gratis, o compra su entrada o su merch y la plata llega repartida. Aparece la credencial, un voluntario escanea y canjea una sola vez, y el panel cuenta lo que pasó.</p>
       </div>
-      <figure class="demo">
+      <figure class="demo" id="asi-se-ve">
         <video id="demo-video" class="demo-video" autoplay muted loop playsinline preload="metadata" poster="assets/flujo-es.jpg" aria-label="Animación del flujo de Rumbo" data-i18n-aria="aria.video">
           <source src="assets/flujo-es.mp4" type="video/mp4">
         </video>
@@ -132,7 +132,7 @@
         <figcaption class="demo-pasos">
           <span><b>1</b> <span data-i18n="demo.p1">Inscribirse es gratis. Si el evento cobra una entrada o vende su merch, la plata llega a quien organiza con la comisión separada, en la misma operación.</span></span>
           <span><b>2</b> <span data-i18n="demo.p2">La credencial con QR queda en el celular, con lo que le toca a cada persona.</span></span>
-          <span><b>3</b> <span data-i18n="demo.p3">El voluntario escanea y canjea. El segundo intento no pasa, y sin conexión la fila sigue.</span></span>
+          <span><b>3</b> <span data-i18n="demo.p3">El voluntario escanea y canjea. Si ya se canjó, lo ve en grande. Y sin conexión, la fila sigue.</span></span>
           <span><b>4</b> <span data-i18n="demo.p4">El panel cuenta credenciales, entradas y canjes, y el informe para quien auspicia queda listo.</span></span>
         </figcaption>
       </figure>
@@ -174,24 +174,26 @@
           <h3 data-i18n="como.r1.n">Si organizás</h3>
           <ul>
             <li data-i18n="como.r1.a">Armá el evento y publicá la página, con inscripción gratis o paga.</li>
-            <li data-i18n="como.r1.b">Cobrá en USDC o con el QR del banco. La plata te llega ya repartida.</li>
+            <li data-i18n="como.r1.b">Cobrá en dólares digitales (USDC) o con el QR del banco. La plata te llega ya repartida.</li>
             <li data-i18n="como.r1.c">Imprimí las credenciales o dejalas en cada celular.</li>
             <li data-i18n="como.r1.d">Mirá el panel en vivo y mandale su informe a cada auspiciante.</li>
+            <li data-i18n="como.r1.e">Si tu evento es gratis, Rumbo es gratis. Si cobrás, la comisión está a la vista antes de publicar y es la misma hasta el final.</li>
           </ul>
         </article>
         <article class="tarjeta rol">
           <h3 data-i18n="como.r2.n">Si asistís</h3>
           <ul>
-            <li data-i18n="como.r2.a">Entrás con Google o con una passkey. Debajo se te crea una cuenta de Stellar sin que tengas que saberlo.</li>
+            <li data-i18n="como.r2.a">Entrás con Google o con la huella de tu celular (una passkey). Sin contraseña nueva.</li>
             <li data-i18n="como.r2.b">Recibís un correo con un enlace personal. Nunca llaves ni contraseñas.</li>
             <li data-i18n="como.r2.c">Tenés tu credencial en el celular y ves lo que te toca.</li>
+            <li data-i18n="como.r2.d">Si pagaste y el evento se cancela, con pago protegido la plata te vuelve sola.</li>
           </ul>
         </article>
         <article class="tarjeta rol">
           <h3 data-i18n="como.r3.n">Si sos voluntario</h3>
           <ul>
             <li data-i18n="como.r3.a">Escaneás el QR y ves qué le toca a esa persona.</li>
-            <li data-i18n="como.r3.b">Marcás el canje. No se puede repetir.</li>
+            <li data-i18n="como.r3.b">Marcás el canje. Si ya se canjó, el escáner lo dice en grande y la fila sigue.</li>
             <li data-i18n="como.r3.c">Sin cuenta y sin entrenamiento. Funciona sin conexión y sincroniza después.</li>
           </ul>
         </article>
@@ -217,7 +219,7 @@
       <div class="rejilla rejilla-2">
         <div class="tarjeta caso">
           <h3 data-i18n="casos.c1.t">Una hackatón</h3>
-          <p data-i18n="casos.c1.p">Inscripción por equipos y pases por día. Credenciales para mentores y jurado. Almuerzos y cenas con canje, para que nadie coma dos veces mientras a otro le falta. Y el premio entra a la credencial de quien ganó.</p>
+          <p data-i18n="casos.c1.p">Inscripción por equipos y pases por día. Credenciales para mentores y jurado. Almuerzos y cenas con canje, para que nadie coma dos veces mientras a otro le falta. El orden de las presentaciones por sorteo, y el premio entra a la credencial de quien ganó.</p>
         </div>
         <div class="tarjeta caso">
           <h3 data-i18n="casos.c2.t">Un meetup o un DevFest</h3>
@@ -231,6 +233,79 @@
           <h3 data-i18n="casos.c4.t">Una comunidad con calendario</h3>
           <p data-i18n="casos.c4.p">Todos los eventos de un GDG, de un capítulo o de una universidad en una sola página, con la gente que ya vino y su historial de asistencia.</p>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="seccion" id="pagos">
+    <div class="contenedor">
+      <div class="encabezado">
+        <p class="antetitulo" data-i18n="pagos.ante">Cómo se paga</p>
+        <h2 data-i18n="pagos.titulo">En tu moneda, con el QR de tu banco. O en USDC, desde cualquier país.</h2>
+        <p data-i18n="pagos.bajada">En buena parte de Latinoamérica no se puede cobrar con Stripe, y las pasarelas locales piden empresa, papeles y días de espera. Acá la plata va de quien compra a quien organiza en una sola operación.</p>
+      </div>
+      <div class="rejilla rejilla-3">
+        <div class="tarjeta motivo">
+          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM21 14v7h-4"/></svg></div>
+          <div><h3 data-i18n="pagos.m1.t">Con el QR de tu banco, en bolivianos</h3><p data-i18n="pagos.m1.p">La persona paga como paga todo: escanea el QR de su banco. Una rampa con licencia convierte los bolivianos, y quien organiza recibe USDC al momento. Primero Bolivia, después cada país con su rampa.</p></div>
+        </div>
+        <div class="tarjeta motivo">
+          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></div>
+          <div><h3 data-i18n="pagos.m2.t">En USDC, desde cualquier país</h3><p data-i18n="pagos.m2.p">Con la cuenta que se crea sola con Google o con una passkey, o desde cualquier billetera de Stellar. Sin tarjeta, sin XLM y sin cuenta bancaria del otro lado.</p></div>
+        </div>
+        <div class="tarjeta motivo">
+          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></div>
+          <div><h3 data-i18n="pagos.m3.t">Sin plata en el medio</h3><p data-i18n="pagos.m3.p">El contrato reparte en la misma operación lo de quien organiza, la comisión y lo de quien auspicia. Rumbo nunca tiene la plata, y si el evento se cancela, el pago protegido la devuelve sola.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="seccion" id="negocio">
+    <div class="contenedor">
+      <div class="encabezado">
+        <p class="antetitulo" data-i18n="paga.ante">Quién paga</p>
+        <h2 data-i18n="paga.titulo">Las comunidades casi no tienen plata. Por eso paga otro.</h2>
+        <p data-i18n="paga.bajada">Los eventos gratis son gratis, y por ahí llega la gente. La comisión aparece cuando hay plata de por medio, y quien auspicia paga por saber qué pasó con lo que puso.</p>
+      </div>
+      <div class="rejilla rejilla-4">
+        <div class="tarjeta pago">
+          <h3 data-i18n="paga.c1.t">Si vendés entradas</h3>
+          <p data-i18n="paga.c1.p">Una comisión por entrada paga, a la vista antes de publicar y menor que la de las plataformas con tarjeta en su plan gratis. Se cobra en la misma operación: nadie tiene la plata en el medio.</p>
+        </div>
+        <div class="tarjeta pago">
+          <h3 data-i18n="paga.c8.t">Si vendés merch o talleres</h3>
+          <p data-i18n="paga.c8.p">La misma comisión que una entrada. Lo que el evento vende se paga en su propia página y entra a la credencial como un canje más.</p>
+        </div>
+        <div class="tarjeta pago">
+          <h3 data-i18n="paga.c2.t">Si auspiciás</h3>
+          <p data-i18n="paga.c2.p">Por campaña: "un café para cada asistente", con canje verificado, informe y los contactos del stand de quienes aceptan compartirlos.</p>
+        </div>
+        <div class="tarjeta pago">
+          <h3 data-i18n="paga.c3.t">Los eventos grandes</h3>
+          <p data-i18n="paga.c3.p">Por persona: credenciales, escáneres, varios días y tipos de entrada, informes. Hackatones, DevFests, congresos.</p>
+        </div>
+        <div class="tarjeta pago">
+          <h3 data-i18n="paga.c7.t">Si organizás seguido</h3>
+          <p data-i18n="paga.c7.p">Un plan mensual accesible, en USDC o en bolivianos, con más cupo, tu marca en la página y el historial de tu gente. Las comunidades chicas siguen gratis.</p>
+        </div>
+        <div class="tarjeta pago">
+          <h3 data-i18n="paga.c4.t">Las redes de comunidades</h3>
+          <p data-i18n="paga.c4.p">Una licencia por red, para todos sus capítulos, con los datos agregados. Es la forma de crecer sin vender de a uno.</p>
+        </div>
+        <div class="tarjeta pago">
+          <h3 data-i18n="paga.c5.t">Otras apps y agentes</h3>
+          <p data-i18n="paga.c5.p">Por uso, cuando crean eventos a volumen por la API, pagando centavos en USDC. Para tus propios eventos, la API y el MCP son gratis.</p>
+        </div>
+        <div class="tarjeta pago pago-gratis">
+          <h3 data-i18n="paga.c6.t">Las comunidades chicas</h3>
+          <p data-i18n="paga.c6.p">Gratis, con un tope de personas por evento. Así empieza cualquier comunidad, y así se corre la voz.</p>
+        </div>
+      </div>
+      <p class="estado" data-i18n="paga.nota">Los precios se fijan con las primeras comunidades que lo usen, no antes.</p>
+      <div class="llamado">
+        <p data-i18n="llamado.p">¿Organizás un evento en diciembre? Queremos armarlo con vos.</p>
+        <a class="boton boton-primario" href="https://github.com/nema1502/rumbo/issues/new?title=Mi%20evento%20de%20diciembre&body=Comunidad%3A%20%0AFecha%20y%20ciudad%3A%20%0ACu%C3%A1ntas%20personas%3A%20%0AQu%C3%A9%20se%20entrega%20(almuerzo%2C%20merch%2C%20premios)%3A%20%0AC%C3%B3mo%20te%20contactamos%3A%20" rel="noopener" data-i18n="llamado.boton">Contanos de tu evento</a>
       </div>
     </div>
   </section>
@@ -266,30 +341,6 @@
         <div class="tarjeta motivo">
           <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M14 5l-4 14"/></svg></div>
           <div><h3 data-i18n="stellar.m6.t">Una API que otras apps pagan por uso</h3><p data-i18n="stellar.m6.p">Otras plataformas y agentes crean eventos, credenciales y vales a volumen, pagando centavos en USDC con x402. Para tus propios eventos, la API es gratis.</p></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="seccion" id="pagos">
-    <div class="contenedor">
-      <div class="encabezado">
-        <p class="antetitulo" data-i18n="pagos.ante">Cómo se paga</p>
-        <h2 data-i18n="pagos.titulo">En tu moneda, con el QR de tu banco. O en USDC, desde cualquier país.</h2>
-        <p data-i18n="pagos.bajada">En buena parte de Latinoamérica no se puede cobrar con Stripe, y las pasarelas locales piden empresa, papeles y días de espera. Acá la plata va de quien compra a quien organiza en una sola operación.</p>
-      </div>
-      <div class="rejilla rejilla-3">
-        <div class="tarjeta motivo">
-          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM21 14v7h-4"/></svg></div>
-          <div><h3 data-i18n="pagos.m1.t">Con el QR de tu banco, en bolivianos</h3><p data-i18n="pagos.m1.p">La persona paga como paga todo: escanea el QR de su banco. Una rampa con licencia convierte los bolivianos, y quien organiza recibe USDC al momento. Primero Bolivia, después cada país con su rampa.</p></div>
-        </div>
-        <div class="tarjeta motivo">
-          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></div>
-          <div><h3 data-i18n="pagos.m2.t">En USDC, desde cualquier país</h3><p data-i18n="pagos.m2.p">Con la cuenta que se crea sola con Google o con una passkey, o desde cualquier billetera de Stellar. Sin tarjeta, sin XLM y sin cuenta bancaria del otro lado.</p></div>
-        </div>
-        <div class="tarjeta motivo">
-          <div class="icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></div>
-          <div><h3 data-i18n="pagos.m3.t">Sin plata en el medio</h3><p data-i18n="pagos.m3.p">El contrato reparte en la misma operación lo de quien organiza, la comisión y lo de quien auspicia. Rumbo nunca tiene la plata, y si el evento se cancela, el pago protegido la devuelve sola.</p></div>
         </div>
       </div>
     </div>
@@ -360,7 +411,7 @@
         </ul>
       </figure>
       <div class="rejilla rejilla-3 hecho-datos">
-        <div class="tarjeta"><h3 data-i18n="hecho.d1.t">Núcleo abierto</h3><p data-i18n="hecho.d1.p">El contrato, el escáner y la plantilla del evento, con licencia MIT. Cualquier comunidad los monta y los adapta.</p></div>
+        <div class="tarjeta"><h3 data-i18n="hecho.d1.t">Con qué se hace</h3><p data-i18n="hecho.d1.p">Un contrato en Soroban, una app en Next.js con Supabase debajo, cuentas con Google o passkey con las comisiones patrocinadas, y un escáner que funciona sin conexión. <a href="https://github.com/nema1502/rumbo/blob/main/docs/stack.md" rel="noopener">El stack, pieza por pieza</a>.</p></div>
         <div class="tarjeta"><h3 data-i18n="hecho.d2.t">Nadie necesita XLM</h3><p data-i18n="hecho.d2.p">Las comisiones de red las patrocina Rumbo. La persona entra con Google o con una passkey y no ve nada técnico.</p></div>
         <div class="tarjeta"><h3 data-i18n="hecho.d3.t">Ya hay una semilla</h3><p data-i18n="hecho.d3.p">El contrato parte de un pase de evento escrito en septiembre de 2026 para Stellar Elite Bolivia, con nueve pruebas y una corrida en la red de prueba.</p></div>
       </div>
@@ -415,7 +466,7 @@
           <span class="etapa-num">1</span>
           <span class="etiqueta etiqueta-ahora" data-i18n="crece.e1.tag">Primero</span>
           <h3 data-i18n="crece.e1.t">Una comunidad</h3>
-          <p data-i18n="crece.e1.p">Credenciales, check-in y canjes en la red de prueba, gratis. El vale no es plata, pero el almuerzo sí es real.</p>
+          <p data-i18n="crece.e1.p">Credenciales, check-in y canjes en la red de prueba, gratis.</p>
           <ul>
             <li data-i18n="crece.e1.a">Página del evento con inscripción gratis o paga</li>
             <li data-i18n="crece.e1.b">Cuenta con Google o passkey, sin necesitar XLM</li>
@@ -458,51 +509,6 @@
     </div>
   </section>
 
-  <section class="seccion" id="negocio">
-    <div class="contenedor">
-      <div class="encabezado">
-        <p class="antetitulo" data-i18n="paga.ante">Quién paga</p>
-        <h2 data-i18n="paga.titulo">Las comunidades casi no tienen plata. Por eso paga otro.</h2>
-        <p data-i18n="paga.bajada">Los eventos gratis son gratis, y por ahí llega la gente. La comisión aparece cuando hay plata de por medio, y quien auspicia paga por saber qué pasó con lo que puso.</p>
-      </div>
-      <div class="rejilla rejilla-4">
-        <div class="tarjeta pago">
-          <h3 data-i18n="paga.c1.t">Si vendés entradas</h3>
-          <p data-i18n="paga.c1.p">Una comisión por entrada paga, menor que la de las plataformas con tarjeta en su plan gratis. Se cobra en la misma operación: nadie tiene la plata en el medio.</p>
-        </div>
-        <div class="tarjeta pago">
-          <h3 data-i18n="paga.c8.t">Si vendés merch o talleres</h3>
-          <p data-i18n="paga.c8.p">La misma comisión que una entrada. Lo que el evento vende se paga en su propia página y entra a la credencial como un canje más.</p>
-        </div>
-        <div class="tarjeta pago">
-          <h3 data-i18n="paga.c2.t">Si auspiciás</h3>
-          <p data-i18n="paga.c2.p">Por campaña: "un café para cada asistente", con canje verificado, informe y los contactos del stand de quienes aceptan compartirlos.</p>
-        </div>
-        <div class="tarjeta pago">
-          <h3 data-i18n="paga.c3.t">Los eventos grandes</h3>
-          <p data-i18n="paga.c3.p">Por persona: credenciales, escáneres, varios días y tipos de entrada, informes. Hackatones, DevFests, congresos.</p>
-        </div>
-        <div class="tarjeta pago">
-          <h3 data-i18n="paga.c7.t">Si organizás seguido</h3>
-          <p data-i18n="paga.c7.p">Un plan mensual accesible, en USDC o en bolivianos, con más cupo, tu marca en la página y el historial de tu gente. Las comunidades chicas siguen gratis.</p>
-        </div>
-        <div class="tarjeta pago">
-          <h3 data-i18n="paga.c4.t">Las redes de comunidades</h3>
-          <p data-i18n="paga.c4.p">Una licencia por red, para todos sus capítulos, con los datos agregados. Es la forma de crecer sin vender de a uno.</p>
-        </div>
-        <div class="tarjeta pago">
-          <h3 data-i18n="paga.c5.t">Otras apps y agentes</h3>
-          <p data-i18n="paga.c5.p">Por uso, cuando crean eventos a volumen por la API, pagando centavos en USDC. Para tus propios eventos, la API y el MCP son gratis.</p>
-        </div>
-        <div class="tarjeta pago pago-gratis">
-          <h3 data-i18n="paga.c6.t">Las comunidades chicas</h3>
-          <p data-i18n="paga.c6.p">Gratis, con un tope de personas por evento. Son la distribución, como en toda plataforma de eventos.</p>
-        </div>
-      </div>
-      <p class="estado" data-i18n="paga.nota">Los precios se fijan con las primeras comunidades que lo usen, no antes.</p>
-    </div>
-  </section>
-
   <section class="seccion" id="principios">
     <div class="contenedor">
       <div class="encabezado">
@@ -539,7 +545,11 @@
           <p data-i18n="equipo.n2.rol">Desarrollo full stack</p>
         </div>
       </div>
-      <p class="estado" data-i18n="equipo.cta">Preguntas e ideas: abrí un issue en GitHub.</p>
+      <div class="llamado">
+        <p data-i18n="llamado.p">¿Organizás un evento en diciembre? Queremos armarlo con vos.</p>
+        <a class="boton boton-primario" href="https://github.com/nema1502/rumbo/issues/new?title=Mi%20evento%20de%20diciembre&body=Comunidad%3A%20%0AFecha%20y%20ciudad%3A%20%0ACu%C3%A1ntas%20personas%3A%20%0AQu%C3%A9%20se%20entrega%20(almuerzo%2C%20merch%2C%20premios)%3A%20%0AC%C3%B3mo%20te%20contactamos%3A%20" rel="noopener" data-i18n="llamado.boton">Contanos de tu evento</a>
+      </div>
+      <p class="estado"><span data-i18n="equipo.cta">Si programás, las preguntas y las ideas van en</span> <a href="https://github.com/nema1502/rumbo/issues" rel="noopener" data-i18n="equipo.issue">un issue en GitHub</a>.</p>
     </div>
   </section>
 </main>

@@ -487,3 +487,30 @@ p { margin: 0; }
   .cta .boton-primario:hover::after { transform: translateY(2px); }
   .cta .boton-secundario:hover::after { transform: translate(2px, -2px); }
 }
+
+/* El cierre con salida: la invitación a contar el evento, en "Quién paga" y en "El equipo". */
+.llamado { margin-top: 28px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 24px; padding: 22px 24px; border-radius: var(--radio); background: var(--acento-suave); border: 1px solid var(--linea); }
+.llamado p { margin: 0; font-family: var(--display); font-weight: 700; font-size: 1.25rem; letter-spacing: -0.01em; color: var(--tinta); max-width: 32ch; text-wrap: balance; }
+
+/* Los saltos del menú y del botón de la portada dejan la sección debajo de la cabecera, no tapada. */
+.seccion, .demo { scroll-margin-top: 84px; }
+
+/* En escritorio el video entra entero en la pantalla. */
+@media (min-width: 861px) {
+  .demo-video { width: min(100%, calc((100vh - 170px) * 16 / 9)); margin-inline: auto; }
+}
+
+/* En una laptop baja, la portada entera (con su botón) entra en la primera pantalla. */
+@media (max-height: 700px) and (min-width: 861px) {
+  .portada { padding-top: 24px; padding-bottom: 32px; }
+  .portada h1 { font-size: clamp(2rem, 4.2vw, 3rem); margin-bottom: 16px; }
+}
+
+/* En celular: la credencial asoma debajo de los botones, y el menú avisa que sigue hacia la derecha. */
+@media (max-width: 560px) {
+  .seccion, .demo { scroll-margin-top: 104px; }
+  .portada { padding-top: 20px; padding-bottom: 28px; }
+  .portada .contenedor { gap: 20px; }
+  .nav { padding-right: 40px; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+  .llamado p { font-size: 1.1rem; }
+}

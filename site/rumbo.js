@@ -63,7 +63,7 @@ const EN = {
   "demo.abrir": "Watch the animation",
   "demo.p1": "Signing up is free. If the event charges for a ticket or sells its merch, the money reaches the organizer with the fee separated, in the same operation.",
   "demo.p2": "The pass with its QR code stays on the phone, with what each person is entitled to.",
-  "demo.p3": "The volunteer scans and redeems. A second attempt does not go through, and offline the queue keeps moving.",
+  "demo.p3": "The volunteer scans and redeems. If it was already redeemed, it shows in big letters. And offline, the line keeps moving.",
   "demo.p4": "The dashboard counts passes, check-ins and redemptions, and the sponsor report is ready.",
   "demo.nota": "An animated mock-up of what gets built in November, not a recording of the product.",
 
@@ -90,16 +90,16 @@ const EN = {
   "como.bajada": "Rumbo is made for events of 80 to 500 people with sponsors and several benefits: hackathons, DevFests, community conferences, bootcamps, chapter meetups.",
   "como.r1.n": "If you organize",
   "como.r1.a": "Create the event and publish the page, with free or paid registration.",
-  "como.r1.b": "Get paid in USDC or with a bank QR code. The money arrives already split.",
+  "como.r1.b": "Get paid in digital dollars (USDC) or with a bank QR code. The money arrives already split.",
   "como.r1.c": "Print the passes or leave them on each phone.",
   "como.r1.d": "Watch the live dashboard and send each sponsor their report.",
   "como.r2.n": "If you attend",
-  "como.r2.a": "Sign in with Google or a passkey. A Stellar account is created underneath without you having to know.",
+  "como.r2.a": "Sign in with Google or with your phone's fingerprint (a passkey). No new password.",
   "como.r2.b": "Get an email with a personal link. Never keys or passwords.",
   "como.r2.c": "Keep your pass on your phone and see what you are entitled to.",
   "como.r3.n": "If you volunteer",
   "como.r3.a": "Scan the QR code and see what this person gets.",
-  "como.r3.b": "Mark it as redeemed. It cannot be redeemed twice.",
+  "como.r3.b": "Mark it as redeemed. If it was already redeemed, the scanner says so in big letters and the line keeps moving.",
   "como.r3.c": "No account, no training. It works offline and syncs later.",
   "como.r4.n": "If you sponsor",
   "como.r4.a": "Offer a benefit, like a coffee for every attendee, and see how many were redeemed.",
@@ -146,8 +146,8 @@ const EN = {
   "arq.l2": "The app builds the event page, the pass and the dashboard, in Spanish and English.",
   "arq.l3": "The contract on Stellar charges and splits in one operation, and marks the check-in and each redemption once. There are no names or emails inside.",
   "arq.l4": "The volunteer's scanner validates the QR offline and syncs later. The organizer receives the money right away and the sponsor sees the redemptions.",
-  "hecho.d1.t": "Open core",
-  "hecho.d1.p": "The contract, the scanner and the event template, under MIT. Any community can set them up and adapt them.",
+  "hecho.d1.t": "How it is built",
+  "hecho.d1.p": "A Soroban contract, a Next.js app with Supabase underneath, accounts with Google or a passkey with sponsored fees, and a scanner that works offline. <a href=\"https://github.com/nema1502/rumbo/blob/main/docs/stack.md\" rel=\"noopener\">The stack, piece by piece</a> (in Spanish).",
   "hecho.d2.t": "Nobody needs XLM",
   "hecho.d2.p": "Rumbo sponsors the network fees. People sign in with Google or a passkey and never see anything technical.",
   "hecho.d3.t": "There is already a seed",
@@ -158,7 +158,7 @@ const EN = {
   "crece.bajada": "Each stage pays for the next: communities bring sponsors, paid events bring networks, and networks bring the platforms that want to build on top.",
   "crece.e1.tag": "First",
   "crece.e1.t": "One community",
-  "crece.e1.p": "Passes, check-in and redemptions on the test network, for free. The voucher is not money, but the lunch is real.",
+  "crece.e1.p": "Passes, check-in and redemptions on the test network, free.",
   "crece.e1.a": "Event page with free or paid registration",
   "crece.e1.b": "Account with Google or a passkey, no XLM needed",
   "crece.e1.c": "Pass with QR code, on the phone and for printing",
@@ -187,7 +187,7 @@ const EN = {
   "paga.titulo": "Communities have almost no money. So someone else pays.",
   "paga.bajada": "Free events are free, and that is how people arrive. The fee appears when money changes hands, and sponsors pay to know what happened with what they put in.",
   "paga.c1.t": "If you sell tickets",
-  "paga.c1.p": "A fee per paid ticket, below what card platforms charge on their free plans. It is taken in the same operation: nobody holds the money in between.",
+  "paga.c1.p": "A fee per paid ticket, visible before you publish and lower than what card platforms charge on their free plans. It is charged in the same operation: nobody holds the money in between.",
   "paga.c2.t": "If you sponsor",
   "paga.c2.p": "Per campaign: \"a coffee for every attendee\", with verified redemption, a report and the booth contacts of those who agree to share them.",
   "paga.c3.t": "Large events",
@@ -197,7 +197,7 @@ const EN = {
   "paga.c5.t": "Other apps and agents",
   "paga.c5.p": "Per use, when they create events at volume through the API, paying cents in USDC. For your own events, the API and the MCP server are free.",
   "paga.c6.t": "Small communities",
-  "paga.c6.p": "Free, with a cap on people per event. They are the distribution, as in every events platform.",
+  "paga.c6.p": "Free, with a cap on people per event. That is how every community starts, and how the word gets around.",
   "paga.nota": "Prices are set with the first communities that use it, not before.",
 
   "principios.ante": "Principles",
@@ -220,7 +220,7 @@ const EN = {
   "equipo.bajada": "Rumbo is made in Santa Cruz de la Sierra, Bolivia, by two founders who organize and live these events.",
   "equipo.n1.rol": "Product and smart contracts",
   "equipo.n2.rol": "Full-stack development",
-  "equipo.cta": "Questions and ideas: open an issue on GitHub.",
+  "equipo.cta": "If you code, questions and ideas go in",
 
   "nav.pagos": "Payments",
   "nav.abierto": "Open",
@@ -228,7 +228,7 @@ const EN = {
   "casos.titulo": "A twenty-person meetup or a three-hundred-person hackathon.",
   "casos.bajada": "What you do today with a form, a WhatsApp group and a spreadsheet, in one place, with what gets handed out under control.",
   "casos.c1.t": "A hackathon",
-  "casos.c1.p": "Team sign-up and day passes. Passes for mentors and judges. Lunches and dinners redeemed once, so nobody eats twice while someone else goes without. And the prize lands on the winner's pass.",
+  "casos.c1.p": "Team sign-up and day passes. Passes for mentors and judges. Lunches and dinners redeemed once, so nobody eats twice while someone else goes without. The pitch order drawn at random, and the prize lands on the winner's pass.",
   "casos.c2.t": "A meetup or a DevFest",
   "casos.c2.p": "Free list, email confirmation and check-in at the door. Snacks and merch redeemed once, and a draw among the people who actually showed up.",
   "casos.c3.t": "A conference",
@@ -263,6 +263,11 @@ const EN = {
   "paga.c7.p": "An affordable monthly plan, in USDC or bolivianos, with more capacity, your brand on the page and your people's history. Small communities stay free.",
   "paga.c8.t": "If you sell merch or workshops",
   "paga.c8.p": "The same fee as a ticket. Whatever the event sells is paid on its own page and lands on the pass as one more redemption.",
+  "como.r1.e": "If your event is free, Rumbo is free. If you charge, the fee is visible before you publish and stays the same to the end.",
+  "como.r2.d": "If you paid and the event is cancelled, with a protected payment your money comes back on its own.",
+  "llamado.p": "Organizing an event in December? We want to build it with you.",
+  "llamado.boton": "Tell us about your event",
+  "equipo.issue": "a GitHub issue",
   "pie.hecho": "Made in Santa Cruz de la Sierra, Bolivia.",
   "pie.codigo": "Code",
   "pie.licencia": "MIT license",
@@ -477,7 +482,7 @@ function revelarAlRecorrer() {
         io.unobserve(el);
         ver(el, i);
       });
-  }, { threshold: 0.15 });
+  }, { threshold: 0.02 });
   bloques.forEach((el) => io.observe(el));
 }
 
@@ -656,3 +661,23 @@ function cabeceraCompacta() {
   }, { passive: true });
   mirar();
 }
+
+// El video de "Así se ve" arranca desde el principio cuando entra en pantalla y se pausa al salir,
+// así quien llega desde el botón de la portada ve la historia desde el paso 1.
+function vigilarVideo() {
+  const video = document.getElementById("demo-video");
+  if (!video || !("IntersectionObserver" in window)) return;
+  const quieto = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  new IntersectionObserver((entradas) => {
+    const e = entradas[entradas.length - 1];
+    if (e.isIntersecting) {
+      if (video.getClientRects().length === 0) return;
+      try { if (video.currentTime > 1) video.currentTime = 0; } catch (err) { /* sin rangos */ }
+      if (!quieto) video.play().catch(() => { /* sin autoplay */ });
+    } else if (!video.paused) {
+      video.pause();
+    }
+  }, { threshold: 0.35 }).observe(video);
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", vigilarVideo);
+else setTimeout(vigilarVideo);
