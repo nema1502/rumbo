@@ -84,7 +84,8 @@ function registrarServiceWorker(): void {
     });
 }
 
-export function Escaner() {
+/** `demo`: muestra el interruptor para simular que se va la conexión (/scan?demo=1). */
+export function Escaner({ demo = false }: { demo?: boolean }) {
   const t = useT();
   const [fase, setFase] = useState<Fase>("cargando");
   const [cola, setCola] = useState<ColaLocal | null>(null);
@@ -489,11 +490,13 @@ export function Escaner() {
               {modoTexto ? t("escaner.usarCamara") : t("escaner.escribir")}
             </Boton>
           )}
-          <label className="esc-switch">
-            <input type="checkbox" role="switch" checked={simularOffline} onChange={(e) => setSimularOffline(e.target.checked)} />
-            <span className="esc-switch-pista" aria-hidden="true" />
-            <span>{t("escaner.simular")}</span>
-          </label>
+          {demo && (
+            <label className="esc-switch">
+              <input type="checkbox" role="switch" checked={simularOffline} onChange={(e) => setSimularOffline(e.target.checked)} />
+              <span className="esc-switch-pista" aria-hidden="true" />
+              <span>{t("escaner.simular")}</span>
+            </label>
+          )}
         </div>
 
         {cola && !cola.persistent && <Aviso>{t("escaner.sinPersistencia")}</Aviso>}

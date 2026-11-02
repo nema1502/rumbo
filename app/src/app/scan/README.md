@@ -28,7 +28,7 @@ Una transacción que se mandó y cuya confirmación no llegó a tiempo (o cuya r
 
 Si no hay nada pendiente, cada minuto pide igual la foto fresca, para enterarse de lo que registraron los otros puestos.
 
-Todos los pedidos tienen tiempo límite (`src/lib/http.ts`), porque un wifi que el navegador cree conectado y no tiene salida (el del evento, un portal cautivo) deja un pedido colgado: la foto fresca que se pide en medio de una lectura espera cuatro segundos y, si no llega, el escáner decide con lo que sabe; abrir un puesto espera quince; una sincronización, dos minutos (un lote son varias transacciones). Si se corta, la cola sigue intacta y el próximo intento no duplica nada. El interruptor "Simular sin conexión" frena todo eso sin tocar la red: sirve para probar.
+Todos los pedidos tienen tiempo límite (`src/lib/http.ts`), porque un wifi que el navegador cree conectado y no tiene salida (el del evento, un portal cautivo) deja un pedido colgado: la foto fresca que se pide en medio de una lectura espera cuatro segundos y, si no llega, el escáner decide con lo que sabe; abrir un puesto espera quince; una sincronización, dos minutos (un lote son varias transacciones). Si se corta, la cola sigue intacta y el próximo intento no duplica nada. Con `/scan?demo=1` aparece el interruptor "Simular sin conexión", que frena todo eso sin tocar la red: sirve para mostrar el escáner y para probarlo. Sin `demo=1` el voluntario no lo ve, así no lo activa sin querer y deja de sincronizar.
 
 ## El código del puesto
 

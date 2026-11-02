@@ -14,6 +14,13 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function ScanPage() {
-  return <Escaner />;
+type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+
+/**
+ * Con ?demo=1 aparece el interruptor para simular que se va la conexión: sirve para mostrar el escáner y
+ * para probarlo. En la fila no está, para que un voluntario no lo active sin querer y deje de sincronizar.
+ */
+export default async function ScanPage({ searchParams }: Props) {
+  const { demo } = await searchParams;
+  return <Escaner demo={demo === "1"} />;
 }

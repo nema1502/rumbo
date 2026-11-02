@@ -515,8 +515,14 @@ try {
   const enCadenaCambio = await stellar.rumboPass.status(cambio.contract, cambio.account);
   check(enCadenaCambio.checked_in === true, `en la cadena, ${cambio.nombre} figura como entrada`);
 
-  paso("El interruptor de simular sin conexión frena la sincronización y al apagarlo vuelve");
+  paso("El interruptor de simular sin conexión: solo con ?demo=1; frena la sincronización y al apagarlo vuelve");
   check(await cambiarPuesto(pagina, gateCode, "Puerta"), "la puerta otra vez");
+  const hayInterruptor = `[...document.querySelectorAll("label")].some((l) => l.textContent.includes("Simular sin conexión"))`;
+  check(!(await pagina.eval(hayInterruptor)), "sin ?demo=1 el voluntario no ve el interruptor");
+  await pagina.ir(`${BASE}/scan?lang=es&demo=1`);
+  check(await pagina.waitFor(`__esc.text(".esc-puesto-titulo") === "Puerta"`, 30_000), "con ?demo=1 la página vuelve con el puesto abierto");
+  await modoEscribir(pagina);
+  check(await pagina.eval(hayInterruptor), "y con ?demo=1 el interruptor aparece");
   await pagina.eval(`__esc.clickText("Simular sin conexión")`);
   check(await pagina.waitFor(`__esc.chips().includes("Sin conexión")`, 5_000), "con el interruptor la pantalla dice sin conexión");
   v = await escanear(pagina, gratis.qr);
