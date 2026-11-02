@@ -70,7 +70,7 @@ Rumbo no es una entrada NFT ni un lugar para especular con la reventa. Si quien 
 
 ## Dónde está
 
-La primera columna de la tabla de abajo está hecha y corre en la red de prueba de Stellar: el [contrato rumbo-pass](contracts/rumbo-pass/README.md) (pase gratis o pago con el reparto en la misma operación, una entrada y un canje por beneficio, con 33 pruebas) y la [app](app/README.md) (la página del evento, la inscripción, la credencial con QR, el escáner sin conexión, el panel de quien organiza y el informe para quien auspicia). Las cuentas las crea el servidor en modo de prueba; entrar con Google o con una passkey viene después. El flujo entero, corrido en la red de prueba con los ids de sus transacciones, está en [app/demo/e2e-testnet.txt](app/demo/e2e-testnet.txt).
+La primera columna de la tabla de abajo está hecha y corre en la red de prueba de Stellar: el [contrato rumbo-pass](contracts/rumbo-pass/README.md) (pase gratis o pago con el reparto en la misma operación, una entrada y un canje por beneficio, con 43 pruebas) y la [app](app/README.md) (la página del evento, la inscripción, la credencial con QR, el escáner sin conexión, el panel de quien organiza y el informe para quien auspicia). Las cuentas las crea el servidor en modo de prueba; entrar con Google o con una passkey viene después. El flujo entero, corrido en la red de prueba con los ids de sus transacciones, está en [app/demo/e2e-testnet.txt](app/demo/e2e-testnet.txt).
 
 El contrato partió de un pase de evento escrito en septiembre de 2026 para Stellar Elite Bolivia: comprar el pase, entrar una sola vez, listar quiénes vinieron. Rumbo lo extiende con beneficios, canjes y, más adelante, pagos protegidos.
 
