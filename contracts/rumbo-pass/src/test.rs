@@ -12,7 +12,9 @@ use soroban_sdk::{
         Address as _, Ledger as _, MockAuth, MockAuthInvoke,
     },
     token::{StellarAssetClient, TokenClient},
-    vec, Address, Env, IntoVal,
+    vec,
+    xdr::{AccountId, PublicKey, ScAddress, Uint256},
+    Address, Env, IntoVal, TryFromVal,
 };
 
 /// 10 USDC de prueba, con siete decimales.
@@ -55,6 +57,100 @@ fn setup_with(price: i128, fee_bps: u32, capacity: u32, benefits: u32) -> Setup 
         ),
     );
     Setup { env, contract, organizer, treasury, gate, asset }
+}
+
+/// Una cuenta de persona (G...), como las de verdad: en la lista de quienes
+/// entraron ocupa un poco más que la cuenta de contrato que da `generate`.
+fn account(env: &Env, n: u32) -> Address {
+    let mut key = [0x5au8; 32];
+    key[..4].copy_from_slice(&n.to_be_bytes());
+    let address = ScAddress::Account(AccountId(PublicKey::PublicKeyTypeEd25519(Uint256(key))));
+    Address::try_from_val(env, &address).unwrap()
+}
+
+/// Un activo de prueba que no le paga nunca a una cuenta. En una compra, la
+/// primera transferencia (la de quien organiza) sale y la segunda (la comisión
+/// de Rumbo) falla: sirve para ver que la primera también se deshace.
+mod picky {
+    use soroban_sdk::{
+        contract, contracterror, contractimpl, contracttype, panic_with_error, Address, Env,
+        MuxedAddress,
+    };
+
+    #[contracttype]
+    pub enum Key {
+        Refused,
+        Balance(Address),
+    }
+
+    #[contracterror]
+    #[derive(Copy, Clone, Debug, Eq, PartialEq)]
+    #[repr(u32)]
+    pub enum TokenError {
+        Refused = 1,
+        NotEnough = 2,
+    }
+
+    #[contract]
+    pub struct PickyToken;
+
+    #[contractimpl]
+    impl PickyToken {
+        pub fn __constructor(env: Env, refused: Address) {
+            env.storage().instance().set(&Key::Refused, &refused);
+        }
+
+        pub fn mint(env: Env, to: Address, amount: i128) {
+            let balance = Self::balance(env.clone(), to.clone());
+            env.storage().persistent().set(&Key::Balance(to), &(balance + amount));
+        }
+
+        pub fn balance(env: Env, id: Address) -> i128 {
+            env.storage().persistent().get(&Key::Balance(id)).unwrap_or(0)
+        }
+
+        pub fn transfer(env: Env, from: Address, to: MuxedAddress, amount: i128) {
+            from.require_auth();
+            let to = to.address();
+            let refused: Address = env.storage().instance().get(&Key::Refused).unwrap();
+            if to == refused {
+                panic_with_error!(&env, TokenError::Refused);
+            }
+            let from_balance = Self::balance(env.clone(), from.clone());
+            if from_balance < amount {
+                panic_with_error!(&env, TokenError::NotEnough);
+            }
+            env.storage().persistent().set(&Key::Balance(from), &(from_balance - amount));
+            let to_balance = Self::balance(env.clone(), to.clone());
+            env.storage().persistent().set(&Key::Balance(to), &(to_balance + amount));
+        }
+    }
+}
+
+/// Un evento pago que cobra con el activo de arriba.
+struct PickySale {
+    env: Env,
+    contract: Address,
+    organizer: Address,
+    treasury: Address,
+    asset: Address,
+}
+
+/// Con `refuse_treasury`, el activo se niega a pagarle la comisión a Rumbo;
+/// si no, se niega a una cuenta ajena a la venta.
+fn picky_sale(refuse_treasury: bool) -> PickySale {
+    let env = Env::default();
+    env.mock_all_auths();
+    let organizer = Address::generate(&env);
+    let treasury = Address::generate(&env);
+    let gate = Address::generate(&env);
+    let refused = if refuse_treasury { treasury.clone() } else { Address::generate(&env) };
+    let asset = env.register(picky::PickyToken, (refused,));
+    let contract = env.register(
+        RumboPass,
+        (organizer.clone(), treasury.clone(), gate, asset.clone(), PRICE, FEE_BPS, 10u32, 2u32),
+    );
+    PickySale { env, contract, organizer, treasury, asset }
 }
 
 /// Un evento pago con dos beneficios: el almuerzo y la polera.
@@ -229,6 +325,39 @@ fn without_balance_there_is_no_payment_and_no_pass() {
     assert_eq!(s.balance(&s.organizer), 0);
     assert_eq!(s.balance(&s.treasury), 0);
     assert_eq!(s.client().info().issued, 0);
+}
+
+#[test]
+fn if_the_fee_cannot_be_paid_the_organizer_payment_is_undone_too() {
+    let sale = picky_sale(true);
+    let client = RumboPassClient::new(&sale.env, &sale.contract);
+    let token = picky::PickyTokenClient::new(&sale.env, &sale.asset);
+    let buyer = Address::generate(&sale.env);
+    token.mint(&buyer, &PRICE);
+    // buy le paga primero a quien organiza (sale bien) y después la comisión (falla)
+    assert_eq!(client.try_buy(&buyer), Err(Ok(Error::NotPaid)));
+    // la invocación entera se deshizo: tampoco quedó la parte de quien organiza
+    assert_eq!(token.balance(&buyer), PRICE);
+    assert_eq!(token.balance(&sale.organizer), 0);
+    assert_eq!(token.balance(&sale.treasury), 0);
+    assert_eq!(token.balance(&sale.contract), 0);
+    assert!(!client.status(&buyer).has_pass);
+    assert_eq!(client.info().issued, 0);
+}
+
+#[test]
+fn the_picky_asset_pays_everyone_it_does_not_refuse() {
+    // el control de la prueba de arriba: el mismo activo, negándose a una cuenta ajena a la venta
+    let sale = picky_sale(false);
+    let client = RumboPassClient::new(&sale.env, &sale.contract);
+    let token = picky::PickyTokenClient::new(&sale.env, &sale.asset);
+    let buyer = Address::generate(&sale.env);
+    token.mint(&buyer, &PRICE);
+    assert_eq!(client.buy(&buyer), 1);
+    assert_eq!(token.balance(&buyer), 0);
+    assert_eq!(token.balance(&sale.organizer), PRICE - FEE);
+    assert_eq!(token.balance(&sale.treasury), FEE);
+    assert_eq!(token.balance(&sale.contract), 0);
 }
 
 #[test]
@@ -604,24 +733,55 @@ fn too_many_benefits_are_rejected_at_deploy() {
     setup_with(PRICE, FEE_BPS, 10, MAX_BENEFITS + 1);
 }
 
+/// El tope de una entrada de almacenamiento en la red (contract_data_entry_size_bytes).
+const ENTRY_SIZE_LIMIT: u32 = 64 * 1024;
+
 #[test]
 fn the_list_holds_a_full_house_at_the_maximum_capacity() {
     let s = free(MAX_CAPACITY);
-    s.env.cost_estimate().budget().reset_unlimited();
-    let mut people = std::vec::Vec::new();
-    for _ in 0..MAX_CAPACITY {
-        let a = s.person();
-        s.client().register(&a);
-        people.push(a);
-    }
-    assert_eq!(s.client().try_register(&s.person()), Err(Ok(Error::SoldOut)));
+    // cuentas de persona, que ocupan más que las de contrato: es el peor caso de la lista
+    let people: std::vec::Vec<Address> = (0..MAX_CAPACITY).map(|n| account(&s.env, n)).collect();
+    // armar la casa llena no es lo que se mide: hasta la entrada 999, sin tope de presupuesto
     for a in &people {
+        s.env.cost_estimate().budget().reset_unlimited();
+        s.client().register(a);
+    }
+    let one_more = account(&s.env, MAX_CAPACITY);
+    assert_eq!(s.client().try_register(&one_more), Err(Ok(Error::SoldOut)));
+    for a in &people[..people.len() - 1] {
         s.env.cost_estimate().budget().reset_unlimited();
         s.client().check_in(a, &s.gate);
     }
+
+    // la entrada mil, con el presupuesto de una transacción: lee la lista de 999, suma una y la escribe
+    s.env.cost_estimate().budget().reset_default();
+    let last = people[people.len() - 1].clone();
+    assert_eq!(s.client().check_in(&last, &s.gate), MAX_CAPACITY);
+    let used = s.env.cost_estimate().resources();
+    std::println!(
+        "la entrada mil: {} instrucciones, {} bytes de memoria, {} bytes escritos",
+        used.instructions, used.mem_bytes, used.write_bytes
+    );
+    assert!(used.write_bytes < ENTRY_SIZE_LIMIT, "la lista llena no entra en una entrada: {} bytes", used.write_bytes);
+
     let list = s.client().attendees();
     assert_eq!(list.len(), MAX_CAPACITY);
     assert_eq!(list.get(0).unwrap(), people[0]);
-    assert_eq!(list.get(MAX_CAPACITY - 1).unwrap(), people[people.len() - 1]);
+    assert_eq!(list.get(MAX_CAPACITY - 1).unwrap(), last);
     assert_eq!(s.client().info().checked_in, MAX_CAPACITY);
+}
+
+#[test]
+fn without_its_configuration_the_contract_answers_with_a_code() {
+    let s = paid(10);
+    let a = s.buyer();
+    // en la red no pasa (el constructor siempre configura), pero si faltara la configuración,
+    // cada función responde NotConfigured en vez de romperse sin código
+    s.env.as_contract(&s.contract, || s.env.storage().instance().remove(&DataKey::Config));
+    assert_eq!(s.client().try_register(&a), Err(Ok(Error::NotConfigured)));
+    assert_eq!(s.client().try_buy(&a), Err(Ok(Error::NotConfigured)));
+    assert_eq!(s.client().try_check_in(&a, &s.gate), Err(Ok(Error::NotConfigured)));
+    assert_eq!(s.client().try_redeem(&a, &LUNCH), Err(Ok(Error::NotConfigured)));
+    assert_eq!(s.client().try_info(), Err(Ok(Error::NotConfigured)));
+    assert_eq!(s.balance(&a), PRICE * 5);
 }

@@ -47,7 +47,7 @@ Los códigos son parte de la interfaz y no se renumeran. En la red se ven como `
 | 9 | `NotFree` | `register` en un evento pago |
 | 10 | `NotPaid` | No hubo pago: `buy` en un evento gratis, o el activo no se pudo mover (sin saldo, sin línea de confianza) |
 | 11 a 14 | `InvalidPrice`, `InvalidFee`, `InvalidCapacity`, `InvalidBenefits` | Configuración inválida al desplegar (el precio, negativo o por encima de `MAX_PRICE`) |
-| 15 | `NotConfigured` | No debería verse: el constructor siempre configura |
+| 15 | `NotConfigured` | No debería verse: el constructor siempre configura. Si faltara la configuración, cada función responde con este código en vez de romperse sin código (hay una prueba que lo fuerza) |
 
 Las firmas que faltan no son errores del contrato sino de la red: `Error(Auth, InvalidAction)`.
 
@@ -68,7 +68,7 @@ Además, en cada compra el contrato del activo publica sus dos `transfer`: a qui
 - **Instancia:** la configuración y el contador de pases emitidos. Viven y mueren con el contrato.
 - **Persistente:** un `Pass` por cuenta (`number`, `checked_in`, `redeemed`) y la lista `Attendees`. Cada escritura extiende la vida de la entrada a 120 días cuando le quedan menos de 30.
 - **Las lecturas no extienden nada:** `status`, `info` y `attendees` se simulan y no se mandan. Un pase que nadie toca vive 120 días desde su última escritura, y la instancia lo mismo desde la última venta, entrada o canje. **Si la inscripción abre más de 120 días antes del evento, o pasan meses sin movimiento, hay que llamar a `extend_ttl` antes del evento** con las cuentas de los pases (de a tandas, si son muchas): no pide firma y la renta la paga quien la manda, en la app la cuenta patrocinadora. Sin eso, el día de la puerta el pase estaría archivado y habría que restaurarlo antes de marcar la entrada.
-- La lista de quienes entraron es una sola entrada, por eso el cupo tiene tope de 1000: mil cuentas entran holgadas en una entrada. Los beneficios tienen tope de 64 por evento.
+- La lista de quienes entraron es una sola entrada, por eso el cupo tiene tope de 1000: mil cuentas entran holgadas en una entrada. La prueba de la casa llena lo mide con mil cuentas de persona (el peor caso) y la entrada número mil con el presupuesto de una transacción: escribe unos 44 KB, contra el tope de 64 KB por entrada de la red. Los beneficios tienen tope de 64 por evento.
 - La comisión se redondea hacia abajo y quien organiza recibe el resto, así la suma siempre es el precio exacto. El precio tiene tope (`MAX_PRICE`) para que `price * fee_bps` nunca desborde: un error de cuenta sería un pánico sin código y nadie podría comprar.
 
 ## Cómo se prueba y se compila
@@ -76,11 +76,11 @@ Además, en cada compra el contrato del activo publica sus dos `transfer`: a qui
 Desde la raíz del repositorio, con Rust estable y el objetivo `wasm32v1-none`:
 
 ```bash
-cargo test --workspace     # 40 pruebas
+cargo test --workspace     # 43 pruebas
 stellar contract build     # target/wasm32v1-none/release/rumbo_pass.wasm, 10,9 KB
 ```
 
-Las pruebas (`src/test.rs`) cubren cada función y cada error, el reparto exacto de la comisión con el activo de prueba del SDK (incluido el redondeo, la comisión cero y la comisión entera), el cupo, el doble canje, la lista completa con mil cuentas, y quién tiene que firmar cada cosa: la compra solo la firma quien compra y cubre las dos transferencias; la entrada y el canje, solo la puerta (la persona no se marca a sí misma, ni con su firma). También que `extend_ttl` deja en 120 días la vida del pase, de la lista y de la instancia sin pedir firma, midiendo lo que le queda a cada entrada después de cien días sin movimiento.
+Las pruebas (`src/test.rs`) cubren cada función y cada error (también `NotConfigured`, borrando la configuración a mano, porque en la red el constructor siempre configura), el reparto exacto de la comisión con el activo de prueba del SDK (incluido el redondeo, la comisión cero, la comisión entera y el precio más alto), que si la segunda transferencia falla la primera se deshace (con un activo de prueba que se niega a pagarle la comisión a Rumbo: quien organiza no se queda con su parte y no hay pase), el cupo, el doble canje, la lista completa con mil cuentas y la entrada número mil con el presupuesto real, y quién tiene que firmar cada cosa: la compra solo la firma quien compra y cubre las dos transferencias; la entrada y el canje, solo la puerta (la persona no se marca a sí misma, ni con su firma). También que `extend_ttl` deja en 120 días la vida del pase, de la lista y de la instancia sin pedir firma, midiendo lo que le queda a cada entrada después de cien días sin movimiento.
 
 ## La corrida en la red de prueba
 
