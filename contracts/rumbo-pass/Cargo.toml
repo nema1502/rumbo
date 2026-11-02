@@ -1,0 +1,17 @@
+[package]
+name = "rumbo-pass"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "MIT"
+description = "El pase de un evento de Rumbo: inscripción gratis o compra con el reparto en la misma operación, la entrada una sola vez y cada beneficio canjeado una sola vez."
+
+[lib]
+crate-type = ["lib", "cdylib"]
+doctest = false
+
+[dependencies]
+soroban-sdk = { workspace = true }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }

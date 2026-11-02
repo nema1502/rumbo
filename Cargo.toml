@@ -1,0 +1,24 @@
+# Los contratos de Rumbo, en Rust sobre Soroban. Cada contrato es un paquete en
+# contracts/. La app web vive en app/ y no pasa por acá.
+[workspace]
+resolver = "2"
+members = ["contracts/*"]
+
+[workspace.dependencies]
+soroban-sdk = "27.0.6"
+
+# El perfil con el que se compila el WASM que se despliega: chico y sin símbolos,
+# con las comprobaciones de desborde encendidas.
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+lto = true
+
+[profile.release-with-logs]
+inherits = "release"
+debug-assertions = true
