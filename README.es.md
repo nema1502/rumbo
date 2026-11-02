@@ -2,7 +2,7 @@
 
 # Rumbo
 
-### Eventos de comunidad sobre Stellar. Cobrá entradas desde cualquier país y operá todo tu evento desde un QR.
+### Eventos de comunidad sobre Stellar. Inscribí gratis o cobrá entradas desde cualquier país, y operá todo tu evento desde un QR.
 
 [![Hecho sobre Stellar](https://img.shields.io/badge/hecho%20sobre-Stellar-7b61ff?style=flat-square)](https://stellar.org)
 [![Estado: diseño](https://img.shields.io/badge/estado-en%20dise%C3%B1o-ffc629?style=flat-square)](#dónde-está)
@@ -59,7 +59,8 @@ Para contar almuerzos alcanza una base de datos. Stellar suma lo que una base de
 - **Vales que se usan una sola vez,** y premios entregados con una prueba que no depende de Rumbo. En testnet el vale no es plata, pero el almuerzo sí es real: una comunidad puede operar eventos reales en Rumbo desde hoy, sin plata en riesgo.
 - **Cada asistente sale con una cuenta de Stellar** que le sirve en el próximo evento, creada con Google o con una passkey, con las comisiones de red patrocinadas para que nadie tenga que tener XLM.
 - **Pagos a oradores y voluntarios** en cualquier país.
-- **Una API que otras apps y agentes pagan por uso,** con x402.
+- **Pagar en tu moneda.** En Bolivia, con el QR del banco por medio de una rampa con licencia; quien organiza recibe USDC al momento. Sin Stripe, sin pasarela local, sin papeles.
+- **Una API, webhooks y un servidor MCP,** gratis para tus propios eventos. Las plataformas y los agentes que crean eventos a volumen pagan por uso, con x402.
 
 Rumbo no es una entrada NFT ni un lugar para especular con la reventa. Si quien organiza la permite, la reventa va al precio original.
 

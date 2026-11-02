@@ -2,7 +2,7 @@
 
 # Rumbo
 
-### Community events on Stellar. Sell tickets from anywhere, and run the whole event from one QR code.
+### Community events on Stellar. Free sign-up or paid tickets from anywhere, and the whole event run from one QR code.
 
 [![Built on Stellar](https://img.shields.io/badge/built%20on-Stellar-7b61ff?style=flat-square)](https://stellar.org)
 [![Status: design](https://img.shields.io/badge/status-design%20stage-ffc629?style=flat-square)](#where-it-stands)
@@ -59,7 +59,8 @@ For counting lunches a database would do. Stellar adds what a database cannot:
 - **Vouchers that can only be used once,** and prizes delivered with a proof that does not depend on Rumbo. On testnet the voucher is not money, but the lunch is real: a community can run real events on Rumbo today, with no funds at risk.
 - **Every attendee leaves with a Stellar account** that works at the next event, created with Google or a passkey, with network fees sponsored so nobody needs to hold XLM.
 - **Payments to speakers and volunteers** in any country.
-- **An API other apps and agents can pay per use,** with x402.
+- **Paying in your own currency.** In Bolivia, with the bank's QR code through a licensed ramp; the organizer receives USDC on the spot. No Stripe, no local gateway, no paperwork.
+- **An API, webhooks and an MCP server,** free for your own events. Platforms and agents that create events at volume pay per use, with x402.
 
 Rumbo is not a ticket NFT and not a place to speculate on resale. If the organizer allows resale, it happens at the original price.
 
