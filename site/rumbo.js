@@ -44,10 +44,10 @@ const EN = {
   "cred.b3e": "won",
 
   "demo.ante": "How it looks",
-  "demo.titulo": "From the ticket to the report, in half a minute.",
-  "demo.bajada": "The ticket is paid and the money arrives split, the pass appears, a volunteer scans and redeems once, and the dashboard counts what happened.",
+  "demo.titulo": "From sign-up to report, in half a minute.",
+  "demo.bajada": "People sign up for free, or buy a ticket or merch and the money arrives split. The pass appears, a volunteer scans and redeems once, and the dashboard counts what happened.",
   "demo.abrir": "Watch the animation",
-  "demo.p1": "The ticket is paid and the money reaches the organizer, with the fee separated in the same operation.",
+  "demo.p1": "Signing up is free. If the event charges for a ticket or sells its merch, the money reaches the organizer with the fee separated, in the same operation.",
   "demo.p2": "The pass with its QR code stays on the phone, with what each person is entitled to.",
   "demo.p3": "The volunteer scans and redeems. A second attempt does not go through, and offline the queue keeps moving.",
   "demo.p4": "The dashboard counts passes, check-ins and redemptions, and the sponsor report is ready.",
