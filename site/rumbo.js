@@ -45,7 +45,7 @@ const EN = {
   "portada.s2": "Redeemed once",
   "portada.s3": "Works offline",
   "portada.nota": "Made in Bolivia, in Spanish and English from day one. Open core under MIT.",
-  "portada.estado": "Design stage. The pass contract already has nine tests and a run on Stellar's test network. First code in November 2026.",
+  "portada.estado": "First version running on Stellar's test network: sign-up, pass, offline scanner and dashboard, with the code on GitHub. Real payments and Google sign-in come next.",
 
   "cred.evento": "Community hackathon",
   "cred.tipo": "General admission",

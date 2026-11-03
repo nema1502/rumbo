@@ -1,0 +1,47 @@
+{
+  "network": "testnet",
+  "networkPassphrase": "Test SDF Network ; September 2015",
+  "rpcUrl": "https://soroban-testnet.stellar.org",
+  "horizonUrl": "https://horizon-testnet.stellar.org",
+  "friendbotUrl": "https://friendbot.stellar.org",
+  "deployedAt": "2026-11-02T22:33:48Z",
+  "wasmHash": "a7806257421999959f6e9a77a3fe5c172fbc8c428b444ed277b822d7adfe248e",
+  "wasmBytes": 11939,
+  "asset": {
+    "code": "USDC",
+    "issuer": "GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL",
+    "contract": "CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ",
+    "decimals": 7,
+    "name": { "es": "USDC de prueba", "en": "test USDC" }
+  },
+  "accounts": {
+    "organizer": "GC32MATIHQFVVX2RJPO7VAGNRCSKJZKUQ4LFDZWFNWFZAZATPOLVEWHZ",
+    "treasury": "GDQEUBLERFBS62BVUZSUSBUR3JRLWSQVRYT62G4OYM5QGXMICCBS3DOI",
+    "gate": "GDKRKXO2EBEERICZPPBQUDYUCS3S5MXGFV7YDXKWTU4HPOPZD6ZLOLII",
+    "sponsor": "GDZFNBCKRN7AHWNNNWXQ4NLMIJL2KQUX7IHJQ3NPGLJL6MGEPSWWLE2Z"
+  },
+  "events": {
+    "paid": {
+      "contract": "CCO44LIYFNPI7ABI53JNJKNV5ADEWTK32R4S2NMYYCV6I6YSPZVABLDN",
+      "price": "100000000",
+      "feeBps": 250,
+      "capacity": 50,
+      "benefits": 2,
+      "explorer": "https://stellar.expert/explorer/testnet/contract/CCO44LIYFNPI7ABI53JNJKNV5ADEWTK32R4S2NMYYCV6I6YSPZVABLDN"
+    },
+    "free": {
+      "contract": "CCTZXEYBU2PDMF4RRJPQJ3ORJROXF2G47RKJMCHX76DQA3S2AX4YAN7Y",
+      "price": "0",
+      "feeBps": 250,
+      "capacity": 50,
+      "benefits": 1,
+      "explorer": "https://stellar.expert/explorer/testnet/contract/CCTZXEYBU2PDMF4RRJPQJ3ORJROXF2G47RKJMCHX76DQA3S2AX4YAN7Y"
+    }
+  },
+  "demoAccounts": {
+    "ana": "GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C",
+    "beto": "GD7JJ7DCBPXTBBCGJLZ2SHFBX2G5AUDEM76UWX7RVSKTJMJTCFGU77HI",
+    "caro": "GABLDV7L7Q7LLIMU2QY7BABHNYV6F34MZFQG7OSLAD5GN3SUKELF762Y",
+    "dani": "GBOIIQCVI4QJTTXZNGKCIPICUBFG4K3YVYW6P434U6CE6JGFU5SXGOXN"
+  }
+}

@@ -5,10 +5,10 @@
 ### Eventos de comunidad sobre Stellar. Inscribí gratis o cobrá entradas desde cualquier país, y operá todo tu evento desde un QR.
 
 [![Hecho sobre Stellar](https://img.shields.io/badge/hecho%20sobre-Stellar-7b61ff?style=flat-square)](https://stellar.org)
-[![Estado: diseño](https://img.shields.io/badge/estado-en%20dise%C3%B1o-ffc629?style=flat-square)](#dónde-está)
+[![Estado: MVP en testnet](https://img.shields.io/badge/estado-MVP%20en%20testnet-ffc629?style=flat-square)](#dónde-está)
 [![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-14b8a6?style=flat-square)](LICENSE)
 
-**[rumbo-eventos.vercel.app](https://rumbo-eventos.vercel.app)** | [English](README.md) | [Qué hace](#qué-hace) | [Por qué Stellar](#por-qué-stellar) | [Dónde está](#dónde-está) | [Principios](#principios) | [Quiénes](#quiénes)
+**[rumbo-eventos.vercel.app](https://rumbo-eventos.vercel.app)** | [English](README.md) | [Qué hace](#qué-hace) | [Por qué Stellar](#por-qué-stellar) | [Dónde está](#dónde-está) | [En qué se distingue](#en-qué-se-distingue-rumbo) | [Principios](#principios) | [Quiénes](#quiénes)
 
 <img src="site/assets/og.png" alt="Rumbo: tu evento entero en un QR. Una credencial de muestra con su QR y sus beneficios." width="820">
 
@@ -52,6 +52,17 @@ Rumbo está pensado para eventos de 80 a 500 personas con auspiciantes y varios 
 - Se queda con el contacto de quienes aceptan compartirlo al escanearlos en su stand.
 - Recibe el informe.
 
+## En qué se distingue Rumbo
+
+La inscripción gratis ya está resuelta: Luma, Bevy y un formulario la hacen bien. Rumbo empieza después de la entrada.
+
+- **Cada credencial dice qué le toca a esa persona:** el almuerzo, la polera, el premio. Quien es voluntario canjea cada cosa una sola vez desde su propio celular, aunque no haya conexión.
+- **El sorteo es solo entre quienes entraron.**
+- **Quien auspicia recibe el informe de lo que de verdad se entregó,** sin nombres ni correos, y los contactos del stand solo con el permiso de cada persona.
+- **Quien organiza cobra donde Stripe no opera** (en Latinoamérica solo está en Brasil y México), en USDC o, en Bolivia, en bolivianos con el QR del banco por una rampa con licencia, con la comisión separada en la misma operación.
+
+Las comunidades de tecnología muchas veces terminan armando su propio software, o usando manillas y tickets de papel, para manejar el almuerzo, el swag y los premios de sus eventos. Rumbo es ese kit, ya hecho, de código abierto, con una API y un servidor MCP para que cada comunidad construya encima. [Stellar Passport](https://stellarpassport.xyz), que convierte la asistencia en sellos, es un complemento natural: el check-in de Rumbo podría darle un sello de Passport.
+
 ## Por qué Stellar
 
 Para contar almuerzos alcanza una base de datos. Stellar suma lo que una base de datos no puede:
@@ -72,9 +83,11 @@ Rumbo no es una entrada NFT ni un lugar para especular con la reventa. Si quien 
 
 ## Dónde está
 
-Rumbo está en etapa de diseño: el producto está especificado en detalle y el primer código entra en noviembre de 2026. Lo que ya se puede ver: la [landing](https://rumbo-eventos.vercel.app) con una animación de 31 segundos del flujo entero, una [demo clickeable](https://rumbo-eventos.vercel.app/#probar) donde te inscribís, recibís la credencial, la escaneás como voluntario (también sin conexión) y hacés el sorteo como organizador, y el [contrato de septiembre en testnet](https://stellar.expert/explorer/testnet/contract/CDSXJR7MBV3ZLHLQPVTWZYVVP3CNABMGO6RRPLSI2KVFSJ2UX4SUD7DP).
+La primera columna de la tabla de abajo está hecha y corre en la red de prueba de Stellar: el [contrato rumbo-pass](contracts/rumbo-pass/README.md) (pase gratis o pago con el reparto en la misma operación, una entrada y un canje por beneficio, con 43 pruebas) y la [app](app/README.md) (la página del evento, la inscripción, la credencial con QR, el escáner sin conexión, el panel de quien organiza y el informe para quien auspicia). Las cuentas las crea el servidor en modo de prueba; entrar con Google o con una passkey viene después. El flujo entero, corrido en la red de prueba con los ids de sus transacciones, está en [app/demo/e2e-testnet.txt](app/demo/e2e-testnet.txt), y el contrato del evento pago se puede mirar en [stellar.expert](https://stellar.expert/explorer/testnet/contract/CCO44LIYFNPI7ABI53JNJKNV5ADEWTK32R4S2NMYYCV6I6YSPZVABLDN).
 
-El contrato parte de un pase de evento escrito en septiembre de 2026 para Stellar Elite Bolivia: comprar el pase, entrar una sola vez, listar quiénes vinieron, con nueve pruebas y una corrida en testnet. Rumbo lo extiende con beneficios, canjes y pagos protegidos.
+Sin instalar nada: la [landing](https://rumbo-eventos.vercel.app) con una animación de 31 segundos del flujo entero, y una [demo clickeable](https://rumbo-eventos.vercel.app/#probar) donde te inscribís, recibís la credencial, la escaneás como voluntario (también sin conexión) y hacés el sorteo como organizador.
+
+El contrato partió de un [pase de evento](https://stellar.expert/explorer/testnet/contract/CDSXJR7MBV3ZLHLQPVTWZYVVP3CNABMGO6RRPLSI2KVFSJ2UX4SUD7DP) escrito en septiembre de 2026 para Stellar Elite Bolivia: comprar el pase, entrar una sola vez, listar quiénes vinieron. Rumbo lo extiende con beneficios, canjes y, más adelante, pagos protegidos.
 
 | Primero | Después | Más adelante |
 |---|---|---|
@@ -86,7 +99,7 @@ El contrato parte de un pase de evento escrito en septiembre de 2026 para Stella
 
 ## Cómo está hecho
 
-Un contrato en Soroban para pases y vales, una app en Next.js con Supabase debajo, cuentas creadas con Google o con una passkey con las comisiones de red patrocinadas, y un escáner que funciona sin conexión y sincroniza después. Las piezas, las decisiones y el orden de obra en cuatro semanas están en [docs/stack.md](docs/stack.md).
+Un contrato en Soroban para pases y vales, una app en Next.js con Supabase debajo, cuentas creadas con Google o con una passkey con las comisiones de red patrocinadas, y un escáner que funciona sin conexión y sincroniza después. Las piezas, las decisiones y el orden de obra en cuatro semanas están en [docs/stack.md](docs/stack.md). El código vive en [contracts/rumbo-pass](contracts/rumbo-pass/README.md) y en [app](app/README.md), cada uno con su guía.
 
 ## Principios
 

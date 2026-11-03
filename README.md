@@ -5,10 +5,10 @@
 ### Community events on Stellar. Free sign-up or paid tickets from anywhere, and the whole event run from one QR code.
 
 [![Built on Stellar](https://img.shields.io/badge/built%20on-Stellar-7b61ff?style=flat-square)](https://stellar.org)
-[![Status: design](https://img.shields.io/badge/status-design%20stage-ffc629?style=flat-square)](#where-it-stands)
+[![Status: MVP on testnet](https://img.shields.io/badge/status-MVP%20on%20testnet-ffc629?style=flat-square)](#where-it-stands)
 [![License: MIT](https://img.shields.io/badge/license-MIT-14b8a6?style=flat-square)](LICENSE)
 
-**[rumbo-eventos.vercel.app](https://rumbo-eventos.vercel.app)** | [Español](README.es.md) | [What it does](#what-it-does) | [Why Stellar](#why-stellar) | [Where it stands](#where-it-stands) | [Principles](#principles) | [Who](#who)
+**[rumbo-eventos.vercel.app](https://rumbo-eventos.vercel.app)** | [Español](README.es.md) | [What it does](#what-it-does) | [Why Stellar](#why-stellar) | [Where it stands](#where-it-stands) | [How it is different](#how-rumbo-is-different) | [Principles](#principles) | [Who](#who)
 
 <img src="site/assets/og.png" alt="Rumbo: your whole event in one QR code. A sample pass with a QR code and its benefits." width="820">
 
@@ -52,6 +52,17 @@ Rumbo is made for events of 80 to 500 people with sponsors and several benefits:
 - Keep the contact of the people who agree to share it when scanned at the booth.
 - Get the report.
 
+## How Rumbo is different
+
+Free sign-up is solved: Luma, Bevy and a simple form already do it well. Rumbo starts after the ticket.
+
+- **Each pass says what that person gets:** lunch, a t-shirt, a prize. Volunteers redeem each item once from their own phones, even offline.
+- **The draw runs only among people who walked in.**
+- **The sponsor gets a report of what was actually delivered,** with no names or emails, and booth contacts only with each person's permission.
+- **Organizers get paid where Stripe does not operate** (in Latin America it is available only in Brazil and Mexico), in USDC or, in Bolivia, in bolivianos with the bank's QR code through a licensed ramp, with the fee separated in the same operation.
+
+Tech communities often end up building their own tools, or using wristbands and paper tickets, to run lunch, swag and prizes at their events. Rumbo is that kit, ready to use, open source, with an API and an MCP server so each community can build on top of it. [Stellar Passport](https://stellarpassport.xyz), which turns attendance into stamps, is a natural complement: a Rumbo check-in could grant a Passport stamp.
+
 ## Why Stellar
 
 For counting lunches a database would do. Stellar adds what a database cannot:
@@ -72,9 +83,11 @@ Rumbo is not a ticket NFT and not a place to speculate on resale. If the organiz
 
 ## Where it stands
 
-Rumbo is at the design stage: the product is specified in detail and the first code lands in November 2026. What you can see today: the [landing page](https://rumbo-eventos.vercel.app) with a 31-second animation of the whole flow, a [clickable demo](https://rumbo-eventos.vercel.app/#probar) where you sign up, get your pass, scan it as a volunteer (offline too) and run the draw as the organizer, and the [September contract on testnet](https://stellar.expert/explorer/testnet/contract/CDSXJR7MBV3ZLHLQPVTWZYVVP3CNABMGO6RRPLSI2KVFSJ2UX4SUD7DP).
+The first column of the table below is built and runs on Stellar's testnet: the [rumbo-pass contract](contracts/rumbo-pass/README.md) (free or paid pass with the split in the same operation, one check-in and one redemption per benefit, with 43 tests) and the [app](app/README.md) (event page, registration, pass with QR code, offline scanner, organizer panel and sponsor report). Accounts are created by the server in test mode; Google and passkey sign-in come next. The whole flow, run against testnet with its transaction ids, is in [app/demo/e2e-testnet.txt](app/demo/e2e-testnet.txt), and the paid event's contract can be inspected on [stellar.expert](https://stellar.expert/explorer/testnet/contract/CCO44LIYFNPI7ABI53JNJKNV5ADEWTK32R4S2NMYYCV6I6YSPZVABLDN).
 
-The contract starts from an event pass written in September 2026 for Stellar Elite Bolivia: buy a pass, check in once, list who came, with nine tests and a run on testnet. Rumbo extends it with benefits, redemptions and protected payments.
+Without installing anything: the [landing page](https://rumbo-eventos.vercel.app) with a 31-second animation of the whole flow, and a [clickable demo](https://rumbo-eventos.vercel.app/#probar) where you sign up, get your pass, scan it as a volunteer (offline too) and run the draw as the organizer.
+
+The contract started from an [event pass](https://stellar.expert/explorer/testnet/contract/CDSXJR7MBV3ZLHLQPVTWZYVVP3CNABMGO6RRPLSI2KVFSJ2UX4SUD7DP) written in September 2026 for Stellar Elite Bolivia: buy a pass, check in once, list who came. Rumbo extends it with benefits, redemptions and, later, protected payments.
 
 | First | Then | Later |
 |---|---|---|
@@ -86,7 +99,7 @@ The contract starts from an event pass written in September 2026 for Stellar Eli
 
 ## How it is built
 
-A Soroban contract for passes and vouchers, a Next.js app with Supabase underneath, accounts created with Google or a passkey with sponsored network fees, and a scanner that works offline and syncs later. The pieces, the decisions behind them and the four-week build order are in [docs/stack.md](docs/stack.md) (in Spanish).
+A Soroban contract for passes and vouchers, a Next.js app with Supabase underneath, accounts created with Google or a passkey with sponsored network fees, and a scanner that works offline and syncs later. The pieces, the decisions behind them and the four-week build order are in [docs/stack.md](docs/stack.md) (in Spanish). The code lives in [contracts/rumbo-pass](contracts/rumbo-pass/README.md) and [app](app/README.md), each with its own guide.
 
 ## Principles
 

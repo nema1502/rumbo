@@ -22,3 +22,14 @@ Thumbs.db
 # Listas de personas (exportes de Luma y otras): traen nombres y correos de
 # gente real. Se usan en el navegador y nunca se versionan.
 *.csv
+
+# Datos locales de la app en modo de prueba (la base SQLite y los correos que
+# se escriben a disco). Nada de esto se versiona.
+data/
+
+# Instantáneas que escribe el SDK de Soroban al correr las pruebas
+test_snapshots/
+
+# La app (Next.js): lo que genera al compilar
+app/.next/
+app/next-env.d.ts

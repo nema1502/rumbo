@@ -1,0 +1,85 @@
+/* El evento, la inscripción y la credencial. Los tokens vienen de globals.css; las clases llevan
+   los prefijos evento-, entrada-, form- y credencial- para no pisar a nadie. */
+
+/* El afiche y las entradas, lado a lado en pantallas anchas: los dos botones a la vista sin scroll */
+.evento { display: grid; gap: 28px; align-items: start; }
+@media (min-width: 880px) {
+  .evento { grid-template-columns: minmax(0, 1.1fr) minmax(320px, 440px); gap: 48px; }
+}
+.evento-afiche { display: grid; gap: 14px; justify-items: start; }
+.evento-afiche h1 { font-size: clamp(2rem, 4.2vw, 2.9rem); }
+.evento-cuando { display: grid; gap: 2px; color: var(--tinta-2); font-size: 1.05rem; }
+.evento-cuando strong { color: var(--tinta); font-weight: 600; }
+.evento-descripcion { color: var(--tinta-2); font-size: 1.05rem; max-width: 54ch; }
+.evento-organiza { color: var(--apagado); font-size: 0.95rem; }
+.evento-subtitulo {
+  font-family: var(--texto); font-size: 0.82rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--apagado); margin: 0;
+}
+.evento-incluye-bloque { display: grid; gap: 8px; }
+.evento-incluye { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.evento-incluye li { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; font-weight: 500; }
+.evento-incluye li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--acento); flex: none; align-self: center; }
+.evento-incluye .detalle { color: var(--apagado); font-size: 0.9rem; font-weight: 400; }
+.evento-entradas { display: grid; gap: 12px; }
+
+/* Cada entrada es un bloque con su única acción */
+.entrada { display: grid; gap: 10px; }
+.entrada-cabecera { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.entrada-nombre { font-family: var(--display); font-weight: 800; font-size: 1.35rem; letter-spacing: -0.02em; margin: 0; }
+.entrada-precio { font-weight: 700; white-space: nowrap; font-size: 1.05rem; }
+.entrada-precio-gratis { color: var(--verde-chip); }
+.tarjeta .entrada-incluye { color: var(--tinta-2); font-size: 0.95rem; margin: 0; }
+.entrada .boton { width: 100%; margin-top: 4px; }
+.entrada-banco {
+  display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px;
+  margin: -2px 0 -8px; color: var(--apagado); font-size: 0.9rem;
+}
+.entrada-banco button {
+  appearance: none; background: none; border: 0; padding: 0 4px; min-height: 44px; color: var(--apagado);
+  font: inherit; text-decoration: underline; text-decoration-style: dotted; cursor: not-allowed;
+}
+.tarjeta .entrada-banco { margin-bottom: -8px; }
+
+/* El formulario: nombre, correo y una sola acción */
+.form-inscripcion fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 16px; }
+.form-inscripcion fieldset[disabled] { opacity: 0.7; }
+.form-resumen { display: flex; justify-content: space-between; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; }
+.form-resumen h2 { font-size: 1.2rem; margin: 0; }
+.form-resumen .entrada-precio { margin-left: auto; }
+.tarjeta.form-resumen p { width: 100%; font-size: 0.95rem; margin: 0; }
+
+/* La credencial */
+.credencial-titulo h1 { font-size: clamp(1.5rem, 3vw, 2rem); }
+.credencial-ante { color: var(--acento-texto); font-weight: 700; font-size: 0.9rem; letter-spacing: 0.02em; }
+.credencial { display: grid; gap: 18px; }
+.credencial-cabecera {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 6px 12px; flex-wrap: wrap;
+  color: var(--tinta-2); font-size: 0.95rem; font-weight: 600;
+}
+.credencial-cuerpo { display: grid; gap: 18px; }
+@media (min-width: 720px) {
+  .credencial-cuerpo { grid-template-columns: 240px minmax(0, 1fr); gap: 28px; align-items: start; }
+}
+/* El QR va siempre sobre blanco, también de noche: así lo lee cualquier cámara */
+.credencial-qr {
+  background: #fff; border-radius: var(--radio-chico); padding: 10px; border: 1px solid var(--linea);
+  width: min(100%, 250px); margin-inline: auto;
+}
+.credencial-qr svg { width: 100%; height: auto; display: block; }
+.credencial-datos { display: grid; gap: 10px; justify-items: start; }
+.tarjeta .credencial-nombre {
+  color: var(--tinta); font-family: var(--display); font-weight: 800; font-size: clamp(1.6rem, 4vw, 2.1rem);
+  letter-spacing: -0.02em; line-height: 1.1; overflow-wrap: anywhere; margin: 0;
+}
+.credencial-datos .chip { margin: 0; }
+.credencial-subtitulo { margin-top: 8px; }
+.credencial-beneficios { list-style: none; margin: 0; padding: 0; display: grid; width: 100%; }
+.credencial-beneficios li {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  min-height: 44px; padding: 4px 0; border-top: 1px solid var(--linea);
+}
+.credencial-beneficios li:first-child { border-top: 0; }
+.credencial-beneficios .chip { margin: 0; flex: none; }
+.chip .check { width: 14px; height: 14px; stroke: currentColor; stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.credencial-ayuda { text-align: center; }

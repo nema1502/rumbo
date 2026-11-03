@@ -1,0 +1,161 @@
+/* El panel de quien organiza y el informe para quien auspicia. Los tokens vienen de globals.css
+   (docs/marca.md): dos temas, una sola acción principal a la vista, los estados con palabra y color. */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: calc(100dvh - var(--alto-cabecera) - 72px);
+}
+.panel-cabecera { display: grid; gap: 8px; }
+.panel-sobre {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0;
+  color: var(--tinta-2); font-weight: 600; font-size: 0.95rem;
+}
+.panel-cabecera h1 { font-size: clamp(1.7rem, 4vw, 2.5rem); }
+.panel-cabecera .bajada { color: var(--tinta-2); }
+.panel h2 { font-size: 1.25rem; }
+.tarjeta > .chico { margin-bottom: 12px; }
+
+/* Los cuatro contadores, cada uno con su barra */
+.contadores { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.contador {
+  background: var(--tarjeta); border: 1px solid var(--linea); border-radius: var(--radio);
+  padding: 18px 20px; display: grid; gap: 4px; align-content: start;
+}
+.contador-etiqueta { font-weight: 600; color: var(--tinta-2); font-size: 0.95rem; }
+.contador-valor {
+  font-family: var(--display); font-weight: 800; font-size: clamp(2rem, 3.6vw, 2.8rem);
+  line-height: 1.05; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+.contador-detalle, .contador-extra { color: var(--apagado); font-size: 0.9rem; }
+.barra { height: 8px; border-radius: 999px; background: var(--linea); overflow: hidden; margin-top: 6px; }
+.barra > span { display: block; height: 100%; border-radius: 999px; background: var(--acento); transition: width 0.4s var(--suave); }
+.barra-verde > span { background: var(--verde); }
+.barra-amarillo > span { background: var(--amarillo); }
+
+/* Lo que trajo el último contraste con la cadena */
+.cadena-detalle { display: grid; gap: 6px; }
+.cadena-detalle p { margin: 0; }
+.cadena-detalle ul { margin: 0; padding-left: 1.1em; color: var(--tinta-2); font-size: 0.95rem; display: grid; gap: 2px; }
+.cadena-detalle h3 { margin-top: 6px; font-size: 1rem; }
+
+/* Dos tarjetas lado a lado: los códigos de puesto y los dobles */
+.panel-columnas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+
+.puestos { list-style: none; margin: 0; padding: 0; }
+.puesto {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px 14px; align-items: center;
+  padding: 10px 0; border-top: 1px solid var(--linea);
+}
+.puesto:first-child { border-top: 0; padding-top: 0; }
+.codigo {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-weight: 700; font-size: 1.1rem; letter-spacing: 0.08em;
+  padding: 4px 10px; border-radius: 8px; background: var(--amarillo-suave); color: var(--tinta); white-space: nowrap;
+}
+.puesto-nombre { font-weight: 600; display: block; }
+.puesto-donde { color: var(--apagado); font-size: 0.85rem; display: block; }
+.boton-chico { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
+
+.dobles { list-style: none; margin: 0; padding: 0; }
+.doble { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--linea); }
+.doble:first-child { border-top: 0; padding-top: 0; }
+.doble-quien { font-weight: 600; }
+.doble-que { color: var(--tinta-2); }
+
+/* La lista de pases */
+.pases-cabecera { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.pases-cabecera h2 { margin-right: auto; }
+.pases-cabecera .campo { flex: 1 1 200px; max-width: 320px; }
+.pases-cabecera .campo input { min-height: 44px; padding: 8px 14px; }
+.tabla-pases {
+  list-style: none; margin: 0; padding: 0; overflow: hidden;
+  border: 1px solid var(--linea); border-radius: var(--radio); background: var(--tarjeta);
+}
+.pase-fila {
+  display: grid; gap: 8px 14px; align-items: center; padding: 12px 18px; border-top: 1px solid var(--linea);
+  grid-template-columns: minmax(140px, 1.1fr) minmax(110px, 0.7fr) auto minmax(0, 1.8fr);
+  grid-template-areas: "nombre entrada estado canjes";
+}
+.pase-fila:first-child { border-top: 0; }
+.pase-nombre { grid-area: nombre; font-weight: 600; overflow-wrap: anywhere; }
+.pase-entrada { grid-area: entrada; color: var(--tinta-2); font-size: 0.95rem; }
+.pase-estado { grid-area: estado; }
+.pase-canjes { grid-area: canjes; display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* La acción principal, siempre a la vista: abajo, fija */
+.panel-accion {
+  position: sticky; bottom: 0; margin-top: auto;
+  display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between;
+  padding: 14px 0 18px; background: linear-gradient(to top, var(--papel) 75%, transparent);
+}
+.panel-accion-estado { color: var(--tinta-2); font-size: 0.95rem; flex: 1 1 260px; margin: 0; }
+.panel-accion .boton { margin-left: auto; }
+.panel-salir { display: flex; justify-content: flex-end; }
+
+/* Entrar con la clave */
+.acceso-form { display: grid; gap: 16px; }
+
+/* El informe para quien auspicia. Ninguna tarjeta puede ensanchar la página: una tabla más ancha que
+   el celular se desplaza dentro de su tarjeta. */
+.informe { width: min(760px, 100%); margin-inline: auto; display: grid; gap: 20px; }
+.informe > * { min-width: 0; }
+.informe .tarjeta { overflow-x: auto; }
+.informe .pantalla-cabecera h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); }
+.informe-titular {
+  background: var(--tarjeta); border: 1px solid var(--linea); border-radius: var(--radio);
+  padding: 26px 28px; display: grid; gap: 12px;
+}
+.informe-titular strong {
+  font-family: var(--display); font-size: clamp(1.5rem, 3.4vw, 2.2rem); font-weight: 800;
+  letter-spacing: -0.02em; line-height: 1.12; text-wrap: balance;
+}
+.informe-cifras { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.tabla { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.tabla th, .tabla td { text-align: left; padding: 10px 12px; border-top: 1px solid var(--linea); }
+.tabla thead th { border-top: 0; padding-top: 0; color: var(--apagado); font-weight: 600; font-size: 0.85rem; }
+.tabla .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.solo-impresion { display: none; }
+
+@media (max-width: 900px) {
+  .contadores { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .panel-columnas { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .pase-fila {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "nombre estado" "entrada estado" "canjes canjes";
+  }
+}
+@media (max-width: 560px) {
+  .contador { padding: 14px 16px; }
+  .contador-valor { font-size: 2rem; }
+  .panel-accion .boton { width: 100%; }
+  .panel-accion-estado { display: none; }
+  .puesto { grid-template-columns: minmax(0, 1fr) auto; }
+  .codigo { font-size: 1rem; letter-spacing: 0.04em; padding: 4px 8px; }
+  .puesto .boton { grid-column: 1 / -1; width: 100%; }
+  .informe-cifras { grid-template-columns: 1fr; }
+  .informe-titular { padding: 20px; }
+  /* Las tablas del informe entran en 390 px sin desplazarse: letra apenas menor y celdas más juntas */
+  .tabla { font-size: 0.85rem; }
+  .tabla th, .tabla td { padding: 8px; }
+  .tabla th:first-child, .tabla td:first-child { padding-left: 0; }
+  .tabla th:last-child, .tabla td:last-child { padding-right: 0; }
+}
+
+/* Impreso: en blanco y negro, sin la cabecera ni los botones, con el pie de Rumbo */
+@media print {
+  :root, :root[data-theme="dark"], :root:not([data-theme="light"]) {
+    --papel: #fff; --tarjeta: #fff; --tinta: #000; --tinta-2: #222; --apagado: #444; --linea: #bbb;
+    --verde: #1a5c50; --acento: #333; --amarillo: #777;
+    color-scheme: light;
+  }
+  body { font-size: 12pt; }
+  body::before, .cabecera, .pie, .no-imprimir { display: none !important; }
+  .principal { padding: 0; }
+  .informe { width: 100%; }
+  .tarjeta, .contador, .informe-titular { box-shadow: none; break-inside: avoid; }
+  .solo-impresion { display: block; }
+  @page { margin: 18mm; }
+}

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Rumbo">
+  <rect width="64" height="64" rx="16" fill="#0F1C2E"/>
+  <circle cx="32" cy="32" r="21" fill="none" stroke="#F4EFE6" stroke-width="2.5" opacity=".55"/>
+  <g transform="rotate(35 32 32)">
+    <path d="M32 11 L38.5 32 L32 29 L25.5 32 Z" fill="#FF7A45"/>
+    <path d="M32 53 L25.5 32 L32 35 L38.5 32 Z" fill="#F4EFE6" opacity=".85"/>
+  </g>
+  <circle cx="32" cy="32" r="3" fill="#0F1C2E" stroke="#F4EFE6" stroke-width="2"/>
+</svg>
