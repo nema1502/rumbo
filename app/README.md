@@ -35,7 +35,7 @@ Lo que hoy es distinto de producción, y la interfaz lo dice ("Modo de prueba: l
 - **La cuenta de cada persona la crea y la guarda el servidor** (`DevAccountProvider`, tabla `dev_accounts` en la base local): la fondea con friendbot, le agrega la línea de confianza al USDC de prueba, le da un saldo inicial del emisor propio (`RUMBO_INITIAL_TEST_USDC`, cien por defecto) y firma por ella cuando el contrato se lo pide. En producción la cuenta es de la persona (Google con Pollar, o una passkey) y el servidor no tiene su llave.
 - **El USDC es de prueba:** lo emite una cuenta propia en la red de prueba y en pantalla se llama "USDC de prueba". No vale nada fuera de la demostración.
 - **Las comisiones de red las paga el servidor** con una cuenta patrocinadora, así ninguna cuenta de persona necesita XLM. Eso sí se queda igual en producción.
-- **La base es un archivo SQLite** (`data/rumbo.db`) y **los correos se escriben a disco** (`data/correos/`) en vez de mandarse. Supabase y Resend quedan como interfaces con su esqueleto, por hacer.
+- **En desarrollo la base es un archivo SQLite** (`data/rumbo.db`); en producción es Postgres en Supabase (abajo, "En producción"). **Los correos se escriben a disco** (`data/correos/`) en vez de mandarse: Resend queda como interfaz con su esqueleto, por hacer.
 - **El panel se abre con una clave por evento** en vez de una cuenta de organizador.
 
 Nada de `data/` ni de `.env.local` se versiona.
@@ -144,8 +144,10 @@ Lo que el kit **no** hace todavía: cambiar el tope de un canje o los precios de
 ```bash
 pnpm typecheck                     # TypeScript estricto, sin errores
 pnpm test                          # las pruebas sin red (tests/*.test.mjs, con node --test): cada una con su base propia y vacía
+pnpm test:pg                       # las mismas, con la base en Postgres: en PGlite (Postgres en WASM, dentro del proceso) y con el driver de producción por la red
 pnpm build                         # la app entera compila
 pnpm e2e                           # el flujo entero contra la red de prueba, con su propio servidor (abajo)
+pnpm e2e -- --motor postgres       # lo mismo, con la base en Postgres
 node scripts/inscribir-prueba.mjs [--pago] [--api http://localhost:3000]   # una inscripción, con todas sus comprobaciones
 node scripts/prueba-escaner.mjs --base http://localhost:3000               # el escáner en Chrome sin interfaz, con y sin red
 node scripts/smoke-contrato.mjs    # los helpers del contrato, de punta a punta
@@ -155,7 +157,7 @@ pnpm informe -- --datos informes/ejemplo.json --lang es --salida informes/ejempl
 node scripts/capturas-kit.mjs --salida data/capturas-kit   # las pantallas del kit en 1440x900 y 390x844, en es y en; levanta la app adentro, con una base propia y cuentas, contrato y correo de mentira: no toca la red de prueba
 ```
 
-`pnpm e2e` (`scripts/e2e-testnet.mjs`) levanta un servidor de desarrollo propio sobre una base nueva en `data/e2e`, crea el evento de muestra, inscribe a una persona gratis y a otra con la entrada paga (y comprueba que la plata llegó a quien organiza y a Rumbo en la misma transacción), abre sus credenciales, las pasa por la puerta y por la mesa del almuerzo con la API del escáner, intenta el segundo canje y la segunda entrada, y comprueba con `status()`, `attendees()` e `info()` en la cadena y con el panel, el informe y el CSV que los números coinciden. Deja la transcripción con los ids de las transacciones en [demo/e2e-testnet.txt](demo/e2e-testnet.txt). Con `--base` usa un servidor ya levantado. El contrato tiene sus propias pruebas: `cargo test --workspace` desde la raíz del repositorio.
+`pnpm e2e` (`scripts/e2e-testnet.mjs`) levanta un servidor de desarrollo propio sobre una base nueva en `data/e2e`, crea el evento de muestra, inscribe a una persona gratis y a otra con la entrada paga (y comprueba que la plata llegó a quien organiza y a Rumbo en la misma transacción), abre sus credenciales, las pasa por la puerta y por la mesa del almuerzo con la API del escáner, intenta el segundo canje y la segunda entrada, y comprueba con `status()`, `attendees()` e `info()` en la cadena y con el panel, el informe y el CSV que los números coinciden. Deja la transcripción con los ids de las transacciones en [demo/e2e-testnet.txt](demo/e2e-testnet.txt). Con `--base` usa un servidor ya levantado. Con `--motor postgres` la base es Postgres: levanta un Postgres local (`pnpm db:local`, PGlite servido por la red, que comparten el servidor, el seed y el script), lo migra con `pnpm db:migrate` y corre todo con `RUMBO_REPO=postgres` y el driver de producción. El contrato tiene sus propias pruebas: `cargo test --workspace` desde la raíz del repositorio.
 
 ## Cómo está armada
 
@@ -165,12 +167,12 @@ src/app/api/        las rutas de la API: evento, pase, scan, admin
 src/app/globals.css los tokens de la marca (día y noche) y los componentes base
 src/components/     Marca, SelectorIdioma, BotonTema, ui.tsx (Boton, BotonEnlace, Tarjeta, Chip, Campo, Pantalla, Aviso) y los de cada área: evento/, escaner/, panel/
 src/i18n/           los diccionarios por área (comun, evento, escaner, panel) y el helper t(clave)
-src/server/         lo que corre solo en el servidor: repo, accounts, stellar, mailer, qr, qr-keys, env, evento/, escaner, puerta, panel, stands, informe, verificacion, kit/ (plantillas, borrador, publicar, importar, csv, equipos, asistencia)
+src/server/         lo que corre solo en el servidor: base/ (la base de datos, con SQLite y Postgres), repo, compartido (los turnos entre instancias), accounts, stellar, mailer, qr, qr-keys, env, evento/, escaner, puerta, panel, stands, informe, verificacion, kit/ (plantillas, borrador, publicar, importar, csv, equipos, asistencia)
 src/lib/            lo que comparten servidor y navegador: la forma del QR, Ed25519 y la verificación, el QR que rota, el veredicto del escáner, la cola local, la búsqueda, los códigos de puesto, los tipos de credencial
 public/             el service worker del escáner (sw.js) y su manifiesto
 scripts/            setup-dev, seed, e2e-testnet, capturas, informe, certificados, paquete-embajadores, las pruebas de cada área y lib/ (env, browser, latex)
 informes/           las plantillas de XeLaTeX del informe y del certificado, sus textos, las fuentes, la marca y los ejemplos
-tests/              las pruebas sin red (pnpm test): el CSV, los frenos, el escáner y su cola, la firma del QR y su ventana de tiempo, el respaldo de la puerta, el envío de transacciones, los stands, el informe, los errores, los textos, y las del kit (kit-*.test.mjs, con los CSV de ejemplo en fixtures/); lib/ arma una base vacía por archivo
+tests/              las pruebas sin red (pnpm test): el CSV, los frenos, el escáner y su cola, la firma del QR y su ventana de tiempo, el respaldo de la puerta, el envío de transacciones, los stands, el informe, los errores, los textos, y las del kit (kit-*.test.mjs, con los CSV de ejemplo en fixtures/) y las de Postgres (base-postgres.test.mjs); lib/ arma una base vacía por archivo, con el motor que diga RUMBO_TEST_ENGINE
 demo/               la transcripción del flujo entero en la red de prueba
 ```
 
@@ -184,9 +186,12 @@ Castellano por defecto, inglés con `?lang=en`. El middleware (`src/middleware.t
 
 Cada área tiene su diccionario en `src/i18n/`: `comun.ts` (lo general), `evento.ts`, `escaner.ts`, `panel.ts`, `stands.ts` (los stands, la ruta y el permiso), `vivo.ts` (la pantalla en vivo), `verificacion.ts` (la verificación de un certificado) y `kit.ts` (las plantillas, la importación y los equipos), con el prefijo de su área en las claves y los dos idiomas en el mismo cambio. `index.ts` los une.
 
-### Los datos: `src/server/repo.ts`
+### Los datos: `src/server/base/` y `src/server/repo.ts`
 
-`Repo` es la interfaz; `getRepo()` da la instancia (`SqliteRepo` hoy, `SupabaseRepo` es un esqueleto). Las tablas están en `src/server/migrations/` (`001-inicial.sql` lo general, `002-acceso-credencial.sql` las claves de acceso de las credenciales, `003-panel.sql` las del panel, `006-llaves-ed25519.sql` las llaves con las que se firman los QR, `007-kit.sql` las plantillas, los tipos de credencial, los equipos, los topes y la dieta, `008-stands.sql` los stands y la ruta, `009-consentimiento-contacto.sql` la casilla opcional de contacto de la inscripción); las migraciones se aplican solas al abrir la base.
+Todo lo que lee o escribe datos pasa por `src/server/base` (`getDb()`), con el motor que dice `RUMBO_REPO`: `sqlite` para el desarrollo y las pruebas (`data/rumbo.db`) y `postgres` para producción (Supabase, por `DATABASE_URL`); `pglite` es el mismo Postgres en WASM dentro del proceso, para probar sin servidor (`data/pglite`, o `RUMBO_PGLITE_DIR`). Las sentencias se escriben una sola vez, con `?`, `TRUE` y `FALSE` y `ON CONFLICT`; lo que cambia entre motores lo resuelve cada adaptador. `Repo` es la interfaz de los datos del evento y `getRepo()` la da (`SqlRepo`, sobre esa capa); el panel, los stands, la pantalla en vivo, las llaves de los QR y las claves de las credenciales usan la misma base. Las tablas de SQLite están en `src/server/migrations/` (`001-inicial.sql` lo general, `002-acceso-credencial.sql` las claves de acceso de las credenciales, `003-panel.sql` las del panel, `006-llaves-ed25519.sql` las llaves con las que se firman los QR, `007-kit.sql` las plantillas, los tipos de credencial, los equipos, los topes y la dieta, `008-stands.sql` los stands y la ruta, `009-consentimiento-contacto.sql` la casilla opcional de contacto de la inscripción) y se aplican solas al abrir la base. Las de Postgres están en `src/server/migrations-pg/`: las mismas nueve traducidas, con `timestamptz`, `bytea`, `boolean`, `jsonb` y las mismas restricciones, más `010-estado-compartido.sql` (los turnos y los frenos) y `011-acceso-por-fila.sql` (el acceso por fila prendido en todas las tablas). Esas se aplican con `pnpm db:migrate`.
+
+- **Los secretos guardados.** Con Postgres, la llave privada y la raíz de credenciales de cada evento y la llave de cada cuenta de prueba van cifradas con AES-256-GCM y `RUMBO_DATA_KEY` (`src/server/base/cifrado.ts`), atadas a su fila. En SQLite de desarrollo quedan tal cual.
+- **Lo que comparten las instancias.** Con Postgres, los frenos contra quien prueba a la fuerza (`src/server/limites.ts`), el turno de la cuenta patrocinadora, lo que el escáner está mandando a la cadena y la tanda de cada importación (`src/server/compartido.ts`) viven en la base (`attempt_limits` y `leases`): en Vercel cada pedido puede caer en otra instancia. Con SQLite viven en la memoria del proceso, como siempre.
 
 - **Eventos.** Las llaves con las que se firman sus QR no están acá sino en `event_qr_keys` (`src/server/qr-keys.ts`): una llave privada por evento que no sale del servidor, y su clave pública, que es lo único que recibe el escáner.
 - **Tipos de entrada**: cada uno con su precio en USDC de prueba y su contrato en la red (el precio es fijo por contrato: el evento de muestra tiene uno gratis y uno pago).
@@ -206,7 +211,7 @@ Cada área tiene su diccionario en `src/i18n/`: `comun.ts` (lo general), `evento
 - `readDeployInfo()` lee `contracts/rumbo-pass/deploy/testnet.json`: el activo de prueba, las cuentas y los contratos desplegados (`events.free`, `events.paid`). `getTestAsset()` da el USDC de prueba; `resolveContractId("free" | "paid")` el contrato de muestra.
 - `rumboPass`: `register(contractId, attendee, signer)`, `buy(contractId, buyer, signer)`, `checkIn(contractId, attendee)` (lo marca la puerta, y solo la puerta), `redeem(contractId, attendee, benefit)`, `extendTtl(contractId, holders)` (mantiene vivos el evento y los pases antes de un evento que abrió con meses de anticipación), `status(contractId, who)`, `attendees(contractId)` e `info(contractId)`. Las dos primeras las firma la persona (`AuthSigner`, de `accounts.authSigner(personId)` o `keypairSigner(keypair)`), la paga el servidor; las dos siguientes las firma la puerta.
 - Los errores del contrato llegan como `ContractError`, con `code` y `errorName` (`AlreadyCheckedIn`, `AlreadyRedeemed`, `NotCheckedIn`...). `isContractError(error, "AlreadyRedeemed")` y `isAlreadyDone(error)` son los que marcan "doble" en el espejo.
-- `submitSponsored(tx, signers)` es la pieza de abajo: simula, firma las autorizaciones, arma la transacción con la comisión de la simulación, la firma con la patrocinadora y espera el resultado. Mandar y esperar es `sendAndWait`, que trata lo que contesta el nodo como corresponde: `DUPLICATE` es "ya está en camino" (se sigue esperando el resultado por su hash, no es un error) y `TRY_AGAIN_LATER` es "ocupado, reintentá después" (se vuelve a mandar la misma transacción con espera de 1, 2, 4, 8 y 8 segundos y, si sigue ocupado, queda como un error sin código de contrato que el escáner deja pendiente, sin esperar a una transacción que nunca entró). Todo lo que manda la patrocinadora pasa por `withSponsorLock`, de a una, porque comparten el número de secuencia. El SDK de Stellar queda fuera del bundle del servidor (`serverExternalPackages` en `next.config.ts`): adentro se duplicaban los tipos XDR y firmar una autorización fallaba.
+- `submitSponsored(tx, signers)` es la pieza de abajo: simula, firma las autorizaciones, arma la transacción con la comisión de la simulación, la firma con la patrocinadora y espera el resultado. Mandar y esperar es `sendAndWait`, que trata lo que contesta el nodo como corresponde: `DUPLICATE` es "ya está en camino" (se sigue esperando el resultado por su hash, no es un error) y `TRY_AGAIN_LATER` es "ocupado, reintentá después" (se vuelve a mandar la misma transacción con espera de 1, 2, 4, 8 y 8 segundos y, si sigue ocupado, queda como un error sin código de contrato que el escáner deja pendiente, sin esperar a una transacción que nunca entró). Todo lo que manda la patrocinadora pasa por `withSponsorLock`, de a una, porque comparten el número de secuencia; con Postgres, además, entre instancias, con el turno `sponsor` de la base. El SDK de Stellar queda fuera del bundle del servidor (`serverExternalPackages` en `next.config.ts`): adentro se duplicaban los tipos XDR y firmar una autorización fallaba.
 
 ### El QR: `src/server/qr.ts`, `src/lib/qr-codec.ts` y `src/lib/qr-verify.ts`
 
@@ -232,6 +237,23 @@ Solo con el código del puesto Puerta (los demás reciben 403). `searchDoor` bus
 ## Las variables
 
 Están todas en [`.env.example`](.env.example), con lo que hace cada una. Las llaves secretas viven en `.env.local` y nunca se versionan. Las cuentas son las mismas que usa el despliegue del contrato ([contracts/rumbo-pass](../contracts/rumbo-pass/README.md)): `STELLAR_SPONSOR_SECRET`, `STELLAR_GATE_SECRET`, `STELLAR_ISSUER_SECRET`, `STELLAR_ORGANIZER_SECRET` y `STELLAR_TREASURY_SECRET`. `RUMBO_DATA_DIR` cambia la carpeta de la base y los correos (los scripts de prueba la usan para no mezclar datos).
+
+## En producción
+
+La app corre en Vercel y la base es Postgres en Supabase, por el pooler en modo transacción. Además de las variables de siempre (`STELLAR_*`, `RUMBO_ACCOUNTS`, `RUMBO_MAILER`, `RUMBO_CREATE_KEY`, `NEXT_PUBLIC_BASE_URL`):
+
+| Variable | Qué es |
+|---|---|
+| `RUMBO_REPO` | `postgres`. Sin ella la app usa SQLite, y en Vercel no arranca |
+| `DATABASE_URL` | La cadena del pooler de Supabase en modo transacción, la del puerto 6543: `postgres://postgres.<proyecto>:<clave>@<región>.pooler.supabase.com:6543/postgres` |
+| `RUMBO_DATA_KEY` | 32 bytes al azar en base64, con los que se cifran los secretos guardados. Se genera una vez y no se cambia: con otra llave, lo guardado no se descifra. Sin ella la app no arranca |
+| `RUMBO_PG_POOL_MAX` | Opcional: cuántas conexiones abre cada instancia (cinco) |
+
+1. **El proyecto.** Crear el proyecto en Supabase y copiar la cadena del pooler en modo transacción (Connect, Transaction pooler). Generar la llave con `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"` y guardarla también en un gestor de contraseñas: si se pierde, las llaves de los QR y las cuentas guardadas no se recuperan.
+2. **Migrar.** Desde `app/`: `DATABASE_URL=<la cadena> pnpm db:migrate`. Aplica lo que falte, en orden, y se puede correr las veces que haga falta. Deja el acceso por fila prendido en todas las tablas: por la API pública de Supabase no se ve nada, y la app entra como dueña de las tablas. Antes de desplegar un cambio que trae una migración nueva, se migra primero.
+3. **Desplegar.** En el proyecto de Vercel de la app, con la carpeta raíz en `app`, cargar las variables para producción y desplegar. Al levantar, cada instancia comprueba `DATABASE_URL` y `RUMBO_DATA_KEY` (`src/instrumentation.ts`): si falta algo, no arranca y el registro dice qué.
+
+Para probar el motor de producción en esta máquina, sin Supabase: `pnpm db:local` levanta un Postgres local (PGlite servido por la red) y dice su `DATABASE_URL`; después, `pnpm db:migrate` y `pnpm dev` con `RUMBO_REPO=postgres`, esa `DATABASE_URL` y una `RUMBO_DATA_KEY`.
 
 ## Cómo se escribe lo visible
 

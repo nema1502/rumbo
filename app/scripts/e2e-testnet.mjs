@@ -15,9 +15,15 @@
 //   --port 4410            el puerto del servidor propio
 //   --salida demo/e2e-testnet.txt   dónde queda la transcripción (relativo a app/)
 //   --slug hackaton-comunidad       el evento
+//   --motor postgres       la base en Postgres en vez de SQLite: levanta un Postgres local (scripts/postgres-local.mjs,
+//                          PGlite servido por la red), lo migra con pnpm db:migrate y corre el servidor, el seed y este
+//                          script con RUMBO_REPO=postgres y el driver de producción. Con --base, el servidor ya levantado
+//                          tiene que usar la misma DATABASE_URL.
+//   --puerto-pg 4411       el puerto de ese Postgres local
 //
 // Tarda entre dos y seis minutos según la red de prueba: cada inscripción, entrada y canje es una transacción.
 import { spawn, spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { APP_DIR, loadEnv } from "./lib/env.mjs";
@@ -36,10 +42,14 @@ const baseDada = option("--base", null);
 const servidorPropio = !baseDada;
 const BASE = (baseDada ?? `http://127.0.0.1:${PORT}`).replace(/\/+$/, "");
 const DATOS = option("--datos", servidorPropio ? "./data/e2e" : "./data");
+const MOTOR = option("--motor", "sqlite");
+const PUERTO_PG = Number(option("--puerto-pg", PORT + 1));
+if (MOTOR !== "sqlite" && MOTOR !== "postgres") throw new Error(`--motor ${MOTOR}: tiene que ser sqlite o postgres`);
 
 // La base y los correos del servidor y los de este script tienen que ser los mismos: se fija antes de cargar nada.
 process.env.RUMBO_DATA_DIR = DATOS;
 process.env.NEXT_PUBLIC_BASE_URL = BASE;
+if (MOTOR === "postgres") process.env.RUMBO_REPO = "postgres";
 loadEnv();
 
 const { getRepo } = await import("../src/server/repo.ts");
@@ -137,14 +147,55 @@ function levantarServidor() {
 
 /** Cierra solo el servidor que levantó este script (y sus procesos hijos). */
 function apagarServidor() {
-  if (!servidor || servidor.exitCode !== null) return;
-  if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(servidor.pid), "/T", "/F"], { stdio: "ignore" });
-  else servidor.kill();
+  for (const proc of [servidor, postgres]) {
+    if (!proc || proc.exitCode !== null) continue;
+    if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(proc.pid), "/T", "/F"], { stdio: "ignore" });
+    else proc.kill();
+  }
 }
 process.on("SIGINT", () => {
   apagarServidor();
   process.exit(130);
 });
+
+// ---------- La base en Postgres (--motor postgres) ----------
+
+let postgres = null;
+
+/**
+ * Levanta el Postgres local en su propio proceso (este script espera al seed con spawnSync, y un servidor en este
+ * mismo proceso quedaría congelado mientras tanto), deja su DATABASE_URL y una RUMBO_DATA_KEY nueva (la base es
+ * nueva) en el entorno que heredan el servidor y el seed, y lo migra con pnpm db:migrate, como a Supabase.
+ */
+async function levantarPostgres() {
+  const proc = spawn(process.execPath, [join(APP_DIR, "scripts", "postgres-local.mjs"), "--datos", join(DATOS, "postgres"), "--puerto", String(PUERTO_PG)], {
+    cwd: APP_DIR,
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
+  });
+  postgres = proc;
+  const url = await new Promise((resolve, reject) => {
+    let salida = "";
+    const plazo = setTimeout(() => reject(new Error(`el Postgres local no arrancó: ${salida.slice(-300)}`)), 60_000);
+    for (const stream of [proc.stdout, proc.stderr]) {
+      stream.on("data", (chunk) => {
+        salida += chunk.toString();
+        const match = /DATABASE_URL=(\S+)/.exec(salida);
+        if (match) {
+          clearTimeout(plazo);
+          resolve(match[1]);
+        }
+      });
+    }
+    proc.on("exit", (code) => reject(new Error(`el Postgres local se cerró (código ${code}): ${salida.slice(-300)}`)));
+  });
+  process.env.DATABASE_URL = url;
+  process.env.RUMBO_DATA_KEY = randomBytes(32).toString("base64");
+  const migrar = spawnSync(process.execPath, [join(APP_DIR, "scripts", "db-migrate.mjs")], { cwd: APP_DIR, env: process.env, encoding: "utf8" });
+  for (const linea of `${migrar.stdout}${migrar.stderr}`.split(/\r?\n/).filter((l) => l.trim())) log(`  ${linea}`);
+  check(migrar.status === 0, "pnpm db:migrate aplicó las migraciones de Postgres");
+  return url;
+}
 
 // ---------- El flujo ----------
 
@@ -155,6 +206,7 @@ const almuerzo = { nombre: "Mateo Prueba", correo: `e2e-${stamp}-almuerzo@exampl
 try {
   log(`Rumbo, el flujo entero contra la red de prueba de Stellar. ${new Date().toISOString()}`);
   log(`Servidor: ${BASE} (${servidorPropio ? "levantado por este script" : "ya levantado"}). Datos: ${DATOS}.`);
+  log(`Base: ${MOTOR === "postgres" ? "Postgres (RUMBO_REPO=postgres, el driver de producción con prepare: false)" : "SQLite (RUMBO_REPO=sqlite)"}.`);
   const deploy = readDeployInfo();
   if (deploy) {
     log(`Red: testnet. Contratos rumbo-pass: gratis ${deploy.events.free?.contract ?? "(no hay)"}, pago ${deploy.events.paid?.contract ?? "(no hay)"}.`);
@@ -165,6 +217,10 @@ try {
     paso(`Una base nueva en ${DATOS} y el servidor de desarrollo en el puerto ${PORT}`);
     rmSync(join(APP_DIR, DATOS), { recursive: true, force: true });
     mkdirSync(join(APP_DIR, DATOS), { recursive: true });
+    if (MOTOR === "postgres") {
+      const url = await levantarPostgres();
+      check(true, `el Postgres local contesta en ${new URL(url).host}`);
+    }
     servidor = levantarServidor();
     await esperarServidor();
     check(true, `el servidor contesta en ${BASE}`);
@@ -204,7 +260,7 @@ try {
   const paseGratis = await repo.getPass(r1.cuerpo.passId);
   check(paseGratis?.status === "active" && Boolean(paseGratis.account), `el pase ${paseGratis?.id} quedó activo con su cuenta ${paseGratis?.account}`);
   if (paseGratis?.txHash) tx(`inscripción gratis de ${gratis.nombre} (register, pase número ${paseGratis.chainNumber})`, paseGratis.txHash);
-  const claveGratis = getAccessKey(paseGratis.id);
+  const claveGratis = await getAccessKey(paseGratis.id);
   const correos = readdirSync(join(APP_DIR, DATOS, "correos")).filter((f) => f.includes(gratis.correo));
   const correo = correos.length ? readFileSync(join(APP_DIR, DATOS, "correos", correos.at(-1)), "utf8") : "";
   check(correo.includes(`/p/${paseGratis.id}?k=${encodeURIComponent(claveGratis)}`), `el correo con el enlace personal quedó en ${DATOS}/correos (sin llaves ni contraseñas)`);
@@ -217,7 +273,7 @@ try {
   const pasePago = await repo.getPass(r2.cuerpo.passId);
   check(pasePago?.status === "active" && Boolean(pasePago.account), `el pase ${pasePago?.id} quedó activo con su cuenta ${pasePago?.account}`);
   if (pasePago?.txHash) tx(`entrada paga de ${almuerzo.nombre} (buy, pase número ${pasePago.chainNumber})`, pasePago.txHash);
-  const clavePago = getAccessKey(pasePago.id);
+  const clavePago = await getAccessKey(pasePago.id);
   const despues = { organizador: organizador ? await saldo(organizador) : null, tesoreria: tesoreria ? await saldo(tesoreria) : null, comprador: await saldo(pasePago.account) };
   const feeBps = deploy?.events.paid?.feeBps ?? 0;
   const precio = entradaPaga.priceUsdc;
@@ -260,7 +316,7 @@ try {
 
   // 4. El panel: la clave de organizador y los códigos de puesto
   paso("El panel de quien organiza: la clave, los códigos de puesto y los contadores antes del evento");
-  const clavePanel = getOrCreateOrganizerKey(event.id);
+  const clavePanel = await getOrCreateOrganizerKey(event.id);
   await ensureStationCodes(event, repo);
   check((await pedir(`/api/admin/${SLUG}`)).status === 401, `GET /api/admin/${SLUG} sin clave: 401`);
   const panel0 = await pedir(`/api/admin/${SLUG}?k=${clavePanel}`);
@@ -276,7 +332,7 @@ try {
   check(puerta.status === 200 && puerta.cuerpo.station?.kind === "gate" && puerta.cuerpo.passes.length >= 2, `la puerta abre (en minúsculas y con guion) y baja la llave del evento y ${puerta.cuerpo.passes.length} pases`);
   check(puerta.cuerpo.key === undefined && typeof puerta.cuerpo.publicKey === "string", "el escáner recibe una clave pública, no una llave compartida");
   const clavePublica = base64urlToBytes(puerta.cuerpo.publicKey);
-  const llavesDelEvento = getEventQrKeys(event.id);
+  const llavesDelEvento = await getEventQrKeys(event.id);
   check(clavePublica.length === 32 && bytesToBase64url(llavesDelEvento.publicKey) === puerta.cuerpo.publicKey, "es la clave pública del evento (32 bytes)");
   const textoPuerta = JSON.stringify(puerta.cuerpo);
   check(
