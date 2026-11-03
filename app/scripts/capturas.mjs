@@ -34,7 +34,9 @@ const { getRepo } = await import("../src/server/repo.ts");
 const { getOrCreateAccessKey } = await import("../src/server/evento/acceso.ts");
 const { ensureStationCodes, getOrCreateOrganizerKey } = await import("../src/server/panel.ts");
 const { formatStationCode } = await import("../src/lib/station-code.ts");
-const { buildQrPayload } = await import("../src/server/qr.ts");
+const { buildLiveGrant } = await import("../src/server/qr.ts");
+const { getEventQrKeys } = await import("../src/server/qr-keys.ts");
+const { buildLivePayload } = await import("../src/lib/qr-live.ts");
 
 const TAMANOS = [
   [1440, 900],
@@ -63,7 +65,7 @@ const codes = await ensureStationCodes(event, repo);
 const gateCode = formatStationCode(codes.find((c) => c.kind === "gate").code);
 const lunchCode = lunch ? formatStationCode(codes.find((c) => c.kind === "benefit" && c.benefitId === lunch.id)?.code ?? "") : "";
 const panelKey = getOrCreateOrganizerKey(event.id);
-const qrKey = await repo.getEventQrKey(event.id);
+const qrKeys = getEventQrKeys(event.id);
 
 /** Una persona nueva con su credencial, por la API, como desde el formulario. */
 async function inscribir(nombre, lang) {
@@ -77,7 +79,7 @@ async function inscribir(nombre, lang) {
   const body = await res.json();
   if (res.status !== 201) throw new Error(`no pude inscribir a ${nombre}: ${res.status} ${JSON.stringify(body)}`);
   const pass = await repo.getPass(body.passId);
-  return { pass, key: new URL(body.url).searchParams.get("k"), qr: buildQrPayload(pass.id, qrKey), nombre };
+  return { pass, key: new URL(body.url).searchParams.get("k"), qr: () => buildLivePayload(buildLiveGrant(pass.id, qrKeys), Date.now()), nombre };
 }
 
 /** Un pase del evento que ya entró y ya canjeó algo, para la credencial con sus chips. */
@@ -237,7 +239,7 @@ async function escaner(lang, persona) {
       await clickTexto(t.escribir);
       await cdp.waitFor(`document.querySelector("#esc-credencial")`, 10_000);
     }
-    await set("#esc-credencial", qr);
+    await set("#esc-credencial", typeof qr === "function" ? await qr() : qr);
     await clickTexto(t.verificar);
     const salio = await cdp.waitFor(`document.querySelector(".esc-veredicto")`, 15_000);
     if (!salio.ok) {

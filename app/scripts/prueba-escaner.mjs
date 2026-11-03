@@ -1,15 +1,19 @@
 // Prueba de punta a punta del escáner del voluntario, contra la red de prueba y con Chrome sin interfaz:
-//   1. crea cuatro personas con su pase y su cuenta de prueba: una inscripción gratis, una entrada con
-//      almuerzo (buy), una tercera que ya entró en el contrato sin pasar por la app (para provocar un "doble")
-//      y una cuarta para el cambio de puesto con pendientes,
-//   2. abre /scan con el código de la puerta (primero uno equivocado) y escribe las credenciales a mano,
-//   3. con red: entró, ya entró, y en la mesa del almuerzo "no corresponde" (sin entrar, y entrada que no lo incluye),
+//   1. crea cinco personas con su pase y su cuenta de prueba: una inscripción gratis, una entrada con
+//      almuerzo (buy), una tercera que ya entró en el contrato sin pasar por la app (para provocar un "doble"),
+//      una cuarta para el cambio de puesto con pendientes y una quinta para marcar a mano en la puerta,
+//   2. abre /scan con el código de la puerta (primero uno equivocado) y escribe las credenciales a mano: el QR
+//      del celular (que rota, se arma en el momento) y el de la credencial impresa (con su etiqueta),
+//   3. con red: entró, ya entró, un QR de hace un minuto que venció, y en la mesa del almuerzo "no corresponde"
+//      (sin entrar, y entrada que no lo incluye),
 //   4. sin red (Network.emulateNetworkConditions offline, también en el service worker): entró, ya entró,
 //      credencial inválida, y la página vuelve a abrir sin red con la sesión y la cola intactas,
 //   5. con red otra vez: la cola se vacía, el doble queda marcado, y el canje del almuerzo (con y sin red, dos veces);
 //      una entrada que quedó pendiente en la puerta llega con el código de la puerta aunque se haya abierto la mesa,
-//   6. comprueba en la cadena con status() que la entrada y el canje quedaron, y en la base el espejo,
-//   7. mide las tres pantallas en 1440x900, 973x700 y 390x844 (sin scroll horizontal, acción a la vista).
+//   6. el respaldo manual de la puerta: buscar (con tres letras, con el correo tapado, también sin red), marcar la
+//      entrada a mano y agregar a alguien en el momento; en la mesa el buscador no aparece,
+//   7. comprueba en la cadena con status() que la entrada y el canje quedaron, y en la base el espejo,
+//   8. mide las tres pantallas en 1440x900, 973x700 y 390x844 (sin scroll horizontal, acción a la vista).
 // Tarda unos minutos (cada registro es una transacción). Deja capturas en --capturas (por defecto data/capturas-escaner).
 //   node scripts/prueba-escaner.mjs [--base http://127.0.0.1:3000] [--port 9445] [--capturas carpeta]
 import { spawn } from "node:child_process";
@@ -34,7 +38,9 @@ mkdirSync(CAPTURAS, { recursive: true });
 const { getRepo } = await import("../src/server/repo.ts");
 const { getAccountProvider } = await import("../src/server/accounts.ts");
 const stellar = await import("../src/server/stellar.ts");
-const { buildQrPayload } = await import("../src/server/qr.ts");
+const { buildPrintedPayload, buildLiveGrant } = await import("../src/server/qr.ts");
+const { getEventQrKeys } = await import("../src/server/qr-keys.ts");
+const { buildLivePayload } = await import("../src/lib/qr-live.ts");
 const { ensureStationCodes } = await import("../src/server/panel.ts");
 const { formatStationCode } = await import("../src/lib/station-code.ts");
 
@@ -64,7 +70,7 @@ if (!freeTicket || !paidTicket || !lunch) {
   console.error("El evento de muestra necesita una entrada gratis, una paga y el almuerzo: corré pnpm seed.");
   process.exit(1);
 }
-const key = await repo.getEventQrKey(event.id);
+const llaves = getEventQrKeys(event.id);
 const codes = await ensureStationCodes(event, repo);
 const gateCode = codes.find((c) => c.kind === "gate")?.code;
 const lunchCode = codes.find((c) => c.kind === "benefit" && c.benefitId === lunch.id)?.code;
@@ -99,15 +105,27 @@ async function crearPase(nombre, ticket, fn) {
   const contract = ticket.contractId ?? event.contractId;
   const result = await conReintentos(async () => stellar.rumboPass[fn](contract, account, await accounts.authSigner(person.id)));
   pass = await repo.updatePass(pass.id, { account, status: "active", txHash: result.hash, chainNumber: result.number });
-  return { nombre, person, pass, account, contract, qr: buildQrPayload(pass.id, key) };
+  // El QR de la credencial impresa es fijo; el del celular rota cada 20 segundos, así que se arma en el momento de escanear.
+  const grant = buildLiveGrant(pass.id, llaves);
+  return {
+    nombre,
+    person,
+    pass,
+    account,
+    contract,
+    qr: buildPrintedPayload(pass.id, llaves),
+    vivo: () => buildLivePayload(grant, Date.now()),
+    vencido: () => buildLivePayload(grant, Date.now() - 3 * 20_000),
+  };
 }
 
-paso(`El evento "${event.name}": puerta ${formatStationCode(gateCode)}, almuerzo ${formatStationCode(lunchCode)}. Creando cuatro pases en la red de prueba (de a uno, tarda)...`);
+paso(`El evento "${event.name}": puerta ${formatStationCode(gateCode)}, almuerzo ${formatStationCode(lunchCode)}. Creando cinco pases en la red de prueba (de a uno, tarda)...`);
 const gratis = await crearPase("Valentina Prueba", freeTicket, "register");
 const almuerzo = await crearPase("Mateo Prueba", paidTicket, "buy");
 const doble = await crearPase("Sofia Prueba", freeTicket, "register");
 const cambio = await crearPase("Lucia Prueba", freeTicket, "register");
-for (const p of [gratis, almuerzo, doble, cambio]) console.log(`  ${p.nombre}: pase ${p.pass.id} número ${p.pass.chainNumber}, QR ${p.qr}`);
+const manual = await crearPase("Camila Prueba", freeTicket, "register");
+for (const p of [gratis, almuerzo, doble, cambio, manual]) console.log(`  ${p.nombre}: pase ${p.pass.id} número ${p.pass.chainNumber}, QR impreso ${p.qr}`);
 paso("La tercera persona entra directo en el contrato, sin pasar por la app (así el escáner no lo sabe)");
 await conReintentos(() => stellar.rumboPass.checkIn(doble.contract, doble.account));
 
@@ -242,8 +260,10 @@ window.__esc = {
       titulo: v.querySelector(".esc-veredicto-titulo")?.textContent.trim() ?? null,
       nombre: v.querySelector(".esc-veredicto-nombre")?.textContent.trim() ?? null,
       detalle: v.querySelector(".esc-veredicto-detalle")?.textContent.trim() ?? null,
+      via: v.querySelector(".esc-veredicto-via")?.textContent.trim() ?? null,
     };
   },
+  filas() { return [...document.querySelectorAll(".esc-manual-fila")].map((r) => r.innerText.replace(/\\s+/g, " ").trim()); },
   medir() {
     const accion = document.querySelector(".pantalla-accion .boton, .esc-texto .boton-primario, .esc-camara, .esc-veredicto-boton");
     const r = accion?.getBoundingClientRect();
@@ -415,7 +435,7 @@ try {
 
   // ---------- 3. Con red ----------
   paso("Con red: la credencial gratis entra, y la segunda vez ya entró");
-  let v = await escanear(pagina, gratis.qr);
+  let v = await escanear(pagina, await gratis.vivo());
   check(v?.kind === "ok" && v.titulo === "Entró" && v.nombre === gratis.nombre, `entró: ${JSON.stringify(v)}`);
   let sync = await esperarSincronizado(pagina);
   check(sync.ok, `la cola se vació con red: ${sync.chips.join(" | ")}`);
@@ -423,17 +443,20 @@ try {
   check(enCadena1.checked_in === true, `en la cadena, ${gratis.nombre} figura como entrada (status.checked_in)`);
   const espejo1 = await repo.listCheckInsForPass(gratis.pass.id);
   check(espejo1.length === 1 && espejo1[0].synced && !espejo1[0].duplicate && Boolean(espejo1[0].txHash), "el espejo tiene el check-in sincronizado con su transacción");
-  v = await escanear(pagina, gratis.qr);
+  v = await escanear(pagina, await gratis.vivo());
   check(v?.kind === "already" && v.titulo === "Ya entró" && /a las \d{2}:\d{2}/.test(v.detalle ?? ""), `segunda vez, ya entró con la hora: ${JSON.stringify(v)}`);
+  check(v?.via === null, "el QR del celular no lleva la etiqueta de credencial impresa");
+  v = await escanear(pagina, await gratis.vencido());
+  check(v?.kind === "no" && /venció/.test(v.detalle ?? "") && v.nombre === gratis.nombre, `una captura de hace un minuto no sirve, y dice de quién es: ${JSON.stringify(v)}`);
   await pagina.tamano(390, 844);
-  await capturarVeredicto(pagina, gratis.qr, "veredicto-ya-entro-390x844");
+  await capturarVeredicto(pagina, await gratis.vivo(), "veredicto-ya-entro-390x844");
   await pagina.tamano(1440, 900);
 
   paso("En la mesa del almuerzo: sin haber entrado no corresponde, y la entrada gratis no lo incluye");
   check(await cambiarPuesto(pagina, lunchCode, lunch.name), "se cierra la puerta y se abre la mesa del almuerzo con su código");
-  v = await escanear(pagina, almuerzo.qr);
+  v = await escanear(pagina, await almuerzo.vivo());
   check(v?.kind === "no" && v.detalle === "Primero tiene que pasar por la puerta.", `canje sin entrar, no corresponde: ${JSON.stringify(v)}`);
-  v = await escanear(pagina, gratis.qr);
+  v = await escanear(pagina, await gratis.vivo());
   check(v?.kind === "no" && v.detalle === `La entrada no incluye ${lunch.name}.`, `entrada sin almuerzo, no corresponde: ${JSON.stringify(v)}`);
   check(await cambiarPuesto(pagina, gateCode, "Puerta"), "de vuelta a la puerta");
 
@@ -443,11 +466,11 @@ try {
   check(conSw, "el service worker está activo y también quedó sin red");
   check(await pagina.waitFor(`__esc.chips().includes("Sin conexión")`, 10_000), "la pantalla avisa que no hay conexión");
   v = await escanear(pagina, almuerzo.qr);
-  check(v?.kind === "ok" && v.titulo === "Entró" && v.nombre === almuerzo.nombre, `sin red, entró igual: ${JSON.stringify(v)}`);
+  check(v?.kind === "ok" && v.titulo === "Entró" && v.nombre === almuerzo.nombre && v.via === "Credencial impresa", `sin red, entró igual, y el veredicto dice que la credencial es la impresa: ${JSON.stringify(v)}`);
   check(await pagina.waitFor(`__esc.chips().some((c) => c === "1 por sincronizar")`, 5_000), "queda 1 por sincronizar");
   v = await escanear(pagina, almuerzo.qr);
-  check(v?.kind === "already" && v.titulo === "Ya entró", `sin red, la segunda vez ya entró: ${JSON.stringify(v)}`);
-  v = await escanear(pagina, doble.qr);
+  check(v?.kind === "already" && v.titulo === "Ya entró" && v.via === "Credencial impresa", `sin red, la segunda vez ya entró: ${JSON.stringify(v)}`);
+  v = await escanear(pagina, await doble.vivo());
   check(v?.kind === "ok" && v.titulo === "Entró", `sin red, la persona que ya entró por otro lado parece entrar (el contrato lo va a marcar doble): ${JSON.stringify(v)}`);
   v = await escanear(pagina, "AAAAAAAA.BBBBBBBBBBBBBBBB");
   check(v?.kind === "no" && v.detalle === "Esta credencial no es de este evento.", `una credencial falsa no corresponde: ${JSON.stringify(v)}`);
@@ -479,7 +502,7 @@ try {
 
   paso("El canje del almuerzo: con red, y sin red la segunda vez");
   check(await cambiarPuesto(pagina, lunchCode, lunch.name), "la mesa del almuerzo, otra vez con su código");
-  v = await escanear(pagina, almuerzo.qr);
+  v = await escanear(pagina, await almuerzo.vivo());
   check(v?.kind === "ok" && v.titulo === "Canjeado" && v.detalle === lunch.name, `canjeado: ${JSON.stringify(v)}`);
   sync = await esperarSincronizado(pagina);
   check(sync.ok, `el canje llegó al servidor: ${sync.chips.join(" | ")}`);
@@ -489,18 +512,83 @@ try {
   check(espejoCanje.length === 1 && espejoCanje[0].synced && espejoCanje[0].benefitId === lunch.id, "el espejo tiene el canje sincronizado");
   await offlineTotal(true);
   await pagina.waitFor(`__esc.chips().includes("Sin conexión")`, 10_000);
-  v = await escanear(pagina, almuerzo.qr);
+  v = await escanear(pagina, await almuerzo.vivo());
   check(v?.kind === "already" && v.titulo === "Ya canjeado", `sin red, el segundo intento dice ya canjeado: ${JSON.stringify(v)}`);
   await pagina.tamano(390, 844);
-  await capturarVeredicto(pagina, almuerzo.qr, "veredicto-ya-canjeado-390x844");
+  await capturarVeredicto(pagina, await almuerzo.vivo(), "veredicto-ya-canjeado-390x844");
   await pagina.tamano(1440, 900);
   await offlineTotal(false);
+
+  paso("El respaldo manual de la puerta: buscar, marcar a mano y agregar en el momento (solo en la puerta)");
+  const hayBuscar = `[...document.querySelectorAll("button")].some((b) => b.textContent.trim() === "Buscar o agregar a alguien")`;
+  check(!(await pagina.eval(hayBuscar)), "en la mesa del almuerzo no aparece el buscador de la puerta");
+  check(await cambiarPuesto(pagina, gateCode, "Puerta"), "la puerta");
+  check(await pagina.eval(hayBuscar), "en la puerta aparece \"Buscar o agregar a alguien\"");
+  await pagina.eval(`__esc.clickText("Buscar o agregar a alguien")`);
+  check(await pagina.waitFor(`document.querySelector("#esc-buscar")`, 10_000), "se abre el buscador");
+  await pagina.eval(`__esc.set("#esc-buscar", "ca")`);
+  await sleep(700);
+  check((await pagina.eval(`__esc.filas().length`)) === 0, "con menos de tres letras no busca");
+  await pagina.eval(`__esc.set("#esc-buscar", "CAMILA")`);
+  check(await pagina.waitFor(`__esc.filas().some((f) => f.includes(${JSON.stringify(manual.nombre)}))`, 15_000), `busca "CAMILA" (en mayúsculas) y encuentra a ${manual.nombre}`);
+  // Si la prueba ya corrió antes sobre esta base, hay otras Camila que ya entraron: la nuestra es la única con la acción.
+  const filas = await pagina.eval(`__esc.filas()`);
+  const nuestra = filas.filter((f) => f.includes("Marcar la entrada"));
+  check(nuestra.length === 1 && nuestra[0].includes("e***@example.com") && !nuestra[0].includes(manual.person.email), `la fila muestra el correo tapado y la acción: ${nuestra[0]}`);
+  await pagina.captura("puerta-buscar-1440x900");
+  await pagina.eval(`__esc.clickText("Marcar la entrada")`);
+  await pagina.waitFor(`document.querySelector(".esc-veredicto")`, 10_000);
+  v = await pagina.eval(`__esc.veredicto()`);
+  check(v?.kind === "ok" && v.titulo === "Entró" && v.nombre === manual.nombre && v.via === "Marcada a mano", `marcada a mano, verde y con la etiqueta: ${JSON.stringify(v)}`);
+  await pagina.eval(`__esc.clickText("Siguiente")`);
+  sync = await esperarSincronizado(pagina);
+  check(sync.ok, `la entrada manual llegó al servidor: ${sync.chips.join(" | ")}`);
+  const espejoManual = await repo.listCheckInsForPass(manual.pass.id);
+  check(
+    espejoManual.length === 1 && espejoManual[0].synced && !espejoManual[0].duplicate && /^manual:puerta:/.test(espejoManual[0].scannerId ?? "") && Boolean(espejoManual[0].scannedAt),
+    `el espejo la tiene como manual, con su puesto y su hora (${espejoManual[0]?.scannerId}, ${espejoManual[0]?.scannedAt})`,
+  );
+  check((await stellar.rumboPass.status(manual.contract, manual.account)).checked_in === true, `en la cadena, ${manual.nombre} figura como entrada`);
+  await pagina.eval(`__esc.clickText("Buscar o agregar a alguien")`);
+  await pagina.waitFor(`document.querySelector("#esc-buscar")`, 10_000);
+  await pagina.eval(`__esc.set("#esc-buscar", ${JSON.stringify(`escaner-${stamp}-camila`)})`); // por correo, que es único de esta corrida
+  check(await pagina.waitFor(`__esc.filas().length === 1 && __esc.filas()[0].includes("Entró a las")`, 15_000), "buscada otra vez (por correo), ya figura como entrada con la hora");
+  check(!(await pagina.eval(`__esc.filas().some((f) => f.includes("Marcar la entrada"))`)), "y ya no ofrece marcarla de nuevo");
+
+  const correoNuevo = `escaner-${stamp}-diego@example.com`;
+  await pagina.eval(`__esc.clickText("Agregar en la puerta")`);
+  await pagina.waitFor(`document.querySelector("#esc-agregar-nombre")`, 10_000);
+  await pagina.eval(`__esc.set("#esc-agregar-nombre", "Diego Nuevo")`);
+  await pagina.eval(`__esc.set("#esc-agregar-correo", ${JSON.stringify(correoNuevo)})`);
+  await pagina.captura("puerta-agregar-1440x900");
+  const inicioAgregar = Date.now();
+  await pagina.eval(`__esc.clickText("Agregar y marcar la entrada")`);
+  const agregado = await pagina.waitFor(`document.querySelector(".esc-veredicto")`, 150_000);
+  v = agregado ? await pagina.eval(`__esc.veredicto()`) : null;
+  check(v?.kind === "ok" && v.nombre === "Diego Nuevo" && v.via === "Marcada a mano", `agregado en la puerta (${Math.round((Date.now() - inicioAgregar) / 1000)} s), verde y a mano: ${JSON.stringify(v)}`);
+  await pagina.eval(`__esc.clickText("Siguiente")`);
+  sync = await esperarSincronizado(pagina, 150_000);
+  check(sync.ok, `su entrada llegó al servidor: ${sync.chips.join(" | ")}`);
+  const personaNueva = await repo.getPersonByEmail(correoNuevo);
+  const paseNuevo = personaNueva ? await repo.findPass(event.id, personaNueva.id) : null;
+  check(paseNuevo?.status === "checked_in" && Boolean(paseNuevo.account) && Boolean(paseNuevo.chainNumber), "tiene su credencial y su pase en el contrato");
+  if (paseNuevo) {
+    const espejoNuevo = await repo.listCheckInsForPass(paseNuevo.id);
+    check(espejoNuevo.length === 1 && espejoNuevo[0].synced && /^manual:puerta:/.test(espejoNuevo[0].scannerId ?? ""), "y su entrada quedó marcada como manual");
+    check((await stellar.rumboPass.status(freeTicket.contractId ?? event.contractId, paseNuevo.account)).checked_in === true, "en la cadena figura como entrada");
+  }
 
   paso("Pendientes de un puesto al abrir otro: la entrada de la puerta viaja con el código de la puerta, no con el de la mesa");
   check(await cambiarPuesto(pagina, gateCode, "Puerta"), "la puerta otra vez");
   await offlineTotal(true);
   await pagina.waitFor(`__esc.chips().includes("Sin conexión")`, 10_000);
-  v = await escanear(pagina, cambio.qr);
+  await pagina.eval(`__esc.clickText("Buscar o agregar a alguien")`);
+  await pagina.waitFor(`document.querySelector("#esc-buscar")`, 10_000);
+  await pagina.eval(`__esc.set("#esc-buscar", "mateo")`);
+  check(await pagina.waitFor(`__esc.filas().some((f) => f.includes(${JSON.stringify(almuerzo.nombre)}) && f.includes("Entró a las"))`, 15_000), "sin red, el buscador sigue: busca por nombre en la lista que ya bajó");
+  check(await pagina.eval(`document.body.innerText.includes("Sin conexión: se busca solo por nombre")`), "y lo avisa");
+  await pagina.eval(`__esc.clickText("Volver a la cámara")`);
+  v = await escanear(pagina, await cambio.vivo());
   check(v?.kind === "ok" && v.titulo === "Entró", `sin red, ${cambio.nombre} entra: ${JSON.stringify(v)}`);
   check(await pagina.waitFor(`__esc.chips().some((c) => c === "1 por sincronizar")`, 5_000), "queda 1 por sincronizar");
   await pagina.eval(`__esc.clickText("Cerrar el puesto")`);
@@ -525,7 +613,7 @@ try {
   check(await pagina.eval(hayInterruptor), "y con ?demo=1 el interruptor aparece");
   await pagina.eval(`__esc.clickText("Simular sin conexión")`);
   check(await pagina.waitFor(`__esc.chips().includes("Sin conexión")`, 5_000), "con el interruptor la pantalla dice sin conexión");
-  v = await escanear(pagina, gratis.qr);
+  v = await escanear(pagina, await gratis.vivo());
   check(v?.kind === "already", "y los veredictos siguen saliendo");
   await pagina.eval(`__esc.clickText("Simular sin conexión")`);
   sync = await esperarSincronizado(pagina, 30_000);
