@@ -42,7 +42,7 @@ export const kit = {
     "kit.plantilla.devfest.nombre": "DevFest",
     "kit.plantilla.devfest.descripcion": "Un día de charlas, talleres y comunidad, con almuerzo, refrigerio y el café del auspiciante.",
     "kit.plantilla.build-with-ai.nombre": "Build with AI",
-    "kit.plantilla.build-with-ai.descripcion": "Una jornada práctica para construir con herramientas de AI, con mentoría y almuerzo.",
+    "kit.plantilla.build-with-ai.descripcion": "Una jornada de talleres prácticos para construir algo propio, con mentoría y almuerzo.",
     "kit.plantilla.iwd.nombre": "Día de la Mujer (IWD)",
     "kit.plantilla.iwd.descripcion": "Un encuentro para celebrar y aprender, con oradoras, mentoras y un sorteo.",
     "kit.plantilla.hackaton.nombre": "Hackatón",
