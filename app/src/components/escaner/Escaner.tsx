@@ -361,7 +361,9 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
         // La hora del servidor, si este celular tiene la suya desfasada: el QR que rota vale por su ventana de tiempo.
         const verification = await verifyQrPayloadInBrowser(limpio, key, Date.now() + (s.clockOffsetMs ?? 0));
         let snapshot = s.snapshot;
-        let pass = verification.ok ? snapshot.passes.find((p) => p.id === verification.passId) : undefined;
+        // El pase de quien es el QR; también el de uno vencido, para decir de quién es.
+        const deQuien = verification.ok || verification.reason === "expired" ? verification.passId : null;
+        let pass = deQuien ? snapshot.passes.find((p) => p.id === deQuien) : undefined;
         if (verification.ok && !pass && enLineaRef.current) {
           // Un pase que no estaba al abrir el puesto: con red, se pide la foto fresca una vez, con poco
           // tiempo de espera. Si no llega, se decide con lo que hay (en la puerta alcanza la firma).
