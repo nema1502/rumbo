@@ -33,6 +33,9 @@ export default async function AdminPage({ params, searchParams }: { params: Para
     return <AccesoPanel slug={slug} eventName={event.name} t={t} error={query.error === "clave"} />;
   }
 
+  // Un borrador todavía no tiene panel: se arma primero (kit/borrador.ts).
+  if (!event.published) redirect(`/admin/${encodeURIComponent(slug)}/armar`);
+
   await ensureStationCodes(event, repo);
-  return <PanelCliente slug={slug} initial={await getPanelState(event, repo)} />;
+  return <PanelCliente slug={slug} initial={await getPanelState(event, repo)} publicado={query.publicado === "1"} />;
 }

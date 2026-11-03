@@ -1,0 +1,98 @@
+/* El kit listo: elegir plantilla, armar el borrador, importar la lista y inscribir un equipo. Los tokens
+   vienen de globals.css (docs/marca.md): dos temas, una sola acción principal a la vista (la deja pegada abajo
+   el contenedor .pantalla-accion), los estados con palabra y color. */
+
+/* Elegir la plantilla: tarjetas que son un grupo de opciones */
+.plantillas { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 12px; }
+.plantilla {
+  position: relative; display: grid; gap: 4px; padding: 16px 18px; cursor: pointer;
+  background: var(--tarjeta); border: 1px solid var(--linea); border-radius: var(--radio-chico);
+  transition: border-color 0.15s var(--suave), background 0.15s var(--suave);
+}
+.plantilla input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.plantilla h2 { font-size: 1.25rem; }
+.plantilla p { color: var(--tinta-2); font-size: 0.95rem; }
+.plantilla .plantilla-trae { color: var(--apagado); font-size: 0.85rem; }
+.plantilla:has(input:checked) { border-color: var(--acento); background: var(--acento-suave); box-shadow: inset 0 0 0 1px var(--acento); }
+.plantilla:has(input:focus-visible) { outline: 3px solid var(--acento); outline-offset: 2px; }
+@media (hover: hover) { .plantilla:hover { border-color: var(--acento); } }
+.plantilla-marca { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+
+/* Los datos del evento */
+.kit-form { display: grid; gap: 16px; }
+.kit-form-par { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.kit-resumen { display: grid; gap: 10px; }
+.kit-resumen .fila { gap: 8px; }
+.kit-resumen ul { margin: 0; padding-left: 1.1em; color: var(--tinta-2); font-size: 0.95rem; display: grid; gap: 2px; }
+
+/* El borrador: una tarjeta por tipo de credencial */
+.armar { width: min(760px, 100%); }
+.armar-seccion { display: grid; gap: 12px; }
+.armar-seccion > p { color: var(--tinta-2); font-size: 0.95rem; }
+.armar-tipo { border: 1px solid var(--linea); border-radius: var(--radio-chico); background: var(--tarjeta); padding: 14px 16px; margin: 0; min-width: 0; display: grid; gap: 10px; }
+.armar-tipo:has(.armar-incluir input:not(:checked)) { opacity: 0.62; }
+.armar-tipo:has(.armar-incluir input:not(:checked)):focus-within, .armar-tipo:has(.armar-incluir input:not(:checked)):hover { opacity: 1; }
+.armar-incluir { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; cursor: pointer; font-weight: 600; min-height: 44px; }
+.armar-incluir input[type="checkbox"], .armar-trae input[type="checkbox"], .kit-casilla input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--acento); flex: none; margin: 0; }
+.armar-incluir strong { font-family: var(--display); font-size: 1.15rem; letter-spacing: -0.01em; }
+.armar-trae-resumen { color: var(--apagado); font-size: 0.9rem; margin-top: -4px; }
+.armar-tipo details { border-top: 1px solid var(--linea); padding-top: 4px; }
+.armar-tipo summary { cursor: pointer; font-weight: 600; font-size: 0.95rem; min-height: 44px; display: flex; align-items: center; color: var(--tinta-2); }
+.armar-tipo details[open] summary { color: var(--tinta); }
+.armar-campos { display: grid; gap: 14px; padding: 4px 0 8px; }
+.armar-trae { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 2px; }
+.armar-trae legend { font-weight: 600; font-size: 0.95rem; padding: 0; margin-bottom: 4px; }
+.armar-trae label, .kit-casilla { display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
+
+/* Los canjes y sus puestos */
+.armar-canje { display: grid; gap: 12px; padding: 14px 16px; background: var(--tarjeta); border: 1px solid var(--linea); border-radius: var(--radio-chico); }
+.armar-canje-campos { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.7fr); gap: 12px; }
+.armar-canje .campo input { min-height: 46px; padding: 8px 12px; }
+.armar-canje-nota { color: var(--apagado); font-size: 0.9rem; }
+
+.armar-acciones { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.armar-acciones .boton-secundario { width: 100%; }
+
+/* Importar la lista */
+.importar { width: min(720px, 100%); }
+.importar-bloque { display: grid; gap: 10px; }
+.importar-bloque h2 { font-size: 1.25rem; }
+.importar-estados, .importar-tipos { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.importar-estados li, .importar-tipos li { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+.importar-estados label { display: flex; align-items: center; gap: 10px; flex: 1; cursor: pointer; }
+.importar-estados input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--acento); margin: 0; flex: none; }
+.importar-estados .cuantas, .importar-tipos .cuantas { margin-left: auto; color: var(--apagado); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.importar-tipos li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 4px 12px; align-items: center; padding: 6px 0; border-top: 1px solid var(--linea); }
+.importar-tipos li:first-child { border-top: 0; }
+.importar-tipos .campo select { min-height: 44px; padding: 6px 10px; }
+.campo-sin-etiqueta .campo-etiqueta { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.importar-tipos .etiqueta { overflow-wrap: anywhere; font-weight: 600; }
+.importar-barra { height: 12px; border-radius: 999px; background: var(--linea); overflow: hidden; }
+.importar-barra > span { display: block; height: 100%; border-radius: 999px; background: var(--verde); transition: width 0.4s var(--suave); }
+.importar-resumen { font-family: var(--display); font-weight: 800; font-size: clamp(1.3rem, 3vw, 1.7rem); line-height: 1.2; text-wrap: balance; }
+.importar-archivo input[type="file"] { padding: 14px 16px; min-height: 60px; background: var(--tarjeta); }
+
+/* La inscripción por equipos */
+.equipo { width: min(620px, 100%); }
+.equipo-integrantes { display: grid; gap: 12px; }
+.equipo-integrante { display: grid; gap: 10px; padding: 14px 16px; background: var(--tarjeta); border: 1px solid var(--linea); border-radius: var(--radio-chico); }
+.equipo-integrante h3 { font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+.equipo-integrante .kit-form-par { gap: 12px; }
+.equipo-integrante .campo input { min-height: 46px; }
+
+/* Los tipos de credencial, en la credencial y en el panel */
+.chip-tipo { background: var(--tinta); color: var(--papel); }
+.panel-franjas { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.panel-franja { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--linea); }
+.panel-franja:first-child { border-top: 0; padding-top: 0; }
+.panel-franja .barra { grid-column: 1 / -1; margin-top: 2px; }
+.panel-franja-nombre { font-weight: 600; overflow-wrap: anywhere; }
+.panel-franja-cifra { font-variant-numeric: tabular-nums; color: var(--tinta-2); font-size: 0.95rem; white-space: nowrap; }
+.panel-franja-stock { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; color: var(--apagado); font-size: 0.85rem; }
+
+@media (max-width: 560px) {
+  .kit-form-par { grid-template-columns: 1fr; }
+  .armar-canje-campos { grid-template-columns: 1fr; }
+  .importar-tipos li { grid-template-columns: 1fr; }
+  .equipo-integrante .kit-form-par { grid-template-columns: 1fr; }
+}

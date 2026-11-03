@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Aviso, Boton, BotonEnlace, Chip, Tarjeta } from "@/components/ui.tsx";
 import { useLang, useT } from "@/i18n/client.tsx";
 import { formatDate, type Lang } from "@/i18n/index.ts";
+import { kindLabelKey } from "@/lib/credential-kinds.ts";
 import { formatStationCode } from "@/lib/station-code.ts";
 import type { ChainSyncSummary, PanelPass, PanelState } from "@/server/panel.ts";
 import { BotonCopiar } from "./BotonCopiar.tsx";
@@ -33,7 +34,7 @@ function fechaHora(lang: Lang, iso: string): string {
   return new Intl.DateTimeFormat(LOCALES[lang], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: lang === "es" ? "h23" : "h12" }).format(new Date(iso));
 }
 
-export function PanelCliente({ slug, initial }: { slug: string; initial: PanelState }) {
+export function PanelCliente({ slug, initial, publicado = false }: { slug: string; initial: PanelState; publicado?: boolean }) {
   const t = useT();
   const lang = useLang();
   const [state, setState] = useState<PanelState>(initial);
@@ -122,6 +123,7 @@ export function PanelCliente({ slug, initial }: { slug: string; initial: PanelSt
         </p>
       </header>
 
+      {publicado && <Aviso tono="listo">{t("kit.armar.publicado")}</Aviso>}
       {conexion === "vencida" && (
         <Aviso tono="alerta">
           {t("panel.sesionVencida")}{" "}
@@ -164,6 +166,34 @@ export function PanelCliente({ slug, initial }: { slug: string; initial: PanelSt
       </div>
 
       <DetalleCadena cadena={cadena} nombreDe={nombreDe} />
+
+      {state.benefits.length > 0 && (
+        <Tarjeta>
+          <h2>{t("kit.panel.franjas")}</h2>
+          <p className="chico">{t("kit.panel.franjasAyuda")}</p>
+          <ul className="panel-franjas">
+            {state.benefits.map((b) => {
+              const porcentaje = b.granted > 0 ? Math.min(100, Math.round((b.redeemed / b.granted) * 100)) : 0;
+              return (
+                <li key={b.id} className="panel-franja">
+                  <span className="panel-franja-nombre">{b.name}</span>
+                  <span className="panel-franja-cifra">{t("kit.panel.canjeados", { canjeados: b.redeemed, otorgados: b.granted })}</span>
+                  <div className="barra barra-verde" role="img" aria-label={`${b.name}: ${porcentaje}%`}>
+                    <span style={{ width: `${porcentaje}%` }} />
+                  </div>
+                  {b.stock !== null && b.remaining !== null && (
+                    <span className="panel-franja-stock">
+                      <Chip estado={b.remaining === 0 ? "alerta" : b.remaining <= Math.ceil(b.stock / 10) ? "pendiente" : "neutro"}>
+                        {b.remaining === 0 ? t("kit.panel.agotado") : t("kit.panel.quedan", { n: b.remaining, total: b.stock })}
+                      </Chip>
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </Tarjeta>
+      )}
 
       <div className="panel-columnas">
         <Tarjeta>
@@ -233,6 +263,12 @@ export function PanelCliente({ slug, initial }: { slug: string; initial: PanelSt
             <a className="boton boton-secundario boton-chico" href={`/api/admin/${slug}/csv`} download>
               {t("panel.pases.exportar")}
             </a>
+            <a className="boton boton-secundario boton-chico" href={`/api/admin/${slug}/asistencia`} download>
+              {t("kit.panel.asistencia")}
+            </a>
+            <BotonEnlace variante="secundario" className="boton-chico" href={`/admin/${slug}/importar`}>
+              {t("kit.panel.importar")}
+            </BotonEnlace>
             <BotonEnlace variante="secundario" className="boton-chico" href={`/admin/${slug}/informe`}>
               {t("panel.pases.informe")}
             </BotonEnlace>
@@ -274,7 +310,10 @@ function FilaPase({ pass }: { pass: PanelPass }) {
   return (
     <li className="pase-fila">
       <span className="pase-nombre">{pass.name}</span>
-      <span className="pase-entrada">{pass.ticketTypeName}</span>
+      <span className="pase-entrada">
+        {pass.kind === "attendee" ? pass.ticketTypeName : t(kindLabelKey(pass.kind))}
+        {pass.team && <span className="apagado chico"> {t("kit.panel.equipo", { nombre: pass.team })}</span>}
+      </span>
       <span className="pase-estado">
         {pass.status === "checked_in" ? (
           <Chip estado="listo">{t("panel.pase.entro")}</Chip>
