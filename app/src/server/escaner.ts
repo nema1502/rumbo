@@ -1,6 +1,6 @@
 // El escáner del voluntario, del lado del servidor: abrir un puesto con su código (los códigos los
 // emite el panel de quien organiza, src/server/panel.ts: uno por puesto), lo que el escáner baja
-// (la llave del evento, su puesto y los pases con lo que traen y lo que ya usaron) y la
+// (la clave pública del evento, su puesto y los pases con lo que traen y lo que ya usaron) y la
 // sincronización de la cola: cada entrada y cada canje al contrato, firmados por la cuenta de
 // puerta, con su espejo en la base. Lo usan las rutas de /api/scan.
 import type { ScanEvent, ScanItem, ScanItemResult, ScanItemStatus, ScanPassInfo, ScanSnapshot, ScanStation } from "../lib/escaner-api.ts";
@@ -56,7 +56,7 @@ function toScanEvent(event: EventRecord, stations: ScanStation[]): ScanEvent {
 }
 
 /**
- * Todo lo que el escáner necesita para decidir sin red: la llave del evento, su puesto y cada pase
+ * Todo lo que el escáner necesita para decidir sin red: la clave pública del evento, su puesto y cada pase
  * activo con su nombre, sus beneficios, si ya entró y qué ya canjeó (según el espejo: lo que algún
  * escáner ya subió, aunque todavía no haya llegado al contrato).
  */
@@ -95,7 +95,7 @@ export async function buildSnapshot(repo: Repo, access: StationAccess): Promise<
     });
   }
 
-  return { event: toScanEvent(event, stations), station: stationOf(access), key: access.qrKey, passes: infos, generatedAt: new Date().toISOString() };
+  return { event: toScanEvent(event, stations), station: stationOf(access), publicKey: access.publicKey, passes: infos, generatedAt: new Date().toISOString() };
 }
 
 // ---------- La sincronización ----------

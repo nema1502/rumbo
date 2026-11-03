@@ -11,6 +11,7 @@ import { base32Encode, bytesToBase64url } from "../lib/qr-codec.ts";
 import { STATION_CODE_LENGTH, isValidStationCode, normalizeStationCode } from "../lib/station-code.ts";
 import { dataDir, getEnv } from "./env.ts";
 import { describeForLog } from "./log.ts";
+import { getEventPublicKey } from "./qr-keys.ts";
 import {
   getRepo,
   type Benefit,
@@ -81,7 +82,7 @@ export function verifyOrganizerKey(eventId: string, key: string | null | undefin
 // ---------- Los códigos de puesto ----------
 // Un código por puesto: la puerta y una mesa por beneficio. Quien organiza los ve en el panel y se
 // los pasa a cada voluntario; el escáner abre el puesto con el suyo (src/server/escaner.ts usa
-// resolveStationCode) y recibe la llave del evento para verificar las credenciales sin red.
+// resolveStationCode) y recibe la clave pública del evento para verificar las credenciales sin red.
 
 export type StationKind = "gate" | "benefit";
 
@@ -110,8 +111,8 @@ export interface StationAccess {
   benefit: Benefit | null;
   /** El catálogo entero del evento, para que el escáner sepa qué puede ver en una credencial. */
   benefits: Benefit[];
-  /** La llave del evento en base64url: con ella el escáner verifica los QR sin red. */
-  qrKey: string;
+  /** La clave pública del evento en base64url: con ella el escáner verifica los QR sin red (la privada no sale del servidor). */
+  publicKey: string;
 }
 
 interface StationRow {
@@ -169,7 +170,7 @@ export async function resolveStationCode(input: string, repo: Repo = getRepo()):
   if (!event) return null;
   const benefits = await repo.listBenefits(event.id);
   const benefit = station.benefitId ? (benefits.find((b) => b.id === station.benefitId) ?? null) : null;
-  return { event, kind: station.kind, benefit, benefits, qrKey: bytesToBase64url(await repo.getEventQrKey(event.id)) };
+  return { event, kind: station.kind, benefit, benefits, publicKey: bytesToBase64url(getEventPublicKey(event.id)) };
 }
 
 // ---------- El estado del panel ----------

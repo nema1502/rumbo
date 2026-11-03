@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { DatabaseSync, SQLInputValue } from "node:sqlite";
 import { appDir, dataDir, getEnv } from "./env.ts";
-import { newEventQrKey, newPassId } from "./qr.ts";
+import { newPassId } from "./qr.ts";
 
 // ---------- Los datos ----------
 
@@ -247,8 +247,6 @@ export interface Repo {
   getEventById(id: string): Promise<EventRecord | null>;
   createEvent(input: NewEvent): Promise<EventRecord>;
   updateEvent(id: string, patch: EventPatch): Promise<EventRecord>;
-  /** La llave con la que se firman los QR del evento. Solo para el servidor y para el escáner del voluntario. */
-  getEventQrKey(eventId: string): Promise<Uint8Array>;
 
   // Tipos de entrada
   listTicketTypes(eventId: string): Promise<TicketType[]>;
@@ -494,8 +492,8 @@ export class SqliteRepo implements Repo {
     const id = randomUUID();
     this.run(
       `INSERT INTO events (id, slug, name, description, starts_at, ends_at, timezone, place, venue, organizer_name,
-         organizer_account, contract_id, capacity, qr_key, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         organizer_account, contract_id, capacity, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       id,
       input.slug,
       input.name,
@@ -509,7 +507,6 @@ export class SqliteRepo implements Repo {
       input.organizerAccount ?? null,
       input.contractId ?? null,
       input.capacity ?? null,
-      newEventQrKey(),
       now(),
     );
     return (await this.getEventById(id))!;
@@ -532,12 +529,6 @@ export class SqliteRepo implements Repo {
     const event = await this.getEventById(id);
     if (!event) throw new Error(`No existe el evento ${id}`);
     return event;
-  }
-
-  async getEventQrKey(eventId: string): Promise<Uint8Array> {
-    const row = this.one("SELECT qr_key FROM events WHERE id = ?", eventId);
-    if (!row) throw new Error(`No existe el evento ${eventId}`);
-    return new Uint8Array(row.qr_key as Uint8Array);
   }
 
   // Tipos de entrada
@@ -921,7 +912,6 @@ export class SupabaseRepo implements Repo {
   getEventById(): Promise<EventRecord | null> { return this.todo(); }
   createEvent(): Promise<EventRecord> { return this.todo(); }
   updateEvent(): Promise<EventRecord> { return this.todo(); }
-  getEventQrKey(): Promise<Uint8Array> { return this.todo(); }
   listTicketTypes(): Promise<TicketType[]> { return this.todo(); }
   getTicketType(): Promise<TicketType | null> { return this.todo(); }
   createTicketType(): Promise<TicketType> { return this.todo(); }

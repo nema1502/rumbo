@@ -59,14 +59,25 @@
 }
 .credencial-cuerpo { display: grid; gap: 18px; }
 @media (min-width: 720px) {
-  .credencial-cuerpo { grid-template-columns: 240px minmax(0, 1fr); gap: 28px; align-items: start; }
+  .credencial-cuerpo { grid-template-columns: 300px minmax(0, 1fr); gap: 28px; align-items: start; }
 }
 /* El QR va siempre sobre blanco, también de noche: así lo lee cualquier cámara */
+.credencial-qr-bloque { display: grid; gap: 8px; justify-items: center; width: min(100%, 300px); margin-inline: auto; }
 .credencial-qr {
   background: #fff; border-radius: var(--radio-chico); padding: 10px; border: 1px solid var(--linea);
-  width: min(100%, 250px); margin-inline: auto;
+  width: 100%;
 }
 .credencial-qr svg { width: 100%; height: auto; display: block; }
+.credencial-qr-vacio { aspect-ratio: 1; width: 100%; }
+/* La barra que se vacía hasta que el QR cambia (cada 20 segundos) */
+.credencial-qr-barra { width: 100%; height: 4px; border-radius: 2px; background: var(--linea); overflow: hidden; }
+.credencial-qr-barra span {
+  display: block; height: 100%; background: var(--acento); transform-origin: left;
+  animation-name: credencial-qr-barra; animation-timing-function: linear; animation-fill-mode: forwards;
+}
+@keyframes credencial-qr-barra { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .credencial-qr-barra span { animation: none; } }
+.credencial-qr-aviso { text-align: center; margin: 0; }
 .credencial-datos { display: grid; gap: 10px; justify-items: start; }
 .tarjeta .credencial-nombre {
   color: var(--tinta); font-family: var(--display); font-weight: 800; font-size: clamp(1.6rem, 4vw, 2.1rem);

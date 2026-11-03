@@ -1,7 +1,8 @@
 // La credencial, armada: el pase con su persona, su evento, su número, su estado y lo que le toca.
 // El estado sale del espejo de la base y, cuando la base dice que algo todavía no pasó, se confirma
 // con status() en la cadena (con un tope de tiempo: si la red no contesta, vale el espejo).
-import { buildQrPayload } from "../qr.ts";
+import { buildLiveGrant, buildPrintedPayload, type LiveGrant } from "../qr.ts";
+import { getEventQrKeys } from "../qr-keys.ts";
 import { getRepo, type BenefitKind, type EventRecord, type Pass, type PassBenefit, type Person, type Repo, type TicketType } from "../repo.ts";
 import { rumboPass, type PassStatusOnChain } from "../stellar.ts";
 import { verifyAccessKey } from "./acceso.ts";
@@ -30,8 +31,10 @@ export interface CredentialView {
   paid: boolean;
   checkedIn: boolean;
   benefits: CredentialBenefit[];
-  /** Lo que va dentro del QR: "<pase>.<firma>". */
+  /** Lo que va dentro del QR de la credencial impresa: "<pase>.<firma>", fijo. */
   qrPayload: string;
+  /** Lo que recibe el celular de la persona para armar el QR que rota cada 20 segundos, sin red. Es secreto de este pase. */
+  live: LiveGrant;
   /** Si la cadena contestó. Si no, lo que se ve es solo el espejo. */
   chainChecked: boolean;
 }
@@ -79,14 +82,14 @@ export async function loadCredentialUnchecked(passId: string): Promise<Credentia
   const view = await repo.getPassView(passId);
   if (!view || view.pass.status === "pending") return null;
 
-  const [checkIns, redemptions, catalog, qrKey, numbering] = await Promise.all([
+  const [checkIns, redemptions, catalog, numbering] = await Promise.all([
     repo.listCheckInsForPass(passId),
     repo.listRedemptionsForPass(passId),
     repo.listBenefits(view.event.id),
-    repo.getEventQrKey(view.event.id),
     passNumber(repo, view.pass, view.event),
   ]);
 
+  const qrKeys = getEventQrKeys(view.event.id);
   const paid = view.ticketType.priceUsdc > 0;
   // Un canje registrado cuenta aunque el contrato lo haya marcado doble: doble quiere decir que ya estaba hecho.
   const redeemedIds = new Set(redemptions.map((r) => r.benefitId));
@@ -122,7 +125,8 @@ export async function loadCredentialUnchecked(passId: string): Promise<Credentia
     paid,
     checkedIn,
     benefits,
-    qrPayload: buildQrPayload(passId, qrKey),
+    qrPayload: buildPrintedPayload(passId, qrKeys),
+    live: buildLiveGrant(passId, qrKeys),
     chainChecked: chain !== null,
   };
 }

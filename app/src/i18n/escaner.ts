@@ -23,7 +23,7 @@ export const escaner = {
     "escaner.escribir": "Escribir el código",
     "escaner.usarCamara": "Usar la cámara",
     "escaner.codigoCredencial": "Código de la credencial",
-    "escaner.codigoCredencialAyuda": "Las letras que están debajo del QR.",
+    "escaner.codigoCredencialAyuda": "El texto que lleva el QR. Sirve si tenés un lector que lo escribe.",
     "escaner.verificar": "Verificar",
     "escaner.pendiente1": "1 por sincronizar",
     "escaner.pendientes": "{n} por sincronizar",
@@ -50,6 +50,11 @@ export const escaner = {
     "escaner.motivo.not_checked_in": "Primero tiene que pasar por la puerta.",
     "escaner.siguiente": "Siguiente",
     "escaner.sinNombre": "Credencial {id}",
+
+    // El QR que venció y cómo se leyó la credencial
+    "escaner.motivo.expired": "Este QR venció. Pedile que abra de nuevo su credencial: una captura de pantalla no sirve.",
+    "escaner.via.printed": "Credencial impresa",
+    "escaner.via.manual": "Marcada a mano",
   },
   en: {
     "escaner.titulo": "Scanner",
@@ -71,7 +76,7 @@ export const escaner = {
     "escaner.escribir": "Type the code",
     "escaner.usarCamara": "Use the camera",
     "escaner.codigoCredencial": "Code on the pass",
-    "escaner.codigoCredencialAyuda": "The letters under the QR code.",
+    "escaner.codigoCredencialAyuda": "The text inside the QR code. Useful if you have a reader that types it.",
     "escaner.verificar": "Check",
     "escaner.pendiente1": "1 waiting to sync",
     "escaner.pendientes": "{n} waiting to sync",
@@ -98,5 +103,10 @@ export const escaner = {
     "escaner.motivo.not_checked_in": "They need to check in at the gate first.",
     "escaner.siguiente": "Next",
     "escaner.sinNombre": "Pass {id}",
+
+    // The QR code that expired and how the pass was read
+    "escaner.motivo.expired": "This QR code has expired. Ask them to open their pass again: a screenshot does not work.",
+    "escaner.via.printed": "Printed pass",
+    "escaner.via.manual": "Marked by hand",
   },
 } satisfies AreaDictionary;

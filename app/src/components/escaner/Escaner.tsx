@@ -1,6 +1,6 @@
 "use client";
 // El escáner del voluntario. Primero abre su puesto con el código que le dio quien organiza (hace
-// falta red una vez): baja la llave del evento, su puesto y los pases. Después lee credenciales con
+// falta red una vez): baja la clave pública del evento, su puesto y los pases. Después lee credenciales con
 // la cámara o a mano y decide en el momento, sin red: verifica la firma con WebCrypto y mira lo que
 // el servidor sabía y lo que este mismo escáner registró. Cada entrada o canje va a la cola local
 // (src/lib/cola.ts) y, cuando hay red, a /api/scan/sync, que lo lleva al contrato.
@@ -18,9 +18,17 @@ import {
   type QueueEntry,
   type ScanSession,
 } from "@/lib/cola.ts";
-import { SYNC_BATCH_SIZE, decideVerdict, type ScanSnapshot, type ScanStation, type SyncResponse, type Verdict } from "@/lib/escaner-api.ts";
+import {
+  SYNC_BATCH_SIZE,
+  decideVerdict,
+  type ScanSnapshot,
+  type ScanStation,
+  type SyncResponse,
+  type Verdict,
+} from "@/lib/escaner-api.ts";
 import { OPEN_TIMEOUT_MS, READ_REFRESH_TIMEOUT_MS, SYNC_TIMEOUT_MS, postJson } from "@/lib/http.ts";
-import { importQrKey, verifyQrPayloadInBrowser } from "@/lib/qr-verify.ts";
+import { clockOffset } from "@/lib/qr-live.ts";
+import { importEventKey, verifyQrPayloadInBrowser } from "@/lib/qr-verify.ts";
 import { STATION_CODE_LENGTH, normalizeStationCode } from "@/lib/station-code.ts";
 import { Camara, type CameraProblem } from "./Camara.tsx";
 import { Veredicto } from "./Veredicto.tsx";
@@ -105,7 +113,7 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
 
   const colaRef = useRef<ColaLocal | null>(null);
   const sesionRef = useRef<ScanSession | null>(null);
-  const claveRef = useRef<CryptoKey | null>(null);
+  const claveRef = useRef<Uint8Array | null>(null);
   const enLineaRef = useRef(true);
   const sincronizandoRef = useRef(false);
   const procesandoRef = useRef(false);
@@ -123,12 +131,20 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
     setConteo(await c.counts(s.snapshot.event.id));
   }, []);
 
+  /** false si la sesión no sirve: una guardada por la versión anterior no trae la clave pública del evento. */
   const adoptarSesion = useCallback(
-    async (nueva: ScanSession) => {
+    async (nueva: ScanSession): Promise<boolean> => {
+      let clave: Uint8Array;
+      try {
+        clave = importEventKey(nueva.snapshot.publicKey);
+      } catch {
+        return false;
+      }
+      claveRef.current = clave;
       sesionRef.current = nueva;
       setSesion(nueva);
-      claveRef.current = await importQrKey(nueva.snapshot.key);
       await refrescarLocal();
+      return true;
     },
     [refrescarLocal],
   );
@@ -136,7 +152,8 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
   const actualizarSnapshot = useCallback(async (snapshot: ScanSnapshot) => {
     const s = sesionRef.current;
     if (!s) return;
-    const nueva: ScanSession = { ...s, snapshot, savedAt: new Date().toISOString() };
+    // La foto acaba de llegar del servidor: su hora sirve para corregir un reloj desfasado.
+    const nueva: ScanSession = { ...s, snapshot, savedAt: new Date().toISOString(), clockOffsetMs: clockOffset(Date.parse(snapshot.generatedAt), Date.now()) };
     sesionRef.current = nueva;
     setSesion(nueva);
     await colaRef.current?.saveSession(nueva);
@@ -238,10 +255,10 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
       colaRef.current = c;
       setCola(c);
       const guardada = await c.getSession();
-      if (guardada) {
-        await adoptarSesion(guardada);
+      if (guardada && (await adoptarSesion(guardada))) {
         setFase("escanear");
       } else {
+        if (guardada) await c.clearSession();
         setFase("elegir");
       }
     })();
@@ -280,9 +297,15 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
       if (status === 401) return setErrorAbrir(t("escaner.codigoMal"));
       if (status === 429) return setErrorAbrir(t("escaner.demasiadosIntentos"));
       if (!data || status !== 200) return setErrorAbrir(t("escaner.errorRed"));
-      const nueva: ScanSession = { code, scannerId: deviceId(), snapshot: data, savedAt: new Date().toISOString() };
+      const nueva: ScanSession = {
+        code,
+        scannerId: deviceId(),
+        snapshot: data,
+        savedAt: new Date().toISOString(),
+        clockOffsetMs: clockOffset(Date.parse(data.generatedAt), Date.now()),
+      };
       await colaRef.current?.saveSession(nueva);
-      await adoptarSesion(nueva);
+      if (!(await adoptarSesion(nueva))) return setErrorAbrir(t("escaner.errorRed"));
       ultimoRefreshRef.current = Date.now();
       setSesionInvalida(false);
       setFase("escanear");
@@ -327,7 +350,8 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
       ultimaLecturaRef.current = { texto: limpio, at: ahora };
       procesandoRef.current = true;
       try {
-        const verification = await verifyQrPayloadInBrowser(limpio, key);
+        // La hora del servidor, si este celular tiene la suya desfasada: el QR que rota vale por su ventana de tiempo.
+        const verification = await verifyQrPayloadInBrowser(limpio, key, Date.now() + (s.clockOffsetMs ?? 0));
         let snapshot = s.snapshot;
         let pass = verification.ok ? snapshot.passes.find((p) => p.id === verification.passId) : undefined;
         if (verification.ok && !pass && enLineaRef.current) {

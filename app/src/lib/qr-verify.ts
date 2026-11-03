@@ -1,33 +1,51 @@
-// Verificar el QR de una credencial en el navegador, sin red, con WebCrypto.
-// El escáner del voluntario recibe la llave del evento al abrirlo con conexión y la guarda
-// en su cola local; con eso comprueba que cada QR es auténtico aunque el wifi se caiga.
+// Verificar el QR de una credencial en el navegador, sin red.
+// El escáner del voluntario recibe la clave pública del evento al abrir el puesto con conexión y la guarda
+// con su sesión; con eso comprueba que cada QR es auténtico aunque el wifi se caiga. La clave privada no
+// sale nunca del servidor: un celular de voluntario perdido no sirve para fabricar credenciales.
+import { ed25519Verify } from "./ed25519.ts";
 import {
-  QR_SIG_BYTES,
-  base32Encode,
+  ED25519_KEY_BYTES,
+  WINDOWS_AHEAD,
+  WINDOWS_BEHIND,
   base64urlToBytes,
-  constantTimeEqual,
-  splitQrPayload,
+  certificateMessage,
+  parseQrPayload,
+  printedMessage,
+  windowMessage,
+  windowOf,
   type QrVerification,
 } from "./qr-codec.ts";
 
 export type { QrVerification } from "./qr-codec.ts";
 
-/** Prepara la llave del evento (bytes, o el texto en base64url que manda el servidor). */
-export async function importQrKey(key: Uint8Array | string): Promise<CryptoKey> {
+/** Prepara la clave pública del evento (bytes, o el texto en base64url que manda el servidor). */
+export function importEventKey(key: Uint8Array | string): Uint8Array {
   const bytes = typeof key === "string" ? base64urlToBytes(key) : key;
-  const buffer = new Uint8Array(bytes).buffer;
-  return crypto.subtle.importKey("raw", buffer, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  if (bytes.length !== ED25519_KEY_BYTES) throw new Error("La clave del evento no tiene la forma esperada");
+  return bytes;
 }
 
-export async function signPassIdInBrowser(passId: string, key: CryptoKey): Promise<string> {
-  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(passId));
-  return base32Encode(new Uint8Array(mac).subarray(0, QR_SIG_BYTES));
-}
+/**
+ * Devuelve el pase si el QR es auténtico, o por qué no lo es. `nowMs` es la hora del escáner (corregida con
+ * la del servidor, si la sabe). El QR impreso vale siempre; el del celular, solo en su ventana de tiempo,
+ * la anterior y la siguiente.
+ */
+export async function verifyQrPayloadInBrowser(payload: string, eventKey: Uint8Array, nowMs: number = Date.now()): Promise<QrVerification> {
+  const parsed = parseQrPayload(payload);
+  if (!parsed) return { ok: false, reason: "malformed" };
 
-/** Devuelve el id del pase si la firma es válida, o por qué no lo es. */
-export async function verifyQrPayloadInBrowser(payload: string, key: CryptoKey): Promise<QrVerification> {
-  const parts = splitQrPayload(payload);
-  if (!parts) return { ok: false, reason: "malformed" };
-  const expected = await signPassIdInBrowser(parts.passId, key);
-  return constantTimeEqual(expected, parts.signature) ? { ok: true, passId: parts.passId } : { ok: false, reason: "bad_signature" };
+  if (parsed.via === "printed") {
+    const valid = await ed25519Verify(eventKey, printedMessage(parsed.passId), parsed.signature);
+    return valid ? { ok: true, passId: parsed.passId, via: "printed" } : { ok: false, reason: "bad_signature" };
+  }
+
+  // El certificado liga la clave de la credencial a este pase; la firma de la ventana la hizo esa clave.
+  const certified = await ed25519Verify(eventKey, certificateMessage(parsed.passId, parsed.credentialKey), parsed.certificateSignature);
+  if (!certified) return { ok: false, reason: "bad_signature" };
+  const signed = await ed25519Verify(parsed.credentialKey, windowMessage(parsed.passId, parsed.window), parsed.signature);
+  if (!signed) return { ok: false, reason: "bad_signature" };
+
+  const current = windowOf(nowMs);
+  if (parsed.window < current - WINDOWS_BEHIND || parsed.window > current + WINDOWS_AHEAD) return { ok: false, reason: "expired", passId: parsed.passId };
+  return { ok: true, passId: parsed.passId, via: "live" };
 }

@@ -1,5 +1,6 @@
 // La credencial en pantalla: la entrada, el número, el QR grande sobre blanco, el nombre, el estado y
 // lo que le toca a la persona con su chip (siempre palabra y color).
+import type { ReactNode } from "react";
 import { Chip, type EstadoChip } from "@/components/ui.tsx";
 import type { T } from "@/i18n/index.ts";
 import type { BenefitState, CredentialView } from "@/server/evento/credencial.ts";
@@ -22,7 +23,7 @@ function Check() {
   );
 }
 
-export function Credencial({ view, t, qrSvg }: { view: CredentialView; t: T; qrSvg: string }) {
+export function Credencial({ view, t, qr }: { view: CredentialView; t: T; qr: ReactNode }) {
   const status = view.checkedIn ? t("estado.entro") : view.paid ? t("evento.credencial.paga") : t("evento.credencial.inscripta");
   return (
     <article className="tarjeta tarjeta-alzada credencial" aria-label={t("evento.credencial.titulo")}>
@@ -31,7 +32,7 @@ export function Credencial({ view, t, qrSvg }: { view: CredentialView; t: T; qrS
         <span>{t("evento.credencial.numero", { n: view.number, total: view.total })}</span>
       </div>
       <div className="credencial-cuerpo">
-        <div className="credencial-qr" role="img" aria-label={t("evento.credencial.qr")} dangerouslySetInnerHTML={{ __html: qrSvg }} />
+        {qr}
         <div className="credencial-datos">
           <p className="credencial-nombre">{view.person.name}</p>
           <Chip estado="listo">

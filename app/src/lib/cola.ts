@@ -1,5 +1,5 @@
 // La cola local del escáner del voluntario. Vive en IndexedDB, en el celular, y guarda dos cosas:
-// la sesión del puesto (el código con que se abrió y la foto del evento: su llave, el puesto y los
+// la sesión del puesto (el código con que se abrió y la foto del evento: su clave pública, el puesto y los
 // pases), para seguir trabajando y hasta volver a abrir la página sin red; y cada entrada o canje
 // que el voluntario registró, con su estado: pendiente de llegar al servidor, sincronizado, doble
 // (el contrato dijo que ya estaba hecho) o rechazado. Si el navegador no deja usar IndexedDB (una
@@ -43,6 +43,11 @@ export interface ScanSession {
   scannerId: string;
   snapshot: ScanSnapshot;
   savedAt: string;
+  /**
+   * Cuánto hay que sumarle al reloj de este celular para tener la hora del servidor, medido cuando llegó la
+   * última foto del evento (0 si el reloj está bien). Con eso se decide si el QR que rota está en su ventana.
+   */
+  clockOffsetMs?: number;
 }
 
 export interface ColaLocal {
