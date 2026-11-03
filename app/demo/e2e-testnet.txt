@@ -1,4 +1,4 @@
-Rumbo, el flujo entero contra la red de prueba de Stellar. 2026-11-03T11:44:34.344Z
+Rumbo, el flujo entero contra la red de prueba de Stellar. 2026-11-03T12:23:50.036Z
 Servidor: http://127.0.0.1:4410 (levantado por este script). Datos: ./data/e2e.
 Red: testnet. Contratos rumbo-pass: gratis CCNYNDTANYGYGKSAI5JYI7N7WYX32554DQD72OFO5T4WAKVRMDTDWHJ6, pago CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA.
 USDC de prueba: USDC:GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL (contrato CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ).
@@ -6,7 +6,7 @@ USDC de prueba: USDC:GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL (c
 > Una base nueva en ./data/e2e y el servidor de desarrollo en el puerto 4410  (0.0 s)
   ok    el servidor contesta en http://127.0.0.1:4410
 
-> El evento de muestra (pnpm seed)  (5.3 s)
+> El evento de muestra (pnpm seed)  (7.5 s)
   Evento creado: Hackatón de la comunidad (/e/hackaton-comunidad)
   Entradas: Inscripción (gratis) y Con almuerzo (10 USDC de prueba)
   Beneficios: almuerzo del sábado (con la entrada paga), polera talle M (todos), premio del sorteo (se otorga después)
@@ -19,43 +19,43 @@ USDC de prueba: USDC:GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL (c
   ok    hay una entrada gratis ("Inscripción") y una paga ("Con almuerzo", 10 USDC de prueba)
   ok    el catálogo tiene el almuerzo ("Almuerzo del sábado")
 
-> Inscripción gratis de Valeria Prueba por POST /api/evento/hackaton-comunidad/inscripcion (crea su cuenta de prueba y la inscribe en el contrato)  (8.7 s)
-  ok    se creó la credencial (201 {"status":"created","passId":"K36FENJD","url":"http://localhost:4410/p/K36FENJD?k=...&lang=es","paid":false,"ticketType":"Inscripción"}) en 23 s
-  ok    el pase K36FENJD quedó activo con su cuenta GCKERK3LQNXKXHEUXJWE3WTK6GOOXBEYJ3BC2XRW3C2J42XJJRCCAXGE
-  transacción: e1c92d8f48ea5a1ea5b80ac43022d36caf369900581790306858a3da8b62b384
+> Inscripción gratis de Valeria Prueba por POST /api/evento/hackaton-comunidad/inscripcion (crea su cuenta de prueba y la inscribe en el contrato)  (10.2 s)
+  ok    se creó la credencial (201 {"status":"created","passId":"U6EKW5ZM","url":"http://localhost:4410/p/U6EKW5ZM?k=...&lang=es","paid":false,"ticketType":"Inscripción"}) en 26 s
+  ok    el pase U6EKW5ZM quedó activo con su cuenta GBXRWXXDWYSEZA3BI7WVZTZQ5R43FLRJYTT53CKJ5B74B65R3SBIKF34
+  transacción: 061739d1fb58bd0bc8235fc984bb36e7c6873a7dff2e01e7bdfb9a1a7367f41c
   ok    el correo con el enlace personal quedó en ./data/e2e/correos (sin llaves ni contraseñas)
   ok    el correo no lleva ninguna llave secreta
 
-> Entrada con almuerzo de Mateo Prueba: buy con 10 USDC de prueba desde su cuenta  (32.0 s)
-  ok    se pagó y se creó la credencial (201) en 20 s
-  ok    el pase GSDH4JUN quedó activo con su cuenta GDEMHDBFFX6AEWLLRXHHTQUP5XD45KPYZ7ME2XHN6QPUKWUUCTOIWPQA
-  transacción: 116dc47b228c156491edc7e9f988e8ceda96fcedcf0c27eb99cfe3f4523fd73c
-  ok    quien organiza recibió 9.75 USDC de prueba en la misma transacción (224.25 a 234)
-  ok    Rumbo recibió la comisión de 0.25 USDC de prueba (2.5 %) en la misma transacción (5.75 a 6)
+> Entrada con almuerzo de Mateo Prueba: buy con 10 USDC de prueba desde su cuenta  (35.8 s)
+  ok    se pagó y se creó la credencial (201) en 16 s
+  ok    el pase RB37ZUIC quedó activo con su cuenta GAQPTQZ7QWEBQAOBZRUSRJCBOKTCLYCN4LTSO3F45RSGKH7GSMZV4AAC
+  transacción: 11bd34379876f55471a344008bf148182a736205179370ac062f9d8348d17d03
+  ok    quien organiza recibió 9.75 USDC de prueba en la misma transacción (282.75 a 292.5)
+  ok    Rumbo recibió la comisión de 0.25 USDC de prueba (2.5 %) en la misma transacción (7.25 a 7.5)
   ok    a quien compró le quedan 90 USDC de prueba (tenía 100)
   ok    el contrato pago cobra 10 USDC de prueba con 2.5 % de comisión, a la vista de cualquiera
 
-> Otra vez con el mismo correo: no se crea otro pase y el enlace se reenvía por correo  (53.2 s)
+> Otra vez con el mismo correo: no se crea otro pase y el enlace se reenvía por correo  (54.9 s)
   ok    la respuesta es "existing" y no muestra el enlace (200)
 
-> La credencial de cada persona: la página, los datos y el SVG  (53.2 s)
-  ok    GET /api/pase/K36FENJD: "Valeria Prueba", credencial 1 de 200, inscripción lista
-  ok    GET /api/pase/GSDH4JUN: entrada paga, lo que le toca: Almuerzo del sábado (pendiente), Polera talle M (pagada), Premio del sorteo (sorteo)
-  QR del celular de Valeria Prueba (cambia cada 20 s): K36FENJD.CVQ7KE.QM2WIKR46QU6RYEUZVNUVONQ5YH6CBJQUKO4PDFAB5EAKRCALSAUG2AXW33UBQVOD3WZYV3YZBEFBF7K5ZP3VB3JNQWBQUVDRIJ6XZQTCEKWFQ63A5KUM2Q3UFTIHM3NJXTH2ZI7VKCTKHPBXRJZS3KCBM.7SXUCWSCW33CPXZER3US2LROI7SZONOAKWJQBOQANMRZ4ZVXTGB2QGEZ7NE2SXNNZOTDGLQHFQ4WFNMKKDGHO35QYHBRFFL5FYGKKBQ
-  QR fijo de la credencial impresa de Mateo Prueba: GSDH4JUN.HWO76TWDSRMT6LFPOF7QDE7T7WJ26PXB454ENDGIAGBVSPGXN4R7IM6X46FDBH5VMCQDOUXWLGH7MPQJ3GXCC2U4YS6LKMW3IDL4OBY
+> La credencial de cada persona: la página, los datos y el SVG  (54.9 s)
+  ok    GET /api/pase/U6EKW5ZM: "Valeria Prueba", credencial 1 de 200, inscripción lista
+  ok    GET /api/pase/RB37ZUIC: entrada paga, lo que le toca: Almuerzo del sábado (pendiente), Polera talle M (pagada), Premio del sorteo (sorteo)
+  QR del celular de Valeria Prueba (cambia cada 20 s): U6EKW5ZM.CVQ7N2.6LHWN6K6WVSKM3XDUVQCZ5GKSYB3GPIFC3H5HXG657K7542R5XNTWRR3FRMLKRIHF7MBAV7WYYR46SJGK7G2EHJGR62F3WJMZJ6VZHJRWJ6HFZ6VRCXJPSVFHSWGZM5P4HXPPG4C3NGCZO2BPO4C3ZD2AQ.FF7D5NBE7IMLUZF6XLAJAKE23232AVLQ24YJKJAS2XT4OPAH3L7PXGPH7EMDTOTHJKDKJZGK5ABMGJ7YZ33J5DLK5UAJQCEMVHZD2CA
+  QR fijo de la credencial impresa de Mateo Prueba: RB37ZUIC.2ECQA563W4WKUIVPZEAF3H5AFGXZUF7XGTPYDTOXUCRONW46CUBKPNL6FMQQ6AHYIYVEGH7YVSVTIIRFX244LFVBESGNJMHUSAAE2CI
   ok    la credencial entrega la llave de ese pase y nada más
-  ok    la página /p/K36FENJD se ve con el nombre y su única acción
+  ok    la página /p/U6EKW5ZM se ve con el nombre y su única acción
   ok    la confirmación /e/hackaton-comunidad/listo dice "Entrada paga" y lleva a la credencial
-  ok    el SVG para imprimir baja con el nombre y marcado como impreso (25346 bytes)
+  ok    el SVG para imprimir baja con el nombre y marcado como impreso (25470 bytes)
   ok    con otra clave la credencial da 404
   ok    sin clave la página da 404 (no dice si el pase existe)
 
-> El panel de quien organiza: la clave, los códigos de puesto y los contadores antes del evento  (70.1 s)
+> El panel de quien organiza: la clave, los códigos de puesto y los contadores antes del evento  (74.4 s)
   ok    GET /api/admin/hackaton-comunidad sin clave: 401
   ok    con la clave: 2 credenciales, 0 entraron, almuerzos 0 de 1
-  ok    códigos de puesto: puerta GMYA-TZVX-YN6T, Almuerzo del sábado TZFV-46SP-SCN3
+  ok    códigos de puesto: puerta KYIT-FE3Z-6E25, Almuerzo del sábado HDEG-H5QG-EAHG
 
-> El escáner en la puerta (POST /api/scan/open con el código de la puerta): decide sin red y sincroniza  (72.8 s)
+> El escáner en la puerta (POST /api/scan/open con el código de la puerta): decide sin red y sincroniza  (77.1 s)
   ok    un código que no es de ningún puesto: 401
   ok    la puerta abre (en minúsculas y con guion) y baja la llave del evento y 2 pases
   ok    el escáner recibe una clave pública, no una llave compartida
@@ -68,59 +68,59 @@ USDC de prueba: USDC:GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL (c
   ok    Valeria Prueba: verde, entra
   ok    Mateo Prueba: verde, entra, y el veredicto dice que la credencial es la impresa
   ok    Valeria Prueba otra vez, antes de sincronizar: amarillo, ya entró (lo sabe la cola local)
-  ok    la cola se sincronizó: las dos entradas llegaron al contrato en 13 s
-  transacción: db0b10716b6f9db27b91d2b65ec8bc55254f15ae8aef9bcdd601026e5aac2e6f
-  transacción: f81d00af060126cb30f03297250f5d355a82e3aa19e6af0bd4e443287e10d230
+  ok    la cola se sincronizó: las dos entradas llegaron al contrato en 18 s
+  transacción: 6fdecbf3a4c3867bb4e57d6a71eb99453d9315e7085cbf78936658f067423dc3
+  transacción: 90ac712eb52c46b5183b8e6ff24a1591965617f375dda3c96cc9b4e47f420361
   ok    la foto fresca del evento ya dice que entraron
   ok    la misma entrada desde otro puesto que no lo sabía: el contrato la rechaza (AlreadyCheckedIn) y queda como "doble, revisar"
   ok    reintentar el mismo registro (mismo clientId) no duplica nada
   ok    un canje mandado con el código de la puerta se rechaza: cada puesto hace lo suyo
 
-> La mesa del almuerzo (código TZFV-46SP-SCN3): canjea una sola vez  (87.7 s)
+> La mesa del almuerzo (código HDEG-H5QG-EAHG): canjea una sola vez  (98.0 s)
   ok    la mesa abre con su puesto "Almuerzo del sábado"
   ok    Valeria Prueba (inscripción gratis): no corresponde, la entrada no incluye el almuerzo
   ok    Mateo Prueba: verde, canjea el almuerzo
   ok    el canje llegó al contrato en 9 s
-  transacción: 439673defa0e1116af0623e4c247b8c1fd4d8aa8b3f27219c81e85805be92bf1
+  transacción: deabc4282417e63f0cee793f974aefc595f0c7874254fa3e229b72b3fc01e9a2
   ok    Mateo Prueba otra vez: amarillo, ya canjeado (el escáner lo decide solo, sin mandar nada)
   ok    y si otro puesto lo manda igual, el contrato lo rechaza (AlreadyRedeemed)
   ok    un canje para quien no lo tiene se rechaza en el servidor (la entrada no incluye ese beneficio)
 
-> La cadena: status(), attendees() e info() de cada contrato  (96.8 s)
-  ok    Valeria Prueba: pase 3, entró, sin canjes ({"has_pass":true,"number":3,"checked_in":true,"redeemed":[]})
-  ok    Mateo Prueba: pase 5, entró, almuerzo canjeado ({"has_pass":true,"number":5,"checked_in":true,"redeemed":[0]})
-  ok    attendees() de cada contrato incluye a quien entró (3 y 4 cuentas en total, con las de otras corridas)
-  info(): el contrato gratis lleva 3 pases emitidos y 3 entradas; el pago, 5 pases emitidos (los de esta corrida incluidos)
+> La cadena: status(), attendees() e info() de cada contrato  (110.5 s)
+  ok    Valeria Prueba: pase 29, entró, sin canjes ({"has_pass":true,"number":29,"checked_in":true,"redeemed":[]})
+  ok    Mateo Prueba: pase 11, entró, almuerzo canjeado ({"has_pass":true,"number":11,"checked_in":true,"redeemed":[0]})
+  ok    attendees() de cada contrato incluye a quien entró (29 y 10 cuentas en total, con las de otras corridas)
+  info(): el contrato gratis lleva 29 pases emitidos y 29 entradas; el pago, 11 pases emitidos (los de esta corrida incluidos)
 
-> El panel después: los contadores, los dobles y el contraste con la cadena  (101.6 s)
+> El panel después: los contadores, los dobles y el contraste con la cadena  (117.5 s)
   ok    los dos pases figuran como que entraron
   ok    el almuerzo de Mateo Prueba figura canjeado
   ok    dobles para revisar: 2 (la entrada repetida y el canje repetido)
   contadores: 2 credenciales (0 pendientes de pago), 2 entraron, almuerzos 1 de 1, premios 0 de 0; por sincronizar 0
   ok    con la base nueva: 2 credenciales, 2 entraron, 1 almuerzo de 1, nada por sincronizar
-  ok    POST /api/admin/hackaton-comunidad/cadena contrastó 2 pases en 6 s
-  Inscripción: 3 pases emitidos y 3 entradas en la cadena, 1 de este evento
-  Con almuerzo: 5 pases emitidos y 4 entradas en la cadena, 1 de este evento
+  ok    POST /api/admin/hackaton-comunidad/cadena contrastó 2 pases en 8 s
+  Inscripción: 29 pases emitidos y 29 entradas en la cadena, 1 de este evento
+  Con almuerzo: 11 pases emitidos y 10 entradas en la cadena, 1 de este evento
   ok    la cadena no tenía nada que el espejo no supiera (agregó 0 entradas y 0 canjes; diferencias en estos pases: 0)
   ok    los números coinciden: 2 entraron según el panel y 2 cuentas de este evento entraron según la cadena; sin diferencias ni pendientes
   ok    los contadores no cambiaron al contrastar: el espejo ya decía lo mismo que la cadena
 
-> El informe para quien auspicia y el CSV para quien organiza  (107.3 s)
+> El informe para quien auspicia y el CSV para quien organiza  (125.3 s)
   ok    entrar con la clave deja la cookie del panel y sigue al informe
   ok    el informe dice "Almuerzo del sábado: 1 de 1 canjeados"
   ok    el informe no trae nombres ni correos
   ok    el CSV para quien organiza sí lleva a las 2 personas con su correo y su estado
 
-TODO BIEN: 66 de 66 comprobaciones en 115.6 s.
+TODO BIEN: 66 de 66 comprobaciones en 132.4 s.
 
 Las transacciones de esta corrida en la red de prueba (5):
-  inscripción gratis de Valeria Prueba (register, pase número 3)
-    https://stellar.expert/explorer/testnet/tx/e1c92d8f48ea5a1ea5b80ac43022d36caf369900581790306858a3da8b62b384
-  entrada paga de Mateo Prueba (buy, pase número 5)
-    https://stellar.expert/explorer/testnet/tx/116dc47b228c156491edc7e9f988e8ceda96fcedcf0c27eb99cfe3f4523fd73c
+  inscripción gratis de Valeria Prueba (register, pase número 29)
+    https://stellar.expert/explorer/testnet/tx/061739d1fb58bd0bc8235fc984bb36e7c6873a7dff2e01e7bdfb9a1a7367f41c
+  entrada paga de Mateo Prueba (buy, pase número 11)
+    https://stellar.expert/explorer/testnet/tx/11bd34379876f55471a344008bf148182a736205179370ac062f9d8348d17d03
   entrada por la puerta de Valeria Prueba (check_in, firma la puerta, paga el servidor)
-    https://stellar.expert/explorer/testnet/tx/db0b10716b6f9db27b91d2b65ec8bc55254f15ae8aef9bcdd601026e5aac2e6f
+    https://stellar.expert/explorer/testnet/tx/6fdecbf3a4c3867bb4e57d6a71eb99453d9315e7085cbf78936658f067423dc3
   entrada por la puerta de Mateo Prueba (check_in, firma la puerta, paga el servidor)
-    https://stellar.expert/explorer/testnet/tx/f81d00af060126cb30f03297250f5d355a82e3aa19e6af0bd4e443287e10d230
+    https://stellar.expert/explorer/testnet/tx/90ac712eb52c46b5183b8e6ff24a1591965617f375dda3c96cc9b4e47f420361
   canje del almuerzo de Mateo Prueba (redeem, firma la puerta)
-    https://stellar.expert/explorer/testnet/tx/439673defa0e1116af0623e4c247b8c1fd4d8aa8b3f27219c81e85805be92bf1
+    https://stellar.expert/explorer/testnet/tx/deabc4282417e63f0cee793f974aefc595f0c7874254fa3e229b72b3fc01e9a2
