@@ -124,6 +124,9 @@ export interface Pass {
   createdAt: string;
   activatedAt: string | null;
   checkedInAt: string | null;
+  /** Si aceptó que la comunidad que organiza le escriba sobre sus próximos eventos (la casilla opcional del formulario). */
+  contactConsent: boolean;
+  contactConsentAt: string | null;
 }
 
 export interface NewPass {
@@ -143,6 +146,8 @@ export interface PassPatch {
   chainNumber?: number | null;
   activatedAt?: string | null;
   checkedInAt?: string | null;
+  /** La casilla de contacto: guarda también cuándo se aceptó (o lo borra si se desmarca). */
+  contactConsent?: boolean;
 }
 
 /** Un beneficio de un pase: de dónde salió y con qué número se canjea en el contrato (null si no está en la cadena). */
@@ -377,6 +382,8 @@ function rowToPass(row: Row): Pass {
     createdAt: str(row.created_at),
     activatedAt: strOrNull(row.activated_at),
     checkedInAt: strOrNull(row.checked_in_at),
+    contactConsent: bool(row.contact_consent),
+    contactConsentAt: strOrNull(row.contact_consent_at),
   };
 }
 
@@ -715,6 +722,10 @@ export class SqliteRepo implements Repo {
     if (patch.chainNumber !== undefined) columns.chain_number = patch.chainNumber;
     if (patch.activatedAt !== undefined) columns.activated_at = patch.activatedAt;
     if (patch.checkedInAt !== undefined) columns.checked_in_at = patch.checkedInAt;
+    if (patch.contactConsent !== undefined) {
+      columns.contact_consent = patch.contactConsent ? 1 : 0;
+      columns.contact_consent_at = patch.contactConsent ? now() : null;
+    }
     this.update("passes", id, columns);
     const pass = await this.getPass(id);
     if (!pass) throw new Error(`No existe el pase ${id}`);

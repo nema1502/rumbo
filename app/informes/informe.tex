@@ -1,0 +1,176 @@
+% El informe del evento: para quien organiza, para quien auspicia y para el programa de embajadores
+% de Stellar. Lo arma scripts/informe.mjs: escribe datos.tex (los números ya agregados, los textos en
+% el idioma pedido y las filas de las tablas) y compila este archivo dos veces con XeLaTeX.
+% Cada sección se omite sola si el generador no escribió su marca (\rumboif{seccion.<nombre>}).
+\documentclass{rumbo-informe}
+\input{datos.tex}
+\rumboIdioma
+\hypersetup{pdftitle={\V{pdf.titulo}}, pdfauthor={Rumbo}, pdfsubject={\V{pdf.asunto}}, pdfcreator={Rumbo}, pdfproducer={Rumbo}}
+
+% ---------- La portada ----------
+% Se dibuja entera en el fondo de la página 1: la marca, el aviso de ejemplo, la brújula, el título
+% y el bloque de tinta con las tres cifras.
+\renewcommand\rumboPortadaFondo{%
+  \node[anchor=west, inner sep=0] at (22,-23) {\includegraphics[height=9mm]{marca/logo-tinta.pdf}};
+  \node[anchor=west, inner sep=0, font=\rumboCifra\fontsize{20}{20}\selectfont\color{tinta}] at (33.6,-23) {Rumbo};
+  \rumboif{ejemplo}{%
+    % En el fondo de la página va un nodo de TikZ y no una tcolorbox: sus transparencias no llegan a la página.
+    \node[anchor=north west, fill=amarilloSuave, draw=amarillo, line width=0.6pt, rounded corners=3.2mm, inner xsep=5mm, inner ysep=3.4mm, text width=155mm, align=left] at (22,-34) {%
+      {\fontsize{10}{13}\selectfont\bfseries\color{tinta}\V{t.ejemplo.titulo}\par}\vspace{0.8mm}%
+      {\fontsize{8.8}{12.5}\selectfont\color{tinta}\V{t.ejemplo.texto}\par}};
+  }{}
+  \begin{scope}[shift={(158,-100)}]\rumboBrujula{31}{tinta!50!papel}{tinta!85!papel}{tinta}\end{scope}
+  \node[anchor=south west, inner sep=0, text width=166mm, align=left] at (22,-198) {%
+    {\fontsize{11}{14}\selectfont\bfseries\color{naranjaTexto}\V{t.portada.sobre}\par}\vspace{4mm}%
+    {\rumboCifra\fontsize{\V{portada.tam}}{\V{portada.interlinea}}\selectfont\color{tinta}\V{evento.nombre}\par}\vspace{6mm}%
+    {\fontsize{11.5}{16}\selectfont\color{tinta}\V{evento.fecha}\par}%
+    {\fontsize{11.5}{16}\selectfont\color{tinta2}\V{evento.lugar}\par}%
+    {\fontsize{11.5}{16}\selectfont\color{tinta2}\V{t.portada.organiza}\par}};
+  \fill[tinta] (0,-212) rectangle (210,-297);
+  \V{portada.cifras}
+  \draw[line width=0.4pt, color=crema2!35!tinta] (22,-271) -- (188,-271);
+  \node[anchor=west, inner sep=0, font=\fontsize{8}{10}\selectfont\color{crema2}] at (22,-279) {\V{t.pie}};
+  \node[anchor=east, inner sep=0, font=\fontsize{8}{10}\selectfont\color{crema2}] at (188,-279) {\V{t.portada.corte}};
+}
+% Una cifra de la portada, sobre la tinta: \rumboCifraPortada{x}{número}{etiqueta}{color del número}
+\newcommand\rumboCifraPortada[4]{%
+  \node[anchor=south west, inner sep=0, font=\rumboCifra\fontsize{44}{44}\selectfont\color{#4}] at (#1,-246) {#2};
+  \node[anchor=north west, inner sep=0, text width=50mm, font=\fontsize{9.5}{12.5}\selectfont\color{crema2}] at (#1,-250.5) {#3};
+}
+
+\begin{document}
+
+\null\newpage
+
+% ---------- Resumen en números ----------
+
+\rumboSeccion{\V{t.resumen.titulo}}{\V{t.resumen.bajada}}
+\begin{rumboCifras}
+\V{resumen.cifras}
+\end{rumboCifras}
+
+\rumboif{seccion.barras}{%
+  \rumboSubtitulo{\V{t.barras.titulo}}
+  \begin{rumboTarjeta}
+    \V{barras}
+    \vspace{-1mm}\rumboNota{\V{t.barras.nota}}
+  \end{rumboTarjeta}
+}{}
+
+\rumboif{seccion.llegadas}{%
+  \rumboSubtitulo{\V{t.llegadas.titulo}}
+  \begin{rumboTarjeta}
+    \vspace{1mm}\rumboColumnas{\V{llegadas.n}}{\V{llegadas.columnas}}
+    \vspace{2.6mm}\rumboNota{\V{t.llegadas.nota}}
+  \end{rumboTarjeta}
+}{}
+
+% ---------- Asistencia verificada ----------
+
+\rumboif{seccion.asistencia}{%
+  \rumboSeccion{\V{t.asistencia.titulo}}{\V{t.asistencia.bajada}}
+  \begin{rumboCifras}[2]
+    \begin{tcolorbox}[rumbo]
+      {\fontsize{9.2}{12}\selectfont\bfseries\V{t.asistencia.verificados}\par}\vspace{2mm}
+      {\rumboCifra\fontsize{40}{41}\selectfont\color{tinta}\V{asistencia.verificados}\par}\vspace{2.4mm}
+      \V{asistencia.chip}\par\vspace{2mm}
+      {\fontsize{8}{11}\selectfont\color{apagado}\V{t.asistencia.minimo}\par}
+    \end{tcolorbox}
+    \begin{tcolorbox}[rumbo]
+      {\fontsize{9.2}{12}\selectfont\bfseries\V{t.minutos.titulo}\par}\vspace{2mm}
+      \rumboif{minutos.valor}{%
+        {\rumboCifra\fontsize{40}{41}\selectfont\color{tinta}\V{minutos.valor}\par}\vspace{2.4mm}
+        \V{minutos.chip}\par\vspace{2mm}
+      }{%
+        \begin{tikzpicture}[x=1mm, y=1mm]
+          \draw[line width=0.6pt, color=tinta2, rounded corners=1.6mm] (0,0) rectangle (34,13);
+          \node[anchor=west, inner sep=0, font=\fontsize{10}{12}\selectfont\color{apagado}] at (38,4.5) {\V{t.minutos.unidad}};
+        \end{tikzpicture}\par\vspace{2.6mm}
+      }%
+      {\fontsize{8}{11}\selectfont\color{apagado}\V{t.minutos.nota}\par}
+    \end{tcolorbox}
+  \end{rumboCifras}
+  \rumboif{asistencia.pendientes}{\par\vspace{3mm}\rumboNota{\V{asistencia.pendientes}}}{}
+
+  \rumboSubtitulo{\V{t.asistencia.como.titulo}}
+  \rumboParrafo{\V{t.asistencia.como}}
+  \rumboif{contratos}{%
+    \vspace{4mm}
+    \begin{rumboTarjeta}
+      \V{contratos}
+      \rumboif{asistencia.contraste}{\par\vspace{3mm}\rumboNota{\V{asistencia.contraste}}}{}
+    \end{rumboTarjeta}
+  }{}
+
+  \rumboif{seccion.transacciones}{%
+    \rumboSubtitulo{\V{t.tx.titulo}}
+    \begin{rumboTarjeta}
+      \V{transacciones}
+      \vspace{3.4mm}\rumboNota{\V{t.tx.nota}}
+    \end{rumboTarjeta}
+  }{}
+}{}
+
+% ---------- La comida y lo que se entregó ----------
+
+\rumboif{seccion.comida}{%
+  \rumboSeccion{\V{t.comida.titulo}}{\V{t.comida.bajada}}
+  \begin{rumboTarjeta}
+    \V{comida.tabla}
+  \end{rumboTarjeta}
+  \rumboif{seccion.gasto}{%
+    \vspace{4mm}
+    \begin{rumboTarjeta}
+      \leavevmode\begin{tabularx}{\linewidth}{@{}X@{\hspace{8mm}}X@{\hspace{8mm}}X@{}}
+        {\fontsize{8.6}{11}\selectfont\bfseries\V{t.gasto.total}} &
+        {\fontsize{8.6}{11}\selectfont\bfseries\V{t.gasto.persona}} &
+        {\fontsize{8.6}{11}\selectfont\bfseries\V{t.gasto.tope}} \\[1.2mm]
+        {\rumboCifra\fontsize{26}{28}\selectfont\V{gasto.total}} &
+        {\rumboCifra\fontsize{26}{28}\selectfont\V{gasto.persona}} &
+        {\rumboCifra\fontsize{26}{28}\selectfont\V{gasto.tope}} \\
+      \end{tabularx}
+      \par\vspace{7mm}
+      \rumboMedida{\V{gasto.fraccion}}{\V{gasto.fracciontope}}{\V{gasto.color}}{\V{t.gasto.marca}}
+      \vspace{4mm}\V{gasto.chip}\par\vspace{2mm}
+      \rumboNota{\V{t.gasto.nota}}
+    \end{rumboTarjeta}
+  }{}
+}{}
+
+% ---------- Para quien auspicia ----------
+
+\rumboif{seccion.auspicio}{%
+  \rumboSeccion{\V{t.auspicio.titulo}}{\V{t.auspicio.bajada}}
+  \begin{rumboCifras}
+  \V{auspicio.cifras}
+  \end{rumboCifras}
+  \vspace{3mm}
+  \rumboNota{\V{t.auspicio.nota}}
+}{}
+
+% ---------- El sorteo ----------
+
+\rumboif{seccion.sorteo}{%
+  \rumboSeccion{\V{t.sorteo.titulo}}{\V{t.sorteo.bajada}}
+  \begin{rumboCifras}[2]
+  \V{sorteo.cifras}
+  \end{rumboCifras}
+  \rumboif{sorteo.premios}{\vspace{4mm}\begin{rumboTarjeta}\V{sorteo.premios}\end{rumboTarjeta}}{}
+  \rumboif{sorteo.comprobante}{%
+    \rumboSubtitulo{\V{t.sorteo.como.titulo}}
+    \rumboParrafo{\V{t.sorteo.como}}
+    \vspace{2.4mm}
+    \V{sorteo.comprobante}
+  }{}
+}{}
+
+% ---------- Cómo verificar este informe ----------
+
+\rumboSeccion{\V{t.verificar.titulo}}{}
+\begin{tcolorbox}[rumboOscura]
+  {\fontsize{10}{15.5}\selectfont\V{t.verificar.texto}\par}
+  \vspace{3mm}
+  {\fontsize{8.4}{12}\selectfont\color{crema2}\V{t.verificar.corte}\par}
+\end{tcolorbox}
+
+\end{document}

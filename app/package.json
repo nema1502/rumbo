@@ -18,7 +18,10 @@
     "setup:dev": "node scripts/setup-dev.mjs",
     "seed": "node scripts/seed.mjs",
     "e2e": "node scripts/e2e-testnet.mjs",
-    "capturas": "node scripts/capturas.mjs"
+    "capturas": "node scripts/capturas.mjs",
+    "informe": "node scripts/informe.mjs",
+    "certificados": "node scripts/certificados.mjs",
+    "paquete-embajadores": "node scripts/paquete-embajadores.mjs"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "17.4.0",

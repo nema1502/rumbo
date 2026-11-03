@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "example": true,
+  "generatedAt": "2026-11-21T23:30:00-04:00",
+  "baseUrl": "https://rum.bo",
+  "event": {
+    "slug": "devfest-ejemplo",
+    "name": "DevFest de la comunidad 2026",
+    "community": "Comunidad Dev de Ejemplo",
+    "startsAt": "2026-11-21T08:30:00-04:00",
+    "endsAt": "2026-11-21T18:00:00-04:00",
+    "timezone": "America/La_Paz",
+    "place": "Santa Cruz de la Sierra",
+    "venue": "Auditorio central"
+  },
+  "attendees": [
+    { "passId": "EJEMPLOA", "code": "DATOSFICTICIOSAA", "name": "Valentina Ejemplo Rojas", "role": "speaker", "checkedInAt": "2026-11-21T09:12:00-04:00" }
+  ]
+}

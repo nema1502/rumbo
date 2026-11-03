@@ -1,0 +1,94 @@
+// Los certificados de asistencia verificables: un PDF por persona que entró al evento, con su nombre,
+// el evento, la fecha, la duración, la hora en que entró y un QR que lleva a /v/<pase>?c=<código>, la
+// página pública que dice si esa persona entró y enlaza su transacción de entrada en Stellar.
+// El nombre va en el certificado y en esa página; nunca en la cadena.
+//
+// Uso:
+//   node scripts/certificados.mjs --evento <slug> [--lang es|en] [--salida <carpeta>] [--base https://rum.bo]
+//   node scripts/certificados.mjs --datos informes/ejemplo-certificados.json --lang es --salida <carpeta>
+//   --solo <pase>   uno solo (para probar)
+// Sin --salida, quedan en data/certificados/<slug>/ (fuera del repositorio: llevan nombres), con un
+// indice.csv (pase, nombre, archivo) para mandarlos. --base es la dirección pública de la app: el QR
+// apunta ahí (por defecto NEXT_PUBLIC_BASE_URL).
+import { availableParallelism } from "node:os";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { parseArgs } from "node:util";
+import { APP_DIR } from "./lib/env.mjs";
+import { renderCertificado } from "./lib/certificado-pdf.mjs";
+import { openEvent, reportFromFile } from "./lib/informe-datos.mjs";
+import { mapLimit } from "./lib/latex.mjs";
+
+const { values } = parseArgs({
+  options: {
+    evento: { type: "string" },
+    datos: { type: "string" },
+    lang: { type: "string", default: "es" },
+    salida: { type: "string" },
+    base: { type: "string" },
+    solo: { type: "string" },
+  },
+});
+
+/** Una celda de CSV sin fórmulas (lo mismo que hace el CSV del panel). */
+const cell = (value) => {
+  const text = /^[=+\-@\t\r]/.test(String(value)) ? `'${value}` : String(value);
+  return /[",;\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+};
+
+try {
+  const lang = values.lang;
+  if (lang !== "es" && lang !== "en") throw new Error("--lang tiene que ser es o en");
+  if (!values.evento === !values.datos) throw new Error("Pasá --evento <slug> (desde la base) o --datos <archivo.json>, uno de los dos.");
+  const salidaArg = values.salida ? resolve(values.salida) : null;
+
+  let event;
+  let attendees;
+  let example = false;
+  let generatedAt = new Date().toISOString();
+  let urlFor;
+  if (values.datos) {
+    const data = reportFromFile(values.datos);
+    event = data.event;
+    attendees = data.attendees ?? [];
+    example = Boolean(data.example);
+    if (example && data.generatedAt) generatedAt = data.generatedAt;
+    const base = (values.base ?? data.baseUrl ?? "https://rum.bo").replace(/\/+$/, "");
+    urlFor = (a) => `${base}/v/${encodeURIComponent(a.passId)}?c=${encodeURIComponent(a.code)}`;
+  } else {
+    const { repo, event: record } = await openEvent(values.evento);
+    const { listCertificateAttendees, verificationUrl } = await import("../src/server/verificacion.ts");
+    const { baseUrl } = await import("../src/server/env.ts");
+    const base = values.base ?? baseUrl();
+    if (/localhost|127\.0\.0\.1/.test(base)) console.warn(`Ojo: el QR apunta a ${base}. Para los certificados de verdad, pasá --base con la dirección pública de la app.`);
+    event = { slug: record.slug, name: record.name, community: record.organizerName, startsAt: record.startsAt, endsAt: record.endsAt, timezone: record.timezone, place: record.place, venue: record.venue };
+    attendees = await listCertificateAttendees(record, repo);
+    urlFor = (a) => verificationUrl(a.passId, a.code, base);
+  }
+  if (values.solo) attendees = attendees.filter((a) => a.passId === values.solo.toUpperCase());
+  if (attendees.length === 0) throw new Error("No hay nadie que haya entrado al evento: no hay certificados para hacer.");
+
+  const dir = salidaArg ?? join(APP_DIR, "data", "certificados", event.slug || "evento");
+  mkdirSync(dir, { recursive: true });
+  const started = Date.now();
+  const limit = Math.max(1, Math.min(4, Math.floor(availableParallelism() / 2)));
+  const warnings = [];
+  const files = await mapLimit(attendees, limit, async (a) => {
+    const file = `certificado-${a.passId}-${lang}.pdf`;
+    const { problems } = await renderCertificado({ event, attendee: a, url: urlFor(a), lang, example, generatedAt }, join(dir, file));
+    for (const p of problems) warnings.push(`${a.passId}: ${p}`);
+    return file;
+  });
+  const header = lang === "en" ? ["pass", "name", "file"] : ["pase", "nombre", "archivo"];
+  const rows = attendees.map((a, i) => [a.passId, a.name, files[i]]);
+  writeFileSync(join(dir, `indice-${lang}.csv`), `﻿${[header, ...rows].map((r) => r.map(cell).join(",")).join("\r\n")}\r\n`);
+  console.log(`${files.length} certificados en ${dir} (${((Date.now() - started) / 1000).toFixed(1)} s)`);
+  if (warnings.length > 0) {
+    console.warn(`XeLaTeX avisó ${warnings.length} cosas para revisar:`);
+    for (const w of warnings.slice(0, 20)) console.warn(`  ${w}`);
+    process.exitCode = 2;
+  }
+} catch (error) {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+}

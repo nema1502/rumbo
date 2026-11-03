@@ -1,5 +1,6 @@
 // POST /api/evento/<slug>/inscripcion: inscribe (o cobra) a una persona, igual que el formulario.
-// Cuerpo: { ticketTypeId, name, email, lang? }. Devuelve el enlace personal solo cuando la credencial
+// Cuerpo: { ticketTypeId, name, email, lang?, contactConsent? } (contactConsent: true solo si la persona
+// marcó que la comunidad que organiza le escriba). Devuelve el enlace personal solo cuando la credencial
 // se acaba de crear; si el correo ya tenía la suya, se le reenvía por correo y acá no se muestra.
 import { NextResponse, type NextRequest } from "next/server";
 import { DEFAULT_LANG, isLang } from "@/i18n/index.ts";
@@ -40,7 +41,15 @@ export async function POST(request: NextRequest, { params }: { params: Params })
 
   let result: RegistrationResult;
   try {
-    result = await registerForEvent({ slug, ticketTypeId, ...fields, lang, origin: request.nextUrl.origin, clientKey: clientKey(request.headers) });
+    result = await registerForEvent({
+      slug,
+      ticketTypeId,
+      ...fields,
+      lang,
+      origin: request.nextUrl.origin,
+      clientKey: clientKey(request.headers),
+      contactConsent: body.contactConsent === true,
+    });
   } catch (error) {
     if (error instanceof RegistrationNotFound) return NextResponse.json({ error: "not_found", what: error.what }, { status: 404 });
     console.error("[inscripcion]", error);

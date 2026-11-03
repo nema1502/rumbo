@@ -4,14 +4,15 @@ import { comun } from "./comun.ts";
 import { evento } from "./evento.ts";
 import { escaner } from "./escaner.ts";
 import { panel } from "./panel.ts";
+import { verificacion } from "./verificacion.ts";
 import { DEFAULT_LANG, type Lang, type Messages } from "./types.ts";
 
 export { LANGS, DEFAULT_LANG, LANG_COOKIE, LANG_HEADER, LANG_QUERY, isLang } from "./types.ts";
 export type { Lang, Messages, AreaDictionary } from "./types.ts";
 
 export const dictionaries: Record<Lang, Messages> = {
-  es: { ...comun.es, ...evento.es, ...escaner.es, ...panel.es },
-  en: { ...comun.en, ...evento.en, ...escaner.en, ...panel.en },
+  es: { ...comun.es, ...evento.es, ...escaner.es, ...panel.es, ...verificacion.es },
+  en: { ...comun.en, ...evento.en, ...escaner.en, ...panel.en, ...verificacion.en },
 };
 
 /** Variables para los textos con huecos: "{monto} USDC de prueba" con { monto: 10 }. */

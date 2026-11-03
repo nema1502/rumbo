@@ -22,8 +22,8 @@ export interface FormState {
   error?: string;
   /** Los errores de cada campo, ya traducidos. */
   fields?: { name?: string; email?: string };
-  /** Lo que la persona escribió, para no perderlo. */
-  values?: { name: string; email: string };
+  /** Lo que la persona escribió (y si marcó la casilla de contacto), para no perderlo. */
+  values?: { name: string; email: string; contact?: boolean };
   /** Ya tenía su credencial: se le mandó el enlace de nuevo a este correo. */
   existing?: { email: string };
 }
@@ -58,9 +58,12 @@ export async function registerAction(_prev: FormState, formData: FormData): Prom
   const field = (key: string) => String(formData.get(key) ?? "").trim();
   const slug = field("evento");
   const ticketTypeId = field("entrada");
-  const values = { name: field("nombre"), email: field("correo") };
+  const fields = { name: field("nombre"), email: field("correo") };
+  // La casilla opcional de contacto: solo cuenta si llegó marcada.
+  const contact = formData.get("contacto") === "si";
+  const values = { ...fields, contact };
 
-  const errors = validateFields(values);
+  const errors = validateFields(fields);
   if (hasErrors(errors)) {
     return {
       fields: { name: errors.name && t(FIELD_KEYS[errors.name]), email: errors.email && t(FIELD_KEYS[errors.email]) },
@@ -70,7 +73,15 @@ export async function registerAction(_prev: FormState, formData: FormData): Prom
 
   let result: RegistrationResult;
   try {
-    result = await registerForEvent({ slug, ticketTypeId, ...values, lang, origin: await requestOrigin(), clientKey: clientKey(await headers()) });
+    result = await registerForEvent({
+      slug,
+      ticketTypeId,
+      ...fields,
+      lang,
+      origin: await requestOrigin(),
+      clientKey: clientKey(await headers()),
+      contactConsent: contact,
+    });
   } catch (error) {
     if (error instanceof RegistrationNotFound) return { error: t("evento.error.entrada"), values };
     console.error("[inscripcion]", error);

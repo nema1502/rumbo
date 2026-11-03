@@ -1,0 +1,9 @@
+/* La página de verificación de un certificado: la tarjeta con el nombre y el evento, y lo técnico plegado. */
+.verificacion-tarjeta h2 { margin: 2px 0 4px; }
+.verificacion-tarjeta p { margin: 0 0 12px; }
+.verificacion-tarjeta p:last-child { margin-bottom: 0; }
+.verificacion-tarjeta .chip { margin-bottom: 14px; }
+.verificacion-como { margin-top: 4px; }
+.verificacion-como summary { cursor: pointer; font-weight: 600; color: var(--tinta-2); padding: 10px 0; min-height: 44px; }
+.verificacion-como summary:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; border-radius: 6px; }
+.verificacion-como p { margin: 0 0 8px; }

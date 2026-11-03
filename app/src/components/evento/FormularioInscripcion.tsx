@@ -25,9 +25,11 @@ interface Props {
   paid: boolean;
   /** El monto ya formateado, para "Pagar 10 USDC de prueba". */
   monto: string;
+  /** Quien organiza, para la casilla opcional de contacto. */
+  comunidad: string;
 }
 
-function Campos({ state }: { state: FormState }) {
+function Campos({ state, comunidad }: { state: FormState; comunidad: string }) {
   const { pending } = useFormStatus();
   const t = useT();
   return (
@@ -44,6 +46,14 @@ function Campos({ state }: { state: FormState }) {
         defaultValue={state.values?.email ?? ""}
         error={state.fields?.email}
       />
+      {/* Opcional y desmarcada: solo quien la marca entra en la lista de contactos de la comunidad. */}
+      <label className="casilla" htmlFor="contacto">
+        <input id="contacto" name="contacto" type="checkbox" value="si" defaultChecked={state.values?.contact === true} />
+        <span>
+          {t("evento.form.contacto", { comunidad })}
+          <span className="casilla-ayuda">{t("evento.form.contactoAyuda")}</span>
+        </span>
+      </label>
     </fieldset>
   );
 }
@@ -64,7 +74,7 @@ function Enviar({ label }: { label: string }) {
   );
 }
 
-export function FormularioInscripcion({ action, slug, eventName, when, ticket, paid, monto }: Props) {
+export function FormularioInscripcion({ action, slug, eventName, when, ticket, paid, monto, comunidad }: Props) {
   const t = useT();
   const [state, formAction] = useActionState(action, {} as FormState);
 
@@ -103,7 +113,7 @@ export function FormularioInscripcion({ action, slug, eventName, when, ticket, p
           {ticket.includes && <p>{ticket.includes}</p>}
           {paid && <p>{t("evento.form.pagoNota")}</p>}
         </Tarjeta>
-        <Campos state={state} />
+        <Campos state={state} comunidad={comunidad} />
         {state.error && <Aviso tono="alerta">{state.error}</Aviso>}
         <Espera />
       </div>

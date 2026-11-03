@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "example": true,
+  "generatedAt": "2026-11-21T23:30:00-04:00",
+  "network": "testnet",
+  "event": {
+    "slug": "devfest-ejemplo",
+    "name": "DevFest de la comunidad 2026",
+    "community": "Comunidad Dev de Ejemplo",
+    "startsAt": "2026-11-21T08:30:00-04:00",
+    "endsAt": "2026-11-21T18:00:00-04:00",
+    "timezone": "America/La_Paz",
+    "place": "Santa Cruz de la Sierra",
+    "venue": "Auditorio central",
+    "capacity": 200
+  },
+  "issued": 180,
+  "pending": 4,
+  "checkedIn": 142,
+  "duplicates": { "checkIns": 1, "redemptions": 1 },
+  "ticketTypes": [
+    { "name": "Inscripción gratis", "priceUsdc": 0, "issued": 60 },
+    { "name": "Con polera", "priceUsdc": 8, "issued": 120 }
+  ],
+  "benefits": [
+    { "name": "Almuerzo", "kind": "lunch", "granted": 180, "redeemed": 131, "duplicates": 1 },
+    { "name": "Polera del DevFest", "kind": "merch", "granted": 120, "redeemed": 88, "duplicates": 0 },
+    { "name": "Café", "kind": "other", "granted": 180, "redeemed": 120, "duplicates": 0 },
+    { "name": "Auriculares", "kind": "prize", "granted": 1, "redeemed": 1, "duplicates": 0 },
+    { "name": "Teclado mecánico", "kind": "prize", "granted": 1, "redeemed": 1, "duplicates": 0 },
+    { "name": "Mochila de la comunidad", "kind": "prize", "granted": 1, "redeemed": 1, "duplicates": 0 }
+  ],
+  "arrivals": [
+    { "hour": "08:00", "count": 23 },
+    { "hour": "09:00", "count": 54 },
+    { "hour": "10:00", "count": 31 },
+    { "hour": "11:00", "count": 14 },
+    { "hour": "12:00", "count": 9 },
+    { "hour": "13:00", "count": 6 },
+    { "hour": "14:00", "count": 5 }
+  ],
+  "contracts": [],
+  "checkInTxs": { "recorded": 0, "sample": [] },
+  "chainCheck": null,
+  "stellarMinutes": 45,
+  "foodSpendUsd": 2400,
+  "sponsor": { "name": "Cafetería La Brújula", "benefit": "Café", "contactsShared": 37 },
+  "raffle": { "proofUrl": null }
+}

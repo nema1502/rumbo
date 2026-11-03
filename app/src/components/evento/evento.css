@@ -44,6 +44,11 @@
 /* El formulario: nombre, correo y una sola acción */
 .form-inscripcion fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 16px; }
 .form-inscripcion fieldset[disabled] { opacity: 0.7; }
+/* La casilla opcional de contacto: desmarcada, con la ayuda debajo del texto */
+.casilla { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; cursor: pointer; font-size: 0.95rem; }
+.casilla input { width: 22px; height: 22px; margin: 1px 0 0; accent-color: var(--acento); cursor: pointer; }
+.casilla input:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.casilla-ayuda { display: block; margin-top: 4px; color: var(--apagado); font-size: 0.88rem; }
 .form-resumen { display: flex; justify-content: space-between; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; }
 .form-resumen h2 { font-size: 1.2rem; margin: 0; }
 .form-resumen .entrada-precio { margin-left: auto; }
