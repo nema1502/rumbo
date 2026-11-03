@@ -19,6 +19,17 @@
 .esc-texto { display: grid; gap: 12px; }
 .esc-texto input { font-family: var(--display); font-size: 1.25rem; letter-spacing: 0.06em; text-transform: uppercase; }
 
+/* El respaldo manual de la puerta: buscar a alguien y marcarle la entrada, o agregarlo */
+.esc-manual { display: grid; gap: 22px; }
+.esc-manual-titulo { font-size: 1.25rem; margin: 0; }
+.esc-manual-buscar, .esc-manual-agregar, .esc-manual-form { display: grid; gap: 12px; }
+.esc-manual-lista { list-style: none; margin: 0; padding: 0; display: grid; }
+.esc-manual-fila { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 56px; padding: 8px 0; border-top: 1px solid var(--linea); }
+.esc-manual-fila:first-child { border-top: 0; }
+.esc-manual-quien { display: grid; gap: 2px; min-width: 0; }
+.esc-manual-quien strong { overflow-wrap: anywhere; }
+.esc-manual-fila .chip, .esc-manual-fila .boton { flex: none; margin: 0; }
+
 /* El interruptor de "simular sin conexión" */
 .esc-switch { position: relative; display: inline-flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; font-size: 0.95rem; color: var(--tinta-2); }
 .esc-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }

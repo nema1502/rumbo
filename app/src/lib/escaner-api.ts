@@ -102,6 +102,49 @@ export interface SyncResponse {
 /** Cuántos registros manda el escáner por vez. Cada uno es una transacción en la red de prueba. */
 export const SYNC_BATCH_SIZE = 5;
 
+// ---------- La puerta, a mano ----------
+// Solo el código del puesto Puerta abre estas dos rutas (src/server/puerta.ts). Lo que se marca a mano va por
+// la cola de siempre; lo que lo distingue es el id del escáner.
+
+/** Lo que lleva adelante el id de escáner de una entrada marcada a mano en la puerta: "manual:puerta:<celular>". */
+export const MANUAL_SCANNER_PREFIX = "manual:puerta:";
+
+export function manualScannerId(deviceId: string): string {
+  return `${MANUAL_SCANNER_PREFIX}${deviceId}`.slice(0, 64);
+}
+
+export function isManualScannerId(scannerId: string | null | undefined): boolean {
+  return Boolean(scannerId?.startsWith(MANUAL_SCANNER_PREFIX));
+}
+
+/** Una persona encontrada en la puerta. El correo viene tapado ("a***@gmail.com"), nunca entero. */
+export interface DoorMatch {
+  passId: string;
+  name: string;
+  emailHint: string;
+  /** Cuándo entró, si ya entró. */
+  checkedInAt: string | null;
+  /** El nombre de su entrada. */
+  ticket: string;
+}
+
+export interface DoorSearchRequest extends OpenRequest {
+  query: string;
+}
+
+export interface DoorSearchResponse {
+  matches: DoorMatch[];
+}
+
+export interface DoorAddRequest extends OpenRequest {
+  name: string;
+  email: string;
+}
+
+export type DoorAddError = "invalid_name" | "invalid_email" | "no_free_ticket" | "sold_out" | "too_many" | "failed";
+
+export type DoorAddResponse = { kind: "added" | "existing"; match: DoorMatch } | { kind: "error"; error: DoorAddError };
+
 // ---------- El veredicto ----------
 
 /** Lo que el propio escáner registró de un pase y todavía puede no estar en el servidor. */
