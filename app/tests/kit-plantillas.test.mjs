@@ -49,8 +49,9 @@ test("DevFest: nace como borrador, gratis, con los tipos y los canjes de siempre
   assert.equal(event.template, "devfest");
   assert.equal(event.slug, "devfest-santa-cruz-2026");
   assert.equal(event.capacity, 300);
-  assert.equal(event.startsAt, "2026-12-05T09:00:00-04:00");
-  assert.equal(event.endsAt, "2026-12-05T18:00:00-04:00");
+  // El mismo instante: Postgres lo devuelve en UTC, SQLite tal como se guardó.
+  assert.equal(Date.parse(event.startsAt), Date.parse("2026-12-05T09:00:00-04:00"));
+  assert.equal(Date.parse(event.endsAt), Date.parse("2026-12-05T18:00:00-04:00"));
   assert.equal(event.contractId, null, "todavía no tiene contrato");
   assert.equal(event.teamSignup, false);
 
@@ -92,7 +93,7 @@ test("los puestos del escáner salen de los canjes: la puerta y uno por canje", 
 test("la hackatón: dos días con una comida por franja, equipos, jurado y mentoría con cena", async () => {
   const event = await createEventFromTemplate(repo, datos("hackaton", { name: "Hackatón Nacional" }));
   assert.equal(event.teamSignup, true, "se inscribe por equipos");
-  assert.equal(event.endsAt, "2026-12-06T15:00:00-04:00", "dura dos días");
+  assert.equal(Date.parse(event.endsAt), Date.parse("2026-12-06T15:00:00-04:00"), "dura dos días");
   const { types, porLugar, benefits } = await cargar(event);
   assert.deepEqual(types.map((t) => t.templateSlot), ["attendee", "mentor", "judge", "volunteer", "organizer", "sponsor"]);
   assert.equal(types[0].name, "Participante");

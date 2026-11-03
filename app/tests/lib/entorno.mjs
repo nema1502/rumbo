@@ -1,6 +1,13 @@
 // Lo que comparten las pruebas de la app (node --test, sin red): cada archivo corre desde app/, con su
-// propia carpeta de datos vacía (la base SQLite y los correos) y ninguna llave de la red de prueba.
+// propia carpeta de datos vacía (la base y los correos) y ninguna llave de la red de prueba.
 // Se llama antes de importar nada de src/server, porque la base y el correo se abren una vez por proceso.
+//
+// El motor de la base lo elige RUMBO_TEST_ENGINE:
+//   sqlite    (pnpm test) el archivo SQLite de siempre.
+//   pglite    (pnpm test:pg) Postgres en WASM, en memoria y dentro del proceso: el dialecto y las migraciones de Supabase.
+//   postgres  (pnpm test:pg) el driver de producción (postgres, con prepare: false) por la red, contra un Postgres
+//             local en WASM que levanta tests/lib/postgres-local.mjs antes de cada archivo.
+import { randomBytes } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { register } from "node:module";
 import { tmpdir } from "node:os";
@@ -32,11 +39,20 @@ export async function capturarConsola(fn) {
   }
 }
 
+/** El motor de la base de esta corrida. */
+export const MOTOR = process.env.RUMBO_TEST_ENGINE ?? "sqlite";
+
 export function entornoDePrueba() {
   process.chdir(APP_DIR);
   const datos = mkdtempSync(join(tmpdir(), "rumbo-prueba-"));
   process.env.RUMBO_DATA_DIR = datos;
-  process.env.RUMBO_REPO = "sqlite";
+  if (!["sqlite", "pglite", "postgres"].includes(MOTOR)) throw new Error(`RUMBO_TEST_ENGINE=${MOTOR}: tiene que ser sqlite, pglite o postgres`);
+  process.env.RUMBO_REPO = MOTOR;
+  if (MOTOR !== "sqlite") process.env.RUMBO_DATA_KEY = randomBytes(32).toString("base64");
+  if (MOTOR === "pglite") process.env.RUMBO_PGLITE_DIR = "memory";
+  if (MOTOR === "postgres" && !process.env.DATABASE_URL) {
+    throw new Error("Con RUMBO_TEST_ENGINE=postgres hace falta el servidor local: node --import ./tests/lib/postgres-local.mjs (ver package.json, test:pg)");
+  }
   process.env.RUMBO_MAILER = "dev";
   process.env.STELLAR_NETWORK = "testnet";
   // Que ninguna prueba hable con la red por accidente: sin llaves, cualquier operación falla enseguida.
