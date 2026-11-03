@@ -8,10 +8,10 @@
  * (gdg.community.dev). Lo propio del sorteo (filtros de asistencia, lista de
  * nombres para el protocolo, homónimos) se dejó afuera.
  *
- * MIT License. Copyright (c) 2026 Nicolás Emir Mejía Agreda.
+ * Licencia MIT, la misma de este repositorio (ver LICENSE).
  *
  * Qué resuelve: la primera columna suele ser un identificador, y un nombre como
- * "Mejía, Nicolás" se partía en la coma. El ancho de la tabla lo da el
+ * "Salvatierra, Rodrigo" se partía en la coma. El ancho de la tabla lo da el
  * encabezado, una fila corta se completa y una larga se arregla si hay una sola
  * forma segura de hacerlo; el punto y coma de Excel en español, las tabulaciones
  * de una hoja pegada, el BOM y las comillas escapadas se leen bien.
@@ -85,7 +85,7 @@ export function looksTabular(text: string): boolean {
  * Lee el texto como tabla. Devuelve `null` si no hay nada escrito.
  *
  * Una fila con otro ancho ya no descarta la tabla entera: hasta el QA del 16
- * de octubre de 2026, una sola coma sin comillas ("Mejía, Nicolás" escrito a
+ * de octubre de 2026, una sola coma sin comillas ("Salvatierra, Rodrigo" escrito a
  * mano) hacía que el archivo entrara como texto suelto, con el encabezado de
  * participante y los nombres cortados en la coma. Ahora el ancho lo da el
  * encabezado (o el de la mayoría de las filas), una fila corta se completa con
@@ -421,7 +421,7 @@ function fits(kind: Kind, value: string): boolean {
 /**
  * La clase de cada columna. La de nombres, si el encabezado la nombra, es
  * siempre texto libre aunque las filas sanas tengan nombres de una palabra:
- * es justo donde suele estar la coma sin comillas ("Mejía, Nicolás").
+ * es justo donde suele estar la coma sin comillas ("Salvatierra, Rodrigo").
  */
 function columnKinds(rows: readonly Row[], width: number, names: number): Kind[] {
   const sane = rows.filter((r) => r.cells.length === width);

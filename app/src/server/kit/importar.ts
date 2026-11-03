@@ -184,7 +184,7 @@ export function suggestKind(label: string | null | undefined): CredentialKind | 
   if (!key) return null;
   if (/(speaker|orador|ponente|conferencista|charlista|keynote|panelista)/.test(key)) return "speaker";
   if (/(mentor|mentoria|coach)/.test(key)) return "mentor";
-  if (/(jurad|judge|jury|evaluador)/.test(key)) return "judge";
+  if (/(jurad|judge|jury)/.test(key)) return "judge";
   if (/(volunt)/.test(key)) return "volunteer";
   if (/(sponsor|auspic|patrocin)/.test(key)) return "sponsor";
   if (/(organi[sz]|staff|equipo)/.test(key)) return "organizer";
@@ -427,8 +427,13 @@ export interface ImportDeps {
   origin?: string | null;
 }
 
+declare global {
+  /** Un contrato de mentira para las capturas y las pruebas con un servidor adentro (scripts/capturas-kit.mjs). Como __rumboAccounts y __rumboMailer. */
+  var __rumboKitChain: ImportDeps["chain"] | undefined;
+}
+
 export function defaultImportDeps(lang: Lang, origin?: string | null, repo?: Repo): ImportDeps {
-  return { accounts: getAccountProvider(repo), chain: rumboPass, mailer: getMailer(), lang, origin };
+  return { accounts: getAccountProvider(repo), chain: globalThis.__rumboKitChain ?? rumboPass, mailer: getMailer(), lang, origin };
 }
 
 export interface BatchResult {

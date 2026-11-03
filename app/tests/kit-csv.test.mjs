@@ -9,7 +9,7 @@ const { parseTable, looksTabular, decodeText, detectSource, fixCase, findColumn,
 /** Lo que exporta Luma: la primera columna es el identificador, no el nombre. */
 const LUMA = `api_id,name,email,created_at,checked_in_at
 evt-guest-a1,Ana Quispe,ana@example.org,2026-09-01T14:02:00Z,2026-09-03T18:10:00Z
-evt-guest-b2,"Mejía, Nicolás",nico@example.org,2026-09-01T15:40:00Z,
+evt-guest-b2,"Salvatierra, Rodrigo",rodrigo.s@example.org,2026-09-01T15:40:00Z,
 evt-guest-c3,Rodrigo Mamani,rodrigo@example.org,2026-09-02T09:12:00Z,2026-09-03T18:22:00Z`;
 
 describe("parseTable", () => {
@@ -27,7 +27,7 @@ describe("parseTable", () => {
   });
 
   test("no parte un nombre que tiene una coma adentro", () => {
-    assert.equal(parseTable(LUMA).rows[1][1], "Mejía, Nicolás");
+    assert.equal(parseTable(LUMA).rows[1][1], "Salvatierra, Rodrigo");
   });
 
   test("acepta punto y coma, que es lo que sale de Excel en español", () => {
@@ -137,20 +137,20 @@ describe("el encabezado no es un participante", () => {
 
 describe("una fila que no encaja no descarta la tabla", () => {
   test("una coma sin comillas en el nombre se arregla", () => {
-    const t = parseTable("Nombre,Correo\nAna Vargas,ana@example.org\nMejía, Nicolás,nico@example.org\nPablo Gutiérrez,pablo@example.org");
+    const t = parseTable("Nombre,Correo\nAna Vargas,ana@example.org\nSalvatierra, Rodrigo,rodrigo.s@example.org\nPablo Gutiérrez,pablo@example.org");
     assert.deepEqual(t.columns, ["Nombre", "Correo"]);
     assert.deepEqual(t.rows, [
       ["Ana Vargas", "ana@example.org"],
-      ["Mejía, Nicolás", "nico@example.org"],
+      ["Salvatierra, Rodrigo", "rodrigo.s@example.org"],
       ["Pablo Gutiérrez", "pablo@example.org"],
     ]);
     assert.deepEqual(t.skipped, []);
   });
 
   test("en un export de Luma, también: la coma estaba en el nombre y no en el código", () => {
-    const t = parseTable(LUMA.replace('"Mejía, Nicolás"', "Mejía, Nicolás"));
+    const t = parseTable(LUMA.replace('"Salvatierra, Rodrigo"', "Salvatierra, Rodrigo"));
     assert.deepEqual(t.skipped, []);
-    assert.deepEqual(t.rows[1].slice(0, 3), ["evt-guest-b2", "Mejía, Nicolás", "nico@example.org"]);
+    assert.deepEqual(t.rows[1].slice(0, 3), ["evt-guest-b2", "Salvatierra, Rodrigo", "rodrigo.s@example.org"]);
   });
 
   test("si la coma pudo estar en dos columnas, no adivina: salta la fila y dice en qué línea está", () => {
@@ -177,13 +177,13 @@ describe("una fila que no encaja no descarta la tabla", () => {
   });
 
   test("una lista con alguna coma suelta sigue siendo una lista", () => {
-    assert.equal(looksTabular("Mejía, Nicolás\nAna Vargas\nLuis Choque"), false);
+    assert.equal(looksTabular("Salvatierra, Rodrigo\nAna Vargas\nLuis Choque"), false);
   });
 
   test("el punto y coma de Excel en español gana aunque los nombres tengan comas", () => {
-    const t = parseTable("Nombre;Correo\nMejía, Nicolás;nico@example.org\nQuispe, María;maria@example.org");
+    const t = parseTable("Nombre;Correo\nSalvatierra, Rodrigo;rodrigo.s@example.org\nQuispe, María;maria@example.org");
     assert.deepEqual(t.columns, ["Nombre", "Correo"]);
-    assert.deepEqual(t.rows.map((r) => r[0]), ["Mejía, Nicolás", "Quispe, María"]);
+    assert.deepEqual(t.rows.map((r) => r[0]), ["Salvatierra, Rodrigo", "Quispe, María"]);
   });
 });
 
