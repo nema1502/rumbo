@@ -30,8 +30,8 @@
 .armar-seccion { display: grid; gap: 12px; }
 .armar-seccion > p { color: var(--tinta-2); font-size: 0.95rem; }
 .armar-tipo { border: 1px solid var(--linea); border-radius: var(--radio-chico); background: var(--tarjeta); padding: 14px 16px; margin: 0; min-width: 0; display: grid; gap: 10px; }
-.armar-tipo:has(.armar-incluir input:not(:checked)) { opacity: 0.62; }
-.armar-tipo:has(.armar-incluir input:not(:checked)):focus-within, .armar-tipo:has(.armar-incluir input:not(:checked)):hover { opacity: 1; }
+.armar-tipo:has(.armar-incluir input[type="checkbox"]:not(:checked)) { opacity: 0.62; }
+.armar-tipo:has(.armar-incluir input[type="checkbox"]:not(:checked)):focus-within, .armar-tipo:has(.armar-incluir input[type="checkbox"]:not(:checked)):hover { opacity: 1; }
 .armar-incluir { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; cursor: pointer; font-weight: 600; min-height: 44px; }
 .armar-incluir input[type="checkbox"], .armar-trae input[type="checkbox"], .kit-casilla input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--acento); flex: none; margin: 0; }
 .armar-incluir strong { font-family: var(--display); font-size: 1.15rem; letter-spacing: -0.01em; }
@@ -70,11 +70,16 @@
 .importar-barra { height: 12px; border-radius: 999px; background: var(--linea); overflow: hidden; }
 .importar-barra > span { display: block; height: 100%; border-radius: 999px; background: var(--verde); transition: width 0.4s var(--suave); }
 .importar-resumen { font-family: var(--display); font-weight: 800; font-size: clamp(1.3rem, 3vw, 1.7rem); line-height: 1.2; text-wrap: balance; }
-.importar-archivo input[type="file"] { padding: 14px 16px; min-height: 60px; background: var(--tarjeta); }
+.importar-archivo input[type="file"] { padding: 12px 16px; min-height: 60px; background: var(--tarjeta); cursor: pointer; }
+.importar-archivo input[type="file"]::file-selector-button {
+  margin-right: 14px; min-height: 36px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--linea);
+  background: var(--acento-suave); color: var(--tinta); font: 600 0.95rem var(--texto); cursor: pointer;
+}
 
 /* La inscripción por equipos */
 .equipo { width: min(620px, 100%); }
-.equipo-integrantes { display: grid; gap: 12px; }
+.equipo-integrantes { display: grid; gap: 12px; border: 0; margin: 0; padding: 0; min-width: 0; }
+.pantalla-accion button.enlace { background: none; border: 0; cursor: pointer; justify-self: center; font-size: 0.95rem; }
 .equipo-integrante { display: grid; gap: 10px; padding: 14px 16px; background: var(--tarjeta); border: 1px solid var(--linea); border-radius: var(--radio-chico); }
 .equipo-integrante h3 { font-size: 1rem; display: flex; align-items: center; gap: 8px; }
 .equipo-integrante .kit-form-par { gap: 12px; }

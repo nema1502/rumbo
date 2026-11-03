@@ -94,7 +94,7 @@ export function Veredicto({ veredicto, puesto, timezone, onCerrar }: Props) {
             <span>{t("kit.escaner.dieta")}</span> {veredicto.diet}
           </p>
         )}
-        {quedan !== null && <p className="esc-veredicto-detalle">{quedan === 0 ? t("kit.escaner.agotado") : t("kit.escaner.quedan", { n: quedan })}</p>}
+        {quedan !== null && <p className="esc-veredicto-detalle">{quedan === 0 ? t("kit.escaner.ultima") : t("kit.escaner.quedan", { n: quedan })}</p>}
       </div>
       <button type="button" className="esc-veredicto-boton" onClick={onCerrar}>
         {t("escaner.siguiente")}

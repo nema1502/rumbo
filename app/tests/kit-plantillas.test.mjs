@@ -259,3 +259,12 @@ test("los datos del formulario se validan y la hora se arma con el desfase de la
   const b = await createEventFromTemplate(repo, datos("meetup", { name: "Mismo nombre" }));
   assert.deepEqual([a.slug, b.slug], ["mismo-nombre", "mismo-nombre-2"]);
 });
+
+test("un evento de varios días dice cuándo termina; uno de un día, solo la hora", async () => {
+  const { formatEventWhen } = await import("../src/server/evento/fecha.ts");
+  const hackaton = await createEventFromTemplate(repo, datos("hackaton", { name: "Hackatón de fechas" }));
+  assert.match(formatEventWhen("es", hackaton).time, /^09:00, hasta el domingo, 6 de diciembre, 15:00$/);
+  assert.match(formatEventWhen("en", hackaton).time, /until Sunday, December 6/);
+  const meetup = await createEventFromTemplate(repo, datos("meetup", { name: "Meetup de fechas" }));
+  assert.equal(formatEventWhen("es", meetup).time, "09:00 a 12:00");
+});

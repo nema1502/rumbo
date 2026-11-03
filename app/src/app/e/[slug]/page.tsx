@@ -14,6 +14,19 @@ export const dynamic = "force-dynamic";
 
 type Params = Promise<{ slug: string }>;
 
+/** Hasta cuántas cosas de "Qué incluye" se muestran enteras; con más, se ven dos y el resto se despliega. */
+const INCLUIDOS_ENTEROS = 4;
+const INCLUIDOS_A_LA_VISTA = 2;
+
+function Incluido({ name, detail }: { name: string; detail: string | null }) {
+  return (
+    <li>
+      <span>{name}</span>
+      {detail && <span className="detalle">{detail}</span>}
+    </li>
+  );
+}
+
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
   const event = await getRepo().getEventBySlug(slug);
@@ -49,6 +62,8 @@ export default async function EventPage({ params }: { params: Params }) {
     return { benefit, detail };
   });
 
+  const visibles = included.length > INCLUIDOS_ENTEROS ? INCLUIDOS_A_LA_VISTA : included.length;
+
   return (
     <section className="evento">
       <header className="evento-afiche">
@@ -64,14 +79,14 @@ export default async function EventPage({ params }: { params: Params }) {
         {included.length > 0 && (
           <div className="evento-incluye-bloque">
             <h2 className="evento-subtitulo">{t("evento.incluye")}</h2>
-            <ul className="evento-incluye">
-              {included.map(({ benefit, detail }) => (
-                <li key={benefit.id}>
-                  <span>{benefit.name}</span>
-                  {detail && <span className="detalle">{detail}</span>}
-                </li>
-              ))}
-            </ul>
+            <ul className="evento-incluye">{included.slice(0, visibles).map(({ benefit, detail }) => <Incluido key={benefit.id} name={benefit.name} detail={detail} />)}</ul>
+            {included.length > visibles && (
+              // Un evento de varios días lista una comida por franja: el resto se despliega, para que la entrada quede a la vista.
+              <details className="evento-incluye-mas">
+                <summary>{t("kit.evento.verMas", { n: included.length - visibles })}</summary>
+                <ul className="evento-incluye">{included.slice(visibles).map(({ benefit, detail }) => <Incluido key={benefit.id} name={benefit.name} detail={detail} />)}</ul>
+              </details>
+            )}
           </div>
         )}
       </header>

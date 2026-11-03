@@ -319,7 +319,7 @@ function Vista({
                 <li key={entrada.key}>
                   <span className="etiqueta">
                     {entrada.label || t("kit.importar.sinEntrada")}{" "}
-                    <span className="apagado chico">{t("kit.importar.personas", { n: entrada.count })}</span>
+                    <span className="apagado chico">{entrada.count === 1 ? t("kit.importar.unaPersona") : t("kit.importar.personas", { n: entrada.count })}</span>
                   </span>
                   <Campo id={`tipo-${entrada.key || "ninguna"}`} etiqueta={entrada.label || t("kit.importar.sinEntrada")} className="campo-sin-etiqueta">
                     <select

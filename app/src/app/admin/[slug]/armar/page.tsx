@@ -163,7 +163,7 @@ function CredencialCard({
             <strong>{slot.name}</strong>
           </label>
         )}
-        <Chip estado="neutro">{t(kindLabelKey(slot.kind))}</Chip>
+        {slot.name.trim().toLowerCase() !== t(kindLabelKey(slot.kind)).toLowerCase() && <Chip estado="neutro">{t(kindLabelKey(slot.kind))}</Chip>}
         <Chip estado={paid ? "ganado" : "listo"}>{paid ? `${slot.price} USDC` : t("kit.armar.gratis")}</Chip>
       </div>
       <p className="armar-trae-resumen">

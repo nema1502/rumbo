@@ -57,6 +57,8 @@
   display: flex; justify-content: space-between; align-items: baseline; gap: 6px 12px; flex-wrap: wrap;
   color: var(--tinta-2); font-size: 0.95rem; font-weight: 600;
 }
+.evento-incluye-mas summary { cursor: pointer; font-weight: 600; color: var(--tinta-2); min-height: 44px; display: flex; align-items: center; }
+.evento-incluye-mas[open] summary { margin-bottom: 4px; }
 .credencial-tipo { font-family: var(--display); font-weight: 800; font-size: 1.15rem; color: var(--tinta); letter-spacing: -0.01em; }
 .credencial-staff .credencial-tipo { background: var(--acento); color: #0f1c2e; padding: 4px 16px; border-radius: 999px; }
 .credencial-staff { border-top: 6px solid var(--acento); }

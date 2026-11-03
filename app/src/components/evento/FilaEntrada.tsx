@@ -14,6 +14,12 @@ interface Props {
   t: T;
 }
 
+/** Hasta tres cosas, y "y 6 más" si hay más: un evento de varios días trae una comida por franja y la lista no entra en la tarjeta. */
+function listaCorta(lang: Lang, names: string[], t: T): string {
+  if (names.length <= 3) return joinList(lang, names);
+  return `${names.slice(0, 3).join(", ")} ${t("kit.evento.yMas", { n: names.length - 3 })}`;
+}
+
 export function FilaEntrada({ ticket, benefits, href, lang, t }: Props) {
   const free = ticket.priceUsdc === 0;
   return (
@@ -24,7 +30,7 @@ export function FilaEntrada({ ticket, benefits, href, lang, t }: Props) {
           {free ? t("pago.gratis") : t("pago.precio", { monto: formatAmount(lang, ticket.priceUsdc) })}
         </span>
       </div>
-      {benefits.length > 0 && <p className="entrada-incluye">{t("evento.entrada.incluye", { lista: joinList(lang, benefits.map((b) => b.name)) })}</p>}
+      {benefits.length > 0 && <p className="entrada-incluye">{t("evento.entrada.incluye", { lista: listaCorta(lang, benefits.map((b) => b.name), t) })}</p>}
       <BotonEnlace href={href} grande>
         {free ? t("evento.entrada.inscribirme") : t("evento.entrada.comprar")}
       </BotonEnlace>

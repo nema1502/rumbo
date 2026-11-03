@@ -6,6 +6,7 @@ import { getLang } from "@/i18n/server.ts";
 import { verifyCreateKey } from "@/server/kit/acceso.ts";
 import { TemplateInputError, createEventFromTemplate, isTemplateId } from "@/server/kit/plantillas.ts";
 import { getOrCreateOrganizerKey } from "@/server/panel.ts";
+import { rememberPanelKey } from "@/server/panel-sesion.ts";
 import { getRepo } from "@/server/repo.ts";
 import { readDeployInfo } from "@/server/stellar.ts";
 
@@ -53,6 +54,8 @@ export async function crearBorrador(formData: FormData): Promise<void> {
     throw error;
   }
 
-  // Quien crea el evento entra a su panel con la clave que se acaba de armar.
-  redirect(`/api/admin/${encodeURIComponent(slug)}/entrar?k=${encodeURIComponent(getOrCreateOrganizerKey(eventId))}&next=armar`);
+  // Quien crea el evento entra a su panel con la clave que se acaba de armar: la cookie se pone acá mismo, porque una
+  // redirección a /api/.../entrar la resuelve el servidor y el navegador nunca recibiría esa cookie.
+  await rememberPanelKey(slug, getOrCreateOrganizerKey(eventId));
+  redirect(`/admin/${encodeURIComponent(slug)}/armar`);
 }

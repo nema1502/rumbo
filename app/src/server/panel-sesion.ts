@@ -1,6 +1,6 @@
 // Lo que depende del pedido HTTP para entrar al panel: la cookie con la clave de organizador, cómo se
 // lee en las páginas y en las rutas de la API, y la comprobación que usan las rutas.
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { verifyOrganizerKey } from "./panel.ts";
 import { getRepo, type EventRecord } from "./repo.ts";
@@ -31,6 +31,15 @@ export function setPanelCookie(response: NextResponse, request: NextRequest, slu
     maxAge: COOKIE_MAX_AGE,
     secure: request.nextUrl.protocol === "https:",
   });
+}
+
+/**
+ * Lo mismo, desde una acción de servidor (crear un evento): ahí no hay respuesta propia donde poner la cookie y
+ * una redirección a /api/.../entrar la haría el servidor por su cuenta, sin que el navegador la reciba.
+ */
+export async function rememberPanelKey(slug: string, key: string): Promise<void> {
+  const secure = (await headers()).get("x-forwarded-proto") === "https";
+  (await cookies()).set(panelCookieName(slug), key, { httpOnly: true, sameSite: "lax", path: "/", maxAge: COOKIE_MAX_AGE, secure });
 }
 
 export function clearPanelCookie(response: NextResponse, slug: string): void {
