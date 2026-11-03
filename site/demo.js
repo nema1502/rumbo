@@ -8,6 +8,8 @@ const es = {
   ante: "Probalo", ir: "Ahora probalo vos",
   titulo: "Hacé de cuenta que estás en el evento.",
   bajada: "Tocá y recorré el flujo entero: te inscribís, te llega la credencial, un voluntario la escanea y el panel se entera. Es una maqueta: nada se guarda ni toca la red.",
+  real: "Y no es solo una maqueta: así anda el MVP real, grabado en la red de prueba de Stellar.", realVer: "Ver el video, 1 minuto",
+  realAria: "El MVP de Rumbo andando en la red de prueba de Stellar, de la inscripción a la transacción",
   rolesL: "Elegí un rol", asiste: "Quien asiste", voluntario: "Voluntario", organiza: "Quien organiza",
   evento: "Hackatón de la comunidad", fecha: "Sábado 22 de noviembre", nombreL: "Tu nombre",
   entrada: "Entrada general", gratis: "Gratis", inscribirme: "Inscribirme", lista: "Inscripción lista",
@@ -61,6 +63,8 @@ const en = {
   ante: "Try it", ir: "Now try it yourself",
   titulo: "Pretend you are at the event.",
   bajada: "Tap your way through the whole flow: you sign up, your pass arrives, a volunteer scans it and the dashboard finds out. It is a mock-up: nothing is saved and nothing touches the network.",
+  real: "And it is not just a mock-up: this is the real MVP at work, recorded on the Stellar testnet.", realVer: "Watch the video, 1 minute",
+  realAria: "Rumbo's MVP running on the Stellar testnet, from sign-up to the transaction",
   rolesL: "Choose a role", asiste: "Attendee", voluntario: "Volunteer", organiza: "Organizer",
   evento: "Community hackathon", fecha: "Saturday, November 22", nombreL: "Your name",
   entrada: "General ticket", gratis: "Free", inscribirme: "Sign up", lista: "Signed up",
@@ -355,11 +359,37 @@ raiz.addEventListener("keydown", (ev) => {
   pintar();
 });
 
+// El MVP real, grabado: el video no tiene archivo hasta que se pide (ni siquiera el cartel), así que no baja
+// nada antes. El botón le pone el del idioma y lo reproduce. Sin JavaScript, el enlace abre el archivo.
+const mvp = document.getElementById("mvp-video"), mvpAbrir = document.getElementById("mvp-abrir");
+const mvpPoner = () => {
+  const archivo = `assets/mvp-${lang}.mp4`;
+  if (mvp.getAttribute("src") === archivo) return;
+  mvp.setAttribute("poster", `assets/mvp-${lang}.jpg`);
+  mvp.setAttribute("src", archivo);
+};
+const mvpIdioma = () => {
+  if (!mvp || !mvpAbrir) return;
+  mvpAbrir.setAttribute("href", `assets/mvp-${lang}.mp4`);
+  mvp.setAttribute("aria-label", t("realAria"));
+  if (!mvp.hidden) mvpPoner();
+};
+mvpAbrir?.addEventListener("click", (ev) => {
+  if (!mvp) return;
+  ev.preventDefault();
+  mvpPoner();
+  mvp.hidden = false;
+  mvpAbrir.hidden = true;
+  mvp.focus();
+  mvp.play().catch(() => { /* sin reproducción automática: quedan los controles */ });
+});
+
 // El idioma cambia sin perder el estado.
 const idioma = () => {
   lang = document.documentElement.lang === "en" ? "en" : "es";
   document.querySelectorAll("[data-pb]").forEach((el) => (el.textContent = t(el.dataset.pb)));
   roles.setAttribute("aria-label", t("rolesL"));
+  mvpIdioma();
   pintar();
 };
 new MutationObserver(idioma).observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });

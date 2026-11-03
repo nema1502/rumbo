@@ -1,6 +1,12 @@
 /* Probalo: la maqueta clickeable. La pantalla va siempre clara, como una de verdad. */
 
 .pb-ir { margin-top: 28px; }
+
+/* El MVP real, grabado: una línea y un botón que abre el video */
+.pb-real { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-top: 40px; }
+.pb-real p { margin: 0; font-weight: 600; text-wrap: balance; }
+.pb-real-video { flex-basis: 100%; width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: var(--radio); border: 1px solid var(--linea); background: #0b1626; }
+.pb-real [hidden] { display: none; }
 .pb { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 28px; }
 .pb > .encabezado { margin-bottom: 0; }
 .pb-escenario { order: 1; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: start; gap: 16px; min-height: 710px; }
