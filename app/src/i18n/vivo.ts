@@ -1,0 +1,76 @@
+// La pantalla en vivo para proyectar en el evento: los contadores, el ranking de la ruta de stands y el
+// espacio del sorteo. Las claves llevan el prefijo "vivo." y existen en los dos idiomas en el mismo cambio.
+import type { AreaDictionary } from "./types.ts";
+
+export const vivo = {
+  es: {
+    "vivo.enlace": "Pantalla en vivo",
+    "vivo.titulo": "Pantalla en vivo",
+    "vivo.enVivo": "En vivo",
+    "vivo.actualiza": "Se actualiza cada 3 segundos",
+    "vivo.sinConexion": "Sin conexión con el servidor. Se reintenta solo.",
+    "vivo.sesionVencida": "La sesión venció. Volvé a entrar al panel.",
+    "vivo.volver": "Volver al panel",
+
+    "vivo.entraron": "Entraron",
+    "vivo.deTotal": "de {total} credenciales",
+    "vivo.deCupo": "de {total} lugares",
+    "vivo.almuerzos": "Almuerzos entregados",
+    "vivo.merch": "Merch entregada",
+    "vivo.de": "de {total}",
+    "vivo.ninguno": "Todavía ninguno",
+
+    "vivo.ruta.titulo": "La ruta de stands",
+    "vivo.ruta.meta": "Visitá {meta} de {total} stands",
+    "vivo.ruta.sinMeta": "Visitá los {total} stands",
+    "vivo.ruta.vacio": "Todavía nadie empezó la ruta. Pasá por los stands.",
+    "vivo.ruta.completo": "Completó la ruta",
+    "vivo.ruta.avance": "{n} de {meta}",
+    "vivo.ruta.completaron": "Completaron la ruta: {n}",
+    "vivo.ruta.sinStands": "Este evento no tiene stands.",
+    "vivo.anonimo": "Anónimo",
+
+    "vivo.sorteo.titulo": "Sorteo",
+    "vivo.sorteo.participan": "Participan {n} personas que entraron",
+    "vivo.sorteo.participa1": "Participa 1 persona que entró",
+    "vivo.sorteo.ninguna": "Todavía no entró nadie, así que nadie participa.",
+    "vivo.sorteo.exportar": "Exportar la lista del sorteo",
+    "vivo.sorteo.csv": "Bajar como CSV",
+    "vivo.sorteo.nota": "La lista lleva solo códigos de credencial, sin nombres ni correos, y una huella para comprobarla antes del sorteo.",
+  },
+  en: {
+    "vivo.enlace": "Live screen",
+    "vivo.titulo": "Live screen",
+    "vivo.enVivo": "Live",
+    "vivo.actualiza": "Updates every 3 seconds",
+    "vivo.sinConexion": "No connection to the server. Retrying on its own.",
+    "vivo.sesionVencida": "Your session expired. Enter the panel again.",
+    "vivo.volver": "Back to the panel",
+
+    "vivo.entraron": "Checked in",
+    "vivo.deTotal": "of {total} passes",
+    "vivo.deCupo": "of {total} seats",
+    "vivo.almuerzos": "Lunches handed out",
+    "vivo.merch": "Merch handed out",
+    "vivo.de": "of {total}",
+    "vivo.ninguno": "None yet",
+
+    "vivo.ruta.titulo": "The booth route",
+    "vivo.ruta.meta": "Visit {meta} of {total} booths",
+    "vivo.ruta.sinMeta": "Visit all {total} booths",
+    "vivo.ruta.vacio": "Nobody has started the route yet. Stop by the booths.",
+    "vivo.ruta.completo": "Finished the route",
+    "vivo.ruta.avance": "{n} of {meta}",
+    "vivo.ruta.completaron": "Finished the route: {n}",
+    "vivo.ruta.sinStands": "This event has no booths.",
+    "vivo.anonimo": "Anonymous",
+
+    "vivo.sorteo.titulo": "Raffle",
+    "vivo.sorteo.participan": "{n} people who checked in are entered",
+    "vivo.sorteo.participa1": "1 person who checked in is entered",
+    "vivo.sorteo.ninguna": "Nobody has checked in yet, so nobody is entered.",
+    "vivo.sorteo.exportar": "Export the raffle list",
+    "vivo.sorteo.csv": "Download as CSV",
+    "vivo.sorteo.nota": "The list has only pass codes, no names or emails, and a fingerprint so it can be checked before the raffle.",
+  },
+} satisfies AreaDictionary;
