@@ -1,6 +1,8 @@
 // Firmar y comprobar con Ed25519 en el navegador (y en Node, que trae el mismo WebCrypto). Usa WebCrypto
 // si el navegador sabe Ed25519 (Chrome 137, Firefox 129, Safari 17 en adelante) y, si no, @noble/ed25519,
-// una librería chica y auditada que se carga recién cuando hace falta.
+// una librería chica y auditada que se carga recién cuando hace falta. Sin https (la app abierta por la IP de
+// la red local, al probarla desde un celular) el navegador no da crypto.subtle, y el respaldo calcula el
+// SHA-512 con @noble/hashes en vez de pedírselo.
 //
 // Las llaves son las crudas: la pública de 32 bytes y la privada como semilla de 32 bytes.
 
@@ -39,6 +41,17 @@ async function conWebCrypto(): Promise<boolean> {
   return !forceNoble && (await webCryptoSabe());
 }
 
+/** La librería de respaldo, con su SHA-512 propio si el navegador no tiene crypto.subtle. */
+async function respaldo(): Promise<typeof import("@noble/ed25519")> {
+  const noble = await import("@noble/ed25519");
+  if (!globalThis.crypto?.subtle) {
+    const { sha512 } = await import("@noble/hashes/sha2.js");
+    noble.hashes.sha512 = sha512;
+    noble.hashes.sha512Async = async (message) => sha512(message);
+  }
+  return noble;
+}
+
 /** Si la firma es de esa clave pública sobre ese mensaje. Cualquier problema con las llaves da false. */
 export async function ed25519Verify(publicKey: Uint8Array, message: Uint8Array, signature: Uint8Array): Promise<boolean> {
   try {
@@ -46,7 +59,7 @@ export async function ed25519Verify(publicKey: Uint8Array, message: Uint8Array, 
       const key = await globalThis.crypto.subtle.importKey("raw", own(publicKey), { name: "Ed25519" }, false, ["verify"]);
       return await globalThis.crypto.subtle.verify({ name: "Ed25519" }, key, own(signature), own(message));
     }
-    const noble = await import("@noble/ed25519");
+    const noble = await respaldo();
     return await noble.verifyAsync(signature, message, publicKey);
   } catch {
     return false;
@@ -62,6 +75,6 @@ export async function ed25519Sign(seed: Uint8Array, message: Uint8Array): Promis
     const key = await globalThis.crypto.subtle.importKey("pkcs8", pkcs8 as Bytes, { name: "Ed25519" }, false, ["sign"]);
     return new Uint8Array(await globalThis.crypto.subtle.sign({ name: "Ed25519" }, key, own(message)));
   }
-  const noble = await import("@noble/ed25519");
+  const noble = await respaldo();
   return await noble.signAsync(message, seed);
 }

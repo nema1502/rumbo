@@ -175,6 +175,25 @@ test("con la hora corregida, un celular con el reloj cinco minutos atrasado igua
 
 // ---------- Ed25519 en el navegador y el respaldo ----------
 
+test("sin https (sin crypto.subtle, la app abierta por la IP de la red local) la credencial igual firma y el escáner comprueba", async () => {
+  const real = globalThis.crypto;
+  const mensaje = codec.windowMessage(passA, 123456);
+  const semilla = codec.base64urlToBytes(grantA.seed);
+  const esperada = qr.signWithSeed(semilla, mensaje);
+  try {
+    Object.defineProperty(globalThis, "crypto", { value: { getRandomValues: (a) => real.getRandomValues(a) }, configurable: true, writable: true });
+    usarRespaldo(true);
+    const firma = await ed25519Sign(semilla, mensaje);
+    assert.deepEqual(Array.from(firma), Array.from(esperada), "la misma firma que la de node:crypto");
+    assert.equal(await ed25519Verify(qr.publicKeyFromSeed(semilla), mensaje, firma), true);
+    assert.equal(await ed25519Verify(qr.publicKeyFromSeed(semilla), codec.windowMessage(passA, 123457), firma), false);
+  } finally {
+    Object.defineProperty(globalThis, "crypto", { value: real, configurable: true, writable: true });
+    usarRespaldo(false);
+  }
+});
+
+
 test("el respaldo (@noble/ed25519) firma y comprueba lo mismo que WebCrypto, en los dos sentidos", async () => {
   const mensaje = codec.windowMessage(passA, 123456);
   const semilla = codec.base64urlToBytes(grantA.seed);
