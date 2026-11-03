@@ -11,11 +11,12 @@ export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ slug: string }> };
 
 /** A dónde se puede seguir después de entrar. Nada más, para que el enlace no lleve a cualquier lado. */
-const NEXT_PAGES: Record<string, string> = { "": "", informe: "/informe" };
+const NEXT_PAGES: Record<string, string> = { "": "", informe: "/informe", stands: "/stands" };
 
 async function enter(request: NextRequest, slug: string, key: string | null, next: string): Promise<NextResponse> {
   const event = await getRepo().getEventBySlug(slug);
-  const target = `/admin/${slug}${NEXT_PAGES[next] ?? ""}`;
+  // La pantalla en vivo cuelga de /vivo, no de /admin, pero se abre con la misma clave de organizador.
+  const target = next === "vivo" ? `/vivo/${slug}` : `/admin/${slug}${NEXT_PAGES[next] ?? ""}`;
   if (!event) return seeOther(target);
   if (!verifyOrganizerKey(event.id, key)) return seeOther(`${target}?error=clave`);
   const response = seeOther(target);

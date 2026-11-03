@@ -9,6 +9,7 @@ import { isValidPassId } from "../lib/qr-codec.ts";
 import { clientKey, stationCodeAttempts } from "./limites.ts";
 import { resolveStationCode, type StationAccess } from "./panel.ts";
 import { ClientIdTaken, type CheckIn, type EventRecord, type PassView, type Repo, type SyncMark } from "./repo.ts";
+import { claimRoutePrize, isRoutePrize, recordVisit, StandsError, standScanVisits } from "./stands.ts";
 import {
   PERMANENT_CONTRACT_ERRORS,
   TX_TIMEOUT_SECONDS,
@@ -21,8 +22,11 @@ import {
 
 // ---------- El puesto y lo que baja el escáner ----------
 
-/** El puesto que abre un código: la puerta, o la mesa de su beneficio. */
+/** El puesto que abre un código: la puerta, la mesa de su beneficio o el stand de quien auspicia. */
 export function stationOf(access: StationAccess): ScanStation {
+  if (access.kind === "stand" && access.stand) {
+    return { id: access.stand.id, kind: "stand", name: access.stand.name, place: null };
+  }
   if (access.kind === "benefit" && access.benefit) {
     return { id: access.benefit.id, kind: "benefit", name: access.benefit.name, place: access.benefit.station };
   }
@@ -62,6 +66,7 @@ function toScanEvent(event: EventRecord, stations: ScanStation[]): ScanEvent {
  */
 export async function buildSnapshot(repo: Repo, access: StationAccess): Promise<ScanSnapshot> {
   const event = access.event;
+  if (access.kind === "stand" && access.stand) return buildStandSnapshot(access);
   const [stations, passes, checkIns, redemptions] = await Promise.all([
     scanStations(repo, event.id),
     repo.listPasses(event.id),
@@ -96,6 +101,33 @@ export async function buildSnapshot(repo: Repo, access: StationAccess): Promise<
   }
 
   return { event: toScanEvent(event, stations), station: stationOf(access), publicKey: access.publicKey, passes: infos, generatedAt: new Date().toISOString() };
+}
+
+/**
+ * La foto de un stand. A diferencia de la puerta y las mesas, NO trae la lista de asistentes: a quien auspicia
+ * solo le llegan las personas que ya pasaron por su stand, y su nombre únicamente si aceptaron compartir su
+ * contacto. Así un auspiciante no se lleva el listado entero del evento en el celular.
+ */
+function buildStandSnapshot(access: StationAccess): ScanSnapshot {
+  const stand = access.stand as NonNullable<StationAccess["stand"]>;
+  const station = stationOf(access);
+  const visits = standScanVisits(stand.id);
+  const passes: ScanPassInfo[] = visits.map((v) => ({
+    id: v.passId,
+    name: v.name ?? "",
+    benefits: [],
+    checkedInAt: null,
+    redeemed: {},
+    visited: { [stand.id]: v.at },
+  }));
+  return {
+    event: toScanEvent(access.event, [station]),
+    station,
+    publicKey: access.publicKey,
+    passes,
+    stand: { visits },
+    generatedAt: new Date().toISOString(),
+  };
 }
 
 // ---------- La sincronización ----------
@@ -167,8 +199,9 @@ export async function processScanItems(
   items: ScanItem[],
   chain: ScanChain = networkChain,
 ): Promise<ScanItemResult[]> {
+  const order: Record<ScanItem["action"], number> = { checkin: 0, redeem: 1, visit: 2 };
   const ordered = [...items].sort((a, b) => {
-    if (a.action !== b.action) return a.action === "checkin" ? -1 : 1;
+    if (a.action !== b.action) return order[a.action] - order[b.action];
     return a.scannedAt.localeCompare(b.scannedAt);
   });
   const results: ScanItemResult[] = [];
@@ -178,6 +211,7 @@ export async function processScanItems(
 
 function belongsToStation(station: ScanStation, item: ScanItem): boolean {
   if (station.kind === "gate") return item.action === "checkin";
+  if (station.kind === "stand") return item.action === "visit";
   return item.action === "redeem" && item.benefitId === station.id;
 }
 
@@ -194,7 +228,11 @@ async function processOne(repo: Repo, event: EventRecord, station: ScanStation, 
   try {
     const view = await repo.getPassView(item.passId);
     if (!view || view.event.id !== event.id) return result("rejected", null, "pase desconocido");
-    if (!view.pass.account || view.pass.status === "pending") return result("rejected", null, "pase sin activar");
+    if (view.pass.status === "pending") return result("rejected", null, "pase sin activar");
+    // Los stands y el premio de la ruta viven en la base, no en el contrato: no piden cuenta ni contrato.
+    if (item.action === "visit") return await syncVisit(repo, item, station);
+    if (item.action === "redeem" && item.benefitId && isRoutePrize(event.id, item.benefitId)) return await syncRoutePrize(repo, event, item, view);
+    if (!view.pass.account) return result("rejected", null, "pase sin activar");
     if (!view.contractId) return result("rejected", null, "evento sin contrato");
     return item.action === "checkin"
       ? await syncCheckIn(repo, event, item, view, view.contractId, chain)
@@ -206,6 +244,47 @@ async function processOne(repo: Repo, event: EventRecord, station: ScanStation, 
   } finally {
     inFlight().delete(item.clientId);
   }
+}
+
+/**
+ * La visita a un stand: un sello por persona y stand, solo en la base. Repetirla (otro escáner del mismo stand,
+ * o la misma lectura que se reintenta) deja el mismo sello, así que siempre queda "sincronizada": una visita
+ * repetida no es un doble que haya que revisar. El permiso para compartir el contacto arranca sin responder.
+ */
+async function syncVisit(repo: Repo, item: ScanItem, station: ScanStation): Promise<ScanItemResult> {
+  try {
+    await recordVisit({ standId: station.id, passId: item.passId, clientId: item.clientId, scannerId: item.scannerId, scannedAt: item.scannedAt }, repo);
+  } catch (error) {
+    if (error instanceof StandsError) return { clientId: item.clientId, status: "rejected", txHash: null, error: "stand o pase desconocido" };
+    throw error;
+  }
+  return { clientId: item.clientId, status: "synced", txHash: null, error: null };
+}
+
+/**
+ * El canje del premio de la ruta. No está en el contrato (la ruta es de la base), así que "una sola vez" lo
+ * garantiza la base: claimRoutePrize marca el primer canje de esa persona de un solo golpe, y el segundo,
+ * aunque llegue de otro escáner, queda como doble para revisar. Hay que haber ganado el premio.
+ */
+async function syncRoutePrize(repo: Repo, event: EventRecord, item: ScanItem, view: PassView): Promise<ScanItemResult> {
+  const benefit = view.benefits.find((b) => b.id === item.benefitId);
+  if (!benefit) return { clientId: item.clientId, status: "rejected", txHash: null, error: "la credencial todavía no ganó este premio" };
+  const row = await repo.recordRedemption({
+    clientId: item.clientId,
+    eventId: event.id,
+    passId: view.pass.id,
+    benefitId: benefit.id,
+    scannerId: item.scannerId,
+    scannedAt: item.scannedAt,
+  });
+  if (row.synced) return { clientId: item.clientId, status: "synced", txHash: null, error: null };
+  if (row.duplicate) return { clientId: item.clientId, status: "duplicate", txHash: null, error: row.error };
+  if (claimRoutePrize(row.id)) {
+    await repo.markRedemption(row.id, { synced: true, error: null });
+    return { clientId: item.clientId, status: "synced", txHash: null, error: null };
+  }
+  await repo.markRedemption(row.id, { duplicate: true, error: "AlreadyRedeemed" });
+  return { clientId: item.clientId, status: "duplicate", txHash: null, error: "AlreadyRedeemed" };
 }
 
 /** Guarda en el espejo el hash de la transacción apenas se manda, antes de saber cómo termina. */
@@ -346,7 +425,7 @@ export async function authorizeScanRequest(repo: Repo, request: Request): Promis
   return { ok: true, access, body };
 }
 
-const ACTIONS = new Set(["checkin", "redeem"]);
+const ACTIONS = new Set(["checkin", "redeem", "visit"]);
 const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
 
 /** Los registros del pedido, con su forma comprobada. Devuelve null si alguno no tiene la forma esperada. */

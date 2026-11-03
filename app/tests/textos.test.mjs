@@ -7,8 +7,10 @@ const { comun } = await import("../src/i18n/comun.ts");
 const { evento } = await import("../src/i18n/evento.ts");
 const { escaner } = await import("../src/i18n/escaner.ts");
 const { panel } = await import("../src/i18n/panel.ts");
+const { stands } = await import("../src/i18n/stands.ts");
+const { vivo } = await import("../src/i18n/vivo.ts");
 
-const AREAS = { comun, evento, escaner, panel };
+const AREAS = { comun, evento, escaner, panel, stands, vivo };
 
 const todos = (lang) => Object.entries(AREAS).flatMap(([area, dict]) => Object.entries(dict[lang]).map(([clave, texto]) => ({ area, clave, texto })));
 const conPalabra = (lang, re) => todos(lang).filter(({ texto }) => re.test(texto)).map(({ clave, texto }) => `${clave}: ${texto}`);
@@ -52,4 +54,21 @@ test("en ningún lado: hashes, firmas, direcciones, billeteras, tokens, contrato
   assert.deepEqual(conPalabra("en", /\b(hash|hashes|signature|ledger|address|wallet|token|nft|contract|xlm)\b/i), []);
   assert.deepEqual(conPalabra("es", /·/), []);
   assert.deepEqual(conPalabra("en", /·/), []);
+});
+
+test("los stands y la pantalla en vivo hablan como el resto: credencial y pass, y no nombran a nadie ajeno", () => {
+  const propios = (lang) => [...Object.entries(stands[lang]), ...Object.entries(vivo[lang])];
+  assert.deepEqual(propios("es").filter(([, texto]) => /\bpases?\b/i.test(texto)).map(([clave]) => clave), []);
+  assert.deepEqual(propios("en").filter(([, texto]) => /\b(credentials?|badges?)\b/i.test(texto)).map(([clave]) => clave), []);
+  // Tinkazo es otro producto: no se nombra en lo que ve la gente
+  assert.deepEqual(conPalabra("es", /tinkazo/i), []);
+  assert.deepEqual(conPalabra("en", /tinkazo/i), []);
+});
+
+test("la pregunta de permiso nombra al auspiciante, dice qué se comparte y que se puede cambiar", () => {
+  assert.match(stands.es["stands.pregunta.titulo"], /^¿Querés compartir tu contacto con \{auspiciante\}\?$/);
+  assert.match(stands.en["stands.pregunta.titulo"], /^Do you want to share your contact with \{auspiciante\}\?$/);
+  assert.match(stands.es["stands.pregunta.detalle"], /nombre.*correo/i);
+  assert.match(stands.es["stands.pregunta.cambio"], /cuando quieras/);
+  assert.match(stands.en["stands.pregunta.cambio"], /whenever you want/);
 });

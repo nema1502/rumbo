@@ -1,0 +1,95 @@
+/* Los stands: la ruta en la credencial con su pregunta de permiso, el panel de quien atiende un stand y la
+   pantalla "Stands y ruta" de quien organiza. Los tokens vienen de globals.css (docs/marca.md): dos temas,
+   estados siempre con palabra y color. Las clases llevan los prefijos ruta-, stand-, contacto- y admin-. */
+
+/* El logo del auspiciante, o su inicial */
+.stand-logo { width: 36px; height: 36px; border-radius: 10px; object-fit: contain; background: #fff; border: 1px solid var(--linea); flex: none; }
+.stand-logo-inicial {
+  display: inline-grid; place-items: center; border: 0; background: var(--acento-suave); color: var(--acento-chip);
+  font-family: var(--display); font-weight: 800; font-size: 1.1rem;
+}
+
+/* La ruta en la credencial */
+.ruta { display: grid; gap: 14px; }
+.ruta-cabecera { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.ruta-cabecera h2 { margin: 0; font-size: 1.4rem; }
+.tarjeta .ruta-bajada { color: var(--tinta-2); }
+.ruta-avance { display: grid; gap: 6px; }
+.ruta-avance strong { font-family: var(--display); font-size: 1.2rem; letter-spacing: -0.01em; }
+.ruta-stands, .ruta-contactos ul { list-style: none; margin: 0; padding: 0; display: grid; }
+.ruta-stands li, .ruta-contactos li { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 0; border-top: 1px solid var(--linea); }
+.ruta-stands li:first-child, .ruta-contactos li:first-child { border-top: 0; }
+.ruta-stand-nombre { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.tarjeta .ruta-premio { padding: 12px 14px; border-radius: var(--radio-chico); background: var(--acento-suave); color: var(--tinta); font-weight: 600; }
+.tarjeta .ruta-premio-ganado { background: var(--amarillo-suave); }
+.ruta-contactos h3 { font-size: 1.05rem; margin-bottom: 4px; }
+.ruta-contactos li { flex-wrap: wrap; }
+/* El nombre nunca se angosta: si no entra junto al estado y el botón, estos bajan a la línea de abajo */
+.ruta-contactos .ruta-stand-nombre { flex: 1 1 160px; min-width: 160px; }
+.ruta-contactos .boton-chico { margin-left: auto; }
+.ruta-pantalla { border-top: 1px solid var(--linea); padding-top: 4px; }
+.ruta-pantalla summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; color: var(--tinta-2); }
+.ruta-pantalla-form { display: grid; gap: 12px; padding-top: 6px; }
+.ruta-ocultar { display: flex; gap: 10px; align-items: center; min-height: 44px; cursor: pointer; }
+.ruta-ocultar input { width: 22px; height: 22px; accent-color: var(--acento); flex: none; }
+
+/* La pregunta de permiso: una hoja pegada abajo, a la vista aunque se haya hecho scroll. Las dos respuestas
+   pesan lo mismo y ninguna viene elegida. */
+.ruta-pregunta {
+  position: fixed; z-index: 30; left: 50%; bottom: 0; transform: translateX(-50%); width: min(560px, 100%);
+  display: grid; gap: 12px; padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+  background: var(--tarjeta); border: 1px solid var(--linea); border-bottom: 0; border-radius: 24px 24px 0 0;
+  box-shadow: 0 -18px 50px -20px rgba(15, 28, 46, 0.6); animation: ruta-sube 0.25s var(--suave);
+}
+.ruta-pregunta h2 { font-size: clamp(1.25rem, 4.6vw, 1.6rem); }
+.ruta-pregunta p { color: var(--tinta-2); }
+.ruta-pregunta-botones { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ruta-pregunta-botones .boton { padding: 0 12px; white-space: normal; text-align: center; }
+@keyframes ruta-sube { from { transform: translate(-50%, 24px); opacity: 0; } }
+
+/* El panel de quien atiende un stand */
+.stand-titulo { display: flex; align-items: center; gap: 14px; }
+.stand-titulo .stand-logo { width: 52px; height: 52px; border-radius: 14px; font-size: 1.5rem; }
+.stand-contadores { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.contador-verde { color: var(--verde-chip); font-weight: 600; }
+.contactos { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.contacto {
+  display: grid; grid-template-columns: minmax(0, 1.2fr) auto minmax(0, 1.6fr); gap: 10px 18px; align-items: start;
+  background: var(--tarjeta); border: 1px solid var(--linea); border-radius: var(--radio); padding: 16px 18px;
+}
+.contacto-quien { display: grid; gap: 2px; min-width: 0; }
+.contacto-quien strong { font-size: 1.1rem; overflow-wrap: anywhere; }
+.contacto-correo { color: var(--acento-texto); font-weight: 600; overflow-wrap: anywhere; text-decoration: none; }
+.contacto-correo:hover { text-decoration: underline; }
+.contacto-puntaje { display: grid; gap: 2px; justify-items: start; }
+.contacto-calificacion { display: flex; gap: 0; }
+.estrella { appearance: none; background: none; border: 0; padding: 6px; min-width: 44px; min-height: 44px; cursor: pointer; color: var(--apagado); display: grid; place-items: center; border-radius: 10px; }
+.estrella svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.estrella-llena { color: var(--tinta-2); }
+.estrella-llena svg { fill: var(--amarillo); }
+.contacto-nota textarea { min-height: 64px; }
+.contacto-estado { min-height: 26px; margin: 0; padding-left: 6px; }
+
+/* Stands y ruta, para quien organiza */
+.admin-meta, .admin-form-stand { display: grid; gap: 14px; margin-top: 8px; }
+.admin-meta-estado { margin-top: 10px; }
+.admin-stands { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 16px; }
+.admin-stand { display: grid; gap: 14px; align-content: start; }
+.admin-stand-cabecera { display: flex; align-items: center; gap: 12px; }
+.admin-stand-cabecera h3 { flex: 1; min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.admin-stand-sacar { background: none; border: 0; cursor: pointer; font-size: 0.95rem; }
+.admin-stand-cifras { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.admin-stand-cifras dt { color: var(--apagado); font-size: 0.85rem; line-height: 1.25; }
+.admin-stand-cifras dd { margin: 2px 0 0; font-family: var(--display); font-weight: 800; font-size: 1.9rem; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.admin-stand-codigo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.admin-stand-codigo > .chico { flex-basis: 100%; }
+.admin-stand-editar summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; color: var(--tinta-2); }
+.admin-stand-editar .admin-form-stand { padding-bottom: 6px; }
+
+@media (max-width: 760px) {
+  .contacto { grid-template-columns: 1fr; }
+  .ruta-pregunta { border-radius: 20px 20px 0 0; }
+}
+@media (max-width: 380px) {
+  .ruta-pregunta-botones { grid-template-columns: 1fr; }
+}

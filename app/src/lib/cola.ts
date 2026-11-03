@@ -100,8 +100,10 @@ function usageOf(entries: QueueEntry[]): Map<string, LocalUsage> {
   const usage = new Map<string, LocalUsage>();
   for (const entry of [...entries].sort(byScannedAt)) {
     if (entry.status === "rejected") continue;
-    const current = usage.get(entry.passId) ?? { checkedInAt: null, redeemed: {} };
+    const current = usage.get(entry.passId) ?? { checkedInAt: null, redeemed: {}, visited: {} };
+    const visited = (current.visited ??= {});
     if (entry.action === "checkin") current.checkedInAt ??= entry.scannedAt;
+    else if (entry.action === "visit") visited[entry.stationId] ??= entry.scannedAt;
     else if (entry.benefitId) current.redeemed[entry.benefitId] ??= entry.scannedAt;
     usage.set(entry.passId, current);
   }

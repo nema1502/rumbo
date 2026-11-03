@@ -8,14 +8,14 @@
 // (src/lib/cola.ts) y, cuando hay red, a /api/scan/sync, que lo lleva al contrato con la cuenta de puerta.
 import type { QrVerification } from "./qr-codec.ts";
 
-export type StationKind = "gate" | "benefit";
+export type StationKind = "gate" | "benefit" | "stand";
 
-/** Un puesto: la puerta (check-in) o la mesa de un beneficio (canje). */
+/** Un puesto: la puerta (check-in), la mesa de un beneficio (canje) o el stand de quien auspicia (visita). */
 export interface ScanStation {
-  /** "gate" para la puerta; el id del beneficio para un puesto de canje. */
+  /** "gate" para la puerta; el id del beneficio para un puesto de canje; el id del stand para un stand. */
   id: string;
   kind: StationKind;
-  /** El nombre del beneficio. Para la puerta va vacío: el escáner lo traduce. */
+  /** El nombre del beneficio o de quien auspicia. Para la puerta va vacío: el escáner lo traduce. */
   name: string;
   /** Dónde está el puesto ("Mesa del almuerzo"), si quien organiza lo dijo. */
   place: string | null;
@@ -43,6 +43,27 @@ export interface ScanPassInfo {
   checkedInAt: string | null;
   /** Id del beneficio ya canjeado y cuándo. */
   redeemed: Record<string, string>;
+  /**
+   * Los stands que ya visitó y cuándo. En el escáner de un stand viene solo el suyo: quien auspicia nunca se
+   * entera de qué otros stands visitó la persona. Las fotos viejas, guardadas antes de los stands, no lo traen.
+   */
+  visited?: Record<string, string>;
+}
+
+/** Cómo contestó una persona a "¿querés compartir tu contacto con este stand?". */
+export type ConsentState = "pending" | "granted" | "declined";
+
+/** Una visita al stand, como la ve su escáner: el nombre solo aparece si la persona aceptó compartir su contacto. */
+export interface ScanStandVisit {
+  passId: string;
+  at: string;
+  consent: ConsentState;
+  name: string | null;
+}
+
+/** Lo que el escáner de un stand muestra de su propio stand. */
+export interface ScanStandInfo {
+  visits: ScanStandVisit[];
 }
 
 /** La foto del evento que baja el escáner al abrir el puesto y cada vez que sincroniza. */
@@ -53,10 +74,12 @@ export interface ScanSnapshot {
   /** La clave pública del evento en base64url: con ella el escáner verifica cada credencial sin red. La privada no sale del servidor. */
   publicKey: string;
   passes: ScanPassInfo[];
+  /** Solo en el escáner de un stand: sus visitas y quién aceptó compartir su contacto. */
+  stand?: ScanStandInfo;
   generatedAt: string;
 }
 
-export type ScanAction = "checkin" | "redeem";
+export type ScanAction = "checkin" | "redeem" | "visit";
 
 /** Lo que el escáner registró y manda a sincronizar. */
 export interface ScanItem {
@@ -151,6 +174,8 @@ export type DoorAddResponse = { kind: "added" | "existing"; match: DoorMatch } |
 export interface LocalUsage {
   checkedInAt: string | null;
   redeemed: Record<string, string>;
+  /** Los stands que este escáner ya sumó a la visita de la persona. */
+  visited?: Record<string, string>;
 }
 
 export type NoReason = "invalid" | "expired" | "unknown" | "not_included" | "not_checked_in";
@@ -169,7 +194,11 @@ export type Verdict =
 
 /**
  * Decide qué pasa con una lectura, sin red: la firma de la credencial, lo que el servidor sabía del
- * pase al abrir el puesto y lo que este escáner registró después.
+ * pase al abrir el puesto y lo que este escáner registró después. La firma se comprueba antes, con la
+ * función de verificación de src/lib/qr-verify.ts, y llega acá ya resuelta en `verification`.
+ *
+ * En un stand alcanza con que la credencial sea auténtica: cada persona suma un sello por stand, y si
+ * ya lo tenía, el veredicto es "ya visitó". No hace falta que haya pasado por la puerta.
  *
  * En la puerta, una credencial auténtica de un pase que el escáner no tiene cargado entra igual:
  * la firma prueba que es del evento, y el servidor la revisa al sincronizar. En un puesto de canje
@@ -194,6 +223,12 @@ export function decideVerdict(
   if (station.kind === "gate") {
     if (checkedInAt) return { kind: "already", action: "checkin", passId, name, at: checkedInAt, ...via };
     return { kind: "ok", action: "checkin", passId, name, ...via };
+  }
+
+  if (station.kind === "stand") {
+    const visitedAt = pass?.visited?.[station.id] ?? local?.visited?.[station.id] ?? null;
+    if (visitedAt) return { kind: "already", action: "visit", passId, name, at: visitedAt };
+    return { kind: "ok", action: "visit", passId, name };
   }
 
   if (!pass) return { kind: "no", reason: "unknown", passId, name: null };

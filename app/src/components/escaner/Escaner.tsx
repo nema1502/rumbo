@@ -36,6 +36,7 @@ import { importEventKey, verifyQrPayloadInBrowser } from "@/lib/qr-verify.ts";
 import { STATION_CODE_LENGTH, normalizeStationCode } from "@/lib/station-code.ts";
 import { Camara, type CameraProblem } from "./Camara.tsx";
 import { Manual } from "./Manual.tsx";
+import { ResumenStand } from "./ResumenStand.tsx";
 import { Veredicto } from "./Veredicto.tsx";
 
 const SCANNER_ID_KEY = "rumbo.escaner";
@@ -43,6 +44,8 @@ const SCANNER_ID_KEY = "rumbo.escaner";
 const SYNC_EVERY_MS = 5000;
 /** Cada cuánto se vuelve a pedir la foto del evento aunque no haya nada pendiente (lo que registraron otros puestos). */
 const REFRESH_EVERY_MS = 60000;
+/** En un stand se mira más seguido, para enterarse enseguida de quién aceptó compartir su contacto. */
+const STAND_REFRESH_EVERY_MS = 10000;
 /** Dos lecturas iguales de la cámara dentro de este tiempo son la misma credencial frente al lente. */
 const SAME_READ_MS = 4000;
 
@@ -185,7 +188,8 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
           sesionActual,
         );
       const grupos = await listos();
-      const necesitaRefresh = forzarRefresh || Date.now() - ultimoRefreshRef.current > REFRESH_EVERY_MS;
+      const cadaCuanto = s.snapshot.station.kind === "stand" ? STAND_REFRESH_EVERY_MS : REFRESH_EVERY_MS;
+      const necesitaRefresh = forzarRefresh || Date.now() - ultimoRefreshRef.current > cadaCuanto;
       if (grupos.length === 0 && !necesitaRefresh) return;
       sincronizandoRef.current = true;
       setSincronizando(true);
@@ -364,7 +368,11 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
         // El pase de quien es el QR; también el de uno vencido, para decir de quién es.
         const deQuien = verification.ok || verification.reason === "expired" ? verification.passId : null;
         let pass = deQuien ? snapshot.passes.find((p) => p.id === deQuien) : undefined;
-        if (verification.ok && !pass && enLineaRef.current) {
+        // Un stand no baja la lista de asistentes (solo sus propias visitas), así que no tiene sentido pedirla.
+        // En una mesa de canje, un pase que no trae el beneficio puede haberlo ganado hace un rato (el premio
+        // de la ruta): con red se mira de nuevo antes de decir que no corresponde.
+        const faltaAlgo = !pass || (snapshot.station.kind === "benefit" && !pass.benefits.includes(snapshot.station.id));
+        if (verification.ok && faltaAlgo && snapshot.station.kind !== "stand" && enLineaRef.current) {
           // Un pase que no estaba al abrir el puesto: con red, se pide la foto fresca una vez, con poco
           // tiempo de espera. Si no llega, se decide con lo que hay (en la puerta alcanza la firma).
           try {
@@ -462,7 +470,8 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
     void procesarLectura(texto);
   }
 
-  const nombrePuesto = (station: ScanStation) => (station.kind === "gate" ? t("escaner.puerta") : station.name);
+  const nombrePuesto = (station: ScanStation) =>
+    station.kind === "gate" ? t("escaner.puerta") : station.kind === "stand" ? t("stands.escaner.titulo", { nombre: station.name }) : station.name;
 
   if (fase === "cargando") {
     return (
@@ -530,7 +539,7 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
         </div>
       </header>
 
-      <div className="pantalla-cuerpo esc-cuerpo">
+      <div className={`pantalla-cuerpo esc-cuerpo${puesto.kind === "stand" ? " esc-cuerpo-stand" : ""}`}>
         {sesionInvalida && (
           <Aviso tono="alerta">
             {t("escaner.puestoCerrado")}{" "}
@@ -592,6 +601,8 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
             </label>
           )}
         </div>
+
+        {puesto.kind === "stand" && sesion && <ResumenStand snapshot={snapshot} code={sesion.code} />}
 
         {cola && !cola.persistent && <Aviso>{t("escaner.sinPersistencia")}</Aviso>}
 

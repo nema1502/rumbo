@@ -9,6 +9,7 @@ loadEnv();
 const { getRepo } = await import("../src/server/repo.ts");
 const { ensureStationCodes, getOrCreateOrganizerKey } = await import("../src/server/panel.ts");
 const { formatStationCode } = await import("../src/lib/station-code.ts");
+const { getStand } = await import("../src/server/stands.ts");
 
 const slug = process.argv[2] ?? "hackaton-comunidad";
 const repo = getRepo();
@@ -30,6 +31,7 @@ console.log(`${event.name}
 
 Códigos de puesto: cada voluntario abre ${base}/scan y escribe el suyo.`);
 for (const station of stations) {
-  const nombre = station.kind === "gate" ? "Puerta" : (benefits.get(station.benefitId)?.name ?? station.benefitId);
+  const nombre =
+    station.kind === "gate" ? "Puerta" : station.kind === "stand" ? `Stand de ${getStand(station.standId)?.name ?? station.standId}` : (benefits.get(station.benefitId)?.name ?? station.benefitId);
   console.log(`  ${formatStationCode(station.code)}  ${nombre}`);
 }

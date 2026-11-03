@@ -5,6 +5,7 @@ import { buildLiveGrant, buildPrintedPayload, type LiveGrant } from "../qr.ts";
 import { getEventQrKeys } from "../qr-keys.ts";
 import { getRepo, type BenefitKind, type EventRecord, type Pass, type PassBenefit, type Person, type Repo, type TicketType } from "../repo.ts";
 import { rumboPass, type PassStatusOnChain } from "../stellar.ts";
+import { getRouteGoal } from "../stands.ts";
 import { verifyAccessKey } from "./acceso.ts";
 
 /** Cómo se muestra cada beneficio en la credencial. */
@@ -109,10 +110,12 @@ export async function loadCredentialUnchecked(passId: string): Promise<Credentia
     const redeemed = redeemedIds.has(b.id);
     return { id: b.id, name: b.name, kind: b.kind, state: benefitState(b, redeemed, paid), redeemed, inDraw: false };
   });
-  // Los premios del catálogo que este pase no tiene todavía: están en el sorteo.
+  // Los premios del catálogo que este pase no tiene todavía: están en el sorteo. El de la ruta de stands no:
+  // ese se gana visitando stands y la credencial lo cuenta aparte, en su ruta.
   const granted = new Set(view.benefits.map((b) => b.id));
+  const routePrize = getRouteGoal(view.event.id)?.prizeBenefitId;
   for (const b of catalog) {
-    if (b.kind === "prize" && !granted.has(b.id)) benefits.push({ id: b.id, name: b.name, kind: b.kind, state: "sorteo", redeemed: false, inDraw: true });
+    if (b.kind === "prize" && b.id !== routePrize && !granted.has(b.id)) benefits.push({ id: b.id, name: b.name, kind: b.kind, state: "sorteo", redeemed: false, inDraw: true });
   }
 
   return {

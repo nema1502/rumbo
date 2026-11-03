@@ -84,24 +84,35 @@ export function verifyOrganizerKey(eventId: string, key: string | null | undefin
 // los pasa a cada voluntario; el escáner abre el puesto con el suyo (src/server/escaner.ts usa
 // resolveStationCode) y recibe la clave pública del evento para verificar las credenciales sin red.
 
-export type StationKind = "gate" | "benefit";
+export type StationKind = "gate" | "benefit" | "stand";
 
 export interface StationCode {
   /** Doce letras y números, sin guiones. La interfaz lo muestra como "ABCD-EFGH-JKLM" (src/lib/station-code.ts). */
   code: string;
   eventId: string;
   kind: StationKind;
-  /** El beneficio que se canjea en el puesto, o null si es la puerta. */
+  /** El beneficio que se canjea en el puesto, o null si es la puerta o un stand. */
   benefitId: string | null;
+  /** El stand de quien auspicia, si el puesto es un stand (src/server/stands.ts). */
+  standId: string | null;
   createdAt: string;
 }
 
 /** Un código de puesto con cómo se llama y dónde está, para mostrarlo. */
 export interface PanelStation extends StationCode {
-  /** El nombre del beneficio; null para la puerta (la interfaz pone "Puerta"). */
+  /** El nombre del beneficio; null para la puerta (la interfaz pone "Puerta") y para un stand. */
   benefitName: string | null;
+  /** El nombre de quien auspicia, si el puesto es un stand. */
+  standName: string | null;
   /** Dónde se canjea, si el beneficio lo dice ("Mesa del almuerzo"). */
   station: string | null;
+}
+
+/** El stand que abre un código de puesto de tipo "stand". */
+export interface StationStand {
+  id: string;
+  name: string;
+  logoUrl: string | null;
 }
 
 /** Lo que recibe el escáner cuando un voluntario abre su puesto con el código. */
@@ -109,6 +120,8 @@ export interface StationAccess {
   event: EventRecord;
   kind: StationKind;
   benefit: Benefit | null;
+  /** El stand, si el código es de un stand; si no, null. */
+  stand: StationStand | null;
   /** El catálogo entero del evento, para que el escáner sepa qué puede ver en una credencial. */
   benefits: Benefit[];
   /** La clave pública del evento en base64url: con ella el escáner verifica los QR sin red (la privada no sale del servidor). */
@@ -120,6 +133,7 @@ interface StationRow {
   event_id: string;
   kind: StationKind;
   benefit_id: string | null;
+  stand_id: string | null;
   created_at: string;
 }
 
@@ -128,6 +142,7 @@ const rowToStation = (row: StationRow): StationCode => ({
   eventId: row.event_id,
   kind: row.kind,
   benefitId: row.benefit_id,
+  standId: row.stand_id,
   createdAt: row.created_at,
 });
 
@@ -140,20 +155,27 @@ function newStationCode(db: DatabaseSync): string {
 }
 
 export function listStationCodes(eventId: string): StationCode[] {
-  const rows = panelDb().prepare("SELECT * FROM station_codes WHERE event_id = ? ORDER BY kind DESC, created_at").all(eventId) as unknown as StationRow[];
+  const rows = panelDb().prepare("SELECT * FROM station_codes WHERE event_id = ? ORDER BY CASE kind WHEN 'gate' THEN 0 WHEN 'benefit' THEN 1 ELSE 2 END, created_at").all(eventId) as unknown as StationRow[];
   return rows.map(rowToStation);
 }
 
-/** Los códigos de puesto del evento, uno para la puerta y uno por beneficio. Crea los que falten. */
+/** Los códigos de puesto del evento, uno para la puerta, uno por beneficio y uno por stand. Crea los que falten. */
 export async function ensureStationCodes(event: EventRecord, repo: Repo = getRepo()): Promise<StationCode[]> {
   const db = panelDb();
   const existing = listStationCodes(event.id);
   // OR IGNORE: si dos pedidos abren el panel a la vez, el segundo no choca con el código que ya creó el primero.
-  const insert = db.prepare("INSERT OR IGNORE INTO station_codes (code, event_id, kind, benefit_id, created_at) VALUES (?, ?, ?, ?, ?)");
-  if (!existing.some((c) => c.kind === "gate")) insert.run(newStationCode(db), event.id, "gate", null, now());
+  const insert = db.prepare("INSERT OR IGNORE INTO station_codes (code, event_id, kind, benefit_id, stand_id, created_at) VALUES (?, ?, ?, ?, ?, ?)");
+  if (!existing.some((c) => c.kind === "gate")) insert.run(newStationCode(db), event.id, "gate", null, null, now());
   for (const benefit of await repo.listBenefits(event.id)) {
     if (!existing.some((c) => c.kind === "benefit" && c.benefitId === benefit.id)) {
-      insert.run(newStationCode(db), event.id, "benefit", benefit.id, now());
+      insert.run(newStationCode(db), event.id, "benefit", benefit.id, null, now());
+    }
+  }
+  // Los stands (src/server/stands.ts) viven en su propia tabla: acá solo se lee el id.
+  const stands = db.prepare("SELECT id FROM stands WHERE event_id = ? ORDER BY sort_order, created_at").all(event.id) as unknown as Array<{ id: string }>;
+  for (const stand of stands) {
+    if (!existing.some((c) => c.kind === "stand" && c.standId === stand.id)) {
+      insert.run(newStationCode(db), event.id, "stand", null, stand.id, now());
     }
   }
   return listStationCodes(event.id);
@@ -163,14 +185,21 @@ export async function ensureStationCodes(event: EventRecord, repo: Repo = getRep
 export async function resolveStationCode(input: string, repo: Repo = getRepo()): Promise<StationAccess | null> {
   const code = normalizeStationCode(input);
   if (!isValidStationCode(code)) return null;
-  const row = panelDb().prepare("SELECT * FROM station_codes WHERE code = ?").get(code) as unknown as StationRow | undefined;
+  const db = panelDb();
+  const row = db.prepare("SELECT * FROM station_codes WHERE code = ?").get(code) as unknown as StationRow | undefined;
   if (!row) return null;
   const station = rowToStation(row);
   const event = await repo.getEventById(station.eventId);
   if (!event) return null;
   const benefits = await repo.listBenefits(event.id);
   const benefit = station.benefitId ? (benefits.find((b) => b.id === station.benefitId) ?? null) : null;
-  return { event, kind: station.kind, benefit, benefits, publicKey: bytesToBase64url(getEventPublicKey(event.id)) };
+  let stand: StationStand | null = null;
+  if (station.kind === "stand") {
+    const standRow = db.prepare("SELECT id, name, logo_url FROM stands WHERE id = ?").get(station.standId) as unknown as { id: string; name: string; logo_url: string | null } | undefined;
+    if (!standRow) return null;
+    stand = { id: standRow.id, name: standRow.name, logoUrl: standRow.logo_url };
+  }
+  return { event, kind: station.kind, benefit, stand, benefits, publicKey: bytesToBase64url(getEventPublicKey(event.id)) };
 }
 
 // ---------- El estado del panel ----------
@@ -366,9 +395,12 @@ async function collect(event: EventRecord, repo: Repo): Promise<Collected> {
       })),
   ].sort((a, b) => b.scannedAt.localeCompare(a.scannedAt));
 
+  const standNames = new Map(
+    (panelDb().prepare("SELECT id, name FROM stands WHERE event_id = ?").all(event.id) as unknown as Array<{ id: string; name: string }>).map((s) => [s.id, s.name]),
+  );
   const stations: PanelStation[] = listStationCodes(event.id).map((c) => {
     const benefit = c.benefitId ? benefitById.get(c.benefitId) : undefined;
-    return { ...c, benefitName: benefit?.name ?? null, station: benefit?.station ?? null };
+    return { ...c, benefitName: benefit?.name ?? null, standName: c.standId ? (standNames.get(c.standId) ?? null) : null, station: benefit?.station ?? null };
   });
 
   const state: PanelState = {

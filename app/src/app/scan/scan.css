@@ -78,3 +78,22 @@
 @media (display-mode: standalone) {
   .esc-camara { max-height: min(62dvh, 560px); }
 }
+
+/* En un stand la cámara es más baja: así el resumen de visitas queda a la vista sin hacer scroll */
+.esc-cuerpo-stand .esc-camara { aspect-ratio: 16 / 10; max-height: 34dvh; }
+
+/* El escáner de un stand: quién pasó y quién aceptó compartir su contacto, debajo de la cámara */
+.esc-stand { display: grid; gap: 12px; background: var(--tarjeta); border: 1px solid var(--linea); border-radius: var(--radio); padding: 16px; }
+.esc-stand-cifras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.esc-stand-cifra { display: grid; gap: 2px; align-content: start; }
+.esc-stand-numero { font-family: var(--display); font-weight: 800; font-size: clamp(1.8rem, 7vw, 2.4rem); line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.esc-stand-cifra-verde .esc-stand-numero { color: var(--verde); }
+.esc-stand-cifra-acento .esc-stand-numero { color: var(--acento-texto); }
+.esc-stand-etiqueta { color: var(--tinta-2); font-size: 0.85rem; line-height: 1.25; }
+.esc-stand-regla { color: var(--tinta-2); border-top: 1px solid var(--linea); padding-top: 10px; margin: 0; }
+.esc-stand-titulo { font-family: var(--texto); font-size: 0.82rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--apagado); margin: 0; }
+.esc-stand-visitas { list-style: none; margin: 0; padding: 0; display: grid; }
+.esc-stand-visitas li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--linea); }
+.esc-stand-visitas li:first-child { border-top: 0; }
+.esc-stand-quien { display: grid; min-width: 0; }
+.esc-stand-quien strong { overflow-wrap: anywhere; font-weight: 600; }
