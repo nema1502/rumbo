@@ -389,7 +389,7 @@ async function grabar(lang) {
   const codigos = await ensureStationCodes(event, repo);
   const codigoPuerta = formatStationCode(codigos.find((c) => c.kind === "gate").code);
   const codigoPolera = formatStationCode(codigos.find((c) => c.kind === "benefit" && c.benefitId === polera.id).code);
-  const clavePanel = getOrCreateOrganizerKey(event.id);
+  const clavePanel = await getOrCreateOrganizerKey(event.id);
 
   const nombre = NOMBRES[lang];
   const base = nombre
