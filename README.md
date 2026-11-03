@@ -8,7 +8,7 @@
 [![Status: MVP on testnet](https://img.shields.io/badge/status-MVP%20on%20testnet-ffc629?style=flat-square)](#where-it-stands)
 [![License: MIT](https://img.shields.io/badge/license-MIT-14b8a6?style=flat-square)](LICENSE)
 
-**[rumbo-eventos.vercel.app](https://rumbo-eventos.vercel.app)** | [Español](README.es.md) | [What it does](#what-it-does) | [Why Stellar](#why-stellar) | [Where it stands](#where-it-stands) | [How it is different](#how-rumbo-is-different) | [Principles](#principles) | [Who](#who)
+**[rumbo-eventos.vercel.app](https://rumbo-eventos.vercel.app)** | [Español](README.es.md) | [What it does](#what-it-does) | [Why Stellar](#why-stellar) | [Where it stands](#where-it-stands) | [How it is different](#how-rumbo-is-different) | [For Stellar chapters](#for-stellar-ambassador-chapters) | [Principles](#principles) | [Who](#who)
 
 <img src="site/assets/og.png" alt="Rumbo: your whole event in one QR code. A sample pass with a QR code and its benefits." width="820">
 
@@ -63,6 +63,16 @@ Free sign-up is solved: Luma, Bevy and a simple form already do it well. Rumbo s
 
 Tech communities often end up building their own tools, or using wristbands and paper tickets, to run lunch, swag and prizes at their events. Rumbo is that kit, ready to use, open source, with an API and an MCP server so each community can build on top of it. [Stellar Passport](https://stellarpassport.xyz), which turns attendance into stamps, is a natural complement: a Rumbo check-in could grant a Passport stamp.
 
+## For Stellar ambassador chapters
+
+The [Stellar Ambassador Program](https://stellar.gitbook.io/ambassador-program/resources/terms-and-conditions/goals-and-reporting) counts an event when it has at least twenty verified attendees and twenty minutes of Stellar content, documented for the monthly and quarterly reports, and a chapter's funding can be reduced when that reporting is incomplete. Rumbo produces that documentation while it runs the event:
+
+- **Verified attendance:** every check-in at the door is a transaction on Stellar with its time, so anyone can check the count, with no names on chain.
+- **Food per person:** lunch redemptions say how many people ate, against the program's per-person food cap.
+- **The package for the report:** after the event, `pnpm paquete-embajadores` writes the event report as a PDF, a CSV with the numbers the monthly report asks for, the contacts of attendees who agreed to hear from the chapter, and a yes or no for each requirement. Each attendee can also get a certificate with a QR code that opens a public verification page.
+
+The program shares its official documentation template with each chapter; the package will follow it as soon as a chapter shares it.
+
 ## Why Stellar
 
 For counting lunches a database would do. Stellar adds what a database cannot:
@@ -83,7 +93,7 @@ Rumbo is not a ticket NFT and not a place to speculate on resale. If the organiz
 
 ## Where it stands
 
-The first column of the table below is built and runs on Stellar's testnet: the [rumbo-pass contract](contracts/rumbo-pass/README.md) (free or paid pass with the split in the same operation, one check-in and one redemption per benefit, with 43 tests) and the [app](app/README.md) (event page, registration, pass with QR code, offline scanner, organizer panel and sponsor report). Accounts are created by the server in test mode; Google and passkey sign-in come next. The whole flow, run against testnet with its transaction ids, is in [app/demo/e2e-testnet.txt](app/demo/e2e-testnet.txt), and the paid event's contract can be inspected on [stellar.expert](https://stellar.expert/explorer/testnet/contract/CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA).
+The first column of the table below is built and runs on Stellar's testnet: the [rumbo-pass contract](contracts/rumbo-pass/README.md) (free or paid pass with the split in the same operation, one check-in and one redemption per benefit, with 43 tests) and the [app](app/README.md) (event page, registration, a pass whose QR code is signed with Ed25519 and changes every 20 seconds, offline scanner with a manual fallback at the door, organizer panel, sponsor booths with a route and a live screen, and the event report as a PDF with verifiable certificates). Accounts are created by the server in test mode; Google and passkey sign-in come next. The whole flow, run against testnet with its transaction ids, is in [app/demo/e2e-testnet.txt](app/demo/e2e-testnet.txt), and the paid event's contract can be inspected on [stellar.expert](https://stellar.expert/explorer/testnet/contract/CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA).
 
 Without installing anything: the [landing page](https://rumbo-eventos.vercel.app) with a 31-second animation of the whole flow, and a [clickable demo](https://rumbo-eventos.vercel.app/#probar) where you sign up, get your pass, scan it as a volunteer (offline too) and run the draw as the organizer.
 

@@ -8,7 +8,7 @@
 [![Estado: MVP en testnet](https://img.shields.io/badge/estado-MVP%20en%20testnet-ffc629?style=flat-square)](#dónde-está)
 [![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-14b8a6?style=flat-square)](LICENSE)
 
-**[rumbo-eventos.vercel.app](https://rumbo-eventos.vercel.app)** | [English](README.md) | [Qué hace](#qué-hace) | [Por qué Stellar](#por-qué-stellar) | [Dónde está](#dónde-está) | [En qué se distingue](#en-qué-se-distingue-rumbo) | [Principios](#principios) | [Quiénes](#quiénes)
+**[rumbo-eventos.vercel.app](https://rumbo-eventos.vercel.app)** | [English](README.md) | [Qué hace](#qué-hace) | [Por qué Stellar](#por-qué-stellar) | [Dónde está](#dónde-está) | [En qué se distingue](#en-qué-se-distingue-rumbo) | [Para capítulos de Stellar](#para-capítulos-de-embajadores-de-stellar) | [Principios](#principios) | [Quiénes](#quiénes)
 
 <img src="site/assets/og.png" alt="Rumbo: tu evento entero en un QR. Una credencial de muestra con su QR y sus beneficios." width="820">
 
@@ -63,6 +63,16 @@ La inscripción gratis ya está resuelta: Luma, Bevy y un formulario la hacen bi
 
 Las comunidades de tecnología muchas veces terminan armando su propio software, o usando manillas y tickets de papel, para manejar el almuerzo, el swag y los premios de sus eventos. Rumbo es ese kit, ya hecho, de código abierto, con una API y un servidor MCP para que cada comunidad construya encima. [Stellar Passport](https://stellarpassport.xyz), que convierte la asistencia en sellos, es un complemento natural: el check-in de Rumbo podría darle un sello de Passport.
 
+## Para capítulos de embajadores de Stellar
+
+El [programa de embajadores de Stellar](https://stellar.gitbook.io/ambassador-program/resources/terms-and-conditions/goals-and-reporting) cuenta un evento cuando tiene al menos veinte asistentes verificados y veinte minutos de contenido de Stellar, documentados para los reportes del mes y del trimestre, y el presupuesto de un capítulo se puede reducir cuando ese reporte queda incompleto. Rumbo arma esa documentación mientras opera el evento:
+
+- **La asistencia verificada:** cada entrada en la puerta es una transacción en Stellar con su hora, así que cualquiera puede comprobar la cuenta, sin nombres en la cadena.
+- **La comida por persona:** el canje del almuerzo dice cuántos comieron, frente al tope por persona del programa.
+- **El paquete para el reporte:** al terminar, `pnpm paquete-embajadores` escribe el informe del evento en PDF, un CSV con los números que pide el reporte del mes, los contactos de quienes aceptaron que el capítulo les escriba, y un sí o un no por cada requisito. Cada asistente puede recibir además un certificado con un QR que abre una página pública de verificación.
+
+El programa le pasa su plantilla oficial de documentación a cada capítulo; el paquete se va a ajustar a ella en cuanto un capítulo la comparta.
+
 ## Por qué Stellar
 
 Para contar almuerzos alcanza una base de datos. Stellar suma lo que una base de datos no puede:
@@ -83,7 +93,7 @@ Rumbo no es una entrada NFT ni un lugar para especular con la reventa. Si quien 
 
 ## Dónde está
 
-La primera columna de la tabla de abajo está hecha y corre en la red de prueba de Stellar: el [contrato rumbo-pass](contracts/rumbo-pass/README.md) (pase gratis o pago con el reparto en la misma operación, una entrada y un canje por beneficio, con 43 pruebas) y la [app](app/README.md) (la página del evento, la inscripción, la credencial con QR, el escáner sin conexión, el panel de quien organiza y el informe para quien auspicia). Las cuentas las crea el servidor en modo de prueba; entrar con Google o con una passkey viene después. El flujo entero, corrido en la red de prueba con los ids de sus transacciones, está en [app/demo/e2e-testnet.txt](app/demo/e2e-testnet.txt), y el contrato del evento pago se puede mirar en [stellar.expert](https://stellar.expert/explorer/testnet/contract/CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA).
+La primera columna de la tabla de abajo está hecha y corre en la red de prueba de Stellar: el [contrato rumbo-pass](contracts/rumbo-pass/README.md) (pase gratis o pago con el reparto en la misma operación, una entrada y un canje por beneficio, con 43 pruebas) y la [app](app/README.md) (la página del evento, la inscripción, la credencial con un QR firmado con Ed25519 que cambia cada 20 segundos, el escáner sin conexión con un respaldo manual en la puerta, el panel de quien organiza, los stands de quien auspicia con su ruta y su pantalla en vivo, y el informe del evento en PDF con certificados verificables). Las cuentas las crea el servidor en modo de prueba; entrar con Google o con una passkey viene después. El flujo entero, corrido en la red de prueba con los ids de sus transacciones, está en [app/demo/e2e-testnet.txt](app/demo/e2e-testnet.txt), y el contrato del evento pago se puede mirar en [stellar.expert](https://stellar.expert/explorer/testnet/contract/CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA).
 
 Sin instalar nada: la [landing](https://rumbo-eventos.vercel.app) con una animación de 31 segundos del flujo entero, y una [demo clickeable](https://rumbo-eventos.vercel.app/#probar) donde te inscribís, recibís la credencial, la escaneás como voluntario (también sin conexión) y hacés el sorteo como organizador.
 
