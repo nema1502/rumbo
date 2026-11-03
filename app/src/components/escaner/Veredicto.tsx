@@ -54,19 +54,22 @@ export function Veredicto({ veredicto, puesto, timezone, onCerrar }: Props) {
 
   const titulo =
     veredicto.kind === "ok"
-      ? t(veredicto.action === "checkin" ? "escaner.entro" : "escaner.canjeado")
+      ? t(veredicto.action === "checkin" ? "escaner.entro" : veredicto.action === "visit" ? "stands.escaner.visita" : "escaner.canjeado")
       : veredicto.kind === "already"
-        ? t(veredicto.action === "checkin" ? "escaner.yaEntro" : "escaner.yaCanjeado")
+        ? t(veredicto.action === "checkin" ? "escaner.yaEntro" : veredicto.action === "visit" ? "stands.escaner.yaVisito" : "escaner.yaCanjeado")
         : t("escaner.noCorresponde");
 
+  // En un stand, una visita nueva dice lo que pasa con el contacto: la persona decide desde su celular.
   const detalle =
     veredicto.kind === "already"
       ? t("escaner.aLas", { hora: formatDate(lang, veredicto.at, timezone, { hour: "2-digit", minute: "2-digit" }) })
       : veredicto.kind === "no"
         ? t(`escaner.motivo.${veredicto.reason}`, { beneficio: puesto.name })
-        : puesto.kind === "benefit"
-          ? puesto.name
-          : null;
+        : puesto.kind === "stand"
+          ? t("stands.escaner.pregunta")
+          : puesto.kind === "benefit"
+            ? puesto.name
+            : null;
 
   const nombre = veredicto.name || (veredicto.passId ? t("escaner.sinNombre", { id: veredicto.passId }) : null);
 
