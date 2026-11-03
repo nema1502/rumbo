@@ -1,0 +1,108 @@
+/* La pantalla en vivo, para proyectar. Siempre en tema noche (con los colores de docs/marca.md), con letra
+   enorme: las medidas salen del alto de la pantalla, así lo mismo se lee en un proyector de 1920x1080 que en una
+   notebook de 1440x900. Tapa la cabecera y el pie de la app para ocupar toda la pantalla. Prefijo viv-. */
+
+.vivo {
+  --papel: #0b1626; --tarjeta: #13223a; --tinta: #f4efe6; --tinta-2: #c9c2b5; --apagado: #98a2b3;
+  --linea: rgba(244, 239, 230, 0.14); --acento: #ff7a45; --verde: #2fbfa6; --amarillo: #f5c451; --alerta: #ff8a7a;
+  --viv-gap: clamp(12px, 2.6vh, 36px);
+  position: fixed; inset: 0; z-index: 100; overflow-y: auto; overflow-x: hidden;
+  display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: var(--viv-gap);
+  padding: clamp(14px, 3.2vh, 44px) clamp(16px, 3vw, 64px);
+  color: var(--tinta); color-scheme: dark;
+  background:
+    radial-gradient(1100px 600px at 90% -10%, rgba(255, 122, 69, 0.18), transparent 60%),
+    radial-gradient(900px 520px at -10% 40%, rgba(47, 191, 166, 0.12), transparent 60%),
+    var(--papel);
+}
+.vivo :focus-visible { outline: 3px solid var(--acento); outline-offset: 3px; border-radius: 8px; }
+
+/* La cabecera: la marca, el evento y el estado */
+.viv-cabecera { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: clamp(12px, 2vw, 40px); align-items: center; }
+.viv-marca { display: flex; align-items: center; gap: 12px; font-family: var(--display); font-weight: 800; font-size: clamp(1.3rem, 3.2vh, 2.2rem); letter-spacing: -0.02em; }
+.viv-marca svg { width: clamp(34px, 5vh, 58px); height: clamp(34px, 5vh, 58px); color: var(--tinta); }
+.viv-evento h1 { font-size: clamp(1.7rem, 5.2vh, 4rem); line-height: 1.04; overflow-wrap: anywhere; }
+.viv-evento p { margin-top: 4px; color: var(--tinta-2); font-size: clamp(1rem, 2.4vh, 1.7rem); }
+.viv-estado { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 10px 16px; }
+
+.viv-chip { display: inline-flex; align-items: center; gap: 10px; padding: 0.35em 0.9em; border-radius: 999px; font-weight: 700; font-size: clamp(0.95rem, 2.2vh, 1.5rem); line-height: 1.2; white-space: nowrap; text-decoration: none; }
+.viv-chip-vivo { background: rgba(47, 191, 166, 0.16); color: var(--verde); }
+.viv-chip-alerta { background: rgba(255, 138, 122, 0.16); color: var(--alerta); }
+.viv-chip-ganado { background: rgba(245, 196, 81, 0.22); color: var(--amarillo); }
+.viv-punto { width: 0.6em; height: 0.6em; border-radius: 50%; background: var(--verde); animation: viv-late 1.6s ease-in-out infinite; }
+@keyframes viv-late { 50% { opacity: 0.35; transform: scale(0.8); } }
+.viv-enlace { color: var(--tinta-2); font-weight: 600; text-decoration: none; font-size: clamp(0.95rem, 2vh, 1.3rem); padding: 8px 6px; min-height: 44px; display: inline-flex; align-items: center; }
+.viv-enlace:hover { color: var(--tinta); text-decoration: underline; }
+.viv-enlace-chico { font-size: clamp(0.9rem, 1.8vh, 1.15rem); }
+
+/* Las tres cifras */
+.viv-cifras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--viv-gap); }
+.viv-cifra { display: grid; gap: clamp(2px, 0.5vh, 8px); align-content: start; padding: clamp(12px, 2.1vh, 32px) clamp(16px, 1.8vw, 36px); background: var(--tarjeta); border: 1px solid var(--linea); border-radius: clamp(18px, 2.4vh, 32px); }
+.viv-cifra-etiqueta { color: var(--tinta-2); font-weight: 600; font-size: clamp(1.05rem, 2.5vh, 2rem); }
+.viv-cifra-valor { font-family: var(--display); font-weight: 800; font-size: clamp(3.4rem, 12.5vh, 11rem); line-height: 0.95; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; animation: viv-sube 0.6s ease-out; }
+.viv-cifra-verde .viv-cifra-valor { color: var(--verde); }
+.viv-cifra-amarillo .viv-cifra-valor { color: var(--amarillo); }
+.viv-cifra-detalle { color: var(--apagado); font-size: clamp(0.95rem, 2.1vh, 1.6rem); }
+.viv-barra { height: clamp(8px, 1vh, 14px); border-radius: 999px; background: var(--linea); overflow: hidden; margin-top: clamp(4px, 1vh, 14px); }
+.viv-barra > span { display: block; height: 100%; border-radius: 999px; background: var(--verde); transition: width 0.6s ease-out; }
+.viv-cifra-amarillo .viv-barra > span { background: var(--amarillo); }
+@keyframes viv-sube { from { transform: translateY(0.12em); opacity: 0.4; } }
+
+/* Dos columnas: la ruta de stands y el sorteo */
+.viv-columnas { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: var(--viv-gap); align-items: stretch; min-height: 0; }
+.viv-tarjeta { display: flex; flex-direction: column; gap: clamp(8px, 1.4vh, 20px); padding: clamp(14px, 2.2vh, 34px) clamp(18px, 2vw, 40px); background: var(--tarjeta); border: 1px solid var(--linea); border-radius: clamp(18px, 2.4vh, 32px); min-width: 0; min-height: 0; }
+.viv-tarjeta-cabecera { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 20px; }
+.viv-tarjeta-cabecera h2 { font-size: clamp(1.4rem, 3.8vh, 2.8rem); }
+.viv-tarjeta-cabecera p { color: var(--tinta-2); font-size: clamp(1rem, 2.4vh, 1.8rem); font-weight: 600; }
+.viv-vacio { color: var(--tinta-2); font-size: clamp(1.1rem, 2.8vh, 2rem); padding: clamp(8px, 2vh, 28px) 0; }
+.viv-pie { color: var(--apagado); font-size: clamp(0.9rem, 1.9vh, 1.3rem); margin-top: auto; }
+
+/* El ranking: cada fila mide lo mismo, y la pantalla muestra las que entran en el alto que sobra (PantallaVivo.tsx) */
+.viv-ranking-caja { flex: 1; min-height: 0; overflow: hidden; }
+.viv-ranking { --viv-fila: clamp(48px, 6vh, 92px); list-style: none; margin: 0; padding: 0; display: grid; }
+.viv-ranking li { box-sizing: border-box; height: var(--viv-fila); display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: clamp(10px, 1.4vw, 28px); border-top: 1px solid var(--linea); font-size: clamp(1.1rem, 2.9vh, 2.3rem); }
+.viv-ranking li:first-child { border-top: 0; }
+.viv-puesto { display: inline-grid; place-items: center; width: 1.6em; height: 1.6em; border-radius: 50%; background: var(--linea); font-family: var(--display); font-weight: 800; font-size: 0.8em; font-variant-numeric: tabular-nums; }
+.viv-ranking li:first-child .viv-puesto { background: var(--amarillo); color: #0f1c2e; }
+.viv-nombre { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.viv-completo .viv-nombre { color: var(--amarillo); }
+.viv-avance { display: inline-flex; gap: 0.28em; }
+.viv-hito { width: 0.55em; height: 0.55em; border-radius: 50%; border: 2px solid var(--apagado); }
+.viv-hito-lleno { background: var(--verde); border-color: var(--verde); }
+.viv-cuenta { color: var(--tinta-2); font-size: 0.7em; font-weight: 600; white-space: nowrap; min-width: 3.4em; text-align: right; }
+.viv-ranking .viv-chip { font-size: 0.6em; }
+
+/* El sorteo: el número y lo que dice, en una fila, y abajo la acción */
+.viv-sorteo { align-items: flex-start; }
+.viv-sorteo-fila { display: flex; align-items: center; gap: clamp(12px, 1.6vw, 28px); }
+.viv-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; }
+.viv-sorteo-cifra { font-family: var(--display); font-weight: 800; font-size: clamp(3.4rem, 11.5vh, 9rem); line-height: 0.95; letter-spacing: -0.04em; color: var(--acento); font-variant-numeric: tabular-nums; animation: viv-sube 0.6s ease-out; }
+.viv-sorteo-texto { font-size: clamp(1.15rem, 2.8vh, 2.1rem); font-weight: 600; line-height: 1.2; }
+.viv-boton {
+  display: inline-flex; align-items: center; justify-content: center; min-height: clamp(52px, 6.4vh, 76px); padding: 0 clamp(20px, 2vw, 40px); border-radius: 999px;
+  background: var(--acento); color: #0f1c2e; font-weight: 700; font-size: clamp(1rem, 2.4vh, 1.5rem); text-decoration: none;
+}
+.viv-boton:hover { filter: brightness(1.06); }
+
+.viv-actualiza { text-align: center; color: var(--apagado); font-size: clamp(0.85rem, 1.8vh, 1.2rem); }
+
+/* Pantallas más angostas: la cabecera y las columnas se apilan, y la página se desplaza */
+@media (max-width: 1000px) {
+  .vivo { grid-template-rows: none; }
+  .viv-ranking-caja { flex: none; overflow: visible; }
+  .viv-cifras { grid-template-columns: 1fr; }
+  .viv-cifra-valor { font-size: clamp(3.6rem, 16vw, 7rem); }
+  .viv-columnas { grid-template-columns: 1fr; }
+  .viv-sorteo-cifra { font-size: clamp(3.4rem, 15vw, 6rem); }
+}
+@media (max-width: 700px) {
+  .viv-cabecera { grid-template-columns: auto minmax(0, 1fr); }
+  .viv-evento { grid-column: 1 / -1; order: 3; }
+  .viv-estado { justify-content: flex-end; }
+  .viv-ranking li { grid-template-columns: auto minmax(0, 1fr) auto; font-size: 1.15rem; }
+  .viv-avance { display: none; }
+  .viv-ranking .viv-chip { font-size: 0.75em; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .viv-punto, .viv-cifra-valor, .viv-sorteo-cifra { animation: none; }
+}

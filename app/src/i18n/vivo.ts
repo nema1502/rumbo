@@ -31,8 +31,8 @@ export const vivo = {
     "vivo.anonimo": "Anónimo",
 
     "vivo.sorteo.titulo": "Sorteo",
-    "vivo.sorteo.participan": "Participan {n} personas que entraron",
-    "vivo.sorteo.participa1": "Participa 1 persona que entró",
+    "vivo.sorteo.participan": "personas que entraron participan",
+    "vivo.sorteo.participa1": "persona que entró participa",
     "vivo.sorteo.ninguna": "Todavía no entró nadie, así que nadie participa.",
     "vivo.sorteo.exportar": "Exportar la lista del sorteo",
     "vivo.sorteo.csv": "Bajar como CSV",
@@ -66,8 +66,8 @@ export const vivo = {
     "vivo.anonimo": "Anonymous",
 
     "vivo.sorteo.titulo": "Raffle",
-    "vivo.sorteo.participan": "{n} people who checked in are entered",
-    "vivo.sorteo.participa1": "1 person who checked in is entered",
+    "vivo.sorteo.participan": "people who checked in are entered",
+    "vivo.sorteo.participa1": "person who checked in is entered",
     "vivo.sorteo.ninguna": "Nobody has checked in yet, so nobody is entered.",
     "vivo.sorteo.exportar": "Export the raffle list",
     "vivo.sorteo.csv": "Download as CSV",
