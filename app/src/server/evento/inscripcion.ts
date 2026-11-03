@@ -27,8 +27,8 @@ export interface FieldErrors {
 }
 
 export const NAME_MAX = 80;
-const EMAIL_MAX = 120;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+export const EMAIL_MAX = 120;
+export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export function validateFields(fields: RegistrationFields): FieldErrors {
   const errors: FieldErrors = {};

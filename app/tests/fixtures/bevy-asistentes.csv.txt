@@ -1,0 +1,13 @@
+﻿First Name,Last Name,Email,Ticket Type,Attendee Status,Registration Date,Checked In,Company,Job Title,Chapter,Event Name,Phone Number
+Sofía,Aguilar,sofia.aguilar@example.org,General Admission,Registered,2026-10-20 09:15,No,Estudio Ejemplo,Desarrolladora,GDG Tarija,DevFest Tarija 2026,
+Andrés,Villca,andres.villca@example.org,General Admission,Registered,2026-10-20 10:02,No,,Estudiante,GDG Tarija,DevFest Tarija 2026,+591 70000011
+Franco,Ibáñez,franco.ibanez@example.org,General Admission,Checked In,2026-10-21 18:45,Yes,Taller Ejemplo,Diseñador,GDG Tarija,DevFest Tarija 2026,
+Camila,Suárez,camila.suarez@example.org,Speaker,Registered,2026-10-21 19:00,No,Empresa Ejemplo,Ingeniera,GDG Tarija,DevFest Tarija 2026,
+Óscar,Limachi,oscar.limachi@example.org,Mentor,Registered,2026-10-22 08:30,No,,,GDG Tarija,DevFest Tarija 2026,
+Marta,Pérez,marta.perez@example.org,General Admission,Waitlisted,2026-10-22 11:00,No,,,GDG Tarija,DevFest Tarija 2026,
+Luis,Choque,luis.choque@example.org,General Admission,Cancelled,2026-10-22 12:10,No,,,GDG Tarija,DevFest Tarija 2026,
+Elena,Mamani,elena.mamani@example.org,Volunteer,Registered,2026-10-23 07:45,No,,,GDG Tarija,DevFest Tarija 2026,
+Elena,Mamani,elena.mamani@example.org,General Admission,Registered,2026-10-23 07:50,No,,,GDG Tarija,DevFest Tarija 2026,
+Rodrigo,,rodrigo.torrez@example.org,General Admission,Registered,2026-10-23 09:00,No,,,GDG Tarija,DevFest Tarija 2026,
+Paola,Rivero,paola.rivero@example,General Admission,Registered,2026-10-23 09:30,No,,,GDG Tarija,DevFest Tarija 2026,
+Julia,Antelo,julia.antelo@example.org,Sponsor,Registered,2026-10-24 10:00,No,Auspiciante Ejemplo,Gerente,GDG Tarija,DevFest Tarija 2026,
