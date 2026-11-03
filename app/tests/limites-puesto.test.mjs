@@ -20,8 +20,8 @@ const datos = await eventoDePrueba(repo);
 const codigos = await ensureStationCodes(datos.event, repo);
 const puerta = codigos.find((c) => c.kind === "gate").code;
 
-beforeEach(() => {
-  stationCodeAttempts().clear();
+beforeEach(async () => {
+  await stationCodeAttempts().clear();
   delete process.env.RUMBO_TRUSTED_IP_HEADER;
   delete process.env.VERCEL;
 });

@@ -56,6 +56,6 @@ export async function crearBorrador(formData: FormData): Promise<void> {
 
   // Quien crea el evento entra a su panel con la clave que se acaba de armar: la cookie se pone acá mismo, porque una
   // redirección a /api/.../entrar la resuelve el servidor y el navegador nunca recibiría esa cookie.
-  await rememberPanelKey(slug, getOrCreateOrganizerKey(eventId));
+  await rememberPanelKey(slug, await getOrCreateOrganizerKey(eventId));
   redirect(`/admin/${encodeURIComponent(slug)}/armar`);
 }

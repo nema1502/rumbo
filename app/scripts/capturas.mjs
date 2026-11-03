@@ -64,8 +64,8 @@ const lunch = benefits.find((b) => b.kind === "lunch");
 const codes = await ensureStationCodes(event, repo);
 const gateCode = formatStationCode(codes.find((c) => c.kind === "gate").code);
 const lunchCode = lunch ? formatStationCode(codes.find((c) => c.kind === "benefit" && c.benefitId === lunch.id)?.code ?? "") : "";
-const panelKey = getOrCreateOrganizerKey(event.id);
-const qrKeys = getEventQrKeys(event.id);
+const panelKey = await getOrCreateOrganizerKey(event.id);
+const qrKeys = await getEventQrKeys(event.id);
 
 /** Una persona nueva con su credencial, por la API, como desde el formulario. */
 async function inscribir(nombre, lang) {
@@ -87,7 +87,7 @@ async function paseConCanjes() {
   for (const pass of await repo.listPasses(event.id)) {
     if (pass.status !== "checked_in") continue;
     const canjes = await repo.listRedemptionsForPass(pass.id);
-    if (canjes.some((r) => r.synced && !r.duplicate)) return { pass, key: getOrCreateAccessKey(pass.id) };
+    if (canjes.some((r) => r.synced && !r.duplicate)) return { pass, key: await getOrCreateAccessKey(pass.id) };
   }
   return null;
 }

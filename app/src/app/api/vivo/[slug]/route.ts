@@ -12,5 +12,5 @@ export async function GET(request: NextRequest, { params }: Context) {
   const { slug } = await params;
   const auth = await authorizePanelRequest(request, slug);
   if (auth.response) return auth.response;
-  return NextResponse.json(getLiveState(auth.event), { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json(await getLiveState(auth.event), { headers: { "Cache-Control": "no-store" } });
 }

@@ -32,8 +32,8 @@ export default async function VivoPage({ params, searchParams }: { params: Param
   if (typeof key === "string" && key) redirect(`/api/admin/${slug}/entrar?k=${encodeURIComponent(key)}&next=vivo`);
 
   const t = await getT();
-  if (!verifyOrganizerKey(event.id, await panelKeyFromCookies(slug))) {
+  if (!(await verifyOrganizerKey(event.id, await panelKeyFromCookies(slug)))) {
     return <AccesoPanel slug={slug} eventName={event.name} t={t} error={query.error === "clave"} next="vivo" />;
   }
-  return <PantallaVivo slug={slug} initial={getLiveState(event)} />;
+  return <PantallaVivo slug={slug} initial={await getLiveState(event)} />;
 }

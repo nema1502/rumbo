@@ -79,7 +79,7 @@ test("un pase pendiente o de otro evento no suma sellos", async () => {
 test("la meta de la ruta: al llegar, el premio pasa a la credencial y se canjea una sola vez en Premios", async () => {
   const d = await evento({ meta: 2 });
   const { pass } = await paseDePrueba(repo, d);
-  const premio = stands.getRouteGoal(d.event.id).prizeBenefitId;
+  const premio = (await stands.getRouteGoal(d.event.id)).prizeBenefitId;
   assert.ok(premio, "fijar la meta crea el premio de la ruta");
   assert.equal((await repo.getBenefit(premio)).kind, "prize");
 
@@ -116,7 +116,7 @@ test("el premio de la ruta no se canjea sin haberlo ganado", async () => {
   const d = await evento({ meta: 2 });
   const { pass } = await paseDePrueba(repo, d);
   await visita(d.stands[0], pass);
-  const premio = stands.getRouteGoal(d.event.id).prizeBenefitId;
+  const premio = (await stands.getRouteGoal(d.event.id)).prizeBenefitId;
   const puesto = { id: premio, kind: "benefit", name: "Premio de la ruta", place: "Premios" };
   const [r] = await processScanItems(repo, d.event, puesto, [{ clientId: "sin-premio", action: "redeem", passId: pass.id, benefitId: premio, scannedAt: ahora(), scannerId: "x" }], noHayRed);
   assert.deepEqual([r.status, r.error], ["rejected", "la credencial todavía no ganó este premio"]);
@@ -128,11 +128,11 @@ test("la meta nunca pide más stands de los que hay, y subirla a quien ya la cum
   const { pass } = await paseDePrueba(repo, d);
   await visita(d.stands[0], pass);
   await visita(d.stands[1], pass);
-  const premio = stands.getRouteGoal(d.event.id).prizeBenefitId;
+  const premio = (await stands.getRouteGoal(d.event.id)).prizeBenefitId;
   assert.equal((await repo.listPassBenefits(pass.id)).some((b) => b.id === premio), false);
   // se saca un stand: la meta efectiva baja a 2
-  stands.deleteStand(d.stands[2].id);
-  assert.equal(stands.effectiveTarget(stands.getRouteGoal(d.event.id), stands.listStands(d.event.id).length), 2);
+  await stands.deleteStand(d.stands[2].id);
+  assert.equal(stands.effectiveTarget(await stands.getRouteGoal(d.event.id), (await stands.listStands(d.event.id)).length), 2);
   await stands.grantRoutePrizes(d.event.id, repo);
   assert.ok((await repo.listPassBenefits(pass.id)).some((b) => b.id === premio));
   // y la meta no se puede fijar fuera de rango
@@ -156,41 +156,41 @@ test("el consentimiento: sin aceptar no aparece el contacto; aceptar lo muestra 
   assert.equal((await stands.getPassRoute(pass.id, repo)).stands[0].consent, "pending");
 
   // y no se puede anotar nada de quien no aceptó
-  assert.throws(() => stands.saveContactNote(d.stands[0].id, pass.id, { rating: 5 }), (e) => e.code === "no_consent");
+  await assert.rejects(() => stands.saveContactNote(d.stands[0].id, pass.id, { rating: 5 }), (e) => e.code === "no_consent");
 
   // decir que no tampoco muestra nada
-  stands.answerConsent(pass.id, d.stands[0].id, "declined");
+  await stands.answerConsent(pass.id, d.stands[0].id, "declined");
   panel = await stands.getStandPanel(d.stands[0].id, repo);
   assert.deepEqual([panel.numbers.accepted, panel.numbers.declined, panel.contacts.length], [0, 1, 0]);
 
   // aceptar: ahora sí, con nombre y correo
-  stands.answerConsent(pass.id, d.stands[0].id, "granted");
+  await stands.answerConsent(pass.id, d.stands[0].id, "granted");
   panel = await stands.getStandPanel(d.stands[0].id, repo);
   assert.deepEqual([panel.numbers.accepted, panel.contacts.length], [1, 1]);
   assert.deepEqual([panel.contacts[0].name, panel.contacts[0].email], ["Ana María Quiroga", "ana.quiroga@example.com"]);
 
   // quien atiende el stand la califica y anota
-  stands.saveContactNote(d.stands[0].id, pass.id, { rating: 4, note: "Quiere probar el SDK  \n la semana que viene" });
+  await stands.saveContactNote(d.stands[0].id, pass.id, { rating: 4, note: "Quiere probar el SDK  \n la semana que viene" });
   panel = await stands.getStandPanel(d.stands[0].id, repo);
   assert.deepEqual([panel.contacts[0].rating, panel.contacts[0].note], [4, "Quiere probar el SDK la semana que viene"]);
-  assert.throws(() => stands.saveContactNote(d.stands[0].id, pass.id, { rating: 6 }), (e) => e.code === "invalid_rating");
-  assert.throws(() => stands.saveContactNote(d.stands[0].id, pass.id, { rating: 2.5 }), (e) => e.code === "invalid_rating");
+  await assert.rejects(() => stands.saveContactNote(d.stands[0].id, pass.id, { rating: 6 }), (e) => e.code === "invalid_rating");
+  await assert.rejects(() => stands.saveContactNote(d.stands[0].id, pass.id, { rating: 2.5 }), (e) => e.code === "invalid_rating");
 
   // un auspiciante no ve los contactos de otro stand
   assert.deepEqual((await stands.getStandPanel(d.stands[1].id, repo)).contacts, []);
 
   // dejar de compartir saca el contacto y borra la calificación y la nota
-  stands.answerConsent(pass.id, d.stands[0].id, "declined");
+  await stands.answerConsent(pass.id, d.stands[0].id, "declined");
   panel = await stands.getStandPanel(d.stands[0].id, repo);
   assert.deepEqual(panel.contacts, []);
-  stands.answerConsent(pass.id, d.stands[0].id, "granted");
+  await stands.answerConsent(pass.id, d.stands[0].id, "granted");
   panel = await stands.getStandPanel(d.stands[0].id, repo);
   assert.deepEqual([panel.contacts[0].rating, panel.contacts[0].note], [null, ""]);
 
   // la respuesta exige una visita y una de las dos palabras
-  assert.throws(() => stands.answerConsent(pass.id, d.stands[1].id, "granted"), (e) => e.code === "no_visit");
-  assert.throws(() => stands.answerConsent(pass.id, d.stands[0].id, "maybe"), (e) => e.code === "invalid_answer");
-  assert.throws(() => stands.answerConsent(pass.id, d.stands[0].id, undefined), (e) => e.code === "invalid_answer");
+  await assert.rejects(() => stands.answerConsent(pass.id, d.stands[1].id, "granted"), (e) => e.code === "no_visit");
+  await assert.rejects(() => stands.answerConsent(pass.id, d.stands[0].id, "maybe"), (e) => e.code === "invalid_answer");
+  await assert.rejects(() => stands.answerConsent(pass.id, d.stands[0].id, undefined), (e) => e.code === "invalid_answer");
   assert.equal(person.email, "ana.quiroga@example.com");
 });
 
@@ -200,10 +200,10 @@ test("el CSV del auspiciante no deja fórmulas, y solo trae a quienes aceptaron"
   const bueno = await paseDePrueba(repo, d, { name: "Beto Prueba", email: "beto@example.com" });
   const calla = await paseDePrueba(repo, d, { name: "Caro Callada", email: "caro@example.com" });
   for (const { pass } of [malo, bueno, calla]) await visita(d.stands[0], pass);
-  stands.answerConsent(malo.pass.id, d.stands[0].id, "granted");
-  stands.answerConsent(bueno.pass.id, d.stands[0].id, "granted");
-  stands.saveContactNote(d.stands[0].id, malo.pass.id, { rating: 3, note: "=cmd|' /C calc'!A0" });
-  stands.saveContactNote(d.stands[0].id, bueno.pass.id, { note: "+54 9 11, vendedor" });
+  await stands.answerConsent(malo.pass.id, d.stands[0].id, "granted");
+  await stands.answerConsent(bueno.pass.id, d.stands[0].id, "granted");
+  await stands.saveContactNote(d.stands[0].id, malo.pass.id, { rating: 3, note: "=cmd|' /C calc'!A0" });
+  await stands.saveContactNote(d.stands[0].id, bueno.pass.id, { note: "+54 9 11, vendedor" });
 
   const csv = await stands.buildContactsCsv(d.stands[0].id, "es", repo);
   const filas = csv.replace(/^\ufeff/, "").trim().split("\r\n");
@@ -234,9 +234,9 @@ test("el informe del auspiciante: visitas, canjes de su beneficio, contactos y r
   await visita(d.stands[1], gente[1]);
   await visita(d.stands[0], gente[2]);
   await visita(d.stands[2], gente[3]);
-  stands.answerConsent(gente[0].id, d.stands[0].id, "granted");
-  stands.answerConsent(gente[1].id, d.stands[0].id, "granted");
-  stands.answerConsent(gente[2].id, d.stands[0].id, "declined");
+  await stands.answerConsent(gente[0].id, d.stands[0].id, "granted");
+  await stands.answerConsent(gente[1].id, d.stands[0].id, "granted");
+  await stands.answerConsent(gente[2].id, d.stands[0].id, "declined");
   // dos canjes de la polera (uno doble no cuenta) y los otorgados
   await repo.grantBenefit(gente[0].id, polera.id, "manual");
   await repo.grantBenefit(gente[1].id, polera.id, "manual");
@@ -295,7 +295,7 @@ test("el escáner del stand: su código abre su stand, no recibe la lista de asi
   assert.deepEqual(resultados.find((r) => r.clientId === "s-3"), { clientId: "s-3", status: "rejected", txHash: null, error: "fuera del puesto" }, "un stand no registra entradas");
   assert.equal((await stands.getStandReport(d.stands[0].id, repo)).visits, 2, "dos personas, un sello cada una");
 
-  stands.answerConsent(a.pass.id, d.stands[0].id, "granted");
+  await stands.answerConsent(a.pass.id, d.stands[0].id, "granted");
   foto = await buildSnapshot(repo, acceso);
   assert.deepEqual(foto.passes.map((p) => p.id).sort(), [a.pass.id, b.pass.id].sort(), "solo quienes ya pasaron");
   const nombres = Object.fromEntries(foto.stand.visits.map((v) => [v.passId, v.name]));
@@ -343,10 +343,10 @@ test("la pantalla en vivo: cuenta lo que pasó, y el ranking usa nombre de pila 
   await visita(d.stands[1], gente[0], undefined, enSegundos(-20));
   await visita(d.stands[0], gente[1], undefined, enSegundos(-10));
   await visita(d.stands[0], gente[3], undefined, enSegundos(-5));
-  stands.setDisplay(gente[1].id, { alias: "  Beto   el Bravo ", hidden: false });
-  stands.setDisplay(gente[3].id, { alias: null, hidden: true });
+  await stands.setDisplay(gente[1].id, { alias: "  Beto   el Bravo ", hidden: false });
+  await stands.setDisplay(gente[3].id, { alias: null, hidden: true });
 
-  const vivo = getLiveState(d.event);
+  const vivo = await getLiveState(d.event);
   assert.deepEqual([vivo.issued, vivo.entered, vivo.raffle.eligible], [4, 3, 3]);
   assert.deepEqual(vivo.lunch, { delivered: 2, granted: 4 });
   assert.deepEqual(vivo.merch, { delivered: 0, granted: 0 });
@@ -363,7 +363,7 @@ test("la pantalla en vivo: cuenta lo que pasó, y el ranking usa nombre de pila 
   assert.ok(!/@example\.com|Quiroga|Soria|Nunca|Oculto/.test(texto), "la pantalla no lleva correos ni apellidos");
 
   // un alias que parece un correo no vale
-  assert.throws(() => stands.setDisplay(gente[2].id, { alias: "carla@example.com" }), (e) => e.code === "invalid_alias");
+  await assert.rejects(() => stands.setDisplay(gente[2].id, { alias: "carla@example.com" }), (e) => e.code === "invalid_alias");
   // y se limita el largo y se limpian los controles
   assert.equal(stands.cleanAlias("A\u202eB\u0000C".padEnd(40, "x")).length <= 20, true);
   assert.equal(stands.cleanAlias("   "), null);
@@ -381,12 +381,12 @@ test("la lista del sorteo: solo códigos de quienes entraron, siempre ordenada, 
   const queda = (await paseDePrueba(repo, d, { name: "Nadie Sorteo" })).pass;
   for (const pass of entraron) await repo.updatePass(pass.id, { status: "checked_in" });
 
-  const lista = buildRaffleList(d.event);
+  const lista = await buildRaffleList(d.event);
   assert.equal(lista.total, 3);
   assert.deepEqual(lista.participants, entraron.map((p) => p.id).sort());
   assert.ok(!lista.participants.includes(queda.id), "quien no entró no participa");
   assert.equal(lista.sha256, createHash("sha256").update(lista.participants.join("\n")).digest("hex"));
-  assert.equal(buildRaffleList(d.event).sha256, lista.sha256, "la misma lista da siempre la misma huella");
+  assert.equal((await buildRaffleList(d.event)).sha256, lista.sha256, "la misma lista da siempre la misma huella");
   assert.ok(!/@example\.com|Sorteo/.test(JSON.stringify(lista)), "sin nombres ni correos");
   const csv = raffleListCsv(lista);
   assert.equal(csv.split("\r\n")[0], "n,pass_id");

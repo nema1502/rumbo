@@ -4,13 +4,11 @@
 // No importa nada de Next, así los scripts también lo pueden usar; lo que depende del pedido HTTP
 // (la cookie, las respuestas) está en panel-sesion.ts. Las tablas propias están en migrations/003-panel.sql.
 import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
-import path from "node:path";
-import type { DatabaseSync } from "node:sqlite";
 import { translate, type Lang } from "../i18n/index.ts";
 import type { CredentialKind } from "../lib/credential-kinds.ts";
 import { base32Encode, bytesToBase64url } from "../lib/qr-codec.ts";
 import { STATION_CODE_LENGTH, isValidStationCode, normalizeStationCode } from "../lib/station-code.ts";
-import { dataDir, getEnv } from "./env.ts";
+import { getDb, jsonParam, readJson, type Db } from "./base/index.ts";
 import { describeForLog } from "./log.ts";
 import { getEventPublicKey } from "./qr-keys.ts";
 import {
@@ -26,29 +24,7 @@ import {
 import { isPermanentContractError, rumboPass, type PassStatusOnChain } from "./stellar.ts";
 
 // ---------- La base ----------
-
-declare global {
-  var __rumboPanelDb: DatabaseSync | undefined;
-}
-
-/**
- * Una segunda conexión a la misma base SQLite, para las tablas del panel. getRepo() abre la base y
- * aplica las migraciones (003-panel.sql trae estas tablas); acá solo se leen y se escriben.
- */
-function panelDb(): DatabaseSync {
-  if (globalThis.__rumboPanelDb) return globalThis.__rumboPanelDb;
-  if (getEnv("RUMBO_REPO", "sqlite") !== "sqlite") {
-    throw new Error("TODO: el panel todavía guarda sus claves y códigos solo en la base SQLite (RUMBO_REPO=sqlite).");
-  }
-  getRepo();
-  const sqlite = process.getBuiltinModule("node:sqlite") as unknown as typeof import("node:sqlite") | undefined;
-  if (!sqlite) throw new Error("Esta versión de Node no trae node:sqlite. Hace falta Node 24 o más nuevo.");
-  const db = new sqlite.DatabaseSync(path.join(dataDir(), "rumbo.db"));
-  db.exec("PRAGMA busy_timeout = 5000");
-  db.exec("PRAGMA foreign_keys = ON");
-  globalThis.__rumboPanelDb = db;
-  return db;
-}
+// Las tablas del panel (003-panel.sql) viven en la base de siempre (src/server/base), con el resto.
 
 const now = () => new Date().toISOString();
 
@@ -61,21 +37,21 @@ const isPendingSync = (row: { synced: boolean; duplicate: boolean; error: string
 const ORGANIZER_KEY_BYTES = 15;
 
 /** La clave con la que se entra al panel del evento. La crea la primera vez que hace falta. */
-export function getOrCreateOrganizerKey(eventId: string): string {
-  const db = panelDb();
-  const select = db.prepare("SELECT key FROM organizer_keys WHERE event_id = ?");
-  const row = select.get(eventId) as { key: string } | undefined;
-  if (row) return row.key;
+export async function getOrCreateOrganizerKey(eventId: string): Promise<string> {
+  const db = getDb();
+  const select = async () => (await db.one("SELECT key FROM organizer_keys WHERE event_id = ?", [eventId]))?.key as string | undefined;
+  const found = await select();
+  if (found) return found;
   // Si dos pedidos llegan a la vez, gana el primero y el otro lee la clave que quedó.
   const key = base32Encode(new Uint8Array(randomBytes(ORGANIZER_KEY_BYTES)));
-  db.prepare("INSERT OR IGNORE INTO organizer_keys (event_id, key, created_at) VALUES (?, ?, ?)").run(eventId, key, now());
-  return (select.get(eventId) as { key: string }).key;
+  await db.run("INSERT INTO organizer_keys (event_id, key, created_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING", [eventId, key, now()]);
+  return (await select()) as string;
 }
 
 /** Si la clave abre el panel de ese evento. Se compara sin que el tiempo delate en qué letra difiere. */
-export function verifyOrganizerKey(eventId: string, key: string | null | undefined): boolean {
+export async function verifyOrganizerKey(eventId: string, key: string | null | undefined): Promise<boolean> {
   if (!key) return false;
-  const expected = Buffer.from(getOrCreateOrganizerKey(eventId), "utf8");
+  const expected = Buffer.from(await getOrCreateOrganizerKey(eventId), "utf8");
   const given = Buffer.from(key.trim().toUpperCase(), "utf8");
   return expected.length === given.length && timingSafeEqual(expected, given);
 }
@@ -129,55 +105,50 @@ export interface StationAccess {
   publicKey: string;
 }
 
-interface StationRow {
-  code: string;
-  event_id: string;
-  kind: StationKind;
-  benefit_id: string | null;
-  stand_id: string | null;
-  created_at: string;
-}
-
-const rowToStation = (row: StationRow): StationCode => ({
-  code: row.code,
-  eventId: row.event_id,
-  kind: row.kind,
-  benefitId: row.benefit_id,
-  standId: row.stand_id,
-  createdAt: row.created_at,
+const rowToStation = (row: Record<string, unknown>): StationCode => ({
+  code: String(row.code),
+  eventId: String(row.event_id),
+  kind: String(row.kind) as StationKind,
+  benefitId: row.benefit_id === null || row.benefit_id === undefined ? null : String(row.benefit_id),
+  standId: row.stand_id === null || row.stand_id === undefined ? null : String(row.stand_id),
+  createdAt: String(row.created_at),
 });
 
 /** Ocho bytes al azar dan trece letras en base32: se usan las primeras doce, sesenta bits. */
-function newStationCode(db: DatabaseSync): string {
+async function newStationCode(db: Db): Promise<string> {
   for (;;) {
     const code = base32Encode(new Uint8Array(randomBytes(8))).slice(0, STATION_CODE_LENGTH);
-    if (!db.prepare("SELECT 1 FROM station_codes WHERE code = ?").get(code)) return code;
+    if (!(await db.one("SELECT 1 AS yes FROM station_codes WHERE code = ?", [code]))) return code;
   }
 }
 
-export function listStationCodes(eventId: string): StationCode[] {
-  const rows = panelDb().prepare("SELECT * FROM station_codes WHERE event_id = ? ORDER BY CASE kind WHEN 'gate' THEN 0 WHEN 'benefit' THEN 1 ELSE 2 END, created_at").all(eventId) as unknown as StationRow[];
+export async function listStationCodes(eventId: string): Promise<StationCode[]> {
+  const rows = await getDb().all("SELECT * FROM station_codes WHERE event_id = ? ORDER BY CASE kind WHEN 'gate' THEN 0 WHEN 'benefit' THEN 1 ELSE 2 END, created_at", [eventId]);
   return rows.map(rowToStation);
 }
 
 /** Los códigos de puesto del evento, uno para la puerta, uno por beneficio y uno por stand. Crea los que falten. */
 export async function ensureStationCodes(event: EventRecord, repo: Repo = getRepo()): Promise<StationCode[]> {
-  const db = panelDb();
-  const existing = listStationCodes(event.id);
-  // OR IGNORE: si dos pedidos abren el panel a la vez, el segundo no choca con el código que ya creó el primero.
-  const insert = db.prepare("INSERT OR IGNORE INTO station_codes (code, event_id, kind, benefit_id, stand_id, created_at) VALUES (?, ?, ?, ?, ?, ?)");
-  if (!existing.some((c) => c.kind === "gate")) insert.run(newStationCode(db), event.id, "gate", null, null, now());
+  const db = getDb();
+  const existing = await listStationCodes(event.id);
+  // ON CONFLICT: si dos pedidos abren el panel a la vez, el segundo no choca con el código que ya creó el primero.
+  const insert = async (kind: StationKind, benefitId: string | null, standId: string | null) =>
+    db.run("INSERT INTO station_codes (code, event_id, kind, benefit_id, stand_id, created_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING", [
+      await newStationCode(db),
+      event.id,
+      kind,
+      benefitId,
+      standId,
+      now(),
+    ]);
+  if (!existing.some((c) => c.kind === "gate")) await insert("gate", null, null);
   for (const benefit of await repo.listBenefits(event.id)) {
-    if (!existing.some((c) => c.kind === "benefit" && c.benefitId === benefit.id)) {
-      insert.run(newStationCode(db), event.id, "benefit", benefit.id, null, now());
-    }
+    if (!existing.some((c) => c.kind === "benefit" && c.benefitId === benefit.id)) await insert("benefit", benefit.id, null);
   }
   // Los stands (src/server/stands.ts) viven en su propia tabla: acá solo se lee el id.
-  const stands = db.prepare("SELECT id FROM stands WHERE event_id = ? ORDER BY sort_order, created_at").all(event.id) as unknown as Array<{ id: string }>;
+  const stands = await db.all("SELECT id FROM stands WHERE event_id = ? ORDER BY sort_order, created_at", [event.id]);
   for (const stand of stands) {
-    if (!existing.some((c) => c.kind === "stand" && c.standId === stand.id)) {
-      insert.run(newStationCode(db), event.id, "stand", null, stand.id, now());
-    }
+    if (!existing.some((c) => c.kind === "stand" && c.standId === stand.id)) await insert("stand", null, String(stand.id));
   }
   return listStationCodes(event.id);
 }
@@ -186,8 +157,8 @@ export async function ensureStationCodes(event: EventRecord, repo: Repo = getRep
 export async function resolveStationCode(input: string, repo: Repo = getRepo()): Promise<StationAccess | null> {
   const code = normalizeStationCode(input);
   if (!isValidStationCode(code)) return null;
-  const db = panelDb();
-  const row = db.prepare("SELECT * FROM station_codes WHERE code = ?").get(code) as unknown as StationRow | undefined;
+  const db = getDb();
+  const row = await db.one("SELECT * FROM station_codes WHERE code = ?", [code]);
   if (!row) return null;
   const station = rowToStation(row);
   const event = await repo.getEventById(station.eventId);
@@ -196,11 +167,11 @@ export async function resolveStationCode(input: string, repo: Repo = getRepo()):
   const benefit = station.benefitId ? (benefits.find((b) => b.id === station.benefitId) ?? null) : null;
   let stand: StationStand | null = null;
   if (station.kind === "stand") {
-    const standRow = db.prepare("SELECT id, name, logo_url FROM stands WHERE id = ?").get(station.standId) as unknown as { id: string; name: string; logo_url: string | null } | undefined;
+    const standRow = await db.one("SELECT id, name, logo_url FROM stands WHERE id = ?", [station.standId]);
     if (!standRow) return null;
-    stand = { id: standRow.id, name: standRow.name, logoUrl: standRow.logo_url };
+    stand = { id: String(standRow.id), name: String(standRow.name), logoUrl: standRow.logo_url === null ? null : String(standRow.logo_url) };
   }
-  return { event, kind: station.kind, benefit, stand, benefits, publicKey: bytesToBase64url(getEventPublicKey(event.id)) };
+  return { event, kind: station.kind, benefit, stand, benefits, publicKey: bytesToBase64url(await getEventPublicKey(event.id)) };
 }
 
 // ---------- El estado del panel ----------
@@ -416,10 +387,8 @@ async function collect(event: EventRecord, repo: Repo): Promise<Collected> {
       })),
   ].sort((a, b) => b.scannedAt.localeCompare(a.scannedAt));
 
-  const standNames = new Map(
-    (panelDb().prepare("SELECT id, name FROM stands WHERE event_id = ?").all(event.id) as unknown as Array<{ id: string; name: string }>).map((s) => [s.id, s.name]),
-  );
-  const stations: PanelStation[] = listStationCodes(event.id).map((c) => {
+  const standNames = new Map((await getDb().all("SELECT id, name FROM stands WHERE event_id = ?", [event.id])).map((s) => [String(s.id), String(s.name)]));
+  const stations: PanelStation[] = (await listStationCodes(event.id)).map((c) => {
     const benefit = c.benefitId ? benefitById.get(c.benefitId) : undefined;
     return { ...c, benefitName: benefit?.name ?? null, standName: c.standId ? (standNames.get(c.standId) ?? null) : null, station: benefit?.station ?? null };
   });
@@ -442,7 +411,7 @@ async function collect(event: EventRecord, repo: Repo): Promise<Collected> {
     passes: panelPasses,
     duplicates,
     stations,
-    lastChainSync: getLastChainSync(event.id),
+    lastChainSync: await getLastChainSync(event.id),
   };
   return { state, emails };
 }
@@ -601,15 +570,14 @@ async function mapLimit<T>(items: T[], limit: number, fn: (item: T) => Promise<v
   await Promise.all(workers);
 }
 
-function saveChainSync(eventId: string, summary: ChainSyncSummary): void {
-  panelDb()
-    .prepare("INSERT INTO chain_syncs (id, event_id, synced_at, summary) VALUES (?, ?, ?, ?)")
-    .run(randomUUID(), eventId, summary.syncedAt, JSON.stringify(summary));
+async function saveChainSync(eventId: string, summary: ChainSyncSummary): Promise<void> {
+  const db = getDb();
+  await db.run(`INSERT INTO chain_syncs (id, event_id, synced_at, summary) VALUES (?, ?, ?, ${jsonParam(db)})`, [randomUUID(), eventId, summary.syncedAt, JSON.stringify(summary)]);
 }
 
-export function getLastChainSync(eventId: string): ChainSyncSummary | null {
-  const row = panelDb().prepare("SELECT summary FROM chain_syncs WHERE event_id = ? ORDER BY synced_at DESC LIMIT 1").get(eventId) as { summary: string } | undefined;
-  return row ? (JSON.parse(row.summary) as ChainSyncSummary) : null;
+export async function getLastChainSync(eventId: string): Promise<ChainSyncSummary | null> {
+  const row = await getDb().one("SELECT summary FROM chain_syncs WHERE event_id = ? ORDER BY synced_at DESC LIMIT 1", [eventId]);
+  return row ? readJson<ChainSyncSummary>(row.summary) : null;
 }
 
 /**
@@ -667,7 +635,7 @@ export async function refreshFromChain(event: EventRecord, repo: Repo = getRepo(
 
   summary.syncedAt = now();
   summary.durationMs = Date.now() - started;
-  saveChainSync(event.id, summary);
+  await saveChainSync(event.id, summary);
   return summary;
 }
 

@@ -37,7 +37,7 @@ test("si la cadena no contesta, el resumen del panel dice que no se pudo y el de
 test("la ruta del contraste responde un código fijo, sin el mensaje del error", async () => {
   const real = getRepo();
   const datos = await eventoDePrueba(real);
-  const clave = getOrCreateOrganizerKey(datos.event.id);
+  const clave = await getOrCreateOrganizerKey(datos.event.id);
   // la base falla a mitad del contraste con un mensaje que trae una ruta del servidor
   globalThis.__rumboRepo = new Proxy(real, {
     get(target, prop) {

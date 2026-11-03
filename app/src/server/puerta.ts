@@ -8,7 +8,7 @@ import { SEARCH_MAX_RESULTS, SEARCH_MIN_LENGTH, normalizeSearch } from "../lib/b
 import type { DoorMatch } from "../lib/escaner-api.ts";
 import type { Lang } from "../i18n/types.ts";
 import { registerForEvent, validateFields, type FailureReason, type FieldErrors } from "./evento/inscripcion.ts";
-import { AttemptLimiter } from "./limites.ts";
+import { limiter, type Limiter } from "./limites.ts";
 import { describeForLog } from "./log.ts";
 import type { StationAccess } from "./panel.ts";
 import type { EventRecord, Pass, Repo } from "./repo.ts";
@@ -22,23 +22,19 @@ export function requireGate(access: StationAccess): Response | null {
 
 // ---------- El freno de la búsqueda ----------
 
-declare global {
-  var __rumboDoorSearch: AttemptLimiter | undefined;
-}
-
 /**
  * Las búsquedas son por código de puesto: un voluntario escribe de a una por vez. Ciento veinte por
  * puesto en diez minutos alcanza de sobra; si alguien recorre la lista con búsquedas de tres letras, se frena.
  */
-export function doorSearchAttempts(): AttemptLimiter {
-  return (globalThis.__rumboDoorSearch ??= new AttemptLimiter({
+export function doorSearchAttempts(): Limiter {
+  return limiter("door-search", {
     windowMs: 10 * 60 * 1000,
     perKey: 120,
     global: Number.MAX_SAFE_INTEGER,
     lockMs: 10 * 60 * 1000,
     maxLockMs: 60 * 60 * 1000,
     forgetMs: 60 * 60 * 1000,
-  }));
+  });
 }
 
 // ---------- Buscar ----------

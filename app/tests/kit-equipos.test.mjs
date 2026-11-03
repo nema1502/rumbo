@@ -39,9 +39,9 @@ globalThis.__rumboMailer = {
   },
 };
 
-beforeEach(() => {
-  registrationAttempts().clear();
-  linkResendAttempts().clear();
+beforeEach(async () => {
+  await registrationAttempts().clear();
+  await linkResendAttempts().clear();
   correos.length = 0;
   caida = new Set();
 });

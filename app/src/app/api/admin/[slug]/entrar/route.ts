@@ -18,9 +18,9 @@ async function enter(request: NextRequest, slug: string, key: string | null, nex
   // La pantalla en vivo cuelga de /vivo, no de /admin, pero se abre con la misma clave de organizador.
   const target = next === "vivo" ? `/vivo/${slug}` : `/admin/${slug}${NEXT_PAGES[next] ?? ""}`;
   if (!event) return seeOther(target);
-  if (!verifyOrganizerKey(event.id, key)) return seeOther(`${target}?error=clave`);
+  if (!(await verifyOrganizerKey(event.id, key))) return seeOther(`${target}?error=clave`);
   const response = seeOther(target);
-  setPanelCookie(response, request, slug, getOrCreateOrganizerKey(event.id));
+  setPanelCookie(response, request, slug, await getOrCreateOrganizerKey(event.id));
   return response;
 }
 

@@ -78,7 +78,7 @@ async function directo() {
   check(view.person.name === person.name && view.event.slug === slug, "es la de la persona y el evento");
   check(view.paid === paid && view.checkedIn === false, `estado: ${view.paid ? "entrada paga" : "inscripción lista"}, sin entrar`);
   console.log(`  Credencial ${view.number} de ${view.total}; lo que le toca: ${view.benefits.map((b) => `${b.name} (${b.state})`).join(", ") || "nada"}`);
-  const clavePublica = getEventQrKeys(event.id).publicKey;
+  const clavePublica = (await getEventQrKeys(event.id)).publicKey;
   check((await verifyQrPayload(view.qrPayload, clavePublica)).ok, `la firma del QR de la credencial impresa es válida (${view.qrPayload})`);
   check(!(await verifyQrPayload(view.qrPayload.replace(/.$/, (c) => (c === "A" ? "B" : "A")), clavePublica)).ok, "un QR con una letra cambiada no pasa");
   const vivo = await buildLivePayload(view.live, Date.now());
@@ -146,3 +146,7 @@ async function porApi(base) {
   const againBody = await again.json();
   check(again.status === 200 && againBody.status === "existing" && !againBody.url, "no crea otro pase ni muestra el enlace");
 }
+
+// Con Postgres el pool deja las conexiones abiertas un rato: se cierra, así el script termina enseguida.
+const { closeDb } = await import("../src/server/base/index.ts");
+await closeDb();

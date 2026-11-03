@@ -29,7 +29,7 @@ export default async function AdminPage({ params, searchParams }: { params: Para
   if (typeof key === "string" && key) redirect(`/api/admin/${slug}/entrar?k=${encodeURIComponent(key)}`);
 
   const t = await getT();
-  if (!verifyOrganizerKey(event.id, await panelKeyFromCookies(slug))) {
+  if (!(await verifyOrganizerKey(event.id, await panelKeyFromCookies(slug)))) {
     return <AccesoPanel slug={slug} eventName={event.name} t={t} error={query.error === "clave"} />;
   }
 

@@ -2,9 +2,10 @@
 // correo una y otra vez. Cuentan por quién pide (la IP que pone la plataforma, nunca la que dice el pedido)
 // y también en total, para que cambiar de IP no alcance.
 //
-// Viven en la memoria del proceso (globalThis), como el resto del modo de prueba. TODO producción: con
-// varias instancias del servidor cada una tiene los suyos; cuando exista SupabaseRepo, los contadores
-// tienen que vivir en la base o en un almacén compartido.
+// Con SQLite viven en la memoria del proceso (globalThis), como siempre: hay un solo proceso. Con Postgres
+// viven en la base (tabla attempt_limits, migrations-pg/010-estado-compartido.sql), porque en Vercel cada
+// pedido puede caer en otra instancia y cada una tendría los suyos. Los dos siguen la misma cuenta (noteState).
+import { dataEngine, getDb, type Db, type Row } from "./base/index.ts";
 import { getEnv } from "./env.ts";
 
 // ---------- Quién pide ----------
@@ -52,14 +53,64 @@ interface KeyState {
   last: number;
 }
 
+interface TotalState {
+  count: number;
+  windowStart: number;
+}
+
+/** Lo que tienen los dos frenos, el de la memoria y el de la base. El de la base contesta con promesas. */
+export interface Limiter {
+  /** Si la clave está frenada, cuántos milisegundos le faltan; si no, 0. */
+  blockedFor(key: string): number | Promise<number>;
+  /** Cuenta un intento de la clave (un código equivocado, una inscripción). */
+  note(key: string): void | Promise<void>;
+  /** Para las pruebas. */
+  clear(): void | Promise<void>;
+}
+
+function globalAlarm(total: TotalState, at: number, limits: AttemptLimits): boolean {
+  return at - total.windowStart < limits.windowMs && total.count >= limits.global;
+}
+
+function blockedForState(state: KeyState | undefined, total: TotalState, at: number, limits: AttemptLimits): number {
+  if (!state) return 0;
+  if (state.lockedUntil > at) return state.lockedUntil - at;
+  const inWindow = at - state.windowStart < limits.windowMs;
+  if (inWindow && state.count > 0 && globalAlarm(total, at, limits)) return state.windowStart + limits.windowMs - at;
+  return 0;
+}
+
+/** Un intento más: los estados nuevos de la clave y del total. `fresh` dice que la clave no tenía historia (o la olvidó). */
+function noteState(previous: KeyState | undefined, previousTotal: TotalState, at: number, limits: AttemptLimits): { state: KeyState; total: TotalState; fresh: boolean } {
+  const total = at - previousTotal.windowStart >= limits.windowMs ? { count: 0, windowStart: at } : { ...previousTotal };
+  total.count++;
+
+  const remembered = previous && at - previous.last > limits.forgetMs ? undefined : previous;
+  const state: KeyState = remembered ? { ...remembered } : { count: 0, windowStart: at, lockedUntil: 0, lockouts: 0, last: at };
+  if (at - state.windowStart >= limits.windowMs) {
+    state.count = 0;
+    state.windowStart = at;
+  }
+  state.count++;
+  state.last = at;
+  if (state.count >= limits.perKey) {
+    state.lockouts++;
+    state.lockedUntil = at + Math.min(limits.maxLockMs, limits.lockMs * 2 ** (state.lockouts - 1));
+    state.count = 0;
+    state.windowStart = state.lockedUntil;
+  }
+  return { state, total, fresh: !remembered };
+}
+
 /** Cuántas claves recuerda como mucho: así un ataque desde muchas IP no llena la memoria. */
 const MAX_KEYS = 10_000;
 
-export class AttemptLimiter {
+/** El freno en la memoria del proceso (SQLite). */
+export class AttemptLimiter implements Limiter {
   private readonly limits: AttemptLimits;
   private readonly now: () => number;
   private readonly keys = new Map<string, KeyState>();
-  private total = { count: 0, windowStart: 0 };
+  private total: TotalState = { count: 0, windowStart: 0 };
 
   /** `now` es el reloj: las pruebas pasan uno propio para no esperar de verdad. */
   constructor(limits: AttemptLimits, now: () => number = Date.now) {
@@ -67,52 +118,21 @@ export class AttemptLimiter {
     this.now = now;
   }
 
-  /** Si la clave está frenada, cuántos milisegundos le faltan; si no, 0. */
   blockedFor(key: string): number {
-    const at = this.now();
-    const state = this.keys.get(key);
-    if (!state) return 0;
-    if (state.lockedUntil > at) return state.lockedUntil - at;
-    const inWindow = at - state.windowStart < this.limits.windowMs;
-    if (inWindow && state.count > 0 && this.globalAlarm(at)) return state.windowStart + this.limits.windowMs - at;
-    return 0;
+    return blockedForState(this.keys.get(key), this.total, this.now(), this.limits);
   }
 
-  /** Cuenta un intento de la clave (un código equivocado, una inscripción). */
   note(key: string): void {
     const at = this.now();
-    if (at - this.total.windowStart >= this.limits.windowMs) this.total = { count: 0, windowStart: at };
-    this.total.count++;
-
-    let state = this.keys.get(key);
-    if (state && at - state.last > this.limits.forgetMs) state = undefined;
-    if (!state) {
-      this.prune(at);
-      state = { count: 0, windowStart: at, lockedUntil: 0, lockouts: 0, last: at };
-      this.keys.set(key, state);
-    }
-    if (at - state.windowStart >= this.limits.windowMs) {
-      state.count = 0;
-      state.windowStart = at;
-    }
-    state.count++;
-    state.last = at;
-    if (state.count >= this.limits.perKey) {
-      state.lockouts++;
-      state.lockedUntil = at + Math.min(this.limits.maxLockMs, this.limits.lockMs * 2 ** (state.lockouts - 1));
-      state.count = 0;
-      state.windowStart = state.lockedUntil;
-    }
+    const next = noteState(this.keys.get(key), this.total, at, this.limits);
+    this.total = next.total;
+    if (next.fresh) this.prune(at);
+    this.keys.set(key, next.state);
   }
 
-  /** Para las pruebas. */
   clear(): void {
     this.keys.clear();
     this.total = { count: 0, windowStart: 0 };
-  }
-
-  private globalAlarm(at: number): boolean {
-    return at - this.total.windowStart < this.limits.windowMs && this.total.count >= this.limits.global;
   }
 
   private prune(at: number): void {
@@ -129,19 +149,90 @@ export class AttemptLimiter {
   }
 }
 
+/** La fila del total de cada freno lleva la clave vacía (quien pide nunca es vacío: sin IP es "local"). */
+const TOTAL_KEY = "";
+const iso = (ms: number) => new Date(ms).toISOString();
+const ms = (value: unknown) => Date.parse(String(value));
+
+function rowToState(row: Row): KeyState {
+  return { count: Number(row.count), windowStart: ms(row.window_start), lockedUntil: ms(row.locked_until), lockouts: Number(row.lockouts), last: ms(row.last_at) };
+}
+
+/**
+ * El freno en la base (Postgres): la misma cuenta, con el estado en la tabla attempt_limits. Contar un intento
+ * toma primero la fila del total del freno (FOR UPDATE): así dos instancias que cuentan a la vez van en fila y
+ * ninguna pisa la cuenta de la otra. Mirar si una clave está frenada solo lee.
+ */
+export class DbAttemptLimiter implements Limiter {
+  private readonly name: string;
+  private readonly limits: AttemptLimits;
+  private readonly db: () => Db;
+  private readonly now: () => number;
+
+  constructor(name: string, limits: AttemptLimits, db: () => Db = getDb, now: () => number = Date.now) {
+    this.name = name;
+    this.limits = limits;
+    this.db = db;
+    this.now = now;
+  }
+
+  private keyOf(key: string): string {
+    return key || "local";
+  }
+
+  async blockedFor(key: string): Promise<number> {
+    const at = this.now();
+    const rows = await this.db().all("SELECT * FROM attempt_limits WHERE limiter = ? AND key IN (?, ?)", [this.name, TOTAL_KEY, this.keyOf(key)]);
+    const total = rows.find((r) => r.key === TOTAL_KEY);
+    const own = rows.find((r) => r.key === this.keyOf(key));
+    return blockedForState(own ? rowToState(own) : undefined, total ? rowToState(total) : { count: 0, windowStart: 0 }, at, this.limits);
+  }
+
+  async note(key: string): Promise<void> {
+    const at = this.now();
+    const k = this.keyOf(key);
+    await this.db().transaction(async (tx) => {
+      // El total nace como en la memoria (cero intentos desde el principio de los tiempos) y se toma primero.
+      await tx.run(
+        "INSERT INTO attempt_limits (limiter, key, count, window_start, locked_until, lockouts, last_at) VALUES (?, ?, 0, ?, ?, 0, ?) ON CONFLICT DO NOTHING",
+        [this.name, TOTAL_KEY, iso(0), iso(0), iso(0)],
+      );
+      const totalRow = await tx.one("SELECT * FROM attempt_limits WHERE limiter = ? AND key = ? FOR UPDATE", [this.name, TOTAL_KEY]);
+      const own = await tx.one("SELECT * FROM attempt_limits WHERE limiter = ? AND key = ?", [this.name, k]);
+      const next = noteState(own ? rowToState(own) : undefined, totalRow ? rowToState(totalRow) : { count: 0, windowStart: 0 }, at, this.limits);
+      const s = next.state;
+      await tx.run(
+        `INSERT INTO attempt_limits (limiter, key, count, window_start, locked_until, lockouts, last_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (limiter, key) DO UPDATE SET count = excluded.count, window_start = excluded.window_start,
+           locked_until = excluded.locked_until, lockouts = excluded.lockouts, last_at = excluded.last_at`,
+        [this.name, k, s.count, iso(s.windowStart), iso(s.lockedUntil), s.lockouts, iso(s.last)],
+      );
+      await tx.run("UPDATE attempt_limits SET count = ?, window_start = ?, last_at = ? WHERE limiter = ? AND key = ?", [next.total.count, iso(next.total.windowStart), iso(at), this.name, TOTAL_KEY]);
+      // Una clave nueva es buen momento para borrar las que ya se olvidaron: no tienen nada que frenar.
+      if (next.fresh) {
+        await tx.run("DELETE FROM attempt_limits WHERE limiter = ? AND key <> ? AND last_at < ? AND locked_until <= ?", [this.name, TOTAL_KEY, iso(at - this.limits.forgetMs), iso(at)]);
+      }
+    });
+  }
+
+  async clear(): Promise<void> {
+    await this.db().run("DELETE FROM attempt_limits WHERE limiter = ?", [this.name]);
+  }
+}
+
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 
 declare global {
-  var __rumboLimiters: Map<string, AttemptLimiter> | undefined;
+  var __rumboLimiters: Map<string, Limiter> | undefined;
 }
 
-/** Un freno por nombre, uno solo por proceso (sobrevive a las recargas de next dev). */
-function limiter(name: string, limits: AttemptLimits): AttemptLimiter {
+/** Un freno por nombre, uno solo por proceso (sobrevive a las recargas de next dev): en memoria con SQLite, en la base con Postgres. */
+export function limiter(name: string, limits: AttemptLimits): Limiter {
   const all = (globalThis.__rumboLimiters ??= new Map());
   let found = all.get(name);
   if (!found) {
-    found = new AttemptLimiter(limits);
+    found = dataEngine() === "sqlite" ? new AttemptLimiter(limits) : new DbAttemptLimiter(name, limits);
     all.set(name, found);
   }
   return found;
@@ -152,7 +243,7 @@ function limiter(name: string, limits: AttemptLimits): AttemptLimiter {
  * minutos, veinte, cuarenta, hasta un día). Cincuenta equivocados en total en diez minutos encienden la
  * alarma global. Con códigos de sesenta bits, ni a ese ritmo ni desde muchas IP se adivina uno.
  */
-export function stationCodeAttempts(): AttemptLimiter {
+export function stationCodeAttempts(): Limiter {
   return limiter("station-code", { windowMs: 10 * MINUTE, perKey: 8, global: 50, lockMs: 10 * MINUTE, maxLockMs: 24 * HOUR, forgetMs: 24 * HOUR });
 }
 
@@ -161,11 +252,11 @@ export function stationCodeAttempts(): AttemptLimiter {
  * saldo y manda una transacción, todo pagado por el servidor): sesenta pedidos por IP en diez minutos,
  * generoso para la fila de un evento que se inscribe en la puerta detrás del mismo wifi, y seiscientos en total.
  */
-export function registrationAttempts(): AttemptLimiter {
+export function registrationAttempts(): Limiter {
   return limiter("registration", { windowMs: 10 * MINUTE, perKey: 60, global: 600, lockMs: 10 * MINUTE, maxLockMs: 6 * HOUR, forgetMs: 6 * HOUR });
 }
 
 /** El reenvío del enlace a un correo que ya tenía su credencial: uno cada diez minutos por correo y evento. */
-export function linkResendAttempts(): AttemptLimiter {
+export function linkResendAttempts(): Limiter {
   return limiter("link-resend", { windowMs: 10 * MINUTE, perKey: 1, global: Number.MAX_SAFE_INTEGER, lockMs: 10 * MINUTE, maxLockMs: 10 * MINUTE, forgetMs: HOUR });
 }

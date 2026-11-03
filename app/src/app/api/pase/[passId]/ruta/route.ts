@@ -18,7 +18,7 @@ const NO_STORE = { "Cache-Control": "no-store" };
 
 export async function GET(request: NextRequest, { params }: Context) {
   const { passId } = await params;
-  if (!verifyAccessKey(passId, request.nextUrl.searchParams.get("k"))) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if (!(await verifyAccessKey(passId, request.nextUrl.searchParams.get("k")))) return NextResponse.json({ error: "not_found" }, { status: 404 });
   return NextResponse.json({ route: await getPassRoute(passId) }, { headers: NO_STORE });
 }
 
@@ -30,13 +30,13 @@ export async function POST(request: NextRequest, { params }: Context) {
   } catch {
     return NextResponse.json({ error: "bad_request" }, { status: 400 });
   }
-  if (!verifyAccessKey(passId, body.k)) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if (!(await verifyAccessKey(passId, body.k))) return NextResponse.json({ error: "not_found" }, { status: 404 });
   try {
     if (body.action === "consent") {
       if (typeof body.standId !== "string") return NextResponse.json({ error: "bad_request" }, { status: 400 });
-      answerConsent(passId, body.standId, body.answer);
+      await answerConsent(passId, body.standId, body.answer);
     } else if (body.action === "display") {
-      setDisplay(passId, { alias: body.alias, hidden: body.hidden });
+      await setDisplay(passId, { alias: body.alias, hidden: body.hidden });
     } else {
       return NextResponse.json({ error: "bad_request" }, { status: 400 });
     }

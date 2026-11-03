@@ -39,9 +39,9 @@ globalThis.__rumboMailer = {
   },
 };
 
-beforeEach(() => {
-  doorSearchAttempts().clear();
-  registrationAttempts().clear();
+beforeEach(async () => {
+  await doorSearchAttempts().clear();
+  await registrationAttempts().clear();
   correos.length = 0;
 });
 
@@ -97,7 +97,8 @@ test("cuenta como entrada la que está en el espejo aunque todavía no haya lleg
   assert.equal((await searchDoor(repo, datos.event, "zacarias"))[0].checkedInAt, null);
   const row = await repo.recordCheckIn({ clientId: "espejo-1", eventId: datos.event.id, passId: otra.pass.id, scannerId: "otro-celular", scannedAt: "2026-11-22T09:15:00-04:00" });
   assert.ok(row);
-  assert.equal((await searchDoor(repo, datos.event, "zacarias"))[0].checkedInAt, "2026-11-22T09:15:00-04:00");
+  // El mismo instante: Postgres lo devuelve en UTC, SQLite tal como se guardó.
+  assert.equal(Date.parse((await searchDoor(repo, datos.event, "zacarias"))[0].checkedInAt), Date.parse("2026-11-22T09:15:00-04:00"));
 });
 
 test("devuelve como mucho ocho", async () => {
@@ -188,7 +189,7 @@ test("nombre o correo inválidos, y un evento sin entrada gratis, se dicen con s
 });
 
 test("el freno de inscripciones también vale en la puerta", async () => {
-  for (let i = 0; i < 60; i++) registrationAttempts().note("200.9.9.9");
+  for (let i = 0; i < 60; i++) await registrationAttempts().note("200.9.9.9");
   const frenado = await llamar("agregar", agregar, { code: datos.puerta, name: "Pedro Tarde", email: "tarde@example.com" }, "200.9.9.9");
   assert.equal(frenado.status, 429);
   assert.deepEqual(frenado.cuerpo, { kind: "error", error: "too_many" });
@@ -217,7 +218,7 @@ test("la entrada marcada a mano va por el mismo camino que una lectura y queda c
 
   const [fila] = await repo.listCheckInsForPass(anita.pass.id);
   assert.equal(fila.scannerId, "manual:puerta:abc12345", "queda con su puesto");
-  assert.equal(fila.scannedAt, "2026-11-22T09:20:00-04:00", "y con su hora");
+  assert.equal(Date.parse(fila.scannedAt), Date.parse("2026-11-22T09:20:00-04:00"), "y con su hora");
   assert.ok(fila.synced);
   assert.equal((await repo.getPass(anita.pass.id)).status, "checked_in");
   assert.equal((await searchDoor(repo, datos.event, "anita"))[0].checkedInAt !== null, true, "y el buscador ya la muestra como que entró");

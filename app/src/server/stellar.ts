@@ -31,6 +31,7 @@ import {
   xdr,
   type Transaction,
 } from "@stellar/stellar-sdk";
+import { serialized } from "./compartido.ts";
 import { assertTestnet, friendbotUrl, getEnv, horizonUrl, repoRoot, requireEnv, rpcUrl } from "./env.ts";
 
 export const NETWORK_PASSPHRASE = Networks.TESTNET;
@@ -152,12 +153,22 @@ export function getIssuer(): Keypair | null {
 }
 
 /**
+ * El turno de la patrocinadora en la base, para cuando hay varias instancias (Postgres). Una transacción tarda
+ * hasta un minuto en armarse, mandarse y confirmarse: el turno vence a los treinta segundos si nadie lo renueva,
+ * se renueva cada diez y quien espera se rinde a los dos minutos (el escáner lo deja para el próximo intento).
+ */
+const SPONSOR_TURN = { ttlMs: 30_000, renewMs: 10_000, waitMs: 120_000 };
+
+/**
  * Una sola transacción de la patrocinadora a la vez: comparte el número de secuencia, y dos
- * pedidos a la vez lo pisarían. Todo lo que construye y manda con ella pasa por acá.
+ * pedidos a la vez lo pisarían (tx_bad_seq). Todo lo que construye y manda con ella pasa por acá.
+ * En el proceso van en fila, como siempre; entre instancias, además, cada una espera el turno "sponsor"
+ * de la base (src/server/compartido.ts). Con SQLite hay un solo proceso y alcanza con la fila.
  */
 export function withSponsorLock<T>(fn: () => Promise<T>): Promise<T> {
+  const turn = () => serialized("sponsor", fn, SPONSOR_TURN);
   const previous = globalThis.__rumboSponsorQueue ?? Promise.resolve();
-  const run = previous.then(fn, fn);
+  const run = previous.then(turn, turn);
   globalThis.__rumboSponsorQueue = run.catch(() => undefined);
   return run;
 }

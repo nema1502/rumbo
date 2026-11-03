@@ -43,7 +43,7 @@ export default async function DraftPage({ params, searchParams }: { params: Para
   if (typeof key === "string" && key) redirect(`/api/admin/${encodeURIComponent(slug)}/entrar?k=${encodeURIComponent(key)}&next=armar`);
 
   const t = await getT();
-  if (!verifyOrganizerKey(event.id, await panelKeyFromCookies(slug))) {
+  if (!(await verifyOrganizerKey(event.id, await panelKeyFromCookies(slug)))) {
     return <AccesoPanel slug={slug} eventName={event.name} t={t} error={query.error === "clave"} next="armar" />;
   }
   // Ya publicado, o armado a mano: no hay borrador que editar.

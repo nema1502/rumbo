@@ -15,7 +15,7 @@ export async function GET(request: NextRequest, { params }: Context) {
   const { slug } = await params;
   const auth = await authorizePanelRequest(request, slug);
   if (auth.response) return auth.response;
-  const list = buildRaffleList(auth.event);
+  const list = await buildRaffleList(auth.event);
   const day = list.generatedAt.slice(0, 10);
   const csv = request.nextUrl.searchParams.get("formato") === "csv";
   return new NextResponse(csv ? raffleListCsv(list) : `${JSON.stringify(list, null, 2)}\n`, {

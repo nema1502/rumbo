@@ -121,7 +121,7 @@ test("la verificación de un certificado no dice nada sin su código", async () 
   const repo = getRepo();
   const datos = await eventoDePrueba(repo);
   const { pass } = await entro(repo, datos, { name: "Valentina Prueba", email: "valentina@example.com" });
-  const keys = getEventQrKeys(datos.event.id);
+  const keys = await getEventQrKeys(datos.event.id);
   const code = certificateCode(pass.id, keys.credentialRoot);
   // El código del certificado no es la firma del QR impreso ni la semilla de la credencial: con uno no se arma el otro.
   assert.ok(!buildPrintedPayload(pass.id, keys).includes(code));

@@ -78,7 +78,7 @@ async function passNumber(repo: Repo, pass: Pass, event: EventRecord): Promise<{
 
 /** La credencial, si la clave de acceso es la del pase. Si no, null: no se dice si el pase existe. */
 export async function loadCredential(passId: string, key: unknown): Promise<CredentialView | null> {
-  if (!verifyAccessKey(passId, key)) return null;
+  if (!(await verifyAccessKey(passId, key))) return null;
   return loadCredentialUnchecked(passId);
 }
 
@@ -96,7 +96,7 @@ export async function loadCredentialUnchecked(passId: string): Promise<Credentia
     repo.getPassTeam(passId),
   ]);
 
-  const qrKeys = getEventQrKeys(view.event.id);
+  const qrKeys = await getEventQrKeys(view.event.id);
   const paid = view.ticketType.priceUsdc > 0;
   // Un canje registrado cuenta aunque el contrato lo haya marcado doble: doble quiere decir que ya estaba hecho.
   const redeemedIds = new Set(redemptions.map((r) => r.benefitId));
@@ -119,7 +119,7 @@ export async function loadCredentialUnchecked(passId: string): Promise<Credentia
   // Los premios del catálogo que este pase no tiene todavía: están en el sorteo. El de la ruta de stands no:
   // ese se gana visitando stands y la credencial lo cuenta aparte, en su ruta.
   const granted = new Set(view.benefits.map((b) => b.id));
-  const routePrize = getRouteGoal(view.event.id)?.prizeBenefitId;
+  const routePrize = (await getRouteGoal(view.event.id))?.prizeBenefitId;
   for (const b of catalog) {
     if (b.kind === "prize" && b.id !== routePrize && !granted.has(b.id)) benefits.push({ id: b.id, name: b.name, kind: b.kind, state: "sorteo", redeemed: false, inDraw: true });
   }

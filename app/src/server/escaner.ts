@@ -6,6 +6,7 @@
 import type { ScanEvent, ScanItem, ScanItemResult, ScanItemStatus, ScanPassInfo, ScanSnapshot, ScanStation } from "../lib/escaner-api.ts";
 import { GATE_STATION } from "../lib/escaner-api.ts";
 import { isValidPassId } from "../lib/qr-codec.ts";
+import { BUSY, tryExclusive } from "./compartido.ts";
 import { clientKey, stationCodeAttempts } from "./limites.ts";
 import { resolveStationCode, type StationAccess } from "./panel.ts";
 import { ClientIdTaken, type CheckIn, type EventRecord, type PassView, type Repo, type SyncMark } from "./repo.ts";
@@ -69,7 +70,7 @@ function toScanEvent(event: EventRecord, stations: ScanStation[]): ScanEvent {
  */
 export async function buildSnapshot(repo: Repo, access: StationAccess): Promise<ScanSnapshot> {
   const event = access.event;
-  if (access.kind === "stand" && access.stand) return buildStandSnapshot(access);
+  if (access.kind === "stand" && access.stand) return await buildStandSnapshot(access);
   const [stations, passes, checkIns, redemptions] = await Promise.all([
     scanStations(repo, event.id),
     repo.listPasses(event.id),
@@ -127,10 +128,10 @@ export async function buildSnapshot(repo: Repo, access: StationAccess): Promise<
  * solo le llegan las personas que ya pasaron por su stand, y su nombre únicamente si aceptaron compartir su
  * contacto. Así un auspiciante no se lleva el listado entero del evento en el celular.
  */
-function buildStandSnapshot(access: StationAccess): ScanSnapshot {
+async function buildStandSnapshot(access: StationAccess): Promise<ScanSnapshot> {
   const stand = access.stand as NonNullable<StationAccess["stand"]>;
   const station = stationOf(access);
-  const visits = standScanVisits(stand.id);
+  const visits = await standScanVisits(stand.id);
   const passes: ScanPassInfo[] = visits.map((v) => ({
     id: v.passId,
     name: v.name ?? "",
@@ -150,15 +151,6 @@ function buildStandSnapshot(access: StationAccess): ScanSnapshot {
 }
 
 // ---------- La sincronización ----------
-
-declare global {
-  var __rumboScanInFlight: Set<string> | undefined;
-}
-
-/** Los registros que están yendo al contrato ahora mismo: el mismo clientId no se manda dos veces a la vez. */
-function inFlight(): Set<string> {
-  return (globalThis.__rumboScanInFlight ??= new Set());
-}
 
 /** Los errores del contrato con los que no tiene sentido volver a intentar (el panel los cuenta como rechazados, no como pendientes). */
 const PERMANENT_ERRORS: ReadonlySet<string> = PERMANENT_CONTRACT_ERRORS;
@@ -242,15 +234,26 @@ async function processOne(repo: Repo, event: EventRecord, station: ScanStation, 
     error,
   });
   if (!belongsToStation(station, item)) return result("rejected", null, "fuera del puesto");
-  if (inFlight().has(item.clientId)) return result("retry", null, "en curso");
-  inFlight().add(item.clientId);
+  // El mismo clientId no va dos veces a la vez al contrato: si otro pedido (de esta instancia o de otra) lo está
+  // mandando, este vuelve a la cola del escáner y se reintenta.
+  const outcome = await tryExclusive(`scan:${item.clientId}`, () => syncItem(repo, event, station, item, chain));
+  return outcome === BUSY ? result("retry", null, "en curso") : outcome;
+}
+
+async function syncItem(repo: Repo, event: EventRecord, station: ScanStation, item: ScanItem, chain: ScanChain): Promise<ScanItemResult> {
+  const result = (status: ScanItemStatus, txHash: string | null = null, error: string | null = null): ScanItemResult => ({
+    clientId: item.clientId,
+    status,
+    txHash,
+    error,
+  });
   try {
     const view = await repo.getPassView(item.passId);
     if (!view || view.event.id !== event.id) return result("rejected", null, "pase desconocido");
     if (view.pass.status === "pending") return result("rejected", null, "pase sin activar");
     // Los stands y el premio de la ruta viven en la base, no en el contrato: no piden cuenta ni contrato.
     if (item.action === "visit") return await syncVisit(repo, item, station);
-    if (item.action === "redeem" && item.benefitId && isRoutePrize(event.id, item.benefitId)) return await syncRoutePrize(repo, event, item, view);
+    if (item.action === "redeem" && item.benefitId && (await isRoutePrize(event.id, item.benefitId))) return await syncRoutePrize(repo, event, item, view);
     if (!view.pass.account) return result("rejected", null, "pase sin activar");
     if (!view.contractId) return result("rejected", null, "evento sin contrato");
     return item.action === "checkin"
@@ -260,8 +263,6 @@ async function processOne(repo: Repo, event: EventRecord, station: ScanStation, 
     // Un clientId de otro registro no se reintenta: con el mismo id el servidor no daría nunca otra cosa.
     if (error instanceof ClientIdTaken) return result("rejected", null, "clientId de otro registro");
     return result("retry", null, describe(error));
-  } finally {
-    inFlight().delete(item.clientId);
   }
 }
 
@@ -298,7 +299,7 @@ async function syncRoutePrize(repo: Repo, event: EventRecord, item: ScanItem, vi
   });
   if (row.synced) return { clientId: item.clientId, status: "synced", txHash: null, error: null };
   if (row.duplicate) return { clientId: item.clientId, status: "duplicate", txHash: null, error: row.error };
-  if (claimRoutePrize(row.id)) {
+  if (await claimRoutePrize(row.id)) {
     await repo.markRedemption(row.id, { synced: true, error: null });
     return { clientId: item.clientId, status: "synced", txHash: null, error: null };
   }
@@ -421,7 +422,7 @@ export type ScanAuth = { ok: true; access: StationAccess; body: Record<string, u
 export async function authorizeScanRequest(repo: Repo, request: Request): Promise<ScanAuth> {
   const attempts = stationCodeAttempts();
   const key = clientKey(request.headers);
-  const wait = attempts.blockedFor(key);
+  const wait = await attempts.blockedFor(key);
   if (wait > 0) {
     return {
       ok: false,
@@ -438,7 +439,7 @@ export async function authorizeScanRequest(repo: Repo, request: Request): Promis
   if (!code) return { ok: false, response: Response.json({ error: "bad_request" }, { status: 400 }) };
   const access = await resolveStationCode(code, repo);
   if (!access) {
-    attempts.note(key);
+    await attempts.note(key);
     return { ok: false, response: Response.json({ error: "wrong_code" }, { status: 401 }) };
   }
   return { ok: true, access, body };

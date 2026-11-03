@@ -40,7 +40,8 @@ async function evento(nombre, { publicar = true } = {}) {
 
 const archivoLuma = () => new File([readFileSync(join(APP_DIR, "tests", "fixtures", "luma-invitados.csv.txt"))], "invitados.csv", { type: "text/csv" });
 
-async function llamar(event, campos, { clave = getOrCreateOrganizerKey(event.id) } = {}) {
+async function llamar(event, campos, { clave } = {}) {
+  clave ??= await getOrCreateOrganizerKey(event.id);
   const form = new FormData();
   for (const [k, v] of Object.entries(campos)) form.set(k, v);
   const request = new NextRequest(`http://localhost/api/admin/${event.slug}/importar${clave ? `?k=${clave}` : ""}`, { method: "POST", body: form });
@@ -131,7 +132,7 @@ test("de la vista a la última tanda: lo que ve la pantalla, paso por paso", asy
 
 test("la asistencia pide la clave y baja el CSV con su nombre de archivo", async () => {
   const event = await evento("API asistencia");
-  const clave = getOrCreateOrganizerKey(event.id);
+  const clave = await getOrCreateOrganizerKey(event.id);
   const sin = await asistencia(new NextRequest(`http://localhost/api/admin/${event.slug}/asistencia`), { params: Promise.resolve({ slug: event.slug }) });
   assert.equal(sin.status, 401);
   const con = await asistencia(new NextRequest(`http://localhost/api/admin/${event.slug}/asistencia?k=${clave}`), { params: Promise.resolve({ slug: event.slug }) });

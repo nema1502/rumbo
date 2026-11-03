@@ -70,7 +70,7 @@ if (!freeTicket || !paidTicket || !lunch) {
   console.error("El evento de muestra necesita una entrada gratis, una paga y el almuerzo: corré pnpm seed.");
   process.exit(1);
 }
-const llaves = getEventQrKeys(event.id);
+const llaves = await getEventQrKeys(event.id);
 const codes = await ensureStationCodes(event, repo);
 const gateCode = codes.find((c) => c.kind === "gate")?.code;
 const lunchCode = codes.find((c) => c.kind === "benefit" && c.benefitId === lunch.id)?.code;

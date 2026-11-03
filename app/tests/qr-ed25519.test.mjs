@@ -266,13 +266,13 @@ test("los dos QR siguen siendo legibles: caben en una versión chica y jsQR los 
 test("las llaves del evento se crean una vez, se guardan y la pública es la de la privada", async () => {
   const repo = getRepo();
   const event = await repo.createEvent({ slug: `llaves-${Date.now().toString(36)}`, name: "Llaves", startsAt: "2026-11-22T09:00:00-04:00", place: "Santa Cruz", organizerName: "La comunidad" });
-  const primera = getEventQrKeys(event.id);
-  const segunda = getEventQrKeys(event.id);
+  const primera = await getEventQrKeys(event.id);
+  const segunda = await getEventQrKeys(event.id);
   assert.deepEqual(Array.from(primera.privateKey), Array.from(segunda.privateKey));
   assert.deepEqual(Array.from(primera.publicKey), Array.from(qr.publicKeyFromSeed(primera.privateKey)));
-  assert.deepEqual(Array.from(getEventPublicKey(event.id)), Array.from(primera.publicKey));
+  assert.deepEqual(Array.from(await getEventPublicKey(event.id)), Array.from(primera.publicKey));
   const otro = await repo.createEvent({ slug: `llaves2-${Date.now().toString(36)}`, name: "Otro", startsAt: "2026-11-22T09:00:00-04:00", place: "Santa Cruz", organizerName: "La comunidad" });
-  assert.notDeepEqual(Array.from(getEventQrKeys(otro.id).privateKey), Array.from(primera.privateKey));
+  assert.notDeepEqual(Array.from((await getEventQrKeys(otro.id)).privateKey), Array.from(primera.privateKey));
   // lo que se firma con las guardadas lo comprueba la pública, y la llave privada nunca es la pública
   const impreso = qr.buildPrintedPayload(passA, primera);
   assert.equal((await verificar(impreso, T0, primera.publicKey)).ok, true);

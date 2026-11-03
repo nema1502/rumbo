@@ -32,9 +32,9 @@ globalThis.__rumboAccounts = {
 stellar.rumboPass.register = async () => ({ hash: `h-${++numero}`, ledger: 1, returnValue: numero, number: numero });
 stellar.rumboPass.status = async () => ({ has_pass: true, number: 1, checked_in: false, redeemed: [] });
 globalThis.__rumboMailer = { kind: "dev", send: async () => ({ id: "1" }) };
-beforeEach(() => {
-  registrationAttempts().clear();
-  linkResendAttempts().clear();
+beforeEach(async () => {
+  await registrationAttempts().clear();
+  await linkResendAttempts().clear();
 });
 
 let contratos = 0;

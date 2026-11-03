@@ -133,33 +133,33 @@ for (const [clave, lista] of Object.entries(visitas)) {
   for (const [stand, min] of lista) await stands.recordVisit({ standId: stand.id, passId: gente[clave].id, scannedAt: hace(min) }, repo);
 }
 // Lo que contestó cada persona (Camila deja su última pregunta sin contestar: es la que muestra la credencial)
-for (const clave of ["mateo", "lucia", "diego", "valentina", "camila"]) stands.answerConsent(gente[clave].id, acme.id, "granted");
-stands.answerConsent(gente.joaquin.id, acme.id, "declined");
-stands.answerConsent(gente.andres.id, acme.id, "granted");
-for (const clave of ["mateo", "camila", "valentina", "lucia"]) stands.answerConsent(gente[clave].id, nube.id, "granted");
-stands.answerConsent(gente.mateo.id, codigo.id, "granted");
-stands.answerConsent(gente.diego.id, codigo.id, "declined");
-stands.answerConsent(gente.mateo.id, auspiciantes[3].id, "granted");
-stands.answerConsent(gente.lucia.id, auspiciantes[3].id, "granted");
-stands.answerConsent(gente.lucia.id, auspiciantes[4].id, "declined");
-stands.saveContactNote(acme.id, gente.mateo.id, { rating: 5, note: "Quiere probar el SDK con su equipo. Escribirle esta semana." });
-stands.saveContactNote(acme.id, gente.lucia.id, { rating: 4, note: "Le interesa la integración de pagos." });
-stands.saveContactNote(acme.id, gente.valentina.id, { rating: 3 });
-stands.saveContactNote(acme.id, gente.andres.id, { rating: 2, note: "Estudiante. Pidió material para su tesis." });
+for (const clave of ["mateo", "lucia", "diego", "valentina", "camila"]) await stands.answerConsent(gente[clave].id, acme.id, "granted");
+await stands.answerConsent(gente.joaquin.id, acme.id, "declined");
+await stands.answerConsent(gente.andres.id, acme.id, "granted");
+for (const clave of ["mateo", "camila", "valentina", "lucia"]) await stands.answerConsent(gente[clave].id, nube.id, "granted");
+await stands.answerConsent(gente.mateo.id, codigo.id, "granted");
+await stands.answerConsent(gente.diego.id, codigo.id, "declined");
+await stands.answerConsent(gente.mateo.id, auspiciantes[3].id, "granted");
+await stands.answerConsent(gente.lucia.id, auspiciantes[3].id, "granted");
+await stands.answerConsent(gente.lucia.id, auspiciantes[4].id, "declined");
+await stands.saveContactNote(acme.id, gente.mateo.id, { rating: 5, note: "Quiere probar el SDK con su equipo. Escribirle esta semana." });
+await stands.saveContactNote(acme.id, gente.lucia.id, { rating: 4, note: "Le interesa la integración de pagos." });
+await stands.saveContactNote(acme.id, gente.valentina.id, { rating: 3 });
+await stands.saveContactNote(acme.id, gente.andres.id, { rating: 2, note: "Estudiante. Pidió material para su tesis." });
 // Cómo aparece cada una en la pantalla del evento
-stands.setDisplay(gente.valentina.id, { alias: "Vale", hidden: false });
-stands.setDisplay(gente.sofia.id, { alias: null, hidden: true });
+await stands.setDisplay(gente.valentina.id, { alias: "Vale", hidden: false });
+await stands.setDisplay(gente.sofia.id, { alias: null, hidden: true });
 // El premio de la ruta ya canjeado por quien lo ganó primero
-const premio = stands.getRouteGoal(event.id).prizeBenefitId;
+const premio = (await stands.getRouteGoal(event.id)).prizeBenefitId;
 const canjePremio = await repo.recordRedemption({ eventId: event.id, passId: gente.mateo.id, benefitId: premio, scannedAt: hace(70) });
-stands.claimRoutePrize(canjePremio.id);
+await stands.claimRoutePrize(canjePremio.id);
 await repo.markRedemption(canjePremio.id, { synced: true });
 
 const codigos = await ensureStationCodes(event, repo);
 const codigoDe = (stand) => formatStationCode(codigos.find((c) => c.kind === "stand" && c.standId === stand.id).code);
-const claveOrganizador = getOrCreateOrganizerKey(event.id);
-const qrKeys = getEventQrKeys(event.id);
-const urlCredencial = (clave) => `/p/${gente[clave].id}?k=${getOrCreateAccessKey(gente[clave].id)}`;
+const claveOrganizador = await getOrCreateOrganizerKey(event.id);
+const qrKeys = await getEventQrKeys(event.id);
+const urlCredencial = async (clave) => `/p/${gente[clave].id}?k=${await getOrCreateAccessKey(gente[clave].id)}`;
 
 // ---------- El servidor ----------
 
@@ -266,11 +266,11 @@ async function pantalla(nombre, ruta, { tamanos = TAMANOS, esperar = null, despu
 }
 
 // La credencial de Camila: lleva 3 de 4 stands y el de Código Abierto le pregunta si comparte su contacto
-await pantalla("credencial-pregunta", urlCredencial("camila"), { esperar: `document.querySelector(".ruta-pregunta")` });
+await pantalla("credencial-pregunta", await urlCredencial("camila"), { esperar: `document.querySelector(".ruta-pregunta")` });
 // La de Mateo: completó la ruta, ganó el premio y ya lo canjeó
-await pantalla("credencial-ruta-completa", urlCredencial("mateo"), { esperar: `document.querySelector(".ruta")`, entera: true });
+await pantalla("credencial-ruta-completa", await urlCredencial("mateo"), { esperar: `document.querySelector(".ruta")`, entera: true });
 // La de Lucía: completó la ruta y el premio espera en Premios
-await pantalla("credencial-premio-listo", urlCredencial("lucia"), { esperar: `document.querySelector(".ruta")`, entera: true });
+await pantalla("credencial-premio-listo", await urlCredencial("lucia"), { esperar: `document.querySelector(".ruta")`, entera: true });
 
 // El panel del auspiciante (con su código)
 await pantalla("panel-auspiciante", `/stand/${codigoDe(acme)}`, { esperar: `document.querySelector(".contacto")`, entera: true });

@@ -10,50 +10,25 @@
 //     (answerConsent); recién ahí el auspiciante ve su nombre y su correo (getStandPanel, buildContactsCsv).
 //   - Los números para el informe (getEventStandsReport, getStandReport) son agregados: nunca personas.
 //
-// Como el panel y las claves de acceso, usa su propia conexión a la misma base SQLite: solo está hecho para
-// RUMBO_REPO=sqlite. TODO producción: pasar estas tablas a SupabaseRepo con acceso por fila.
+// Las tablas viven en la base de siempre (src/server/base): SQLite en desarrollo, Postgres en producción.
 import { randomUUID } from "node:crypto";
-import path from "node:path";
-import type { DatabaseSync, SQLInputValue } from "node:sqlite";
 import { translate, type Lang } from "../i18n/index.ts";
 import type { ConsentState, ScanStandVisit } from "../lib/escaner-api.ts";
-import { dataDir, getEnv } from "./env.ts";
+import { getDb, type Row, type SqlValue } from "./base/index.ts";
 import { clientKey, stationCodeAttempts } from "./limites.ts";
 import { csvCell, ensureStationCodes, resolveStationCode, type StationAccess, type StationStand } from "./panel.ts";
 import { ClientIdTaken, getRepo, type EventRecord, type Repo } from "./repo.ts";
 
 // ---------- La base ----------
 
-declare global {
-  var __rumboStandsDb: DatabaseSync | undefined;
-}
-
-/**
- * La conexión de este módulo. getRepo() abre la base y aplica las migraciones (008-stands.sql trae estas
- * tablas); acá solo se leen y se escriben. También la usa vivo.ts para sus conteos.
- */
-export function standsDb(): DatabaseSync {
-  if (globalThis.__rumboStandsDb) return globalThis.__rumboStandsDb;
-  if (getEnv("RUMBO_REPO", "sqlite") !== "sqlite") {
-    throw new Error("TODO: los stands y la ruta todavía se guardan solo en la base SQLite (RUMBO_REPO=sqlite).");
-  }
-  getRepo();
-  const sqlite = process.getBuiltinModule("node:sqlite") as unknown as typeof import("node:sqlite") | undefined;
-  if (!sqlite) throw new Error("Esta versión de Node no trae node:sqlite. Hace falta Node 24 o más nuevo.");
-  const db = new sqlite.DatabaseSync(path.join(dataDir(), "rumbo.db"));
-  db.exec("PRAGMA busy_timeout = 5000");
-  db.exec("PRAGMA foreign_keys = ON");
-  globalThis.__rumboStandsDb = db;
-  return db;
-}
-
-type Row = Record<string, unknown>;
-const all = (sql: string, ...params: SQLInputValue[]): Row[] => standsDb().prepare(sql).all(...params) as Row[];
-const one = (sql: string, ...params: SQLInputValue[]): Row | null => (standsDb().prepare(sql).get(...params) as Row | undefined) ?? null;
-const run = (sql: string, ...params: SQLInputValue[]): void => void standsDb().prepare(sql).run(...params);
+const all = (sql: string, ...params: SqlValue[]): Promise<Row[]> => getDb().all(sql, params);
+const one = (sql: string, ...params: SqlValue[]): Promise<Row | null> => getDb().one(sql, params);
+const run = async (sql: string, ...params: SqlValue[]): Promise<void> => void (await getDb().run(sql, params));
 const str = (v: unknown): string => String(v);
 const strOrNull = (v: unknown): string | null => (v === null || v === undefined ? null : String(v));
 const num = (v: unknown): number => Number(v);
+/** SQLite guarda los booleanos como 1 y 0; Postgres los da como true y false. */
+const bool = (v: unknown): boolean => v === true || Number(v) === 1;
 const now = () => new Date().toISOString();
 
 // ---------- Los errores ----------
@@ -148,12 +123,12 @@ const rowToStand = (r: Row): Stand => ({
   createdAt: str(r.created_at),
 });
 
-export function listStands(eventId: string): Stand[] {
-  return all("SELECT * FROM stands WHERE event_id = ? ORDER BY sort_order, created_at", eventId).map(rowToStand);
+export async function listStands(eventId: string): Promise<Stand[]> {
+  return (await all("SELECT * FROM stands WHERE event_id = ? ORDER BY sort_order, created_at", eventId)).map(rowToStand);
 }
 
-export function getStand(id: string): Stand | null {
-  const row = one("SELECT * FROM stands WHERE id = ?", id);
+export async function getStand(id: string): Promise<Stand | null> {
+  const row = await one("SELECT * FROM stands WHERE id = ?", id);
   return row ? rowToStand(row) : null;
 }
 
@@ -175,10 +150,10 @@ export async function createStand(
   if (!name) throw new StandsError("invalid_name");
   const logoUrl = cleanLogo(input.logoUrl);
   const benefitId = await checkedBenefit(event.id, input.benefitId, repo);
-  const next = num(one("SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM stands WHERE event_id = ?", event.id)?.n ?? 0);
+  const next = num((await one("SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM stands WHERE event_id = ?", event.id))?.n ?? 0);
   const id = randomUUID();
-  run("INSERT INTO stands (id, event_id, name, logo_url, benefit_id, sort_order, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)", id, event.id, name, logoUrl, benefitId, next, now());
-  return getStand(id) as Stand;
+  await run("INSERT INTO stands (id, event_id, name, logo_url, benefit_id, sort_order, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)", id, event.id, name, logoUrl, benefitId, next, now());
+  return (await getStand(id)) as Stand;
 }
 
 /** Cambia el nombre, el logo o el beneficio de un stand. Lo que no viene, queda como estaba. */
@@ -187,20 +162,20 @@ export async function updateStand(
   patch: { name?: unknown; logoUrl?: unknown; benefitId?: unknown },
   repo: Repo = getRepo(),
 ): Promise<Stand> {
-  const stand = getStand(standId);
+  const stand = await getStand(standId);
   if (!stand) throw new StandsError("not_found");
   const name = patch.name === undefined ? stand.name : cleanLine(patch.name, STAND_NAME_MAX);
   if (!name) throw new StandsError("invalid_name");
   const logoUrl = patch.logoUrl === undefined ? stand.logoUrl : cleanLogo(patch.logoUrl);
   const benefitId = patch.benefitId === undefined ? stand.benefitId : await checkedBenefit(stand.eventId, patch.benefitId, repo);
-  run("UPDATE stands SET name = ?, logo_url = ?, benefit_id = ? WHERE id = ?", name, logoUrl, benefitId, standId);
-  return getStand(standId) as Stand;
+  await run("UPDATE stands SET name = ?, logo_url = ?, benefit_id = ? WHERE id = ?", name, logoUrl, benefitId, standId);
+  return (await getStand(standId)) as Stand;
 }
 
 /** Saca un stand: se van con él sus sellos y sus contactos. */
-export function deleteStand(standId: string): void {
-  if (!getStand(standId)) throw new StandsError("not_found");
-  run("DELETE FROM stands WHERE id = ?", standId);
+export async function deleteStand(standId: string): Promise<void> {
+  if (!(await getStand(standId))) throw new StandsError("not_found");
+  await run("DELETE FROM stands WHERE id = ?", standId);
 }
 
 // ---------- La meta de la ruta ----------
@@ -213,8 +188,8 @@ export interface RouteGoal {
   prizeBenefitId: string | null;
 }
 
-export function getRouteGoal(eventId: string): RouteGoal | null {
-  const row = one("SELECT * FROM route_goals WHERE event_id = ?", eventId);
+export async function getRouteGoal(eventId: string): Promise<RouteGoal | null> {
+  const row = await one("SELECT * FROM route_goals WHERE event_id = ?", eventId);
   return row ? { eventId: str(row.event_id), target: num(row.target), prizeBenefitId: strOrNull(row.prize_benefit_id) } : null;
 }
 
@@ -230,12 +205,12 @@ export function effectiveTarget(goal: RouteGoal | null, standCount: number): num
  * cumplían la nueva meta lo reciben en el acto.
  */
 export async function setRouteGoal(event: EventRecord, input: { target: unknown; prizeName?: unknown }, repo: Repo = getRepo()): Promise<RouteGoal> {
-  const stands = listStands(event.id);
+  const stands = await listStands(event.id);
   if (stands.length === 0) throw new StandsError("no_stands");
   const target = typeof input.target === "number" ? input.target : typeof input.target === "string" && input.target.trim() ? Number(input.target) : NaN;
   if (!Number.isInteger(target) || target < 1 || target > stands.length) throw new StandsError("invalid_target");
 
-  let prizeId = getRouteGoal(event.id)?.prizeBenefitId ?? null;
+  let prizeId = (await getRouteGoal(event.id))?.prizeBenefitId ?? null;
   const prize = prizeId ? await repo.getBenefit(prizeId) : null;
   if (!prize) {
     const name = cleanLine(input.prizeName, STAND_NAME_MAX) || ROUTE_PRIZE_NAME;
@@ -243,9 +218,9 @@ export async function setRouteGoal(event: EventRecord, input: { target: unknown;
     prizeId = created.id;
   } else if (typeof input.prizeName === "string" && cleanLine(input.prizeName, STAND_NAME_MAX)) {
     // Renombrar el premio no cambia al beneficio: sigue siendo el mismo para quien ya lo ganó.
-    run("UPDATE benefits SET name = ? WHERE id = ?", cleanLine(input.prizeName, STAND_NAME_MAX), prize.id);
+    await run("UPDATE benefits SET name = ? WHERE id = ?", cleanLine(input.prizeName, STAND_NAME_MAX), prize.id);
   }
-  run(
+  await run(
     `INSERT INTO route_goals (event_id, target, prize_benefit_id, updated_at) VALUES (?, ?, ?, ?)
      ON CONFLICT (event_id) DO UPDATE SET target = excluded.target, prize_benefit_id = excluded.prize_benefit_id, updated_at = excluded.updated_at`,
     event.id,
@@ -253,7 +228,7 @@ export async function setRouteGoal(event: EventRecord, input: { target: unknown;
     prizeId,
     now(),
   );
-  const goal = getRouteGoal(event.id) as RouteGoal;
+  const goal = (await getRouteGoal(event.id)) as RouteGoal;
   await grantRoutePrizes(event.id, repo);
   return goal;
 }
@@ -262,28 +237,34 @@ export const ROUTE_PRIZE_NAME = "Premio de la ruta";
 export const ROUTE_PRIZE_PLACE = "Premios";
 
 /** Si el beneficio es el premio de la ruta de ese evento. El escáner lo canjea sin pasar por el contrato. */
-export function isRoutePrize(eventId: string, benefitId: string): boolean {
-  return one("SELECT 1 AS yes FROM route_goals WHERE event_id = ? AND prize_benefit_id = ?", eventId, benefitId) !== null;
+export async function isRoutePrize(eventId: string, benefitId: string): Promise<boolean> {
+  return (await one("SELECT 1 AS yes FROM route_goals WHERE event_id = ? AND prize_benefit_id = ?", eventId, benefitId)) !== null;
 }
 
 /**
  * Marca como hecho el canje del premio de la ruta, de un solo golpe y solo si esa persona no tiene ya otro
- * canje hecho del mismo premio. Devuelve false si llegó segundo: ese es un doble. Es una sola sentencia, así
- * que dos escáneres que suben al mismo tiempo no pueden ganar los dos.
+ * canje hecho del mismo premio. Devuelve false si llegó segundo: ese es un doble. Dos escáneres que suben al
+ * mismo tiempo no pueden ganar los dos: en SQLite la sentencia es una sola y la base escribe de a una; en
+ * Postgres, donde dos instancias escriben a la vez de verdad, primero se toma la fila del pase (FOR UPDATE) y
+ * quien llega segundo espera, y al seguir ya ve el canje del primero.
  */
-export function claimRoutePrize(redemptionId: string): boolean {
-  const result = standsDb()
-    .prepare(
-      `UPDATE redemptions SET synced = 1, error = NULL
-       WHERE id = ? AND duplicate = 0
+export async function claimRoutePrize(redemptionId: string): Promise<boolean> {
+  return getDb().transaction(async (tx) => {
+    if (tx.dialect === "postgres") {
+      await tx.one("SELECT p.id FROM passes p JOIN redemptions r ON r.pass_id = p.id WHERE r.id = ? FOR UPDATE OF p", [redemptionId]);
+    }
+    const changes = await tx.run(
+      `UPDATE redemptions SET synced = TRUE, error = NULL
+       WHERE id = ? AND duplicate = FALSE
          AND NOT EXISTS (
            SELECT 1 FROM redemptions o
            WHERE o.pass_id = redemptions.pass_id AND o.benefit_id = redemptions.benefit_id
-             AND o.id != redemptions.id AND o.synced = 1 AND o.duplicate = 0
+             AND o.id != redemptions.id AND o.synced = TRUE AND o.duplicate = FALSE
          )`,
-    )
-    .run(redemptionId);
-  return Number(result.changes) === 1;
+      [redemptionId],
+    );
+    return changes === 1;
+  });
 }
 
 /**
@@ -291,10 +272,10 @@ export function claimRoutePrize(redemptionId: string): boolean {
  * hay que llamarla después de sacar un stand, porque la meta efectiva baja cuando hay menos stands.
  */
 export async function grantRoutePrizes(eventId: string, repo: Repo = getRepo()): Promise<number> {
-  const goal = getRouteGoal(eventId);
-  const target = effectiveTarget(goal, listStands(eventId).length);
+  const goal = await getRouteGoal(eventId);
+  const target = effectiveTarget(goal, (await listStands(eventId)).length);
   if (!goal?.prizeBenefitId || target === null) return 0;
-  const rows = all("SELECT pass_id FROM stand_visits WHERE event_id = ? GROUP BY pass_id HAVING COUNT(*) >= ?", eventId, target);
+  const rows = await all("SELECT pass_id FROM stand_visits WHERE event_id = ? GROUP BY pass_id HAVING COUNT(*) >= ?", eventId, target);
   for (const row of rows) await repo.grantBenefit(str(row.pass_id), goal.prizeBenefitId, "manual");
   return rows.length;
 }
@@ -349,17 +330,17 @@ export async function recordVisit(
   input: { standId: string; passId: string; clientId?: string | null; scannerId?: string | null; scannedAt?: string },
   repo: Repo = getRepo(),
 ): Promise<VisitResult> {
-  const stand = getStand(input.standId);
+  const stand = await getStand(input.standId);
   if (!stand) throw new StandsError("not_found");
   const pass = await repo.getPass(input.passId);
   if (!pass || pass.eventId !== stand.eventId || pass.status === "pending") throw new StandsError("not_found");
 
   if (input.clientId) {
-    const prior = one("SELECT * FROM stand_visits WHERE client_id = ?", input.clientId);
+    const prior = await one("SELECT * FROM stand_visits WHERE client_id = ?", input.clientId);
     if (prior && (str(prior.stand_id) !== stand.id || str(prior.pass_id) !== pass.id)) throw new ClientIdTaken(input.clientId);
   }
-  const before = visitCount(pass.id);
-  run(
+  const before = await visitCount(pass.id);
+  await run(
     `INSERT INTO stand_visits (id, client_id, stand_id, event_id, pass_id, scanner_id, scanned_at, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
     randomUUID(),
@@ -371,17 +352,17 @@ export async function recordVisit(
     input.scannedAt ?? now(),
     now(),
   );
-  const visit = rowToVisit(one("SELECT * FROM stand_visits WHERE stand_id = ? AND pass_id = ?", stand.id, pass.id) as Row);
-  const visited = visitCount(pass.id);
-  const goal = getRouteGoal(stand.eventId);
-  const target = effectiveTarget(goal, listStands(stand.eventId).length);
+  const visit = rowToVisit((await one("SELECT * FROM stand_visits WHERE stand_id = ? AND pass_id = ?", stand.id, pass.id)) as Row);
+  const visited = await visitCount(pass.id);
+  const goal = await getRouteGoal(stand.eventId);
+  const target = effectiveTarget(goal, (await listStands(stand.eventId)).length);
   const completed = target !== null && visited >= target;
   if (completed && goal?.prizeBenefitId) await repo.grantBenefit(pass.id, goal.prizeBenefitId, "manual");
   return { visit, created: visited > before, visited, target, completed, completedNow: completed && visited > before && before < (target as number) };
 }
 
-function visitCount(passId: string): number {
-  return num(one("SELECT COUNT(*) AS n FROM stand_visits WHERE pass_id = ?", passId)?.n ?? 0);
+async function visitCount(passId: string): Promise<number> {
+  return num((await one("SELECT COUNT(*) AS n FROM stand_visits WHERE pass_id = ?", passId))?.n ?? 0);
 }
 
 // ---------- La ruta en la credencial ----------
@@ -409,9 +390,9 @@ export interface PassRoute {
   display: { alias: string | null; hidden: boolean; shownAs: string | null };
 }
 
-function displayOf(passId: string): { alias: string | null; hidden: boolean } | null {
-  const row = one("SELECT alias, hidden FROM route_display WHERE pass_id = ?", passId);
-  return row ? { alias: strOrNull(row.alias), hidden: num(row.hidden) === 1 } : null;
+async function displayOf(passId: string): Promise<{ alias: string | null; hidden: boolean } | null> {
+  const row = await one("SELECT alias, hidden FROM route_display WHERE pass_id = ?", passId);
+  return row ? { alias: strOrNull(row.alias), hidden: bool(row.hidden) } : null;
 }
 
 /**
@@ -421,10 +402,10 @@ function displayOf(passId: string): { alias: string | null; hidden: boolean } | 
 export async function getPassRoute(passId: string, repo: Repo = getRepo()): Promise<PassRoute | null> {
   const view = await repo.getPassView(passId);
   if (!view) return null;
-  const stands = listStands(view.event.id);
+  const stands = await listStands(view.event.id);
   if (stands.length === 0) return null;
-  const visits = new Map(all("SELECT * FROM stand_visits WHERE pass_id = ?", passId).map((r) => [str(r.stand_id), rowToVisit(r)]));
-  const goal = getRouteGoal(view.event.id);
+  const visits = new Map((await all("SELECT * FROM stand_visits WHERE pass_id = ?", passId)).map((r) => [str(r.stand_id), rowToVisit(r)]));
+  const goal = await getRouteGoal(view.event.id);
   const target = effectiveTarget(goal, stands.length);
   const prizeBenefit = goal?.prizeBenefitId ? await repo.getBenefit(goal.prizeBenefitId) : null;
   let prize: PassRoute["prize"] = null;
@@ -433,7 +414,7 @@ export async function getPassRoute(passId: string, repo: Repo = getRepo()): Prom
     const redeemed = (await repo.listRedemptionsForPass(passId)).some((r) => r.benefitId === prizeBenefit.id);
     prize = { id: prizeBenefit.id, name: prizeBenefit.name, granted, redeemed };
   }
-  const display = displayOf(passId);
+  const display = await displayOf(passId);
   return {
     eventId: view.event.id,
     target,
@@ -451,27 +432,27 @@ export async function getPassRoute(passId: string, repo: Repo = getRepo()): Prom
  * credencial. "granted" muestra su nombre y su correo en la lista del auspiciante; "declined" los saca de ahí
  * (y se borran la calificación y la nota que le hubieran puesto). Se puede cambiar cuando quiera.
  */
-export function answerConsent(passId: string, standId: string, answer: unknown): StandVisit {
+export async function answerConsent(passId: string, standId: string, answer: unknown): Promise<StandVisit> {
   if (answer !== "granted" && answer !== "declined") throw new StandsError("invalid_answer");
-  const row = one("SELECT * FROM stand_visits WHERE pass_id = ? AND stand_id = ?", passId, standId);
+  const row = await one("SELECT * FROM stand_visits WHERE pass_id = ? AND stand_id = ?", passId, standId);
   if (!row) throw new StandsError("no_visit");
-  if (answer === "granted") run("UPDATE stand_visits SET consent = 'granted', consent_at = ? WHERE id = ?", now(), str(row.id));
-  else run("UPDATE stand_visits SET consent = 'declined', consent_at = ?, rating = NULL, note = NULL WHERE id = ?", now(), str(row.id));
-  return rowToVisit(one("SELECT * FROM stand_visits WHERE id = ?", str(row.id)) as Row);
+  if (answer === "granted") await run("UPDATE stand_visits SET consent = 'granted', consent_at = ? WHERE id = ?", now(), str(row.id));
+  else await run("UPDATE stand_visits SET consent = 'declined', consent_at = ?, rating = NULL, note = NULL WHERE id = ?", now(), str(row.id));
+  return rowToVisit((await one("SELECT * FROM stand_visits WHERE id = ?", str(row.id))) as Row);
 }
 
 /** Cómo quiere aparecer la persona en la pantalla del evento: con un alias, con su nombre de pila, o sin aparecer. */
-export function setDisplay(passId: string, input: { alias?: unknown; hidden?: unknown }): { alias: string | null; hidden: boolean } {
+export async function setDisplay(passId: string, input: { alias?: unknown; hidden?: unknown }): Promise<{ alias: string | null; hidden: boolean }> {
   const alias = cleanAlias(input.alias);
-  const hidden = input.hidden === true ? 1 : 0;
-  run(
+  const hidden = input.hidden === true;
+  await run(
     `INSERT INTO route_display (pass_id, alias, hidden) VALUES (?, ?, ?)
      ON CONFLICT (pass_id) DO UPDATE SET alias = excluded.alias, hidden = excluded.hidden`,
     passId,
     alias,
     hidden,
   );
-  return { alias, hidden: hidden === 1 };
+  return { alias, hidden };
 }
 
 // ---------- El escáner del stand ----------
@@ -481,12 +462,14 @@ export function setDisplay(passId: string, input: { alias?: unknown; hidden?: un
  * contacto: sin eso, quien atiende el stand ve apenas una credencial y la hora. El escáner del stand nunca
  * recibe la lista de asistentes del evento.
  */
-export function standScanVisits(standId: string): ScanStandVisit[] {
-  return all(
+export async function standScanVisits(standId: string): Promise<ScanStandVisit[]> {
+  return (
+    await all(
     `SELECT v.pass_id, v.scanned_at, v.consent, per.name
      FROM stand_visits v JOIN passes p ON p.id = v.pass_id JOIN persons per ON per.id = p.person_id
      WHERE v.stand_id = ? ORDER BY v.scanned_at DESC`,
-    standId,
+      standId,
+    )
   ).map((r) => ({
     passId: str(r.pass_id),
     at: str(r.scanned_at),
@@ -529,23 +512,25 @@ export interface StandPanel {
   generatedAt: string;
 }
 
-function standNumbers(standId: string): StandNumbers {
-  const rows = all("SELECT consent, COUNT(*) AS n FROM stand_visits WHERE stand_id = ? GROUP BY consent", standId);
+async function standNumbers(standId: string): Promise<StandNumbers> {
+  const rows = await all("SELECT consent, COUNT(*) AS n FROM stand_visits WHERE stand_id = ? GROUP BY consent", standId);
   const by = (consent: ConsentState) => num(rows.find((r) => str(r.consent) === consent)?.n ?? 0);
   return { visits: by("pending") + by("granted") + by("declined"), accepted: by("granted"), waiting: by("pending"), declined: by("declined") };
 }
 
 /** Lo que ve quien atiende el stand: sus números y los contactos de quienes aceptaron, con su calificación y su nota. */
 export async function getStandPanel(standId: string, repo: Repo = getRepo()): Promise<StandPanel> {
-  const stand = getStand(standId);
+  const stand = await getStand(standId);
   if (!stand) throw new StandsError("not_found");
   const event = await repo.getEventById(stand.eventId);
   if (!event) throw new StandsError("not_found");
-  const contacts = all(
+  const contacts = (
+    await all(
     `SELECT v.pass_id, v.scanned_at, v.consent_at, v.rating, v.note, per.name, per.email
      FROM stand_visits v JOIN passes p ON p.id = v.pass_id JOIN persons per ON per.id = p.person_id
      WHERE v.stand_id = ? AND v.consent = 'granted' ORDER BY v.scanned_at DESC`,
-    standId,
+      standId,
+    )
   ).map(
     (r): StandContact => ({
       passId: str(r.pass_id),
@@ -560,7 +545,7 @@ export async function getStandPanel(standId: string, repo: Repo = getRepo()): Pr
   return {
     stand,
     event: { name: event.name, slug: event.slug, startsAt: event.startsAt, timezone: event.timezone, place: event.place, venue: event.venue },
-    numbers: standNumbers(standId),
+    numbers: await standNumbers(standId),
     benefit: (await getStandReport(standId, repo))?.benefit ?? null,
     contacts,
     generatedAt: now(),
@@ -571,8 +556,8 @@ export async function getStandPanel(standId: string, repo: Repo = getRepo()): Pr
  * La calificación (1 a 5) y la nota que escribe quien atiende el stand. Solo se puede sobre quien aceptó
  * compartir su contacto: sin permiso no hay nada que anotar.
  */
-export function saveContactNote(standId: string, passId: string, input: { rating?: unknown; note?: unknown }): StandContact["rating"] {
-  const row = one("SELECT * FROM stand_visits WHERE stand_id = ? AND pass_id = ?", standId, passId);
+export async function saveContactNote(standId: string, passId: string, input: { rating?: unknown; note?: unknown }): Promise<StandContact["rating"]> {
+  const row = await one("SELECT * FROM stand_visits WHERE stand_id = ? AND pass_id = ?", standId, passId);
   if (!row) throw new StandsError("no_visit");
   if (str(row.consent) !== "granted") throw new StandsError("no_consent");
   let rating = row.rating === null || row.rating === undefined ? null : num(row.rating);
@@ -586,7 +571,7 @@ export function saveContactNote(standId: string, passId: string, input: { rating
     if (typeof input.note !== "string") throw new StandsError("invalid_note");
     note = cleanLine(input.note, NOTE_MAX);
   }
-  run("UPDATE stand_visits SET rating = ?, note = ? WHERE id = ?", rating, note || null, str(row.id));
+  await run("UPDATE stand_visits SET rating = ?, note = ? WHERE id = ?", rating, note || null, str(row.id));
   return rating;
 }
 
@@ -611,11 +596,11 @@ export type StandAuth = { ok: true; access: StationAccess; stand: StationStand }
 export async function authorizeStandCode(code: string, headers: { get(name: string): string | null }, repo: Repo = getRepo()): Promise<StandAuth> {
   const attempts = stationCodeAttempts();
   const key = clientKey(headers);
-  const wait = attempts.blockedFor(key);
+  const wait = await attempts.blockedFor(key);
   if (wait > 0) return { ok: false, reason: "blocked", retryAfterSeconds: Math.ceil(wait / 1000) };
   const access = await resolveStationCode(code, repo);
   if (!access || access.kind !== "stand" || !access.stand) {
-    attempts.note(key);
+    await attempts.note(key);
     return { ok: false, reason: "wrong", retryAfterSeconds: 0 };
   }
   return { ok: true, access, stand: access.stand };
@@ -657,12 +642,11 @@ export interface StandsReport {
   stands: StandReport[];
 }
 
-function benefitCounts(benefitId: string): { granted: number; redeemed: number } {
-  const granted = one(
-    "SELECT COUNT(*) AS n FROM pass_benefits pb JOIN passes p ON p.id = pb.pass_id WHERE pb.benefit_id = ? AND p.status != 'pending'",
-    benefitId,
+async function benefitCounts(benefitId: string): Promise<{ granted: number; redeemed: number }> {
+  const granted = (
+    await one("SELECT COUNT(*) AS n FROM pass_benefits pb JOIN passes p ON p.id = pb.pass_id WHERE pb.benefit_id = ? AND p.status != 'pending'", benefitId)
   )?.n;
-  const redeemed = one("SELECT COUNT(DISTINCT pass_id) AS n FROM redemptions WHERE benefit_id = ? AND duplicate = 0", benefitId)?.n;
+  const redeemed = (await one("SELECT COUNT(DISTINCT pass_id) AS n FROM redemptions WHERE benefit_id = ? AND duplicate = FALSE", benefitId))?.n;
   return { granted: num(granted ?? 0), redeemed: num(redeemed ?? 0) };
 }
 
@@ -672,23 +656,23 @@ function benefitCounts(benefitId: string): { granted: number; redeemed: number }
  * los contactos mismos los ve únicamente el auspiciante, en su panel.
  */
 export async function getEventStandsReport(event: EventRecord, repo: Repo = getRepo()): Promise<StandsReport> {
-  const stands = listStands(event.id);
-  const goal = getRouteGoal(event.id);
+  const stands = await listStands(event.id);
+  const goal = await getRouteGoal(event.id);
   const target = effectiveTarget(goal, stands.length);
-  const perPass = all("SELECT pass_id, COUNT(*) AS n FROM stand_visits WHERE event_id = ? GROUP BY pass_id", event.id);
+  const perPass = await all("SELECT pass_id, COUNT(*) AS n FROM stand_visits WHERE event_id = ? GROUP BY pass_id", event.id);
   const completedPasses = new Set(target === null ? [] : perPass.filter((r) => num(r.n) >= target).map((r) => str(r.pass_id)));
 
   const reports: StandReport[] = [];
   for (const stand of stands) {
-    const numbers = standNumbers(stand.id);
+    const numbers = await standNumbers(stand.id);
     const benefit = stand.benefitId ? await repo.getBenefit(stand.benefitId) : null;
-    const visitors = all("SELECT pass_id FROM stand_visits WHERE stand_id = ?", stand.id).map((r) => str(r.pass_id));
+    const visitors = (await all("SELECT pass_id FROM stand_visits WHERE stand_id = ?", stand.id)).map((r) => str(r.pass_id));
     reports.push({
       standId: stand.id,
       name: stand.name,
       logoUrl: stand.logoUrl,
       visits: numbers.visits,
-      benefit: benefit ? { id: benefit.id, name: benefit.name, ...benefitCounts(benefit.id) } : null,
+      benefit: benefit ? { id: benefit.id, name: benefit.name, ...(await benefitCounts(benefit.id)) } : null,
       contactsAccepted: numbers.accepted,
       contactsWaiting: numbers.waiting,
       contactsDeclined: numbers.declined,
@@ -704,7 +688,7 @@ export async function getEventStandsReport(event: EventRecord, repo: Repo = getR
       standCount: stands.length,
       participants: perPass.length,
       completed: completedPasses.size,
-      prize: prize ? { id: prize.id, name: prize.name, ...benefitCounts(prize.id) } : null,
+      prize: prize ? { id: prize.id, name: prize.name, ...(await benefitCounts(prize.id)) } : null,
     },
     stands: reports,
   };
@@ -712,7 +696,7 @@ export async function getEventStandsReport(event: EventRecord, repo: Repo = getR
 
 /** Los agregados de un solo auspiciante. Null si el stand no existe. */
 export async function getStandReport(standId: string, repo: Repo = getRepo()): Promise<StandReport | null> {
-  const stand = getStand(standId);
+  const stand = await getStand(standId);
   if (!stand) return null;
   const event = await repo.getEventById(stand.eventId);
   if (!event) return null;
@@ -742,13 +726,13 @@ export interface AdminStandsState {
 export async function getAdminStands(event: EventRecord, repo: Repo = getRepo()): Promise<AdminStandsState> {
   const codes = await ensureStationCodes(event, repo);
   const report = await getEventStandsReport(event, repo);
-  const goal = getRouteGoal(event.id);
+  const goal = await getRouteGoal(event.id);
   const prize = goal?.prizeBenefitId ? await repo.getBenefit(goal.prizeBenefitId) : null;
   return {
     generatedAt: report.generatedAt,
     event: { slug: event.slug, name: event.name },
     goal: goal ? { target: goal.target, prizeName: prize?.name ?? null } : null,
-    stands: listStands(event.id).map((stand) => ({
+    stands: (await listStands(event.id)).map((stand) => ({
       ...stand,
       code: codes.find((c) => c.kind === "stand" && c.standId === stand.id)?.code ?? null,
       report: report.stands.find((r) => r.standId === stand.id) as StandReport,
@@ -770,20 +754,21 @@ export interface RankingRow {
 }
 
 /** Los primeros de la ruta, para la pantalla del evento. */
-export function routeRanking(eventId: string, limit = 10): RankingRow[] {
-  const target = effectiveTarget(getRouteGoal(eventId), listStands(eventId).length);
-  const rows = all(
+export async function routeRanking(eventId: string, limit = 10): Promise<RankingRow[]> {
+  const target = effectiveTarget(await getRouteGoal(eventId), (await listStands(eventId)).length);
+  // Lo que no se cuenta va también en GROUP BY: Postgres lo pide, y en SQLite no cambia nada (es uno por pase).
+  const rows = await all(
     `SELECT v.pass_id, COUNT(*) AS n, MAX(v.scanned_at) AS last_at, per.name, d.alias, d.hidden
      FROM stand_visits v
      JOIN passes p ON p.id = v.pass_id JOIN persons per ON per.id = p.person_id
      LEFT JOIN route_display d ON d.pass_id = v.pass_id
-     WHERE v.event_id = ? GROUP BY v.pass_id ORDER BY n DESC, last_at ASC, v.pass_id LIMIT ?`,
+     WHERE v.event_id = ? GROUP BY v.pass_id, per.name, d.alias, d.hidden ORDER BY n DESC, last_at ASC, v.pass_id LIMIT ?`,
     eventId,
     limit,
   );
   return rows.map((r, i) => ({
     rank: i + 1,
-    label: publicLabel(str(r.name), r.alias === null && r.hidden === null ? null : { alias: strOrNull(r.alias), hidden: num(r.hidden ?? 0) === 1 }),
+    label: publicLabel(str(r.name), r.alias === null && r.hidden === null ? null : { alias: strOrNull(r.alias), hidden: bool(r.hidden) }),
     visited: num(r.n),
     completed: target !== null && num(r.n) >= target,
   }));

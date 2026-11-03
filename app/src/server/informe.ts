@@ -107,7 +107,7 @@ export async function buildEventReportData(event: EventRecord, repo: Repo = getR
     label: ticketTypes.filter((t) => (t.contractId ?? event.contractId) === id).map((t) => t.name).join(", "),
   }));
 
-  const sync = getLastChainSync(event.id);
+  const sync = await getLastChainSync(event.id);
   const chainCheck =
     sync && sync.contracts.length > 0 && sync.contracts.every((c) => c.error === null)
       ? { at: sync.syncedAt, checkedIn: sync.contracts.reduce((acc, c) => acc + c.checkedIn, 0) }

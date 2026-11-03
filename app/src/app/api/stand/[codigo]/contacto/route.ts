@@ -24,7 +24,7 @@ export async function POST(request: NextRequest, { params }: Context) {
   }
   if (typeof body.passId !== "string") return NextResponse.json({ error: "bad_request" }, { status: 400 });
   try {
-    const rating = saveContactNote(auth.stand.id, body.passId.toUpperCase(), { rating: body.rating, note: body.note });
+    const rating = await saveContactNote(auth.stand.id, body.passId.toUpperCase(), { rating: body.rating, note: body.note });
     return NextResponse.json({ ok: true, rating }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof StandsError) return NextResponse.json({ error: error.code }, { status: error.code === "no_consent" ? 403 : 400 });

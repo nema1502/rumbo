@@ -65,7 +65,7 @@ export async function verifyAttendance(passId: string, code: string | null | und
   if (!isValidPassId(id) || !CODE_RE.test(given)) return { found: false };
   const view = await repo.getPassView(id);
   if (!view) return { found: false };
-  const expected = certificateCode(id, getEventQrKeys(view.event.id).credentialRoot);
+  const expected = certificateCode(id, (await getEventQrKeys(view.event.id)).credentialRoot);
   if (!constantTimeEqual(expected, given)) return { found: false };
 
   const network = reportNetwork();
@@ -95,7 +95,7 @@ export interface CertificateAttendee {
 
 /** Quienes entraron al evento, con el código de verificación de cada certificado. */
 export async function listCertificateAttendees(event: EventRecord, repo: Repo = getRepo()): Promise<CertificateAttendee[]> {
-  const key = getEventQrKeys(event.id).credentialRoot;
+  const key = (await getEventQrKeys(event.id)).credentialRoot;
   const passes = (await repo.listPasses(event.id)).filter((p) => p.status === "checked_in");
   const out: CertificateAttendee[] = [];
   for (const pass of passes) {

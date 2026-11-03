@@ -17,7 +17,7 @@ export async function guardarBorrador(formData: FormData): Promise<void> {
   const repo = getRepo();
   const event = await repo.getEventBySlug(slug);
   if (!event) redirect("/");
-  if (!verifyOrganizerKey(event.id, await panelKeyFromCookies(slug))) redirect(`/admin/${encodeURIComponent(slug)}/armar`);
+  if (!(await verifyOrganizerKey(event.id, await panelKeyFromCookies(slug)))) redirect(`/admin/${encodeURIComponent(slug)}/armar`);
   const base = `/admin/${encodeURIComponent(slug)}`;
   if (event.published) redirect(base);
   const spec = getTemplate(event.template);

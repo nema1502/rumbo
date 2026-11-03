@@ -31,7 +31,7 @@ export default async function StandsAdminPage({ params, searchParams }: { params
   if (typeof key === "string" && key) redirect(`/api/admin/${slug}/entrar?k=${encodeURIComponent(key)}&next=stands`);
 
   const t = await getT();
-  if (!verifyOrganizerKey(event.id, await panelKeyFromCookies(slug))) {
+  if (!(await verifyOrganizerKey(event.id, await panelKeyFromCookies(slug)))) {
     return <AccesoPanel slug={slug} eventName={event.name} t={t} error={query.error === "clave"} next="stands" />;
   }
   return <AdminStands slug={slug} initial={await getAdminStands(event, repo)} />;

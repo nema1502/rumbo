@@ -113,7 +113,7 @@ if (process.argv.includes("--demo")) {
     }
     pass = await repo.updatePass(pass.id, { account, status: "active", txHash, chainNumber });
   }
-  const qr = buildPrintedPayload(pass.id, getEventQrKeys(event.id));
+  const qr = buildPrintedPayload(pass.id, await getEventQrKeys(event.id));
   console.log(`Persona de ejemplo: ${person.name} <${person.email}>\n  Pase: ${pass.id}  Cuenta: ${account}\n  QR de la credencial impresa: ${qr}`);
 }
 
@@ -124,3 +124,7 @@ Listo. Con pnpm dev:
   El panel:     ${base}/admin/${event.slug}
   El escáner:   ${base}/scan
 `);
+
+// Con Postgres el pool deja las conexiones abiertas un rato: se cierra, así el script termina enseguida.
+const { closeDb } = await import("../src/server/base/index.ts");
+await closeDb();

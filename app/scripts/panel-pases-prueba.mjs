@@ -112,3 +112,7 @@ if (args.includes("--cadena")) {
     console.log('Ahora "Verificar el registro del evento" en el panel tiene que traer esa entrada y ese canje.');
   }
 }
+
+// Con Postgres el pool deja las conexiones abiertas un rato: se cierra, así el script termina enseguida.
+const { closeDb } = await import("../src/server/base/index.ts");
+await closeDb();

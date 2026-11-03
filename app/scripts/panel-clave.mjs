@@ -19,7 +19,7 @@ if (!event) {
   process.exit(1);
 }
 
-const key = getOrCreateOrganizerKey(event.id);
+const key = await getOrCreateOrganizerKey(event.id);
 const stations = await ensureStationCodes(event, repo);
 const benefits = new Map((await repo.listBenefits(event.id)).map((b) => [b.id, b]));
 const base = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
@@ -32,6 +32,10 @@ console.log(`${event.name}
 Códigos de puesto: cada voluntario abre ${base}/scan y escribe el suyo.`);
 for (const station of stations) {
   const nombre =
-    station.kind === "gate" ? "Puerta" : station.kind === "stand" ? `Stand de ${getStand(station.standId)?.name ?? station.standId}` : (benefits.get(station.benefitId)?.name ?? station.benefitId);
+    station.kind === "gate" ? "Puerta" : station.kind === "stand" ? `Stand de ${(await getStand(station.standId))?.name ?? station.standId}` : (benefits.get(station.benefitId)?.name ?? station.benefitId);
   console.log(`  ${formatStationCode(station.code)}  ${nombre}`);
 }
+
+// Con Postgres el pool deja las conexiones abiertas un rato: se cierra, así el script termina enseguida.
+const { closeDb } = await import("../src/server/base/index.ts");
+await closeDb();

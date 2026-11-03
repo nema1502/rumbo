@@ -28,7 +28,7 @@ export default async function ImportPage({ params, searchParams }: { params: Par
   if (typeof key === "string" && key) redirect(`/api/admin/${encodeURIComponent(slug)}/entrar?k=${encodeURIComponent(key)}&next=importar`);
 
   const t = await getT();
-  if (!verifyOrganizerKey(event.id, await panelKeyFromCookies(slug))) {
+  if (!(await verifyOrganizerKey(event.id, await panelKeyFromCookies(slug)))) {
     return <AccesoPanel slug={slug} eventName={event.name} t={t} error={query.error === "clave"} next="importar" />;
   }
   if (!event.published) redirect(`/admin/${encodeURIComponent(slug)}/armar`);

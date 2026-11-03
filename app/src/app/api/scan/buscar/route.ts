@@ -16,11 +16,11 @@ export async function POST(request: Request): Promise<Response> {
 
   const attempts = doorSearchAttempts();
   const key = auth.access.event.id;
-  const wait = attempts.blockedFor(key);
+  const wait = await attempts.blockedFor(key);
   if (wait > 0) {
     return Response.json({ error: "too_many_attempts" }, { status: 429, headers: { "Retry-After": String(Math.ceil(wait / 1000)) } });
   }
-  attempts.note(key);
+  await attempts.note(key);
 
   const query = typeof auth.body.query === "string" ? auth.body.query.slice(0, 80) : "";
   const response: DoorSearchResponse = { matches: await searchDoor(repo, auth.access.event, query) };

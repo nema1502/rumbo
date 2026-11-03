@@ -36,7 +36,7 @@ export default async function InformePage({ params, searchParams }: { params: Pa
 
   const lang = await getLang();
   const t = makeT(lang);
-  if (!verifyOrganizerKey(event.id, await panelKeyFromCookies(slug))) {
+  if (!(await verifyOrganizerKey(event.id, await panelKeyFromCookies(slug)))) {
     return <AccesoPanel slug={slug} eventName={event.name} t={t} error={query.error === "clave"} next="informe" />;
   }
 

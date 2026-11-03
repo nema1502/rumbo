@@ -57,7 +57,7 @@ type Authorized = { event: EventRecord; response?: undefined } | { event?: undef
 export async function authorizePanelRequest(request: NextRequest, slug: string): Promise<Authorized> {
   const event = await getRepo().getEventBySlug(slug);
   if (!event) return { response: NextResponse.json({ error: "not_found" }, { status: 404 }) };
-  if (!verifyOrganizerKey(event.id, panelKeyFromRequest(request, slug))) {
+  if (!(await verifyOrganizerKey(event.id, panelKeyFromRequest(request, slug)))) {
     return { response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
   }
   return { event };

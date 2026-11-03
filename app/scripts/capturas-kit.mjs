@@ -139,14 +139,14 @@ async function hackaton(lang) {
     event,
     jurado,
     participante: participantes[9],
-    qrDe: async (pass) => buildLivePayload(buildLiveGrant(pass.id, getEventQrKeys(event.id)), Date.now()),
+    qrDe: async (pass) => buildLivePayload(buildLiveGrant(pass.id, await getEventQrKeys(event.id)), Date.now()),
     claveDe: (pass) => getOrCreateAccessKey(pass.id),
     puerta: codigo((c) => c.kind === "gate"),
     comida: codigo((c) => c.benefitId === beneficios["lunch-1"].id),
     merch: codigo((c) => c.benefitId === beneficios.staffMerch.id),
     faltan,
     ticketGratis: tipos.attendee,
-    panelKey: getOrCreateOrganizerKey(event.id),
+    panelKey: await getOrCreateOrganizerKey(event.id),
   };
 }
 
@@ -159,7 +159,7 @@ async function devfest(lang, nombre) {
   await saveDraft(repo, base, borrador, lang);
   await publishEvent(repo, await repo.getEventById(base.id), provisor);
   const event = await repo.getEventById(base.id);
-  return { event, panelKey: getOrCreateOrganizerKey(event.id) };
+  return { event, panelKey: await getOrCreateOrganizerKey(event.id) };
 }
 
 const datosEs = await hackaton("es");
@@ -339,8 +339,8 @@ async function vuelta(lang) {
   await enDosTamanos("equipo-error", lang, ACCION);
 
   paso(`La credencial en ${lang}`);
-  await pantalla("credencial-jurado", `/p/${datosLang.jurado.id}?k=${encodeURIComponent(datosLang.claveDe(datosLang.jurado))}`, lang, ACCION);
-  await pantalla("credencial-participante", `/p/${datosLang.participante.id}?k=${encodeURIComponent(datosLang.claveDe(datosLang.participante))}`, lang, ACCION);
+  await pantalla("credencial-jurado", `/p/${datosLang.jurado.id}?k=${encodeURIComponent(await datosLang.claveDe(datosLang.jurado))}`, lang, ACCION);
+  await pantalla("credencial-participante", `/p/${datosLang.participante.id}?k=${encodeURIComponent(await datosLang.claveDe(datosLang.participante))}`, lang, ACCION);
 
   paso(`El escáner en ${lang}`);
   await tamano(1440, 900);

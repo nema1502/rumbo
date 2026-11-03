@@ -34,9 +34,9 @@ globalThis.__rumboMailer = {
   },
 };
 
-beforeEach(() => {
-  registrationAttempts().clear();
-  linkResendAttempts().clear();
+beforeEach(async () => {
+  await registrationAttempts().clear();
+  await linkResendAttempts().clear();
   correos.length = 0;
 });
 
@@ -77,7 +77,7 @@ test("el reenvío vuelve a salir pasados los diez minutos", async () => {
   await inscripcion(email, "202.0.0.2");
   assert.equal(correos.length, 2);
   // pasaron los diez minutos: el freno de ese correo ya no está
-  linkResendAttempts().clear();
+  await linkResendAttempts().clear();
   await inscripcion(email, "202.0.0.3");
   assert.equal(correos.length, 3);
 });

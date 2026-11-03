@@ -14,6 +14,7 @@ import type { Lang } from "../../i18n/index.ts";
 import { isPublicKind, type CredentialKind } from "../../lib/credential-kinds.ts";
 import { getAccountProvider, type AccountProvider } from "../accounts.ts";
 import { EMAIL_MAX, EMAIL_RE, NAME_MAX, passUrl } from "../evento/inscripcion.ts";
+import { BUSY, tryExclusive } from "../compartido.ts";
 import { getOrCreateAccessKey } from "../evento/acceso.ts";
 import { describeForLog } from "../log.ts";
 import { getMailer, type Mailer } from "../mailer.ts";
@@ -449,47 +450,47 @@ export interface BatchResult {
   busy: boolean;
 }
 
-declare global {
-  var __rumboImportsRunning: Set<string> | undefined;
-}
-
 export const BATCH_SIZE = 5;
 export const MAX_BATCH_SIZE = 20;
 
-/** Activa una tanda de credenciales pendientes de la importación: cuenta, contrato, canjes y correo. */
+/**
+ * Activa una tanda de credenciales pendientes de la importación: cuenta, contrato, canjes y correo. Una sola
+ * tanda de cada importación a la vez, aunque la pidan dos pestañas o caigan en dos instancias del servidor: la
+ * otra recibe "busy" y la pantalla la vuelve a pedir en un momento. Una tanda de cinco tarda menos de dos
+ * minutos; el turno se renueva mientras dura y, si la instancia se cae, vence solo.
+ */
 export async function activateBatch(repo: Repo, event: EventRecord, runId: string, size: number, deps: ImportDeps): Promise<BatchResult> {
-  const running = (globalThis.__rumboImportsRunning ??= new Set());
   const pendingOf = async (): Promise<Pass[]> => (await repo.listPassesByImportRun(runId)).filter((p) => p.status === "pending");
-  if (running.has(runId)) return { processed: 0, activated: 0, emailsSent: 0, emailsFailed: 0, failed: 0, remaining: (await pendingOf()).length, busy: true };
-  running.add(runId);
-  try {
-    const run = await repo.getImportRun(runId);
-    if (!run || run.eventId !== event.id) throw new Error(`No existe la importación ${runId} en este evento`);
-    const batch = (await pendingOf()).slice(0, Math.max(1, Math.min(size, MAX_BATCH_SIZE)));
-    const result: BatchResult = { processed: batch.length, activated: 0, emailsSent: 0, emailsFailed: 0, failed: 0, remaining: 0, busy: false };
-    for (const pass of batch) {
-      const outcome = await activateOne(repo, event, pass, deps);
-      if (outcome === "failed") result.failed++;
-      else {
-        result.activated++;
-        if (outcome === "emailed") result.emailsSent++;
-        else result.emailsFailed++;
-      }
+  const outcome = await tryExclusive(`import:${runId}`, () => runBatch(repo, event, runId, size, deps, pendingOf));
+  if (outcome === BUSY) return { processed: 0, activated: 0, emailsSent: 0, emailsFailed: 0, failed: 0, remaining: (await pendingOf()).length, busy: true };
+  return outcome;
+}
+
+async function runBatch(repo: Repo, event: EventRecord, runId: string, size: number, deps: ImportDeps, pendingOf: () => Promise<Pass[]>): Promise<BatchResult> {
+  const run = await repo.getImportRun(runId);
+  if (!run || run.eventId !== event.id) throw new Error(`No existe la importación ${runId} en este evento`);
+  const batch = (await pendingOf()).slice(0, Math.max(1, Math.min(size, MAX_BATCH_SIZE)));
+  const result: BatchResult = { processed: batch.length, activated: 0, emailsSent: 0, emailsFailed: 0, failed: 0, remaining: 0, busy: false };
+  for (const pass of batch) {
+    const outcome = await activateOne(repo, event, pass, deps);
+    if (outcome === "failed") result.failed++;
+    else {
+      result.activated++;
+      if (outcome === "emailed") result.emailsSent++;
+      else result.emailsFailed++;
     }
-    result.remaining = (await pendingOf()).length;
-    const summary = run.summary as unknown as ImportSummary;
-    await repo.updateImportRun(runId, {
-      ...summary,
-      activated: (summary.activated ?? 0) + result.activated,
-      emailsSent: (summary.emailsSent ?? 0) + result.emailsSent,
-      emailsFailed: (summary.emailsFailed ?? 0) + result.emailsFailed,
-      // Lo que falló y sigue pendiente es lo que falló en la última tanda: se vuelve a intentar.
-      failed: result.failed,
-    });
-    return result;
-  } finally {
-    running.delete(runId);
   }
+  result.remaining = (await pendingOf()).length;
+  const summary = run.summary as unknown as ImportSummary;
+  await repo.updateImportRun(runId, {
+    ...summary,
+    activated: (summary.activated ?? 0) + result.activated,
+    emailsSent: (summary.emailsSent ?? 0) + result.emailsSent,
+    emailsFailed: (summary.emailsFailed ?? 0) + result.emailsFailed,
+    // Lo que falló y sigue pendiente es lo que falló en la última tanda: se vuelve a intentar.
+    failed: result.failed,
+  });
+  return result;
 }
 
 type Outcome = "emailed" | "email_failed" | "failed";
@@ -521,7 +522,7 @@ async function activateOne(repo: Repo, event: EventRecord, pass: Pass, deps: Imp
 
   await repo.updatePass(pass.id, { account, status: "active", txHash, chainNumber });
   await repo.grantTicketBenefits(pass.id);
-  const url = passUrl(pass.id, getOrCreateAccessKey(pass.id), deps.lang, deps.origin);
+  const url = passUrl(pass.id, await getOrCreateAccessKey(pass.id), deps.lang, deps.origin);
   try {
     await deps.mailer.send(buildImportedEmail({ event, person, ticketType, url, lang: deps.lang }));
     return "emailed";

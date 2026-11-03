@@ -36,7 +36,7 @@ export async function POST(request: NextRequest, { params }: Context) {
   }
   // Un stand de otro evento no se toca con la clave de este.
   const standId = typeof body.standId === "string" ? body.standId : "";
-  const own = () => getStand(standId)?.eventId === event.id;
+  const own = async () => (await getStand(standId))?.eventId === event.id;
 
   try {
     switch (body.action) {
@@ -45,12 +45,12 @@ export async function POST(request: NextRequest, { params }: Context) {
         await ensureStationCodes(event);
         break;
       case "update":
-        if (!own()) return NextResponse.json({ error: "not_found" }, { status: 404 });
+        if (!(await own())) return NextResponse.json({ error: "not_found" }, { status: 404 });
         await updateStand(standId, { name: body.name, logoUrl: body.logoUrl, benefitId: body.benefitId });
         break;
       case "delete":
-        if (!own()) return NextResponse.json({ error: "not_found" }, { status: 404 });
-        deleteStand(standId);
+        if (!(await own())) return NextResponse.json({ error: "not_found" }, { status: 404 });
+        await deleteStand(standId);
         // Con un stand menos la meta efectiva puede bajar: quien ya la cumple recibe el premio.
         await grantRoutePrizes(event.id);
         break;

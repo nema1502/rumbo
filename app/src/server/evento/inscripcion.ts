@@ -127,7 +127,7 @@ async function findOrCreatePass(repo: Repo, event: EventRecord, person: Person, 
 }
 
 async function sendPassEmail(args: { event: EventRecord; person: Person; pass: Pass; ticketType: TicketType; lang: Lang; origin?: string | null }): Promise<string> {
-  const url = passUrl(args.pass.id, getOrCreateAccessKey(args.pass.id), args.lang, args.origin);
+  const url = passUrl(args.pass.id, await getOrCreateAccessKey(args.pass.id), args.lang, args.origin);
   try {
     await getMailer().send(buildPassEmail({ event: args.event, person: args.person, ticketType: args.ticketType, url, lang: args.lang }));
   } catch (error) {
@@ -156,8 +156,8 @@ export async function registerForEvent(input: RegistrationInput): Promise<Regist
   // correo nuevo o conocido (así el freno tampoco dice cuál es cuál).
   const attempts = registrationAttempts();
   const requester = input.clientKey ?? "local";
-  if (attempts.blockedFor(requester) > 0) return { kind: "failed", reason: "too_many", detail: "demasiados pedidos seguidos" };
-  attempts.note(requester);
+  if ((await attempts.blockedFor(requester)) > 0) return { kind: "failed", reason: "too_many", detail: "demasiados pedidos seguidos" };
+  await attempts.note(requester);
 
   // Quien ya tiene su credencial recibe el enlace de nuevo por correo, y nada más: la pantalla no se la
   // muestra a quien escriba el correo de otra persona. El enlace se reenvía una vez cada diez minutos por
@@ -168,8 +168,8 @@ export async function registerForEvent(input: RegistrationInput): Promise<Regist
     const existingTicket = (await repo.getTicketType(existingPass.ticketTypeId)) ?? ticketType;
     const resend = linkResendAttempts();
     const resendKey = `${event.id}:${known.id}`;
-    if (resend.blockedFor(resendKey) === 0) {
-      resend.note(resendKey);
+    if ((await resend.blockedFor(resendKey)) === 0) {
+      await resend.note(resendKey);
       await sendPassEmail({ event, person: known, pass: existingPass, ticketType: existingTicket, lang: input.lang, origin: input.origin });
     }
     return { kind: "existing", pass: existingPass, person: known, event, ticketType: existingTicket };
@@ -222,7 +222,7 @@ export async function registerForEvent(input: RegistrationInput): Promise<Regist
   // le cambia (arriba): si no, cualquiera que escriba su correo podría marcarla por otra persona.
   pass = await repo.updatePass(pass.id, { account, status: "active", txHash, chainNumber, contactConsent: input.contactConsent === true });
   await repo.grantTicketBenefits(pass.id);
-  const accessKey = getOrCreateAccessKey(pass.id);
+  const accessKey = await getOrCreateAccessKey(pass.id);
   const url = await sendPassEmail({ event, person, pass, ticketType, lang: input.lang, origin: input.origin });
   return { kind: "created", pass, person, event, ticketType, accessKey, url, paid, txHash, chainNumber };
 }
