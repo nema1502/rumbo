@@ -171,7 +171,7 @@ export function PanelCliente({ slug, initial }: { slug: string; initial: PanelSt
           <p className="chico">{t("panel.puestos.bajada")}</p>
           <ul className="puestos">
             {state.stations.map((station) => {
-              const puesto = station.kind === "gate" ? t("panel.puestos.puerta") : (station.benefitName ?? "");
+              const puesto = station.kind === "gate" ? t("panel.puestos.puerta") : station.kind === "stand" ? t("stands.escaner.titulo", { nombre: station.standName ?? "" }) : (station.benefitName ?? "");
               const codigo = formatStationCode(station.code);
               return (
                 <li key={station.code} className="puesto">
@@ -235,6 +235,12 @@ export function PanelCliente({ slug, initial }: { slug: string; initial: PanelSt
             </a>
             <BotonEnlace variante="secundario" className="boton-chico" href={`/admin/${slug}/informe`}>
               {t("panel.pases.informe")}
+            </BotonEnlace>
+            <BotonEnlace variante="secundario" className="boton-chico" href={`/admin/${slug}/stands`}>
+              {t("stands.admin.enlace")}
+            </BotonEnlace>
+            <BotonEnlace variante="secundario" className="boton-chico" href={`/vivo/${slug}`}>
+              {t("vivo.enlace")}
             </BotonEnlace>
           </div>
         </div>
