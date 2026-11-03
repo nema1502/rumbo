@@ -166,6 +166,9 @@ importers:
 
   .:
     dependencies:
+      '@noble/ed25519':
+        specifier: 3.2.0
+        version: 3.2.0
       '@stellar/stellar-sdk':
         specifier: 17.4.0
         version: 17.4.0(debug@4.4.3)

@@ -1,6 +1,6 @@
 # rumbo-pass
 
-El pase de un evento de Rumbo, en Stellar. Rust sobre Soroban (`soroban-sdk` 27), compilado y desplegado con `stellar-cli` 28.
+El pase de un evento de Rumbo, en Stellar. Rust sobre Soroban (`soroban-sdk` 28), compilado y desplegado con `stellar-cli` 28.
 
 Cada evento despliega su propio contrato con la configuración fija: quién organiza, la cuenta de Rumbo que recibe la comisión, la cuenta de puerta (el escáner de los voluntarios), el activo con el que se paga, el precio (0 si el evento es gratis), la comisión en puntos básicos, el cupo y cuántos beneficios canjeables hay. El beneficio 0 es el almuerzo.
 
@@ -77,7 +77,7 @@ Desde la raíz del repositorio, con Rust estable y el objetivo `wasm32v1-none`:
 
 ```bash
 cargo test --workspace     # 43 pruebas
-stellar contract build     # target/wasm32v1-none/release/rumbo_pass.wasm, 11,9 KB
+stellar contract build     # target/wasm32v1-none/release/rumbo_pass.wasm, 11,2 KB
 ```
 
 Las pruebas (`src/test.rs`) cubren cada función y cada error (también `NotConfigured`, borrando la configuración a mano, porque en la red el constructor siempre configura), el reparto exacto de la comisión con el activo de prueba del SDK (incluido el redondeo, la comisión cero, la comisión entera y el precio más alto), que si la segunda transferencia falla la primera se deshace (con un activo de prueba que se niega a pagarle la comisión a Rumbo: quien organiza no se queda con su parte y no hay pase), el cupo, el doble canje, la lista completa con mil cuentas y la entrada número mil con el presupuesto real, y quién tiene que firmar cada cosa: la compra solo la firma quien compra y cubre las dos transferencias; la entrada y el canje, solo la puerta (la persona no se marca a sí misma, ni con su firma). También que `extend_ttl` deja en 120 días la vida del pase, de la lista y de la instancia sin pedir firma, midiendo lo que le queda a cada entrada después de cien días sin movimiento.
@@ -104,17 +104,17 @@ Las compras, las inscripciones y las entradas las paga `rb-sponsor` (`--source r
 
 La corrida se puede repetir: las cuentas y el activo se reusan y cada vez se despliegan dos contratos nuevos. Por eso los saldos se miran antes y después.
 
-### El despliegue del 2 de noviembre de 2026
+### El despliegue del 3 de noviembre de 2026
 
 | Qué | Dónde |
 |---|---|
-| WASM (hash) | `a7806257421999959f6e9a77a3fe5c172fbc8c428b444ed277b822d7adfe248e` |
-| Evento pago | [`CCO44LIYFNPI7ABI53JNJKNV5ADEWTK32R4S2NMYYCV6I6YSPZVABLDN`](https://stellar.expert/explorer/testnet/contract/CCO44LIYFNPI7ABI53JNJKNV5ADEWTK32R4S2NMYYCV6I6YSPZVABLDN) |
-| Evento gratis | [`CCTZXEYBU2PDMF4RRJPQJ3ORJROXF2G47RKJMCHX76DQA3S2AX4YAN7Y`](https://stellar.expert/explorer/testnet/contract/CCTZXEYBU2PDMF4RRJPQJ3ORJROXF2G47RKJMCHX76DQA3S2AX4YAN7Y) |
+| WASM (hash) | `f0c0cd2d3461374b1395aad069a357e4f5fade55b9bcd3d913699abf2a3266e3` |
+| Evento pago | [`CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA`](https://stellar.expert/explorer/testnet/contract/CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA) |
+| Evento gratis | [`CCNYNDTANYGYGKSAI5JYI7N7WYX32554DQD72OFO5T4WAKVRMDTDWHJ6`](https://stellar.expert/explorer/testnet/contract/CCNYNDTANYGYGKSAI5JYI7N7WYX32554DQD72OFO5T4WAKVRMDTDWHJ6) |
 | USDC de prueba (emisor) | `GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL` |
 | USDC de prueba (contrato) | `CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ` |
 
-Es el contrato de ahora: la entrada la marca solo la puerta, el precio tiene tope y está `extend_ttl`. Tres compraron, dos entraron por la puerta (Beto quiso marcar su propia entrada y la red lo rechazó con `Error(Contract, #8)`), Ana canjeó su almuerzo y el segundo intento falló con `Error(Contract, #6)`, y `extend_ttl` sobre los cuatro de la corrida devolvió 3 (Dani no tiene pase en el evento pago). Quien organiza subió 29,25 USDC de prueba y Rumbo 0,75; el contrato quedó con 0. Los contratos de la corrida anterior (`CBGPZQGK...` y `CCP3TW6E...`) siguen en la red con el código viejo, que dejaba marcar la propia entrada: la app ya no los usa.
+Es el mismo contrato de antes (la entrada la marca solo la puerta, el precio tiene tope y está `extend_ttl`) recompilado con `soroban-sdk` 28: las 43 pruebas pasan igual y el WASM pesa 11,2 KB en vez de 11,9 KB. En la corrida tres compraron, dos entraron por la puerta (Beto quiso marcar su propia entrada y la red lo rechazó con `Error(Contract, #8)`), Ana canjeó su almuerzo y el segundo intento falló con `Error(Contract, #6)`, y `extend_ttl` sobre los cuatro de la corrida devolvió 3 (Dani no tiene pase en el evento pago). Quien organiza subió 29,25 USDC de prueba y Rumbo 0,75 en la corrida; el contrato quedó con 0. Los contratos de las corridas anteriores (`CCO44LIY...` y `CCTZXEYB...`, del 2 de noviembre, con `soroban-sdk` 27) siguen en la red; la app ya no los usa.
 
 ## Para la app
 

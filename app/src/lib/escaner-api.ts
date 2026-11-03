@@ -3,7 +3,7 @@
 //
 // El voluntario abre su puesto con red una vez, con el código que le dio quien organiza (uno por
 // puesto: la puerta, la mesa del almuerzo; los emite el panel, src/server/panel.ts). Recibe la
-// llave del evento (para verificar las credenciales), su puesto y la lista de pases con lo que trae
+// clave pública del evento (para verificar las credenciales), su puesto y la lista de pases con lo que trae
 // cada uno y lo que ya se usó. Después decide solo. Lo que registra va a una cola local
 // (src/lib/cola.ts) y, cuando hay red, a /api/scan/sync, que lo lleva al contrato con la cuenta de puerta.
 import type { QrVerification } from "./qr-codec.ts";
@@ -50,8 +50,8 @@ export interface ScanSnapshot {
   event: ScanEvent;
   /** El puesto que abre el código del voluntario. */
   station: ScanStation;
-  /** La llave del evento en base64url: con ella el escáner verifica cada credencial sin red. */
-  key: string;
+  /** La clave pública del evento en base64url: con ella el escáner verifica cada credencial sin red. La privada no sale del servidor. */
+  publicKey: string;
   passes: ScanPassInfo[];
   generatedAt: string;
 }
@@ -102,6 +102,49 @@ export interface SyncResponse {
 /** Cuántos registros manda el escáner por vez. Cada uno es una transacción en la red de prueba. */
 export const SYNC_BATCH_SIZE = 5;
 
+// ---------- La puerta, a mano ----------
+// Solo el código del puesto Puerta abre estas dos rutas (src/server/puerta.ts). Lo que se marca a mano va por
+// la cola de siempre; lo que lo distingue es el id del escáner.
+
+/** Lo que lleva adelante el id de escáner de una entrada marcada a mano en la puerta: "manual:puerta:<celular>". */
+export const MANUAL_SCANNER_PREFIX = "manual:puerta:";
+
+export function manualScannerId(deviceId: string): string {
+  return `${MANUAL_SCANNER_PREFIX}${deviceId}`.slice(0, 64);
+}
+
+export function isManualScannerId(scannerId: string | null | undefined): boolean {
+  return Boolean(scannerId?.startsWith(MANUAL_SCANNER_PREFIX));
+}
+
+/** Una persona encontrada en la puerta. El correo viene tapado ("a***@example.com"), nunca entero. */
+export interface DoorMatch {
+  passId: string;
+  name: string;
+  emailHint: string;
+  /** Cuándo entró, si ya entró. */
+  checkedInAt: string | null;
+  /** El nombre de su entrada. */
+  ticket: string;
+}
+
+export interface DoorSearchRequest extends OpenRequest {
+  query: string;
+}
+
+export interface DoorSearchResponse {
+  matches: DoorMatch[];
+}
+
+export interface DoorAddRequest extends OpenRequest {
+  name: string;
+  email: string;
+}
+
+export type DoorAddError = "invalid_name" | "invalid_email" | "no_free_ticket" | "sold_out" | "too_many" | "failed";
+
+export type DoorAddResponse = { kind: "added" | "existing"; match: DoorMatch } | { kind: "error"; error: DoorAddError };
+
 // ---------- El veredicto ----------
 
 /** Lo que el propio escáner registró de un pase y todavía puede no estar en el servidor. */
@@ -110,12 +153,18 @@ export interface LocalUsage {
   redeemed: Record<string, string>;
 }
 
-export type NoReason = "invalid" | "unknown" | "not_included" | "not_checked_in";
+export type NoReason = "invalid" | "expired" | "unknown" | "not_included" | "not_checked_in";
+
+/**
+ * Cómo se leyó la credencial, cuando no es la lectura de siempre del QR del celular: la impresa (el QR fijo,
+ * que vale siempre y se puede copiar) o marcada a mano en la puerta.
+ */
+export type ReadVia = "printed" | "manual";
 
 /** Los tres veredictos: verde (entró, canjeado), amarillo (ya entró, ya canjeado) y neutro (no corresponde). */
 export type Verdict =
-  | { kind: "ok"; action: ScanAction; passId: string; name: string | null }
-  | { kind: "already"; action: ScanAction; passId: string; name: string | null; at: string }
+  | { kind: "ok"; action: ScanAction; passId: string; name: string | null; via?: ReadVia }
+  | { kind: "already"; action: ScanAction; passId: string; name: string | null; at: string; via?: ReadVia }
   | { kind: "no"; reason: NoReason; passId: string | null; name: string | null };
 
 /**
@@ -132,20 +181,25 @@ export function decideVerdict(
   pass: ScanPassInfo | undefined,
   local: LocalUsage | undefined,
 ): Verdict {
-  if (!verification.ok) return { kind: "no", reason: "invalid", passId: null, name: null };
+  if (!verification.ok) {
+    // Un QR que venció (por ejemplo una captura de pantalla) es de alguien: se dice de quién.
+    if (verification.reason === "expired") return { kind: "no", reason: "expired", passId: verification.passId, name: pass?.name ?? null };
+    return { kind: "no", reason: "invalid", passId: null, name: null };
+  }
   const passId = verification.passId;
   const name = pass?.name ?? null;
   const checkedInAt = pass?.checkedInAt ?? local?.checkedInAt ?? null;
+  const via: { via?: ReadVia } = verification.via === "printed" ? { via: "printed" } : {};
 
   if (station.kind === "gate") {
-    if (checkedInAt) return { kind: "already", action: "checkin", passId, name, at: checkedInAt };
-    return { kind: "ok", action: "checkin", passId, name };
+    if (checkedInAt) return { kind: "already", action: "checkin", passId, name, at: checkedInAt, ...via };
+    return { kind: "ok", action: "checkin", passId, name, ...via };
   }
 
   if (!pass) return { kind: "no", reason: "unknown", passId, name: null };
   if (!pass.benefits.includes(station.id)) return { kind: "no", reason: "not_included", passId, name };
   if (!checkedInAt) return { kind: "no", reason: "not_checked_in", passId, name };
   const redeemedAt = pass.redeemed[station.id] ?? local?.redeemed[station.id] ?? null;
-  if (redeemedAt) return { kind: "already", action: "redeem", passId, name, at: redeemedAt };
-  return { kind: "ok", action: "redeem", passId, name };
+  if (redeemedAt) return { kind: "already", action: "redeem", passId, name, at: redeemedAt, ...via };
+  return { kind: "ok", action: "redeem", passId, name, ...via };
 }

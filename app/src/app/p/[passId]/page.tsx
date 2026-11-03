@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import "@/components/evento/evento.css";
 import { Credencial } from "@/components/evento/Credencial.tsx";
 import { getLang, getT } from "@/i18n/server.ts";
-import { renderQrSvg } from "@/lib/qr-svg.ts";
+import { QrRotante } from "@/components/evento/QrRotante.tsx";
 import { loadCredential } from "@/server/evento/credencial.ts";
 import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
 
@@ -29,7 +29,6 @@ export default async function PassPage({ params, searchParams }: { params: Param
   const lang = await getLang();
   const t = await getT();
   const when = formatEventWhen(lang, view.event);
-  const qrSvg = renderQrSvg(view.qrPayload, { cellSize: 4, margin: 2 });
   const download = `/api/pase/${encodeURIComponent(view.pass.id)}/svg?k=${encodeURIComponent(key)}&lang=${lang}`;
 
   return (
@@ -42,7 +41,7 @@ export default async function PassPage({ params, searchParams }: { params: Param
         </p>
       </header>
       <div className="pantalla-cuerpo">
-        <Credencial view={view} t={t} qrSvg={qrSvg} />
+        <Credencial view={view} t={t} qr={<QrRotante grant={view.live} />} />
         <p className="apagado chico credencial-ayuda">{t("evento.credencial.mostra")}</p>
       </div>
       <div className="pantalla-accion">

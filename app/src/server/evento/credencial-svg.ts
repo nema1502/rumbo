@@ -181,6 +181,7 @@ export function renderCredentialSvg(view: CredentialView, lang: Lang): string {
   ${text(left, MARGIN + BAND_H + 44, where, `font-family="${FONT_TEXT}" font-weight="500" font-size="12" fill="${COLOR.tinta2}"`)}
   <rect x="${qrX - 1}" y="${qrY - 1}" width="${QR_SIZE + 2}" height="${QR_SIZE + 2}" rx="12" fill="${COLOR.blanco}" stroke="${COLOR.linea}"/>
   <path d="${qrPath(view.qrPayload, qrX, qrY, QR_SIZE)}" fill="${COLOR.tinta}"/>
+  <text transform="translate(${qrX - 12} ${qrY + QR_SIZE / 2}) rotate(-90)" font-family="${FONT_TEXT}" font-weight="700" font-size="9.5" letter-spacing="1" text-anchor="middle" fill="${COLOR.apagado}">${escapeXml(t("evento.credencial.impresa").toUpperCase())}</text>
   ${nameText}
   ${text(center, ticketY, ticketLine, `font-family="${FONT_TEXT}" font-weight="600" font-size="12" text-anchor="middle" fill="${COLOR.tinta2}"`)}
   <line x1="${left}" y1="${dividerY}" x2="${right}" y2="${dividerY}" stroke="${COLOR.linea}"/>

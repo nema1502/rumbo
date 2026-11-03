@@ -5,7 +5,7 @@ resolver = "2"
 members = ["contracts/*"]
 
 [workspace.dependencies]
-soroban-sdk = "27.0.6"
+soroban-sdk = "28.0.0"
 
 # El perfil con el que se compila el WASM que se despliega: chico y sin símbolos,
 # con las comprobaciones de desborde encendidas.

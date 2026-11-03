@@ -1,8 +1,9 @@
 "use client";
 // El escáner del voluntario. Primero abre su puesto con el código que le dio quien organiza (hace
-// falta red una vez): baja la llave del evento, su puesto y los pases. Después lee credenciales con
+// falta red una vez): baja la clave pública del evento, su puesto y los pases. Después lee credenciales con
 // la cámara o a mano y decide en el momento, sin red: verifica la firma con WebCrypto y mira lo que
-// el servidor sabía y lo que este mismo escáner registró. Cada entrada o canje va a la cola local
+// el servidor sabía y lo que este mismo escáner registró. En el puesto Puerta, además, tiene el
+// respaldo manual (Manual.tsx): buscar a alguien y marcarle la entrada, o agregarlo. Cada entrada o canje va a la cola local
 // (src/lib/cola.ts) y, cuando hay red, a /api/scan/sync, que lo lleva al contrato.
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Aviso, Boton, Campo, Chip, Pantalla } from "@/components/ui.tsx";
@@ -18,11 +19,23 @@ import {
   type QueueEntry,
   type ScanSession,
 } from "@/lib/cola.ts";
-import { SYNC_BATCH_SIZE, decideVerdict, type ScanSnapshot, type ScanStation, type SyncResponse, type Verdict } from "@/lib/escaner-api.ts";
+import {
+  SYNC_BATCH_SIZE,
+  decideVerdict,
+  manualScannerId,
+  type DoorMatch,
+  type LocalUsage,
+  type ScanSnapshot,
+  type ScanStation,
+  type SyncResponse,
+  type Verdict,
+} from "@/lib/escaner-api.ts";
 import { OPEN_TIMEOUT_MS, READ_REFRESH_TIMEOUT_MS, SYNC_TIMEOUT_MS, postJson } from "@/lib/http.ts";
-import { importQrKey, verifyQrPayloadInBrowser } from "@/lib/qr-verify.ts";
+import { clockOffset } from "@/lib/qr-live.ts";
+import { importEventKey, verifyQrPayloadInBrowser } from "@/lib/qr-verify.ts";
 import { STATION_CODE_LENGTH, normalizeStationCode } from "@/lib/station-code.ts";
 import { Camara, type CameraProblem } from "./Camara.tsx";
+import { Manual } from "./Manual.tsx";
 import { Veredicto } from "./Veredicto.tsx";
 
 const SCANNER_ID_KEY = "rumbo.escaner";
@@ -102,10 +115,12 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
   const [modoTexto, setModoTexto] = useState(false);
   const [textoCredencial, setTextoCredencial] = useState("");
   const [camara, setCamara] = useState<"ok" | CameraProblem>("ok");
+  const [puertaManual, setPuertaManual] = useState(false);
+  const [usoLocal, setUsoLocal] = useState<Map<string, LocalUsage>>(new Map());
 
   const colaRef = useRef<ColaLocal | null>(null);
   const sesionRef = useRef<ScanSession | null>(null);
-  const claveRef = useRef<CryptoKey | null>(null);
+  const claveRef = useRef<Uint8Array | null>(null);
   const enLineaRef = useRef(true);
   const sincronizandoRef = useRef(false);
   const procesandoRef = useRef(false);
@@ -123,12 +138,20 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
     setConteo(await c.counts(s.snapshot.event.id));
   }, []);
 
+  /** false si la sesión no sirve: una guardada por la versión anterior no trae la clave pública del evento. */
   const adoptarSesion = useCallback(
-    async (nueva: ScanSession) => {
+    async (nueva: ScanSession): Promise<boolean> => {
+      let clave: Uint8Array;
+      try {
+        clave = importEventKey(nueva.snapshot.publicKey);
+      } catch {
+        return false;
+      }
+      claveRef.current = clave;
       sesionRef.current = nueva;
       setSesion(nueva);
-      claveRef.current = await importQrKey(nueva.snapshot.key);
       await refrescarLocal();
+      return true;
     },
     [refrescarLocal],
   );
@@ -136,7 +159,8 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
   const actualizarSnapshot = useCallback(async (snapshot: ScanSnapshot) => {
     const s = sesionRef.current;
     if (!s) return;
-    const nueva: ScanSession = { ...s, snapshot, savedAt: new Date().toISOString() };
+    // La foto acaba de llegar del servidor: su hora sirve para corregir un reloj desfasado.
+    const nueva: ScanSession = { ...s, snapshot, savedAt: new Date().toISOString(), clockOffsetMs: clockOffset(Date.parse(snapshot.generatedAt), Date.now()) };
     sesionRef.current = nueva;
     setSesion(nueva);
     await colaRef.current?.saveSession(nueva);
@@ -238,10 +262,10 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
       colaRef.current = c;
       setCola(c);
       const guardada = await c.getSession();
-      if (guardada) {
-        await adoptarSesion(guardada);
+      if (guardada && (await adoptarSesion(guardada))) {
         setFase("escanear");
       } else {
+        if (guardada) await c.clearSession();
         setFase("elegir");
       }
     })();
@@ -280,9 +304,15 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
       if (status === 401) return setErrorAbrir(t("escaner.codigoMal"));
       if (status === 429) return setErrorAbrir(t("escaner.demasiadosIntentos"));
       if (!data || status !== 200) return setErrorAbrir(t("escaner.errorRed"));
-      const nueva: ScanSession = { code, scannerId: deviceId(), snapshot: data, savedAt: new Date().toISOString() };
+      const nueva: ScanSession = {
+        code,
+        scannerId: deviceId(),
+        snapshot: data,
+        savedAt: new Date().toISOString(),
+        clockOffsetMs: clockOffset(Date.parse(data.generatedAt), Date.now()),
+      };
       await colaRef.current?.saveSession(nueva);
-      await adoptarSesion(nueva);
+      if (!(await adoptarSesion(nueva))) return setErrorAbrir(t("escaner.errorRed"));
       ultimoRefreshRef.current = Date.now();
       setSesionInvalida(false);
       setFase("escanear");
@@ -305,6 +335,7 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
     setSesion(null);
     setConteo(EMPTY_COUNTS);
     setVeredicto(null);
+    setPuertaManual(false);
     setSesionInvalida(false);
     setCodigo("");
     setFase("elegir");
@@ -327,9 +358,12 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
       ultimaLecturaRef.current = { texto: limpio, at: ahora };
       procesandoRef.current = true;
       try {
-        const verification = await verifyQrPayloadInBrowser(limpio, key);
+        // La hora del servidor, si este celular tiene la suya desfasada: el QR que rota vale por su ventana de tiempo.
+        const verification = await verifyQrPayloadInBrowser(limpio, key, Date.now() + (s.clockOffsetMs ?? 0));
         let snapshot = s.snapshot;
-        let pass = verification.ok ? snapshot.passes.find((p) => p.id === verification.passId) : undefined;
+        // El pase de quien es el QR; también el de uno vencido, para decir de quién es.
+        const deQuien = verification.ok || verification.reason === "expired" ? verification.passId : null;
+        let pass = deQuien ? snapshot.passes.find((p) => p.id === deQuien) : undefined;
         if (verification.ok && !pass && enLineaRef.current) {
           // Un pase que no estaba al abrir el puesto: con red, se pide la foto fresca una vez, con poco
           // tiempo de espera. Si no llega, se decide con lo que hay (en la puerta alcanza la firma).
@@ -373,6 +407,53 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
   );
 
   const cerrarVeredicto = useCallback(() => setVeredicto(null), []);
+
+  /** El respaldo manual: antes de abrirlo se mira lo que ya registró este celular, para no volver a marcar a quien ya entró. */
+  async function abrirManual() {
+    const s = sesionRef.current;
+    if (s && colaRef.current) setUsoLocal(await colaRef.current.usage(s.snapshot.event.id));
+    setPuertaManual(true);
+  }
+
+  /**
+   * Marca la entrada de alguien a mano, desde el buscador de la puerta: entra a la misma cola que una lectura
+   * (con el id de escáner "manual:puerta:<celular>", que la deja marcada como manual en el espejo) y se
+   * sincroniza igual. Quien ya había entrado no se marca otra vez.
+   */
+  const marcarAMano = useCallback(
+    async (match: DoorMatch) => {
+      const s = sesionRef.current;
+      const c = colaRef.current;
+      if (!s || !c || s.snapshot.station.kind !== "gate") return;
+      const snapshot = s.snapshot;
+      const pass = snapshot.passes.find((p) => p.id === match.passId);
+      const local = (await c.usage(snapshot.event.id)).get(match.passId);
+      const entro = match.checkedInAt ?? pass?.checkedInAt ?? local?.checkedInAt ?? null;
+      const name = match.name || pass?.name || null;
+      setPuertaManual(false);
+      if (entro) {
+        vibrar("already");
+        setVeredicto({ kind: "already", action: "checkin", passId: match.passId, name, at: entro });
+        return;
+      }
+      await c.add(
+        nuevaEntrada({
+          eventId: snapshot.event.id,
+          stationId: snapshot.station.id,
+          code: s.code,
+          action: "checkin",
+          passId: match.passId,
+          benefitId: null,
+          scannerId: manualScannerId(s.scannerId),
+        }),
+      );
+      await refrescarLocal();
+      setTimeout(() => void sincronizar(), 250);
+      vibrar("ok");
+      setVeredicto({ kind: "ok", action: "checkin", passId: match.passId, name, via: "manual" });
+    },
+    [refrescarLocal, sincronizar],
+  );
 
   function enviarTexto(event: FormEvent) {
     event.preventDefault();
@@ -458,7 +539,16 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
             </button>
           </Aviso>
         )}
-        {escribiendo ? (
+        {puertaManual && puesto.kind === "gate" ? (
+          <Manual
+            code={sesion.code}
+            enLinea={puedeSincronizar && !fallaRed}
+            snapshot={snapshot}
+            local={usoLocal}
+            onMarcar={(match) => void marcarAMano(match)}
+            onVolver={() => setPuertaManual(false)}
+          />
+        ) : escribiendo ? (
           <form className="esc-texto" onSubmit={enviarTexto}>
             {sinCamara && <Aviso tono="alerta">{t(camara === "permiso" ? "escaner.camaraPermiso" : "escaner.camaraNo")}</Aviso>}
             <Campo
@@ -483,7 +573,12 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
           </>
         )}
 
-        <div className="esc-acciones">
+        <div className="esc-acciones" style={puertaManual ? { display: "none" } : undefined}>
+          {puesto.kind === "gate" && (
+            <Boton variante="secundario" onClick={() => void abrirManual()}>
+              {t("escaner.puerta.abrir")}
+            </Boton>
+          )}
           {!sinCamara && (
             <Boton variante="secundario" onClick={() => setModoTexto((m) => !m)}>
               {modoTexto ? t("escaner.usarCamara") : t("escaner.escribir")}

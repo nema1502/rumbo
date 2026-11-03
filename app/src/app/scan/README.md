@@ -4,14 +4,23 @@ La página `/scan`: el voluntario escribe el código de su puesto (la puerta, la
 
 ## Cómo decide sin red
 
-Al abrir el puesto, con red, el escáner baja la foto del evento (`POST /api/scan/open`): su puesto, la llave del evento y cada pase activo con el nombre, los beneficios que trae, si ya entró y qué ya canjeó. Con eso decide solo:
+Al abrir el puesto, con red, el escáner baja la foto del evento (`POST /api/scan/open`): su puesto, la clave pública del evento (la privada no sale del servidor) y cada pase activo con el nombre, los beneficios que trae, si ya entró y qué ya canjeó. Con eso decide solo:
 
-1. Verifica la firma del QR con WebCrypto (`src/lib/qr-verify.ts`). Si no cierra, no corresponde: la credencial no es de este evento.
+1. Verifica la firma del QR (Ed25519, con WebCrypto o, si el navegador no lo sabe, `@noble/ed25519`; `src/lib/qr-verify.ts`). Si no cierra, no corresponde: la credencial no es de este evento. El QR del celular rota cada 20 segundos: se acepta la ventana de tiempo actual, la anterior y la siguiente, con la hora corregida por la del servidor si este celular la tiene desfasada; uno más viejo (una captura de pantalla) da "este QR venció", con el nombre de quien es. La credencial impresa lleva un QR fijo, que se acepta pero se muestra con la etiqueta "Credencial impresa".
 2. Mira el pase en la foto y en su propia cola (lo que este mismo escáner registró y todavía no subió).
-3. En la puerta: si ya entró, amarillo; si no, verde y a la cola. Una credencial auténtica de un pase que no estaba en la foto entra igual: la firma prueba que es del evento y el servidor la revisa al sincronizar.
+3. En la puerta: si ya entró, amarillo; si no, verde y a la cola. Una credencial auténtica de un pase que no estaba en la foto entra igual: la firma (con el certificado del pase) prueba que es del evento y el servidor la revisa al sincronizar.
 4. En una mesa de canje: si la entrada no incluye el beneficio, o la persona todavía no pasó por la puerta, no corresponde; si ya lo canjeó, amarillo; si no, verde y a la cola. Un pase que no está en la foto no se canjea sin red (no se sabe qué trae); con red, el escáner pide la foto fresca y vuelve a decidir.
 
 La regla está en `decideVerdict`, en `src/lib/escaner-api.ts`, sin dependencias, para poder probarla sola.
+
+## El respaldo manual de la puerta
+
+Solo en el puesto Puerta (con el código de un puesto de mesa, el botón no aparece y el servidor contesta 403). El botón "Buscar o agregar a alguien" abre dos cosas, en `src/components/escaner/Manual.tsx`:
+
+- **Buscar** por nombre o correo, con tres letras como mínimo (`POST /api/scan/buscar`): muestra hasta ocho personas con el correo tapado, y "Marcar la entrada" para quien todavía no entró (o "Entró a las 09:12" para quien sí). Marcar la entrada no pide red: entra a la misma cola que una lectura, con el id de escáner `manual:puerta:<celular>`, y se ve en verde con la etiqueta "Marcada a mano". En el espejo queda como entrada manual, con su puesto y su hora. Sin red, el buscador sigue, pero solo por nombre y con la lista que ya bajó el celular.
+- **Agregar en la puerta** (`POST /api/scan/agregar`): nombre y correo, e inscripción gratis en el momento, con la misma inscripción de siempre (la credencial le llega al correo), y la entrada queda marcada. Pide red y tarda unos segundos, porque crea la cuenta y la inscribe en el contrato. Quien ya estaba inscripto con ese correo vuelve igual, para marcarle la entrada.
+
+Lo que hace el servidor está en `src/server/puerta.ts`.
 
 ## La cola y la sincronización
 
@@ -46,6 +55,8 @@ Contra quien prueba códigos a la fuerza (`src/server/limites.ts`): los equivoca
 |---|---|---|
 | `POST /api/scan/open` | `{ code }` | La foto del evento (`ScanSnapshot`, con el puesto), o 401 si el código no es de ningún puesto |
 | `POST /api/scan/sync` | `{ code, items: ScanItem[] }` (hasta 20) | `{ results: ScanItemResult[], snapshot }` |
+| `POST /api/scan/buscar` | `{ code, query }`, solo con el código de la Puerta | `{ matches: DoorMatch[] }` (hasta 8), o 403 |
+| `POST /api/scan/agregar` | `{ code, name, email }`, solo con el código de la Puerta | `{ kind: "added" \| "existing", match }`, o `{ kind: "error", error }` |
 
 Las formas están en `src/lib/escaner-api.ts`.
 
@@ -57,10 +68,11 @@ Con el servidor levantado y el evento de muestra creado (`pnpm seed`):
 node scripts/prueba-escaner.mjs --base http://localhost:3000
 ```
 
-Crea tres pases en la red de prueba (una inscripción gratis, una entrada con almuerzo y una persona que ya entró en el contrato sin pasar por la app), abre `/scan` en Chrome sin interfaz con el código de la puerta, escribe las credenciales a mano, corta la red (también la del service worker), vuelve a abrir la página sin red, la restablece, abre la mesa del almuerzo con su código y comprueba en la cadena con `status()` que la entrada y el canje quedaron, y en la base que el doble quedó marcado. Deja capturas de las tres pantallas en 1440x900, 973x700 y 390x844.
+Crea cinco pases en la red de prueba (una inscripción gratis, una entrada con almuerzo, una persona que ya entró en el contrato sin pasar por la app, una que entra sin red y una que se marca a mano), abre `/scan` en Chrome sin interfaz con el código de la puerta, escribe a mano los QR (el del celular, armado en el momento con lo que recibe la credencial, y el de la credencial impresa, con su etiqueta; uno de hace un minuto, que da "venció"), corta la red (también la del service worker), vuelve a abrir la página sin red, la restablece, abre la mesa del almuerzo con su código y comprueba en la cadena con `status()` que la entrada y el canje quedaron, y en la base que el doble quedó marcado. Prueba también el respaldo de la puerta: el buscador (con tres letras, en mayúsculas, con el correo tapado, sin red), la entrada marcada a mano y la persona agregada en el momento, y que en la mesa del almuerzo el buscador no aparece. Deja capturas de las tres pantallas en 1440x900, 973x700 y 390x844.
 
 ## Lo que falta
 
 - Un voluntario con dos puestos cierra uno y abre el otro con su código: no hay cambio rápido.
 - El informe de los dobles y los rechazados es del panel: acá quedan contados en la página y marcados en el espejo.
+- Una entrada marcada a mano por error no se deshace desde el escáner: el contrato no tiene cómo borrar una entrada. Queda en el espejo con su id `manual:puerta:<celular>` para que quien organiza la revise.
 - La cámara necesita HTTPS (o localhost). En celular, con la página servida por Vercel, alcanza.

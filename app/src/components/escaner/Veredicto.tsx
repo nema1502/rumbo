@@ -69,6 +69,8 @@ export function Veredicto({ veredicto, puesto, timezone, onCerrar }: Props) {
           : null;
 
   const nombre = veredicto.name || (veredicto.passId ? t("escaner.sinNombre", { id: veredicto.passId }) : null);
+  // Cómo se leyó, si no fue el QR del celular: la credencial impresa (que se puede copiar) o marcada a mano.
+  const via = veredicto.kind !== "no" && veredicto.via ? t(`escaner.via.${veredicto.via}`) : null;
 
   return (
     <div className={`esc-veredicto esc-veredicto-${veredicto.kind}`} role="dialog" aria-modal="true" aria-live="assertive" onClick={onCerrar}>
@@ -77,6 +79,7 @@ export function Veredicto({ veredicto, puesto, timezone, onCerrar }: Props) {
         <h2 className="esc-veredicto-titulo">{titulo}</h2>
         {nombre && <p className="esc-veredicto-nombre">{nombre}</p>}
         {detalle && <p className="esc-veredicto-detalle">{detalle}</p>}
+        {via && <p className="esc-veredicto-via">{via}</p>}
       </div>
       <button type="button" className="esc-veredicto-boton" onClick={onCerrar}>
         {t("escaner.siguiente")}

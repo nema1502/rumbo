@@ -81,7 +81,8 @@ if (benefits.length === 0) {
 
 if (process.argv.includes("--demo")) {
   const { getAccountProvider } = await import("../src/server/accounts.ts");
-  const { buildQrPayload } = await import("../src/server/qr.ts");
+  const { buildPrintedPayload } = await import("../src/server/qr.ts");
+  const { getEventQrKeys } = await import("../src/server/qr-keys.ts");
   const { rumboPass, isContractError } = await import("../src/server/stellar.ts");
 
   const person = await repo.upsertPerson({ name: "Ana Quiroga", email: "ana@example.com" });
@@ -112,8 +113,8 @@ if (process.argv.includes("--demo")) {
     }
     pass = await repo.updatePass(pass.id, { account, status: "active", txHash, chainNumber });
   }
-  const qr = buildQrPayload(pass.id, await repo.getEventQrKey(event.id));
-  console.log(`Persona de ejemplo: ${person.name} <${person.email}>\n  Pase: ${pass.id}  Cuenta: ${account}\n  QR: ${qr}`);
+  const qr = buildPrintedPayload(pass.id, getEventQrKeys(event.id));
+  console.log(`Persona de ejemplo: ${person.name} <${person.email}>\n  Pase: ${pass.id}  Cuenta: ${account}\n  QR de la credencial impresa: ${qr}`);
 }
 
 const base = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";

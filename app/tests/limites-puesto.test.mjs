@@ -108,14 +108,22 @@ test("la migración borra los códigos de ocho letras, y el panel crea los de do
   for (const f of todas.filter((f) => f < "005")) copyFileSync(join(APP_DIR, "src", "server", "migrations", f), join(viejas, f));
   const archivo = join(mkdtempSync(join(tmpdir(), "rumbo-base-")), "rumbo.db");
   process.env.RUMBO_MIGRATIONS_DIR = viejas;
-  const antes = new SqliteRepo(archivo);
-  const evento = await antes.createEvent({ slug: "viejo", name: "Viejo", startsAt: "2026-11-22T09:00:00-04:00", place: "Santa Cruz", organizerName: "La comunidad" });
+  new SqliteRepo(archivo);
   const { DatabaseSync } = await import("node:sqlite");
   const db = new DatabaseSync(archivo);
+  // el evento, como lo guardaba la base de entonces (con su llave compartida de los QR, que hoy ya no existe)
+  const evento = { id: "evento-viejo" };
+  db.prepare(
+    "INSERT INTO events (id, slug, name, starts_at, place, organizer_name, qr_key, created_at) VALUES (?, 'viejo', 'Viejo', '2026-11-22T09:00:00-04:00', 'Santa Cruz', 'La comunidad', x'0102', ?)",
+  ).run(evento.id, new Date().toISOString());
   db.prepare("INSERT INTO station_codes (code, event_id, kind, benefit_id, created_at) VALUES (?, ?, 'gate', NULL, ?)").run("ABCDEFGH", evento.id, new Date().toISOString());
   // ahora con todas las migraciones
   delete process.env.RUMBO_MIGRATIONS_DIR;
-  new SqliteRepo(archivo);
+  const despues = new SqliteRepo(archivo);
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM station_codes").get().n, 0);
+  // la migración de las llaves de los QR (006) borra la llave compartida y conserva el evento
+  assert.ok(!db.prepare("PRAGMA table_info(events)").all().some((c) => c.name === "qr_key"));
+  assert.equal((await despues.getEventBySlug("viejo"))?.id, evento.id);
+  assert.ok(db.prepare("SELECT 1 FROM sqlite_master WHERE name = 'event_qr_keys'").get());
   db.close();
 });

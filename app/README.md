@@ -48,8 +48,8 @@ Nada de `data/` ni de `.env.local` se versiona.
 | `/e/<evento>` | El afiche y las entradas, cada una con su único botón |
 | `/e/<evento>/inscripcion?entrada=<id>` | Nombre y correo, y una sola acción: "Confirmar inscripción" o "Pagar 10 USDC de prueba" |
 | `/e/<evento>/listo?pase=<id>&k=<clave>` | "Inscripción lista" o "Entrada paga", y el enlace a la credencial |
-| `/p/<pase>?k=<clave>` | La credencial: el QR, el nombre, "Credencial N de M", el estado y lo que le toca a la persona. "Descargar en SVG" baja la versión para imprimir |
-| `/scan` | El escáner del voluntario: el código del puesto, la cámara, los tres veredictos, la cola local. Instalable, funciona sin red |
+| `/p/<pase>?k=<clave>` | La credencial: el QR que se renueva solo cada 20 segundos (también sin conexión), el nombre, "Credencial N de M", el estado y lo que le toca a la persona. "Descargar en SVG" baja la versión para imprimir, con un QR fijo marcado como impresa |
+| `/scan` | El escáner del voluntario: el código del puesto, la cámara, los tres veredictos, la cola local. Instalable, funciona sin red. En la puerta, además, el respaldo manual: buscar a alguien por nombre o correo, marcarle la entrada o agregarlo |
 | `/admin/<evento>` | El panel de quien organiza: contadores en vivo, códigos de puesto, pases, dobles, CSV y el contraste con la cadena |
 | `/admin/<evento>/informe` | El informe para quien auspicia: números, nunca personas, con hoja de impresión |
 
@@ -61,6 +61,8 @@ Cada parte tiene su guía: [la inscripción y la credencial](src/server/evento/R
 | `POST /api/evento/<evento>/inscripcion` | Inscribe o cobra, igual que el formulario |
 | `GET /api/pase/<pase>?k=<clave>` y `/svg` | La credencial como datos, y para imprimir |
 | `POST /api/scan/open` y `/api/scan/sync` | El escáner: abrir el puesto con su código, y subir la cola |
+| `POST /api/scan/buscar` y `/api/scan/agregar` | El respaldo de la puerta (solo con el código del puesto Puerta): buscar por nombre o correo, e inscribir gratis a quien llegó sin credencial |
+| `GET /api/hora` | La hora del servidor, para que una credencial con el reloj desfasado arme el QR de la ventana que corresponde |
 | `GET /api/admin/<evento>` y `/csv`, `POST .../cadena`, `.../entrar`, `.../salir` | El panel: el estado en JSON, la lista en CSV, el contraste con la cadena y la sesión |
 
 ## Probarlo
@@ -86,11 +88,11 @@ src/app/api/        las rutas de la API: evento, pase, scan, admin
 src/app/globals.css los tokens de la marca (día y noche) y los componentes base
 src/components/     Marca, SelectorIdioma, BotonTema, ui.tsx (Boton, BotonEnlace, Tarjeta, Chip, Campo, Pantalla, Aviso) y los de cada área: evento/, escaner/, panel/
 src/i18n/           los diccionarios por área (comun, evento, escaner, panel) y el helper t(clave)
-src/server/         lo que corre solo en el servidor: repo, accounts, stellar, mailer, qr, env, evento/, escaner, panel
-src/lib/            lo que comparten servidor y navegador: la forma del QR y su verificación, el veredicto del escáner, la cola local, los códigos de puesto
+src/server/         lo que corre solo en el servidor: repo, accounts, stellar, mailer, qr, qr-keys, env, evento/, escaner, puerta, panel
+src/lib/            lo que comparten servidor y navegador: la forma del QR, Ed25519 y la verificación, el QR que rota, el veredicto del escáner, la cola local, la búsqueda, los códigos de puesto
 public/             el service worker del escáner (sw.js) y su manifiesto
 scripts/            setup-dev, seed, e2e-testnet, capturas, las pruebas de cada área y lib/ (env, browser)
-tests/              las pruebas sin red (pnpm test): el CSV, los frenos, el escáner y su cola, los errores, los textos; lib/ arma una base vacía por archivo
+tests/              las pruebas sin red (pnpm test): el CSV, los frenos, el escáner y su cola, la firma del QR y su ventana de tiempo, el respaldo de la puerta, el envío de transacciones, los errores, los textos; lib/ arma una base vacía por archivo
 demo/               la transcripción del flujo entero en la red de prueba
 ```
 
@@ -106,9 +108,9 @@ Cada área tiene su diccionario en `src/i18n/`: `comun.ts` (lo general), `evento
 
 ### Los datos: `src/server/repo.ts`
 
-`Repo` es la interfaz; `getRepo()` da la instancia (`SqliteRepo` hoy, `SupabaseRepo` es un esqueleto). Las tablas están en `src/server/migrations/` (`001-inicial.sql` lo general, `002-acceso-credencial.sql` las claves de acceso de las credenciales, `003-panel.sql` las del panel); las migraciones se aplican solas al abrir la base.
+`Repo` es la interfaz; `getRepo()` da la instancia (`SqliteRepo` hoy, `SupabaseRepo` es un esqueleto). Las tablas están en `src/server/migrations/` (`001-inicial.sql` lo general, `002-acceso-credencial.sql` las claves de acceso de las credenciales, `003-panel.sql` las del panel, `006-llaves-ed25519.sql` las llaves con las que se firman los QR); las migraciones se aplican solas al abrir la base.
 
-- **Eventos**, con su llave para firmar los QR (`getEventQrKey`, nunca al navegador de quien asiste).
+- **Eventos.** Las llaves con las que se firman sus QR no están acá sino en `event_qr_keys` (`src/server/qr-keys.ts`): una llave privada por evento que no sale del servidor, y su clave pública, que es lo único que recibe el escáner.
 - **Tipos de entrada**: cada uno con su precio en USDC de prueba y su contrato en la red (el precio es fijo por contrato: el evento de muestra tiene uno gratis y uno pago).
 - **Beneficios**: el catálogo del evento, y qué trae cada tipo de entrada con el número con que se canjea en su contrato (`linkBenefit`, `listTicketTypeBenefits`).
 - **Personas** (nombre y correo, nunca en la cadena), **pases** (id de ocho letras y números, cuenta, estado `pending`, `active` o `checked_in`, la transacción y el número de pase del contrato) y los beneficios de cada pase.
@@ -126,15 +128,24 @@ Cada área tiene su diccionario en `src/i18n/`: `comun.ts` (lo general), `evento
 - `readDeployInfo()` lee `contracts/rumbo-pass/deploy/testnet.json`: el activo de prueba, las cuentas y los contratos desplegados (`events.free`, `events.paid`). `getTestAsset()` da el USDC de prueba; `resolveContractId("free" | "paid")` el contrato de muestra.
 - `rumboPass`: `register(contractId, attendee, signer)`, `buy(contractId, buyer, signer)`, `checkIn(contractId, attendee)` (lo marca la puerta, y solo la puerta), `redeem(contractId, attendee, benefit)`, `extendTtl(contractId, holders)` (mantiene vivos el evento y los pases antes de un evento que abrió con meses de anticipación), `status(contractId, who)`, `attendees(contractId)` e `info(contractId)`. Las dos primeras las firma la persona (`AuthSigner`, de `accounts.authSigner(personId)` o `keypairSigner(keypair)`), la paga el servidor; las dos siguientes las firma la puerta.
 - Los errores del contrato llegan como `ContractError`, con `code` y `errorName` (`AlreadyCheckedIn`, `AlreadyRedeemed`, `NotCheckedIn`...). `isContractError(error, "AlreadyRedeemed")` y `isAlreadyDone(error)` son los que marcan "doble" en el espejo.
-- `submitSponsored(tx, signers)` es la pieza de abajo: simula, firma las autorizaciones, arma la transacción con la comisión de la simulación, la firma con la patrocinadora y espera el resultado. Todo lo que manda la patrocinadora pasa por `withSponsorLock`, de a una, porque comparten el número de secuencia. El SDK de Stellar queda fuera del bundle del servidor (`serverExternalPackages` en `next.config.ts`): adentro se duplicaban los tipos XDR y firmar una autorización fallaba.
+- `submitSponsored(tx, signers)` es la pieza de abajo: simula, firma las autorizaciones, arma la transacción con la comisión de la simulación, la firma con la patrocinadora y espera el resultado. Mandar y esperar es `sendAndWait`, que trata lo que contesta el nodo como corresponde: `DUPLICATE` es "ya está en camino" (se sigue esperando el resultado por su hash, no es un error) y `TRY_AGAIN_LATER` es "ocupado, reintentá después" (se vuelve a mandar la misma transacción con espera de 1, 2, 4, 8 y 8 segundos y, si sigue ocupado, queda como un error sin código de contrato que el escáner deja pendiente, sin esperar a una transacción que nunca entró). Todo lo que manda la patrocinadora pasa por `withSponsorLock`, de a una, porque comparten el número de secuencia. El SDK de Stellar queda fuera del bundle del servidor (`serverExternalPackages` en `next.config.ts`): adentro se duplicaban los tipos XDR y firmar una autorización fallaba.
 
-### El QR: `src/server/qr.ts` y `src/lib/qr-verify.ts`
+### El QR: `src/server/qr.ts`, `src/lib/qr-codec.ts` y `src/lib/qr-verify.ts`
 
-El QR de la credencial lleva `<passId>.<firma>`: ocho letras y números del pase, un punto, y la firma (los primeros 10 bytes del HMAC-SHA256 del id con la llave del evento, en base32, dieciséis letras). Todo en mayúsculas para que el QR salga chico.
+El QR va firmado con una llave pública (Ed25519): cada evento tiene su par de llaves en `event_qr_keys`, la privada nunca sale del servidor y el escáner recibe solo la clave pública al abrir el puesto. Un celular de voluntario perdido no sirve para fabricar credenciales. Hay dos QR, y el escáner los distingue por cuántos pedazos trae (todo en mayúsculas y números, para que salga chico):
 
-- Servidor: `buildQrPayload(passId, key)` y `verifyQrPayload(payload, key)`; `newPassId()` y `newEventQrKey()`.
-- Navegador (el escáner, sin red): `importQrKey(key)` y `verifyQrPayloadInBrowser(payload, cryptoKey)` con WebCrypto. La llave viaja al escáner en base64url cuando abre el puesto con su código.
+- **La credencial impresa** (`<pase>.<firma>`, 112 letras): el pase y la firma del evento sobre su id. Es fija, vale siempre y la lleva el SVG que se descarga, con la marca "Credencial impresa". El escáner la acepta pero la muestra con esa etiqueta, porque una impresa se puede copiar.
+- **La del celular** (`<pase>.<ventana>.<certificado>.<firma>`, 274 letras): rota cada 20 segundos. La ventana es el tiempo dividido en tramos de 20 segundos; el certificado es la clave pública de esa credencial más la firma del evento que la liga al pase; la firma de la ventana la hace la clave de la credencial. El escáner comprueba el certificado con la clave pública del evento y la ventana con la clave del certificado, y acepta la ventana actual, la anterior (el celular de la persona va atrasado) y la siguiente (va adelantado). Una captura de pantalla vieja da "No corresponde: este QR venció", con el nombre de quien es.
+- **Sin conexión del lado de quien asiste.** Al abrir la credencial con red, el servidor le entrega a la página la semilla de la llave de ESA credencial (derivada con HMAC de una raíz secreta del evento y el id del pase) y su certificado (`buildLiveGrant`). Desde ahí el celular arma el QR de cada ventana solo, sin red (`QrRotante.tsx`, `src/lib/qr-live.ts`). Nadie puede armar el QR de otro pase: no tiene el certificado de ese pase, y firmarlo pide la llave privada del evento. Si el reloj del celular está desfasado más de tres segundos, se corrige con `GET /api/hora`; el escáner hace lo mismo con la hora de la foto del evento.
+
+- Servidor: `buildPrintedPayload(passId, keys)`, `buildLiveGrant(passId, keys)`, `verifyQrPayload(payload, clavePública, ahora)`; `newPassId()` y `newEventQrKeys()`. Las llaves de un evento: `getEventQrKeys(eventId)` en `src/server/qr-keys.ts` (las crea la primera vez que hacen falta).
+- Navegador (el escáner, sin red): `importEventKey(clavePública)` y `verifyQrPayloadInBrowser(payload, clave, ahora)` con WebCrypto. Si el navegador no sabe Ed25519 (antes de Chrome 137, Firefox 129 o Safari 17), `src/lib/ed25519.ts` cae a `@noble/ed25519`, que se carga recién cuando hace falta.
 - `src/lib/qr-svg.ts`: `renderQrSvg(payload)` dibuja el QR como SVG, para la credencial y su exportación.
+- Los QR viejos, con firma HMAC y llave compartida, dejan de valer (migración 006).
+
+### El respaldo manual de la puerta: `src/server/puerta.ts`
+
+Solo con el código del puesto Puerta (los demás reciben 403). `searchDoor` busca entre las personas inscriptas por nombre o correo, sin mayúsculas ni tildes, con tres letras como mínimo y hasta ocho resultados; el correo vuelve tapado (`a***@dominio`). `addAtDoor` inscribe gratis con nombre y correo, con la misma inscripción de siempre y la primera entrada sin precio del evento, y le manda la credencial al correo. La entrada marcada a mano va por la misma cola que una lectura, con el id de escáner `manual:puerta:<celular>`, así queda en el espejo como manual, con su puesto y su hora. Sin red, el escáner busca por nombre en la lista que ya bajó.
 
 ### Los correos: `src/server/mailer.ts`
 

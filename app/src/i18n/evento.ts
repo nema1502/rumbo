@@ -85,6 +85,11 @@ export const evento = {
     "evento.correo.mostra": "Mostrá el QR en la puerta y en cada canje. Este enlace es personal: guardá el correo.",
     "evento.correo.noFuiste": "Si no te inscribiste, ignorá este correo.",
     "evento.correo.firma": "Rumbo",
+
+    // El QR que se renueva y el de la credencial impresa
+    "evento.credencial.qrRota": "Este QR se renueva solo cada {segundos} segundos: una captura de pantalla no sirve.",
+    "evento.credencial.qrFallo": "Este navegador no pudo armar el QR. Probá con otro, o descargá la credencial para imprimirla.",
+    "evento.credencial.impresa": "Credencial impresa",
   },
   en: {
     "evento.organiza": "Organized by {nombre}",
@@ -160,5 +165,10 @@ export const evento = {
     "evento.correo.mostra": "Show the QR code at the door and at every redemption. This link is personal: keep this email.",
     "evento.correo.noFuiste": "If you did not register, ignore this email.",
     "evento.correo.firma": "Rumbo",
+
+    // The QR code that renews itself and the one on the printed pass
+    "evento.credencial.qrRota": "This QR code renews itself every {segundos} seconds: a screenshot will not work.",
+    "evento.credencial.qrFallo": "This browser could not build the QR code. Try another one, or download the pass to print it.",
+    "evento.credencial.impresa": "Printed pass",
   },
 } satisfies AreaDictionary;

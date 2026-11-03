@@ -47,7 +47,10 @@ const { getAccessKey } = await import("../src/server/evento/acceso.ts");
 const { ensureStationCodes, getOrCreateOrganizerKey } = await import("../src/server/panel.ts");
 const { formatStationCode } = await import("../src/lib/station-code.ts");
 const { decideVerdict } = await import("../src/lib/escaner-api.ts");
-const { verifyQrPayload, base64urlToBytes } = await import("../src/server/qr.ts");
+const { verifyQrPayload, base64urlToBytes, bytesToBase64url } = await import("../src/server/qr.ts");
+const { getEventQrKeys } = await import("../src/server/qr-keys.ts");
+const { buildLivePayload } = await import("../src/lib/qr-live.ts");
+const { WINDOW_SECONDS } = await import("../src/lib/qr-codec.ts");
 const { rumboPass, getBalance, getTestAsset, readDeployInfo, fromStroops } = await import("../src/server/stellar.ts");
 
 // ---------- La transcripción ----------
@@ -240,15 +243,18 @@ try {
   check(c1.status === 200 && c1.cuerpo.person?.name === gratis.nombre && c1.cuerpo.paid === false && c1.cuerpo.checkedIn === false, `GET /api/pase/${paseGratis.id}: "${c1.cuerpo.person?.name}", credencial ${c1.cuerpo.number} de ${c1.cuerpo.total}, inscripción lista`);
   const c2 = await pedir(`/api/pase/${pasePago.id}?k=${encodeURIComponent(clavePago)}`);
   check(c2.status === 200 && c2.cuerpo.paid === true && c2.cuerpo.benefits.some((b) => b.id === lunch.id && b.state === "pendiente"), `GET /api/pase/${pasePago.id}: entrada paga, lo que le toca: ${c2.cuerpo.benefits.map((b) => `${b.name} (${b.state})`).join(", ")}`);
-  const qrGratis = c1.cuerpo.qr;
+  // Quien se inscribió gratis muestra el QR que rota (lo arma su celular con lo que le dio la credencial); quien pagó, la credencial impresa.
+  const qrGratis = () => buildLivePayload(c1.cuerpo.live, Date.now());
   const qrPago = c2.cuerpo.qr;
-  log(`  QR de ${gratis.nombre}: ${qrGratis}; QR de ${almuerzo.nombre}: ${qrPago}`);
+  log(`  QR del celular de ${gratis.nombre} (cambia cada ${WINDOW_SECONDS} s): ${await qrGratis()}`);
+  log(`  QR fijo de la credencial impresa de ${almuerzo.nombre}: ${qrPago}`);
+  check(c1.cuerpo.live?.passId === paseGratis.id && !("privateKey" in c1.cuerpo.live), "la credencial entrega la llave de ese pase y nada más");
   const pagina = await pedir(`/p/${paseGratis.id}?k=${encodeURIComponent(claveGratis)}`);
   check(pagina.status === 200 && pagina.cuerpo.includes(gratis.nombre) && pagina.cuerpo.includes("Descargar en SVG"), `la página /p/${paseGratis.id} se ve con el nombre y su única acción`);
   const listo = await pedir(`/e/${SLUG}/listo?pase=${pasePago.id}&k=${encodeURIComponent(clavePago)}`);
   check(listo.status === 200 && listo.cuerpo.includes("Entrada paga") && listo.cuerpo.includes("Ver mi credencial"), `la confirmación /e/${SLUG}/listo dice "Entrada paga" y lleva a la credencial`);
   const svg = await pedir(`/api/pase/${paseGratis.id}/svg?k=${encodeURIComponent(claveGratis)}`);
-  check(svg.status === 200 && svg.res.headers.get("content-type")?.startsWith("image/svg+xml") && svg.cuerpo.includes(gratis.nombre), `el SVG para imprimir baja con el nombre (${Buffer.byteLength(svg.cuerpo)} bytes)`);
+  check(svg.status === 200 && svg.res.headers.get("content-type")?.startsWith("image/svg+xml") && svg.cuerpo.includes(gratis.nombre) && svg.cuerpo.includes("CREDENCIAL IMPRESA"), `el SVG para imprimir baja con el nombre y marcado como impreso (${Buffer.byteLength(svg.cuerpo)} bytes)`);
   check((await pedir(`/api/pase/${paseGratis.id}?k=${"A".repeat(22)}`)).status === 404, "con otra clave la credencial da 404");
   check((await pedir(`/p/${paseGratis.id}`)).status === 404, "sin clave la página da 404 (no dice si el pase existe)");
 
@@ -268,19 +274,33 @@ try {
   check((await json("/api/scan/open", { code: "ZZZZ-ZZZZ" })).status === 401, "un código que no es de ningún puesto: 401");
   const puerta = await json("/api/scan/open", { code: formatStationCode(puertaCode).toLowerCase() });
   check(puerta.status === 200 && puerta.cuerpo.station?.kind === "gate" && puerta.cuerpo.passes.length >= 2, `la puerta abre (en minúsculas y con guion) y baja la llave del evento y ${puerta.cuerpo.passes.length} pases`);
-  const llave = base64urlToBytes(puerta.cuerpo.key);
-  const verifica = (qr) => verifyQrPayload(qr, llave);
+  check(puerta.cuerpo.key === undefined && typeof puerta.cuerpo.publicKey === "string", "el escáner recibe una clave pública, no una llave compartida");
+  const clavePublica = base64urlToBytes(puerta.cuerpo.publicKey);
+  const llavesDelEvento = getEventQrKeys(event.id);
+  check(clavePublica.length === 32 && bytesToBase64url(llavesDelEvento.publicKey) === puerta.cuerpo.publicKey, "es la clave pública del evento (32 bytes)");
+  const textoPuerta = JSON.stringify(puerta.cuerpo);
+  check(
+    !textoPuerta.includes(bytesToBase64url(llavesDelEvento.privateKey)) && !textoPuerta.includes(bytesToBase64url(llavesDelEvento.credentialRoot)),
+    "nada de lo que baja el escáner sirve para fabricar credenciales: ni la llave privada del evento ni la raíz de las credenciales",
+  );
+  const verifica = (qr, ahora = Date.now()) => verifyQrPayload(qr, clavePublica, ahora);
   const paseEn = (snapshot, id) => snapshot.passes.find((p) => p.id === id);
-  check(verifica(qrGratis).ok && verifica(qrPago).ok, "las dos credenciales llevan una firma válida");
-  const alterado = qrGratis.replace(/.$/, (c) => (c === "A" ? "B" : "A"));
-  check(!verifica(alterado).ok && decideVerdict(verifica(alterado), puerta.cuerpo.station, undefined, undefined).kind === "no", "una credencial con una letra cambiada no corresponde");
-  const v1 = decideVerdict(verifica(qrGratis), puerta.cuerpo.station, paseEn(puerta.cuerpo, paseGratis.id), undefined);
-  const v2 = decideVerdict(verifica(qrPago), puerta.cuerpo.station, paseEn(puerta.cuerpo, pasePago.id), undefined);
-  check(v1.kind === "ok" && v1.action === "checkin" && v1.name === gratis.nombre, `${gratis.nombre}: verde, entra`);
-  check(v2.kind === "ok" && v2.action === "checkin" && v2.name === almuerzo.nombre, `${almuerzo.nombre}: verde, entra`);
+  const vivo = await verifica(await qrGratis());
+  const impreso = await verifica(qrPago);
+  check(vivo.ok && vivo.via === "live" && impreso.ok && impreso.via === "printed", "las dos credenciales llevan una firma válida: la del celular (que rota) y la impresa (fija)");
+  const alterado = (await qrGratis()).replace(/.$/, (c) => (c === "A" ? "B" : "A"));
+  check(!(await verifica(alterado)).ok && decideVerdict(await verifica(alterado), puerta.cuerpo.station, undefined, undefined).kind === "no", "una credencial con una letra cambiada no corresponde");
+  const captura = await verifica(await qrGratis(), Date.now() + 3 * WINDOW_SECONDS * 1000);
+  check(!captura.ok && captura.reason === "expired", `una captura de pantalla vieja (de hace ${3 * WINDOW_SECONDS} s) no sirve: el QR venció`);
+  const anterior = await verifica(await qrGratis(), Date.now() + WINDOW_SECONDS * 1000);
+  check(anterior.ok, "pero la ventana anterior sí se acepta (el celular de la persona puede ir atrasado)");
+  const v1 = decideVerdict(vivo, puerta.cuerpo.station, paseEn(puerta.cuerpo, paseGratis.id), undefined);
+  const v2 = decideVerdict(impreso, puerta.cuerpo.station, paseEn(puerta.cuerpo, pasePago.id), undefined);
+  check(v1.kind === "ok" && v1.action === "checkin" && v1.name === gratis.nombre && v1.via === undefined, `${gratis.nombre}: verde, entra`);
+  check(v2.kind === "ok" && v2.action === "checkin" && v2.name === almuerzo.nombre && v2.via === "printed", `${almuerzo.nombre}: verde, entra, y el veredicto dice que la credencial es la impresa`);
   const ahora = () => new Date().toISOString();
   const local = { checkedInAt: ahora(), redeemed: {} };
-  const v1b = decideVerdict(verifica(qrGratis), puerta.cuerpo.station, paseEn(puerta.cuerpo, paseGratis.id), local);
+  const v1b = decideVerdict(await verifica(await qrGratis()), puerta.cuerpo.station, paseEn(puerta.cuerpo, paseGratis.id), local);
   check(v1b.kind === "already" && v1b.action === "checkin", `${gratis.nombre} otra vez, antes de sincronizar: amarillo, ya entró (lo sabe la cola local)`);
 
   inicio = Date.now();
@@ -307,9 +327,9 @@ try {
   paso(`La mesa del almuerzo (código ${formatStationCode(almuerzoCode)}): canjea una sola vez`);
   const mesa = await json("/api/scan/open", { code: almuerzoCode });
   check(mesa.status === 200 && mesa.cuerpo.station?.kind === "benefit" && mesa.cuerpo.station.id === lunch.id, `la mesa abre con su puesto "${mesa.cuerpo.station?.name}"`);
-  const v3 = decideVerdict(verifica(qrGratis), mesa.cuerpo.station, paseEn(mesa.cuerpo, paseGratis.id), undefined);
+  const v3 = decideVerdict(await verifica(await qrGratis()), mesa.cuerpo.station, paseEn(mesa.cuerpo, paseGratis.id), undefined);
   check(v3.kind === "no" && v3.reason === "not_included", `${gratis.nombre} (inscripción gratis): no corresponde, la entrada no incluye el almuerzo`);
-  const v4 = decideVerdict(verifica(qrPago), mesa.cuerpo.station, paseEn(mesa.cuerpo, pasePago.id), undefined);
+  const v4 = decideVerdict(await verifica(qrPago), mesa.cuerpo.station, paseEn(mesa.cuerpo, pasePago.id), undefined);
   check(v4.kind === "ok" && v4.action === "redeem", `${almuerzo.nombre}: verde, canjea el almuerzo`);
   inicio = Date.now();
   const canje = { clientId: `e2e-${stamp}-almuerzo-1`, action: "redeem", passId: pasePago.id, benefitId: lunch.id, scannedAt: ahora(), scannerId: "e2e-mesa" };
@@ -317,7 +337,7 @@ try {
   const canjeado = sync2.cuerpo.results?.[0];
   check(sync2.status === 200 && canjeado?.status === "synced" && canjeado.txHash, `el canje llegó al contrato en ${((Date.now() - inicio) / 1000).toFixed(0)} s`);
   if (canjeado?.txHash) tx(`canje del almuerzo de ${almuerzo.nombre} (redeem, firma la puerta)`, canjeado.txHash);
-  const v5 = decideVerdict(verifica(qrPago), sync2.cuerpo.snapshot.station, paseEn(sync2.cuerpo.snapshot, pasePago.id), undefined);
+  const v5 = decideVerdict(await verifica(qrPago), sync2.cuerpo.snapshot.station, paseEn(sync2.cuerpo.snapshot, pasePago.id), undefined);
   check(v5.kind === "already" && v5.action === "redeem", `${almuerzo.nombre} otra vez: amarillo, ya canjeado (el escáner lo decide solo, sin mandar nada)`);
   const segundo = await json("/api/scan/sync", { code: almuerzoCode, items: [{ ...canje, clientId: `e2e-${stamp}-almuerzo-2` }] });
   check(segundo.cuerpo.results?.[0]?.status === "duplicate", `y si otro puesto lo manda igual, el contrato lo rechaza (${segundo.cuerpo.results?.[0]?.error})`);

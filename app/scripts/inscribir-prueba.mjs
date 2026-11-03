@@ -46,6 +46,8 @@ async function directo() {
   const { loadCredential } = await import("../src/server/evento/credencial.ts");
   const { renderCredentialSvg } = await import("../src/server/evento/credencial-svg.ts");
   const { verifyQrPayload } = await import("../src/server/qr.ts");
+  const { getEventQrKeys } = await import("../src/server/qr-keys.ts");
+  const { buildLivePayload } = await import("../src/lib/qr-live.ts");
   const { rumboPass } = await import("../src/server/stellar.ts");
 
   const repo = getRepo();
@@ -76,9 +78,12 @@ async function directo() {
   check(view.person.name === person.name && view.event.slug === slug, "es la de la persona y el evento");
   check(view.paid === paid && view.checkedIn === false, `estado: ${view.paid ? "entrada paga" : "inscripción lista"}, sin entrar`);
   console.log(`  Credencial ${view.number} de ${view.total}; lo que le toca: ${view.benefits.map((b) => `${b.name} (${b.state})`).join(", ") || "nada"}`);
-  const qrKey = await repo.getEventQrKey(event.id);
-  check(verifyQrPayload(view.qrPayload, qrKey).ok, `la firma del QR es válida (${view.qrPayload})`);
-  check(!verifyQrPayload(view.qrPayload.replace(/.$/, (c) => (c === "A" ? "B" : "A")), qrKey).ok, "un QR con una letra cambiada no pasa");
+  const clavePublica = getEventQrKeys(event.id).publicKey;
+  check((await verifyQrPayload(view.qrPayload, clavePublica)).ok, `la firma del QR de la credencial impresa es válida (${view.qrPayload})`);
+  check(!(await verifyQrPayload(view.qrPayload.replace(/.$/, (c) => (c === "A" ? "B" : "A")), clavePublica)).ok, "un QR con una letra cambiada no pasa");
+  const vivo = await buildLivePayload(view.live, Date.now());
+  check((await verifyQrPayload(vivo, clavePublica)).ok, "el QR que rota, armado con lo que recibe la credencial, también es válido");
+  check(!(await verifyQrPayload(vivo, clavePublica, Date.now() + 100_000)).ok, "y una captura de hace 100 segundos ya no sirve");
 
   paso("El SVG para imprimir");
   const svg = renderCredentialSvg(view, "es");
