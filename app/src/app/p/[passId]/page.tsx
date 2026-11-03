@@ -4,10 +4,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import "@/components/evento/evento.css";
 import { Credencial } from "@/components/evento/Credencial.tsx";
+import { RutaCredencial } from "@/components/stands/RutaCredencial.tsx";
+import "@/components/stands/stands.css";
 import { getLang, getT } from "@/i18n/server.ts";
 import { renderQrSvg } from "@/lib/qr-svg.ts";
 import { loadCredential } from "@/server/evento/credencial.ts";
 import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
+import { getPassRoute } from "@/server/stands.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +34,8 @@ export default async function PassPage({ params, searchParams }: { params: Param
   const when = formatEventWhen(lang, view.event);
   const qrSvg = renderQrSvg(view.qrPayload, { cellSize: 4, margin: 2 });
   const download = `/api/pase/${encodeURIComponent(view.pass.id)}/svg?k=${encodeURIComponent(key)}&lang=${lang}`;
+  // La ruta de stands, si el evento tiene stands: la credencial recibe ahí la pregunta de permiso de cada uno.
+  const route = await getPassRoute(view.pass.id);
 
   return (
     <section className="pantalla credencial-pantalla">
@@ -44,6 +49,7 @@ export default async function PassPage({ params, searchParams }: { params: Param
       <div className="pantalla-cuerpo">
         <Credencial view={view} t={t} qrSvg={qrSvg} />
         <p className="apagado chico credencial-ayuda">{t("evento.credencial.mostra")}</p>
+        {route && <RutaCredencial passId={view.pass.id} accessKey={key} initial={route} />}
       </div>
       <div className="pantalla-accion">
         <a className="boton boton-primario boton-grande" href={download} download={`credencial-${view.pass.id}.svg`}>
