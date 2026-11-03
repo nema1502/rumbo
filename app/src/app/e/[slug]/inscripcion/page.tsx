@@ -45,6 +45,7 @@ export default async function RegistrationPage({ params, searchParams }: { param
       when={`${when.date}, ${when.time}`}
       paid={paid}
       monto={monto}
+      comunidad={event.organizerName}
       ticket={{
         id: ticket.id,
         name: ticket.name,

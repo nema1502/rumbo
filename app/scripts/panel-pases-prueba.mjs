@@ -48,6 +48,8 @@ for (const [i, who] of PEOPLE.entries()) {
     const pending = i >= 10;
     pass = await repo.createPass({ eventId: event.id, personId: person.id, ticketTypeId: ticket.id, status: pending ? "pending" : "active" });
     if (!pending) await repo.grantTicketBenefits(pass.id);
+    // La mitad marcó la casilla opcional de contacto (para el paquete del programa de embajadores).
+    if (!pending && i % 2 === 0) pass = await repo.updatePass(pass.id, { contactConsent: true });
     created++;
   }
   if (pass.status === "pending") continue;

@@ -55,6 +55,9 @@ Nada de `data/` ni de `.env.local` se versiona.
 | `/admin/<evento>/stands` | Stands y ruta: un stand por auspiciante con su código, la meta de la ruta y los números de cada uno |
 | `/stand/<código>` | El panel de quien atiende un stand: sus visitas y los contactos de quienes aceptaron compartirlos, con calificación, nota y CSV |
 | `/vivo/<evento>` | La pantalla en vivo para proyectar: quienes entraron, almuerzos y merch entregados, el ranking de la ruta y el espacio del sorteo |
+| `/v/<pase>?c=<código>` | La verificación pública de un certificado de asistencia: si esa persona entró, cuándo, y el enlace a su entrada en el registro público |
+
+Al terminar el evento, `pnpm informe`, `pnpm certificados` y `pnpm paquete-embajadores` arman en PDF el informe del evento (para quien organiza, quien auspicia y el programa de embajadores de Stellar), un certificado verificable por persona que entró y el paquete para el capítulo. Todo eso, con sus plantillas de XeLaTeX y sus ejemplos, está en [informes/](informes/README.md).
 
 Cada parte tiene su guía: [la inscripción y la credencial](src/server/evento/README.md), [el escáner](src/app/scan/README.md), [el panel](src/app/admin/README.md) y [los stands y la ruta](src/app/stand/README.md). La API:
 
@@ -84,6 +87,7 @@ node scripts/prueba-escaner.mjs --base http://localhost:3000               # el 
 node scripts/smoke-contrato.mjs    # los helpers del contrato, de punta a punta
 node scripts/capturas.mjs --base http://localhost:3000 --salida data/capturas   # cada pantalla en tres tamaños y dos idiomas
 node scripts/capturas-stands.mjs   # los stands, la ruta y la pantalla en vivo, sin la red de Stellar (hace falta pnpm build antes)
+pnpm informe -- --datos informes/ejemplo.json --lang es --salida informes/ejemplo-es.pdf      # el informe de ejemplo (hace falta XeLaTeX)
 ```
 
 `pnpm e2e` (`scripts/e2e-testnet.mjs`) levanta un servidor de desarrollo propio sobre una base nueva en `data/e2e`, crea el evento de muestra, inscribe a una persona gratis y a otra con la entrada paga (y comprueba que la plata llegó a quien organiza y a Rumbo en la misma transacción), abre sus credenciales, las pasa por la puerta y por la mesa del almuerzo con la API del escáner, intenta el segundo canje y la segunda entrada, y comprueba con `status()`, `attendees()` e `info()` en la cadena y con el panel, el informe y el CSV que los números coinciden. Deja la transcripción con los ids de las transacciones en [demo/e2e-testnet.txt](demo/e2e-testnet.txt). Con `--base` usa un servidor ya levantado. El contrato tiene sus propias pruebas: `cargo test --workspace` desde la raíz del repositorio.
@@ -96,11 +100,12 @@ src/app/api/        las rutas de la API: evento, pase, scan, admin
 src/app/globals.css los tokens de la marca (día y noche) y los componentes base
 src/components/     Marca, SelectorIdioma, BotonTema, ui.tsx (Boton, BotonEnlace, Tarjeta, Chip, Campo, Pantalla, Aviso) y los de cada área: evento/, escaner/, panel/
 src/i18n/           los diccionarios por área (comun, evento, escaner, panel) y el helper t(clave)
-src/server/         lo que corre solo en el servidor: repo, accounts, stellar, mailer, qr, qr-keys, env, evento/, escaner, puerta, panel
+src/server/         lo que corre solo en el servidor: repo, accounts, stellar, mailer, qr, qr-keys, env, evento/, escaner, puerta, panel, stands, informe, verificacion
 src/lib/            lo que comparten servidor y navegador: la forma del QR, Ed25519 y la verificación, el QR que rota, el veredicto del escáner, la cola local, la búsqueda, los códigos de puesto
 public/             el service worker del escáner (sw.js) y su manifiesto
-scripts/            setup-dev, seed, e2e-testnet, capturas, las pruebas de cada área y lib/ (env, browser)
-tests/              las pruebas sin red (pnpm test): el CSV, los frenos, el escáner y su cola, la firma del QR y su ventana de tiempo, el respaldo de la puerta, el envío de transacciones, los errores, los textos; lib/ arma una base vacía por archivo
+scripts/            setup-dev, seed, e2e-testnet, capturas, informe, certificados, paquete-embajadores, las pruebas de cada área y lib/ (env, browser, latex)
+informes/           las plantillas de XeLaTeX del informe y del certificado, sus textos, las fuentes, la marca y los ejemplos
+tests/              las pruebas sin red (pnpm test): el CSV, los frenos, el escáner y su cola, la firma del QR y su ventana de tiempo, el respaldo de la puerta, el envío de transacciones, los stands, el informe, los errores, los textos; lib/ arma una base vacía por archivo
 demo/               la transcripción del flujo entero en la red de prueba
 ```
 
@@ -112,11 +117,11 @@ Castellano por defecto, inglés con `?lang=en`. El middleware (`src/middleware.t
 - En un componente de cliente: `const t = useT()` (de `@/i18n/client.tsx`).
 - Los textos con huecos: `t("pago.precio", { monto: 10 })`.
 
-Cada área tiene su diccionario en `src/i18n/`: `comun.ts` (lo general), `evento.ts`, `escaner.ts`, `panel.ts`, `stands.ts` (los stands, la ruta y el permiso) y `vivo.ts` (la pantalla en vivo), con el prefijo de su área en las claves y los dos idiomas en el mismo cambio. `index.ts` los une.
+Cada área tiene su diccionario en `src/i18n/`: `comun.ts` (lo general), `evento.ts`, `escaner.ts`, `panel.ts`, `stands.ts` (los stands, la ruta y el permiso), `vivo.ts` (la pantalla en vivo) y `verificacion.ts` (la verificación de un certificado), con el prefijo de su área en las claves y los dos idiomas en el mismo cambio. `index.ts` los une.
 
 ### Los datos: `src/server/repo.ts`
 
-`Repo` es la interfaz; `getRepo()` da la instancia (`SqliteRepo` hoy, `SupabaseRepo` es un esqueleto). Las tablas están en `src/server/migrations/` (`001-inicial.sql` lo general, `002-acceso-credencial.sql` las claves de acceso de las credenciales, `003-panel.sql` las del panel, `006-llaves-ed25519.sql` las llaves con las que se firman los QR); las migraciones se aplican solas al abrir la base.
+`Repo` es la interfaz; `getRepo()` da la instancia (`SqliteRepo` hoy, `SupabaseRepo` es un esqueleto). Las tablas están en `src/server/migrations/` (`001-inicial.sql` lo general, `002-acceso-credencial.sql` las claves de acceso de las credenciales, `003-panel.sql` las del panel, `006-llaves-ed25519.sql` las llaves con las que se firman los QR, `008-stands.sql` los stands y la ruta, `009-consentimiento-contacto.sql` la casilla opcional de contacto de la inscripción); las migraciones se aplican solas al abrir la base.
 
 - **Eventos.** Las llaves con las que se firman sus QR no están acá sino en `event_qr_keys` (`src/server/qr-keys.ts`): una llave privada por evento que no sale del servidor, y su clave pública, que es lo único que recibe el escáner.
 - **Tipos de entrada**: cada uno con su precio en USDC de prueba y su contrato en la red (el precio es fijo por contrato: el evento de muestra tiene uno gratis y uno pago).

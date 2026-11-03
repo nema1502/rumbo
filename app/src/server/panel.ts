@@ -237,6 +237,8 @@ export interface PanelPass {
   onChain: boolean;
   createdAt: string;
   checkedInAt: string | null;
+  /** Si aceptó que la comunidad le escriba (la casilla opcional de la inscripción). */
+  contactConsent: boolean;
   benefits: PanelPassBenefit[];
 }
 
@@ -341,6 +343,7 @@ async function collect(event: EventRecord, repo: Repo): Promise<Collected> {
       onChain: Boolean(pass.account),
       createdAt: pass.createdAt,
       checkedInAt: pass.checkedInAt,
+      contactConsent: pass.contactConsent,
       benefits: (granted.get(pass.id) ?? []).map((b) => ({
         benefitId: b.id,
         name: b.name,
@@ -491,6 +494,26 @@ export async function buildPassesCsv(event: EventRecord, lang: Lang, repo: Repo 
     `${b.name}: ${b.redeemed ? t("panel.csv.canjeado") : b.source === "raffle" ? t("panel.csv.ganado") : t("panel.csv.pendiente")}`;
   const header = ["pase", "nombre", "correo", "entrada", "estado", "canjes"].map((k) => t(`panel.csv.${k}`));
   const rows = state.passes.map((p) => [p.id, p.name, emails.get(p.id) ?? "", p.ticketTypeName, statusLabel[p.status], p.benefits.map(benefitLabel).join("; ")]);
+  return `﻿${[header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n")}\r\n`;
+}
+
+/**
+ * Quienes aceptaron que la comunidad que organiza les escriba (la casilla opcional de la inscripción),
+ * con su correo. Solo las credenciales emitidas: una inscripción que no terminó no cuenta. Lo usa el
+ * paquete para el programa de embajadores; nunca va al JSON del panel ni al informe.
+ */
+export async function listChapterContacts(event: EventRecord, repo: Repo = getRepo()): Promise<Array<{ passId: string; name: string; email: string }>> {
+  const { state, emails } = await collect(event, repo);
+  return state.passes
+    .filter((p) => p.status !== "pending" && p.contactConsent && emails.has(p.id))
+    .map((p) => ({ passId: p.id, name: p.name, email: emails.get(p.id) as string }));
+}
+
+/** El CSV de esos contactos: nombre y correo, sin fórmulas, con marca de orden para Excel. */
+export async function buildChapterContactsCsv(event: EventRecord, lang: Lang, repo: Repo = getRepo()): Promise<string> {
+  const t = (key: string) => translate(lang, key);
+  const header = [t("panel.csv.nombre"), t("panel.csv.correo")];
+  const rows = (await listChapterContacts(event, repo)).map((c) => [c.name, c.email]);
   return `﻿${[header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n")}\r\n`;
 }
 

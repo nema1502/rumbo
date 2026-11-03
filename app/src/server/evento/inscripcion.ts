@@ -53,6 +53,8 @@ export interface RegistrationInput extends RegistrationFields {
   origin?: string | null;
   /** Quién pide, para el freno de pedidos (clientKey de limites.ts, con la IP que pone la plataforma). */
   clientKey?: string | null;
+  /** La casilla opcional: acepta que la comunidad que organiza le escriba. Sin marcar, no. */
+  contactConsent?: boolean;
 }
 
 export type FailureReason = "sold_out" | "not_paid" | "network" | "misconfigured" | "too_many";
@@ -201,7 +203,9 @@ export async function registerForEvent(input: RegistrationInput): Promise<Regist
     }
   }
 
-  pass = await repo.updatePass(pass.id, { account, status: "active", txHash, chainNumber });
+  // La casilla de contacto se guarda con la inscripción que termina. A quien ya tenía su credencial no se
+  // le cambia (arriba): si no, cualquiera que escriba su correo podría marcarla por otra persona.
+  pass = await repo.updatePass(pass.id, { account, status: "active", txHash, chainNumber, contactConsent: input.contactConsent === true });
   await repo.grantTicketBenefits(pass.id);
   const accessKey = getOrCreateAccessKey(pass.id);
   const url = await sendPassEmail({ event, person, pass, ticketType, lang: input.lang, origin: input.origin });

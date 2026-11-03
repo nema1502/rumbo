@@ -1,0 +1,47 @@
+% El certificado de asistencia verificable: uno por persona que entró al evento. Lo arma
+% scripts/certificados.mjs: escribe datos.tex (el nombre, el evento, la fecha, el QR ya dibujado y el
+% enlace de verificación) y compila este archivo con XeLaTeX. A4 apaisado, dibujado entero en el fondo
+% de la página. El nombre va acá y en la página de verificación, nunca en la cadena.
+\documentclass[certificado]{rumbo-informe}
+\input{datos.tex}
+\rumboIdioma
+\hypersetup{pdftitle={\V{pdf.titulo}}, pdfauthor={Rumbo}, pdfsubject={\V{pdf.asunto}}, pdfcreator={Rumbo}, pdfproducer={Rumbo}}
+
+\renewcommand\rumboCertificadoFondo{%
+  % El marco fino, adentro del borde.
+  \draw[line width=0.6pt, color=tinta!16!papel, rounded corners=4mm] (10,-12) rectangle (287,-200);
+  % La marca.
+  \node[anchor=west, inner sep=0] at (26,-29) {\includegraphics[height=9mm]{marca/logo-tinta.pdf}};
+  \node[anchor=west, inner sep=0, font=\rumboCifra\fontsize{19}{19}\selectfont\color{tinta}] at (37.4,-29) {Rumbo};
+  \rumboif{ejemplo}{%
+    \node[anchor=north east, fill=amarilloSuave, draw=amarillo, line width=0.6pt, rounded corners=3.2mm, inner xsep=5mm, inner ysep=3.4mm, text width=94mm, align=left] at (271,-20) {%
+      {\fontsize{9.4}{12}\selectfont\bfseries\color{tinta}\V{t.ejemplo.franja}\par}\vspace{0.6mm}%
+      {\fontsize{8}{11}\selectfont\color{tinta}\V{cert.ejemplo.texto}\par}};
+  }{}
+  % La brújula grande, a la derecha.
+  \begin{scope}[shift={(238,-92)}]\rumboBrujula{30}{tinta!50!papel}{tinta!85!papel}{tinta}\end{scope}
+  % Lo que se certifica.
+  \node[anchor=north west, inner sep=0, text width=180mm, align=left] at (26,-50) {%
+    {\fontsize{12}{15}\selectfont\bfseries\color{naranjaTexto}\V{cert.sobre}\par}\vspace{7mm}%
+    {\fontsize{13}{17}\selectfont\color{tinta2}\V{cert.certifica}\par}\vspace{3mm}%
+    {\rumboCifra\fontsize{\V{cert.tamNombre}}{\V{cert.interNombre}}\selectfont\color{tinta}\V{cert.nombre}\par}\vspace{5mm}%
+    {\fontsize{13}{17}\selectfont\color{tinta2}\V{cert.rol}\par}\vspace{1.6mm}%
+    {\rumboTitulo\fontsize{\V{cert.tamEvento}}{\V{cert.interEvento}}\selectfont\color{tinta}\V{cert.evento}\par}\vspace{2.6mm}%
+    {\fontsize{11.5}{16}\selectfont\color{tinta2}\V{cert.cuando}\par}%
+    \rumboif{cert.detalle}{{\fontsize{11.5}{16}\selectfont\color{tinta2}\V{cert.detalle}\par}}{}};
+  % La verificación: el QR sobre blanco (con su margen) y el enlace.
+  \fill[tarjeta] (25,-149) rectangle (61,-185);
+  \V{cert.qr}
+  \node[anchor=north west, inner sep=0, text width=118mm, align=left] at (68,-153) {%
+    {\fontsize{11}{14}\selectfont\bfseries\color{tinta}\V{cert.verificar}\par}\vspace{1.4mm}%
+    {\fontsize{11}{14}\selectfont\rumboEnlaceVisible{cert.url}{\V{cert.url.texto}}\par}\vspace{1.8mm}%
+    {\fontsize{8.6}{12}\selectfont\color{apagado}\V{cert.verificar.texto}\par}};
+  % Quien organiza, abajo a la derecha.
+  \node[anchor=south east, inner sep=0, text width=80mm, align=right, font=\fontsize{10.5}{14}\selectfont\color{tinta2}] at (271,-184) {\V{cert.organiza}};
+  \draw[line width=0.4pt, color=lineaPapel] (26,-189) -- (271,-189);
+  \node[anchor=west, inner sep=0, font=\fontsize{7.8}{10}\selectfont\color{apagado}] at (26,-194.5) {\V{cert.pie}};
+}
+
+\begin{document}
+\null
+\end{document}

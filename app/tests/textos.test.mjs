@@ -9,8 +9,9 @@ const { escaner } = await import("../src/i18n/escaner.ts");
 const { panel } = await import("../src/i18n/panel.ts");
 const { stands } = await import("../src/i18n/stands.ts");
 const { vivo } = await import("../src/i18n/vivo.ts");
+const { verificacion } = await import("../src/i18n/verificacion.ts");
 
-const AREAS = { comun, evento, escaner, panel, stands, vivo };
+const AREAS = { comun, evento, escaner, panel, stands, vivo, verificacion };
 
 const todos = (lang) => Object.entries(AREAS).flatMap(([area, dict]) => Object.entries(dict[lang]).map(([clave, texto]) => ({ area, clave, texto })));
 const conPalabra = (lang, re) => todos(lang).filter(({ texto }) => re.test(texto)).map(({ clave, texto }) => `${clave}: ${texto}`);

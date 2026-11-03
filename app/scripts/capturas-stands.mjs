@@ -41,7 +41,9 @@ const { getRepo } = await import("../src/server/repo.ts");
 const stands = await import("../src/server/stands.ts");
 const { ensureStationCodes, getOrCreateOrganizerKey } = await import("../src/server/panel.ts");
 const { getOrCreateAccessKey } = await import("../src/server/evento/acceso.ts");
-const { buildQrPayload } = await import("../src/server/qr.ts");
+const { buildLiveGrant } = await import("../src/server/qr.ts");
+const { getEventQrKeys } = await import("../src/server/qr-keys.ts");
+const { buildLivePayload } = await import("../src/lib/qr-live.ts");
 const { formatStationCode } = await import("../src/lib/station-code.ts");
 
 // ---------- Los datos de muestra ----------
@@ -156,7 +158,7 @@ await repo.markRedemption(canjePremio.id, { synced: true });
 const codigos = await ensureStationCodes(event, repo);
 const codigoDe = (stand) => formatStationCode(codigos.find((c) => c.kind === "stand" && c.standId === stand.id).code);
 const claveOrganizador = getOrCreateOrganizerKey(event.id);
-const qrKey = await repo.getEventQrKey(event.id);
+const qrKeys = getEventQrKeys(event.id);
 const urlCredencial = (clave) => `/p/${gente[clave].id}?k=${getOrCreateAccessKey(gente[clave].id)}`;
 
 // ---------- El servidor ----------
@@ -281,7 +283,7 @@ await pantalla("pantalla-en-vivo", `/vivo/${SLUG}`, { tamanos: [...TAMANOS, [192
 // El escáner del stand de Código Abierto, con la cámara de mentira: se abre el puesto con su código, se ve el
 // resumen y se lee la credencial de Hugo (que todavía no pasó por ahí) para ver la visita registrada.
 const T = { es: { escribir: "Escribir el código", verificar: "Verificar", abrir: "Abrir el puesto", cerrar: "Cerrar el puesto" }, en: { escribir: "Type the code", verificar: "Check", abrir: "Open the station", cerrar: "Close the station" } };
-const qrDe = (clave) => buildQrPayload(gente[clave].id, qrKey);
+const qrDe = (clave) => buildLivePayload(buildLiveGrant(gente[clave].id, qrKeys), Date.now());
 /** Cada combinación lee a alguien distinto, así ninguna ve el amarillo de "ya visitó". */
 const LECTURA = { "es-1440": "hugo", "es-390": "ximena", "en-1440": "fernanda", "en-390": "paola" };
 for (const lang of IDIOMAS) {
