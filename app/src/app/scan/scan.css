@@ -46,6 +46,12 @@
 .esc-veredicto-titulo { font-family: var(--display); font-size: clamp(2.6rem, 11vw, 5.5rem); font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
 .esc-veredicto-nombre { font-size: clamp(1.3rem, 4vw, 2rem); font-weight: 600; }
 .esc-veredicto-detalle { font-size: 1.1rem; opacity: 0.9; max-width: 36ch; }
+/* Quién es: un rótulo chico para quien asiste y uno de color para el resto, que es lo primero que se mira en una mesa */
+.esc-veredicto-quien { font-size: 1.05rem; font-weight: 600; opacity: 0.85; }
+.esc-veredicto-quien-staff { opacity: 1; background: #e8541e; color: #0f1c2e; padding: 4px 18px; border-radius: 999px; font-weight: 700; }
+/* La dieta, en grande, en el puesto de comida */
+.esc-veredicto-dieta { font-family: var(--display); font-size: clamp(1.4rem, 5vw, 2.2rem); font-weight: 800; line-height: 1.15; background: #f5c451; color: #0f1c2e; border-radius: 18px; padding: 12px 20px; max-width: 100%; overflow-wrap: anywhere; }
+.esc-veredicto-dieta span { display: block; font: 700 0.85rem var(--texto); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.8; }
 .esc-veredicto-icono { width: clamp(72px, 18vw, 120px); height: auto; }
 .esc-veredicto-boton { width: min(560px, 100%); min-height: 56px; padding: 0 32px; border-radius: 999px; border: 2px solid currentColor; background: transparent; color: inherit; font: 600 1.1rem var(--texto); cursor: pointer; }
 .esc-veredicto-ok .esc-veredicto-boton { color: #f7f2e8; border-color: #f7f2e8; }

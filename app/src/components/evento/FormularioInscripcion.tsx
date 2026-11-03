@@ -44,6 +44,7 @@ function Campos({ state }: { state: FormState }) {
         defaultValue={state.values?.email ?? ""}
         error={state.fields?.email}
       />
+      <Campo id="dieta" name="dieta" etiqueta={t("kit.dieta.campo")} ayuda={t("kit.dieta.ayuda")} maxLength={120} autoComplete="off" />
     </fieldset>
   );
 }

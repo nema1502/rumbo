@@ -347,7 +347,19 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
         }
         const station = snapshot.station;
         const local = verification.ok ? (await c.usage(snapshot.event.id)).get(verification.passId) : undefined;
-        const resultado = decideVerdict(verification, station, pass, local);
+        let resultado = decideVerdict(verification, station, pass, local);
+        // Un beneficio con tope (150 poleras): quedan las que el servidor contaba al abrir menos las que este
+        // escáner ya entregó sin subir. Si no queda ninguna, no corresponde, y no se anota nada.
+        if (resultado.kind === "ok" && station.kind === "benefit" && snapshot.stock) {
+          const usos = await c.usage(snapshot.event.id);
+          let propios = 0;
+          for (const [id, uso] of usos) if (uso.redeemed[station.id] && !snapshot.passes.find((p) => p.id === id)?.redeemed[station.id]) propios++;
+          const quedan = Math.max(0, snapshot.stock.left - propios);
+          resultado =
+            quedan === 0
+              ? { kind: "no", reason: "sold_out", passId: resultado.passId, name: resultado.name, credential: resultado.credential, team: resultado.team, diet: null }
+              : { ...resultado, left: quedan - 1 };
+        }
         if (resultado.kind === "ok") {
           await c.add(
             nuevaEntrada({

@@ -54,6 +54,16 @@ export interface RegistrationInput extends RegistrationFields {
   origin?: string | null;
   /** Quién pide, para el freno de pedidos (clientKey de limites.ts, con la IP que pone la plataforma). */
   clientKey?: string | null;
+  /** Una restricción de dieta (vegetariana, alergias), opcional: se la muestra el escáner al servir la comida. */
+  diet?: string | null;
+}
+
+export const DIET_MAX = 120;
+
+/** La dieta como se guarda: sin espacios de más y no más larga que el tope. Vacía es null. */
+export function cleanDiet(raw: string | null | undefined): string | null {
+  const clean = (raw ?? "").replace(/\s+/g, " ").trim().slice(0, DIET_MAX).trim();
+  return clean || null;
 }
 
 export type FailureReason = "sold_out" | "not_paid" | "network" | "misconfigured" | "too_many";
@@ -169,6 +179,8 @@ export async function registerForEvent(input: RegistrationInput): Promise<Regist
     // Quedó una inscripción empezada con otra entrada (la red falló a mitad de camino): sigue con la de ahora.
     pass = await repo.updatePass(pass.id, { ticketTypeId: ticketType.id });
   }
+  const diet = cleanDiet(input.diet);
+  if (diet && pass.diet !== diet) pass = await repo.updatePass(pass.id, { diet });
 
   const accounts = getAccountProvider(repo);
   let account: string;

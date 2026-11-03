@@ -70,7 +70,7 @@ export async function registerAction(_prev: FormState, formData: FormData): Prom
 
   let result: RegistrationResult;
   try {
-    result = await registerForEvent({ slug, ticketTypeId, ...values, lang, origin: await requestOrigin(), clientKey: clientKey(await headers()) });
+    result = await registerForEvent({ slug, ticketTypeId, ...values, lang, origin: await requestOrigin(), clientKey: clientKey(await headers()), diet: field("dieta") });
   } catch (error) {
     if (error instanceof RegistrationNotFound) return { error: t("evento.error.entrada"), values };
     console.error("[inscripcion]", error);

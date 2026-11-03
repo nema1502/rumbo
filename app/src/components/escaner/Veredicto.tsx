@@ -5,6 +5,7 @@
 import { useEffect } from "react";
 import { useLang, useT } from "@/i18n/client.tsx";
 import { formatDate } from "@/i18n/index.ts";
+import { kindLabelKey } from "@/lib/credential-kinds.ts";
 import type { ScanStation, Verdict } from "@/lib/escaner-api.ts";
 
 interface Props {
@@ -63,12 +64,17 @@ export function Veredicto({ veredicto, puesto, timezone, onCerrar }: Props) {
     veredicto.kind === "already"
       ? t("escaner.aLas", { hora: formatDate(lang, veredicto.at, timezone, { hour: "2-digit", minute: "2-digit" }) })
       : veredicto.kind === "no"
-        ? t(`escaner.motivo.${veredicto.reason}`, { beneficio: puesto.name })
+        ? veredicto.reason === "sold_out"
+          ? t("kit.escaner.agotadoMotivo", { beneficio: puesto.name })
+          : t(`escaner.motivo.${veredicto.reason}`, { beneficio: puesto.name })
         : puesto.kind === "benefit"
           ? puesto.name
           : null;
 
   const nombre = veredicto.name || (veredicto.passId ? t("escaner.sinNombre", { id: veredicto.passId }) : null);
+  // Quién es en el evento: el voluntario que atiende una mesa ve de un vistazo si es jurado, mentoría o asistente.
+  const quien = veredicto.credential ? t(kindLabelKey(veredicto.credential)) : null;
+  const quedan = veredicto.kind === "ok" && veredicto.left !== undefined && veredicto.left !== null ? veredicto.left : null;
 
   return (
     <div className={`esc-veredicto esc-veredicto-${veredicto.kind}`} role="dialog" aria-modal="true" aria-live="assertive" onClick={onCerrar}>
@@ -76,7 +82,19 @@ export function Veredicto({ veredicto, puesto, timezone, onCerrar }: Props) {
         <Icono kind={veredicto.kind} />
         <h2 className="esc-veredicto-titulo">{titulo}</h2>
         {nombre && <p className="esc-veredicto-nombre">{nombre}</p>}
+        {quien && (
+          <p className={`esc-veredicto-quien${veredicto.credential && veredicto.credential !== "attendee" ? " esc-veredicto-quien-staff" : ""}`}>
+            {quien}
+            {veredicto.team ? `, ${t("kit.credencial.equipo", { nombre: veredicto.team })}` : ""}
+          </p>
+        )}
         {detalle && <p className="esc-veredicto-detalle">{detalle}</p>}
+        {veredicto.kind === "ok" && veredicto.diet && (
+          <p className="esc-veredicto-dieta">
+            <span>{t("kit.escaner.dieta")}</span> {veredicto.diet}
+          </p>
+        )}
+        {quedan !== null && <p className="esc-veredicto-detalle">{quedan === 0 ? t("kit.escaner.agotado") : t("kit.escaner.quedan", { n: quedan })}</p>}
       </div>
       <button type="button" className="esc-veredicto-boton" onClick={onCerrar}>
         {t("escaner.siguiente")}

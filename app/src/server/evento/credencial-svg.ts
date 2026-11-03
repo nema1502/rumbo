@@ -3,6 +3,7 @@
 // marca si están instaladas; si no, la sans serif del sistema, y se lee igual.
 import { makeT } from "../../i18n/index.ts";
 import type { Lang } from "../../i18n/types.ts";
+import { isStaffKind, kindLabelKey } from "../../lib/credential-kinds.ts";
 import { renderQrMatrix } from "../../lib/qr-svg.ts";
 import type { BenefitState, CredentialView } from "./credencial.ts";
 import { formatEventWhen, formatEventWhere } from "./fecha.ts";
@@ -138,8 +139,13 @@ export function renderCredentialSvg(view: CredentialView, lang: Lang): string {
 
   // La entrada y, si hay algo que decir, el estado: "Con almuerzo. Entrada paga." Para una inscripción
   // gratis sin entrar todavía, el nombre de la entrada alcanza.
+  // Quien no es asistente lleva su tipo (Jurado, Mentora o mentor...) en vez del nombre de la entrada, y la banda
+  // de arriba va en el color del acento: en una pila de credenciales impresas se distingue de lejos.
+  const staff = isStaffKind(view.kind);
   const status = view.checkedIn ? t("estado.entro") : view.paid ? t("evento.credencial.paga") : null;
-  const ticketLine = status ? `${view.ticketType.name}. ${status}.` : view.ticketType.name;
+  const parts = [staff ? t(kindLabelKey(view.kind)) : view.ticketType.name, view.team ? t("kit.credencial.equipo", { nombre: view.team }) : null, status].filter((p): p is string => Boolean(p));
+  const ticketLine = parts.length > 1 ? `${parts.join(". ")}.` : (parts[0] ?? "");
+  const bandColor = staff ? COLOR.acentoChip : COLOR.tinta;
   const ticketY = afterName + 24;
   const dividerY = ticketY + 16;
 
@@ -172,7 +178,7 @@ export function renderCredentialSvg(view: CredentialView, lang: Lang): string {
   <rect width="${W}" height="${H}" fill="${COLOR.papel}"/>
   <rect x="${MARGIN}" y="${MARGIN}" width="${W - MARGIN * 2}" height="${H - MARGIN * 2}" rx="20" fill="${COLOR.blanco}" stroke="${COLOR.linea}"/>
   <clipPath id="band"><rect x="${MARGIN}" y="${MARGIN}" width="${W - MARGIN * 2}" height="${H - MARGIN * 2}" rx="20"/></clipPath>
-  <rect x="${MARGIN}" y="${MARGIN}" width="${W - MARGIN * 2}" height="${BAND_H}" fill="${COLOR.tinta}" clip-path="url(#band)"/>
+  <rect x="${MARGIN}" y="${MARGIN}" width="${W - MARGIN * 2}" height="${BAND_H}" fill="${bandColor}" clip-path="url(#band)"/>
   ${compass(left, MARGIN + 18, 26, COLOR.papel)}
   ${text(left + 34, MARGIN + 38, "Rumbo", `font-family="${FONT_DISPLAY}" font-weight="800" font-size="19" letter-spacing="-0.4" fill="${COLOR.papel}"`)}
   ${text(right, MARGIN + 37, t("evento.credencial.numero", { n: view.number, total: view.total }), `font-family="${FONT_TEXT}" font-weight="600" font-size="11.5" text-anchor="end" fill="${COLOR.papel}" opacity="0.9"`)}

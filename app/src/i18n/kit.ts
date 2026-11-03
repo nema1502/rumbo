@@ -210,6 +210,7 @@ export const kit = {
     "kit.equipo.errorRepetido": "Hay un correo repetido en el equipo.",
     "kit.equipo.errorFila": "Revisá el nombre y el correo de este integrante.",
     "kit.equipo.errorOtro": "Alguien de este equipo ya está en otro equipo.",
+    "kit.equipo.errorNombreEnUso": "Ya hay un equipo con ese nombre. Elegí otro.",
     "kit.equipo.errorSinEquipos": "Este evento no se inscribe por equipos.",
     "kit.equipo.errorSinLugares": "No quedan lugares para todo el equipo.",
     "kit.equipo.errorGeneral": "No pudimos inscribir al equipo. Probá de nuevo en un momento.",
@@ -223,6 +224,7 @@ export const kit = {
     "kit.escaner.dieta": "Dieta",
     "kit.escaner.quedan": "Quedan {n}",
     "kit.escaner.agotado": "Se acabó",
+    "kit.escaner.agotadoMotivo": "No quedan más: {beneficio}.",
 
     // El correo de una credencial importada
     "kit.correo.asunto": "Tu credencial para {evento}",
@@ -435,6 +437,7 @@ export const kit = {
     "kit.equipo.errorRepetido": "There is a repeated email in the team.",
     "kit.equipo.errorFila": "Check this member's name and email.",
     "kit.equipo.errorOtro": "Someone on this team is already on another team.",
+    "kit.equipo.errorNombreEnUso": "There is already a team with that name. Pick another one.",
     "kit.equipo.errorSinEquipos": "This event does not sign up by teams.",
     "kit.equipo.errorSinLugares": "There are not enough spots for the whole team.",
     "kit.equipo.errorGeneral": "We could not sign up the team. Try again in a moment.",
@@ -448,6 +451,7 @@ export const kit = {
     "kit.escaner.dieta": "Diet",
     "kit.escaner.quedan": "{n} left",
     "kit.escaner.agotado": "Sold out",
+    "kit.escaner.agotadoMotivo": "None left: {beneficio}.",
 
     // The email for an imported pass
     "kit.correo.asunto": "Your pass for {evento}",

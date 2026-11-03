@@ -57,6 +57,10 @@
   display: flex; justify-content: space-between; align-items: baseline; gap: 6px 12px; flex-wrap: wrap;
   color: var(--tinta-2); font-size: 0.95rem; font-weight: 600;
 }
+.credencial-tipo { font-family: var(--display); font-weight: 800; font-size: 1.15rem; color: var(--tinta); letter-spacing: -0.01em; }
+.credencial-staff .credencial-tipo { background: var(--acento); color: #0f1c2e; padding: 4px 16px; border-radius: 999px; }
+.credencial-staff { border-top: 6px solid var(--acento); }
+.credencial-chips { gap: 8px; }
 .credencial-cuerpo { display: grid; gap: 18px; }
 @media (min-width: 720px) {
   .credencial-cuerpo { grid-template-columns: 240px minmax(0, 1fr); gap: 28px; align-items: start; }
