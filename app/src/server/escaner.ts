@@ -214,6 +214,10 @@ function rememberSent(mark: (id: string, m: SyncMark) => Promise<unknown>, id: s
     onSubmitted: async (hash) => {
       await mark(id, { txHash: hash, txSentAt: new Date().toISOString() });
     },
+    // La red estaba ocupada y no la tomó: esa transacción no entró ni va a entrar, el próximo intento no tiene que esperarla.
+    onRejected: async () => {
+      await mark(id, { txHash: null, txSentAt: null });
+    },
   };
 }
 

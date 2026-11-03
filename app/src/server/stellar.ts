@@ -383,6 +383,11 @@ export interface SubmitHooks {
    * tiempo (o se corta la respuesta), con ese hash se puede preguntar cómo terminó antes de mandar otra.
    */
   onSubmitted?: (hash: string) => void | Promise<void>;
+  /**
+   * El nodo contestó que está ocupado y no tomó la transacción, ni después de reintentar (TRY_AGAIN_LATER): esa
+   * transacción no entró ni va a entrar, y su hash se puede olvidar.
+   */
+  onRejected?: () => void | Promise<void>;
 }
 
 /** Cuánto vale una transacción armada: después de esto la red ya no la incluye. */
@@ -431,21 +436,66 @@ export async function submitSponsored(tx: Transaction, signers: AuthSigner[] = [
   built.sign(sponsor);
   await hooks.onSubmitted?.(Buffer.from(built.hash()).toString("hex"));
 
-  const sent = await server.sendTransaction(built);
-  if (sent.status === "ERROR" || sent.status === "DUPLICATE" || sent.status === "TRY_AGAIN_LATER") {
+  return sendAndWait(server, built, hooks);
+}
+
+/** Lo que sendAndWait necesita de la conexión con la red (las pruebas pasan una de mentira). */
+export interface TxSender {
+  sendTransaction(tx: Transaction): Promise<rpc.Api.SendTransactionResponse>;
+  pollTransaction(hash: string, options?: { attempts?: number }): Promise<rpc.Api.GetTransactionResponse>;
+}
+
+/**
+ * Las esperas entre un intento de mandar y el siguiente cuando el nodo contesta TRY_AGAIN_LATER (tiene la
+ * cola llena): en total unos veintitrés segundos, menos de lo que vale la transacción (TX_TIMEOUT_SECONDS).
+ */
+export const SEND_RETRY_DELAYS_MS: readonly number[] = [1000, 2000, 4000, 8000, 8000];
+
+const sleepMs = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Manda una transacción ya firmada y espera cómo termina. El nodo puede contestar:
+ *  - PENDING: la aceptó, se espera el resultado por su hash.
+ *  - DUPLICATE: ya la tenía (un intento anterior llegó, aunque su respuesta se perdió): "ya está en camino",
+ *    se sigue esperando el resultado por su hash, igual que con PENDING.
+ *  - TRY_AGAIN_LATER: está ocupado y no la tomó. No es un error de la transacción: se vuelve a mandar la
+ *    misma, con espera creciente. Si sigue ocupado, queda como "reintentá después" (un error sin código de
+ *    contrato, que el escáner deja pendiente) y avisa con onRejected, porque esa transacción no entró ni va a entrar.
+ *  - ERROR: la rechazó.
+ */
+export async function sendAndWait(
+  server: TxSender,
+  built: Transaction,
+  hooks: SubmitHooks = {},
+  options: { delaysMs?: readonly number[]; sleep?: (ms: number) => Promise<void> } = {},
+): Promise<TxResult> {
+  const delays = options.delaysMs ?? SEND_RETRY_DELAYS_MS;
+  const sleep = options.sleep ?? sleepMs;
+  let sent = await server.sendTransaction(built);
+  for (const delay of delays) {
+    if (sent.status !== "TRY_AGAIN_LATER") break;
+    await sleep(delay);
+    sent = await server.sendTransaction(built);
+  }
+  if (sent.status === "TRY_AGAIN_LATER") {
+    await hooks.onRejected?.();
+    throw new ContractError("La red está ocupada y no tomó la transacción: reintentá más tarde", null);
+  }
+  if (sent.status === "ERROR") {
     const result = sent.errorResult ? sent.errorResult.result.type : sent.status;
     throw new ContractError(`La red no aceptó la transacción (${result})`, null, describeEvents(sent.diagnosticEvents));
   }
 
-  const final = await server.pollTransaction(sent.hash, { attempts: 40 });
+  const hash = sent.hash || Buffer.from(built.hash()).toString("hex");
+  const final = await server.pollTransaction(hash, { attempts: 40 });
   if (final.status === rpc.Api.GetTransactionStatus.SUCCESS) {
-    return { hash: sent.hash, ledger: final.ledger, returnValue: final.returnValue ? scValToNative(final.returnValue) : undefined };
+    return { hash, ledger: final.ledger, returnValue: final.returnValue ? scValToNative(final.returnValue) : undefined };
   }
   if (final.status === rpc.Api.GetTransactionStatus.FAILED) {
     const detail = describeEvents(final.diagnosticEventsXdr);
     throw new ContractError(`La transacción falló en la red (${final.resultXdr.result.type})`, parseContractCode(detail ?? ""), detail);
   }
-  throw new ContractError(`La transacción ${sent.hash} no se confirmó a tiempo`, null);
+  throw new ContractError(`La transacción ${hash} no se confirmó a tiempo`, null);
 }
 
 /** Cómo terminó una transacción mandada: entró bien, entró y falló, o la red no la conoce (todavía, o nunca). */
