@@ -117,7 +117,7 @@ export function isManualScannerId(scannerId: string | null | undefined): boolean
   return Boolean(scannerId?.startsWith(MANUAL_SCANNER_PREFIX));
 }
 
-/** Una persona encontrada en la puerta. El correo viene tapado ("a***@gmail.com"), nunca entero. */
+/** Una persona encontrada en la puerta. El correo viene tapado ("a***@example.com"), nunca entero. */
 export interface DoorMatch {
   passId: string;
   name: string;

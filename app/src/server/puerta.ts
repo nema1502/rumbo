@@ -43,7 +43,7 @@ export function doorSearchAttempts(): AttemptLimiter {
 
 // ---------- Buscar ----------
 
-/** "ana.perez@gmail.com" se muestra como "a***@gmail.com": alcanza para distinguir a dos Ana sin dar el correo entero. */
+/** "ana.perez@example.com" se muestra como "a***@example.com": alcanza para distinguir a dos Ana sin dar el correo entero. */
 export function maskEmail(email: string): string {
   const at = email.lastIndexOf("@");
   if (at < 1) return "***";

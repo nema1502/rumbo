@@ -53,7 +53,7 @@ async function evento() {
 const datos = await evento();
 const jose = await paseDePrueba(repo, datos, { name: "José Pérez", email: "jose.perez@example.com" });
 const ana = await paseDePrueba(repo, datos, { name: "Ana María Rojas", email: "ana.rojas@example.com" });
-const anita = await paseDePrueba(repo, datos, { name: "Ana Torres", email: "anita@correo.bo" });
+const anita = await paseDePrueba(repo, datos, { name: "Ana Torres", email: "anita@example.org" });
 // una inscripción que no terminó (la red falló a mitad de camino) no aparece
 const pendiente = await repo.upsertPerson({ name: "Pendiente Nadie", email: "pendiente@example.com" });
 await repo.createPass({ eventId: datos.event.id, personId: pendiente.id, ticketTypeId: datos.ticket.id, status: "pending" });
