@@ -93,19 +93,19 @@ Rumbo is not a ticket NFT and not a place to speculate on resale. If the organiz
 
 ## Where it stands
 
-The first column of the table below is built and runs on Stellar's testnet: the [rumbo-pass contract](contracts/rumbo-pass/README.md) (free or paid pass with the split in the same operation, one check-in and one redemption per benefit, with 43 tests) and the [app](app/README.md) (event page, registration, a pass whose QR code is signed with Ed25519 and changes every 20 seconds, offline scanner with a manual fallback at the door, organizer panel, sponsor booths with a route and a live screen, and the event report as a PDF with verifiable certificates). Accounts are created by the server in test mode; Google and passkey sign-in come next. The whole flow, run against testnet with its transaction ids, is in [app/demo/e2e-testnet.txt](app/demo/e2e-testnet.txt), and the paid event's contract can be inspected on [stellar.expert](https://stellar.expert/explorer/testnet/contract/CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA).
+The first column of the table below is built and runs on Stellar's testnet: the [rumbo-pass contract](contracts/rumbo-pass/README.md) (free or paid pass with the split in the same operation, one check-in and one redemption per benefit, with 43 tests) and the [app](app/README.md) (event page, registration, a pass whose QR code is signed with Ed25519 and changes every 20 seconds, offline scanner with a manual fallback at the door, organizer panel, sponsor booths with a route and a live screen, the event report as a PDF with verifiable certificates, and the kit: templates for a DevFest, Build with AI, International Women's Day, a hackathon, a meetup or a workshop, and importing the guest list from Luma or Bevy). Accounts are created by the server in test mode; Google and passkey sign-in come next. The whole flow, run against testnet with its transaction ids, is in [app/demo/e2e-testnet.txt](app/demo/e2e-testnet.txt), and the paid event's contract can be inspected on [stellar.expert](https://stellar.expert/explorer/testnet/contract/CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA).
 
 Without installing anything: the [landing page](https://rumbo-eventos.vercel.app) with a 31-second animation of the whole flow, and a [clickable demo](https://rumbo-eventos.vercel.app/#probar) where you sign up, get your pass, scan it as a volunteer (offline too) and run the draw as the organizer.
 
 The contract started from an [event pass](https://stellar.expert/explorer/testnet/contract/CDSXJR7MBV3ZLHLQPVTWZYVVP3CNABMGO6RRPLSI2KVFSJ2UX4SUD7DP) written in September 2026 for Stellar Elite Bolivia: buy a pass, check in once, list who came. Rumbo extends it with benefits, redemptions and, later, protected payments.
 
-| First | Then | Later |
+| Built, on testnet | Next | Later |
 |---|---|---|
-| Event page with free or paid registration (USDC on testnet) | Protected payment with automatic refund | Bank QR payments in bolivianos on mainnet |
-| Account with Google or a passkey, fees sponsored | Describe the event in plain words and approve the draft | Resale at the original price |
-| Pass with QR code, on the phone and as SVG or PDF | Prize from a Tinkazo draw landing on the pass | Pay-per-use API with x402 |
-| Check-in and redemptions with an offline scanner | Sponsor report | Payments to speakers |
-| Organizer dashboard | Luma CSV import | Licenses for community networks |
+| Event page with free or paid registration (USDC on testnet), set up from a template | Account with Google or a passkey, fees sponsored | Bank QR payments in bolivianos on mainnet |
+| Signed pass with a QR code that changes every 20 seconds, on the phone and printable | Protected payment with automatic refund | Resale at the original price |
+| Offline scanner for the door, each meal and each booth, with a manual fallback at the door | Prize from a Tinkazo draw landing on the pass | Pay-per-use API with x402 |
+| Organizer dashboard, sponsor report, event report as a PDF and verifiable certificates | Describe the event in plain words and approve the draft | Payments to speakers |
+| Luma and Bevy import, pass types (speaker, mentor, judge, volunteer) and teams | Passes in Apple and Google Wallet | Licenses for community networks |
 
 ## How it is built
 

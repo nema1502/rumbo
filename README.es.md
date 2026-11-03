@@ -93,19 +93,19 @@ Rumbo no es una entrada NFT ni un lugar para especular con la reventa. Si quien 
 
 ## Dónde está
 
-La primera columna de la tabla de abajo está hecha y corre en la red de prueba de Stellar: el [contrato rumbo-pass](contracts/rumbo-pass/README.md) (pase gratis o pago con el reparto en la misma operación, una entrada y un canje por beneficio, con 43 pruebas) y la [app](app/README.md) (la página del evento, la inscripción, la credencial con un QR firmado con Ed25519 que cambia cada 20 segundos, el escáner sin conexión con un respaldo manual en la puerta, el panel de quien organiza, los stands de quien auspicia con su ruta y su pantalla en vivo, y el informe del evento en PDF con certificados verificables). Las cuentas las crea el servidor en modo de prueba; entrar con Google o con una passkey viene después. El flujo entero, corrido en la red de prueba con los ids de sus transacciones, está en [app/demo/e2e-testnet.txt](app/demo/e2e-testnet.txt), y el contrato del evento pago se puede mirar en [stellar.expert](https://stellar.expert/explorer/testnet/contract/CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA).
+La primera columna de la tabla de abajo está hecha y corre en la red de prueba de Stellar: el [contrato rumbo-pass](contracts/rumbo-pass/README.md) (pase gratis o pago con el reparto en la misma operación, una entrada y un canje por beneficio, con 43 pruebas) y la [app](app/README.md) (la página del evento, la inscripción, la credencial con un QR firmado con Ed25519 que cambia cada 20 segundos, el escáner sin conexión con un respaldo manual en la puerta, el panel de quien organiza, los stands de quien auspicia con su ruta y su pantalla en vivo, el informe del evento en PDF con certificados verificables, y el kit: plantillas para un DevFest, un Build with AI, un Día de la Mujer, una hackatón, un meetup o un taller, e importar la lista desde Luma o Bevy). Las cuentas las crea el servidor en modo de prueba; entrar con Google o con una passkey viene después. El flujo entero, corrido en la red de prueba con los ids de sus transacciones, está en [app/demo/e2e-testnet.txt](app/demo/e2e-testnet.txt), y el contrato del evento pago se puede mirar en [stellar.expert](https://stellar.expert/explorer/testnet/contract/CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA).
 
 Sin instalar nada: la [landing](https://rumbo-eventos.vercel.app) con una animación de 31 segundos del flujo entero, y una [demo clickeable](https://rumbo-eventos.vercel.app/#probar) donde te inscribís, recibís la credencial, la escaneás como voluntario (también sin conexión) y hacés el sorteo como organizador.
 
 El contrato partió de un [pase de evento](https://stellar.expert/explorer/testnet/contract/CDSXJR7MBV3ZLHLQPVTWZYVVP3CNABMGO6RRPLSI2KVFSJ2UX4SUD7DP) escrito en septiembre de 2026 para Stellar Elite Bolivia: comprar el pase, entrar una sola vez, listar quiénes vinieron. Rumbo lo extiende con beneficios, canjes y, más adelante, pagos protegidos.
 
-| Primero | Después | Más adelante |
+| Hecho, en la red de prueba | Lo que sigue | Más adelante |
 |---|---|---|
-| Página del evento con inscripción gratis o paga (USDC en testnet) | Pago protegido con reembolso automático | Pagos con el QR del banco en bolivianos, en mainnet |
-| Cuenta con Google o passkey, con comisiones patrocinadas | Describir el evento en una frase y aprobar la propuesta | Reventa al precio original |
-| Credencial con QR, en el celular y en SVG o PDF | El premio de un sorteo de Tinkazo entrando a la credencial | API pagada por uso con x402 |
-| Check-in y canjes con un escáner que funciona sin conexión | Informe para quien auspicia | Pagos a oradores |
-| Panel de quien organiza | Importar el CSV de Luma | Licencias para redes de comunidades |
+| Página del evento con inscripción gratis o paga (USDC de prueba), armada desde una plantilla | Cuenta con Google o passkey, con comisiones patrocinadas | Pagos con el QR del banco en bolivianos, en mainnet |
+| Credencial firmada, con un QR que cambia cada 20 segundos, en el celular y para imprimir | Pago protegido con reembolso automático | Reventa al precio original |
+| Escáner sin conexión para la puerta, cada comida y cada stand, con respaldo manual en la puerta | El premio de un sorteo de Tinkazo entrando a la credencial | API pagada por uso con x402 |
+| Panel de quien organiza, informe para quien auspicia, informe del evento en PDF y certificados verificables | Describir el evento en una frase y aprobar la propuesta | Pagos a oradores |
+| Importar de Luma y de Bevy, tipos de credencial (oradores, mentoría, jurado, voluntariado) y equipos | Credencial en Apple y Google Wallet | Licencias para redes de comunidades |
 
 ## Cómo está hecho
 
