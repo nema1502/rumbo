@@ -52,8 +52,11 @@ Nada de `data/` ni de `.env.local` se versiona.
 | `/scan` | El escáner del voluntario: el código del puesto, la cámara, los tres veredictos, la cola local. Instalable, funciona sin red |
 | `/admin/<evento>` | El panel de quien organiza: contadores en vivo, códigos de puesto, pases, dobles, CSV y el contraste con la cadena |
 | `/admin/<evento>/informe` | El informe para quien auspicia: números, nunca personas, con hoja de impresión |
+| `/admin/<evento>/stands` | Stands y ruta: un stand por auspiciante con su código, la meta de la ruta y los números de cada uno |
+| `/stand/<código>` | El panel de quien atiende un stand: sus visitas y los contactos de quienes aceptaron compartirlos, con calificación, nota y CSV |
+| `/vivo/<evento>` | La pantalla en vivo para proyectar: quienes entraron, almuerzos y merch entregados, el ranking de la ruta y el espacio del sorteo |
 
-Cada parte tiene su guía: [la inscripción y la credencial](src/server/evento/README.md), [el escáner](src/app/scan/README.md) y [el panel](src/app/admin/README.md). La API:
+Cada parte tiene su guía: [la inscripción y la credencial](src/server/evento/README.md), [el escáner](src/app/scan/README.md), [el panel](src/app/admin/README.md) y [los stands y la ruta](src/app/stand/README.md). La API:
 
 | Ruta | Qué hace |
 |---|---|
@@ -62,6 +65,10 @@ Cada parte tiene su guía: [la inscripción y la credencial](src/server/evento/R
 | `GET /api/pase/<pase>?k=<clave>` y `/svg` | La credencial como datos, y para imprimir |
 | `POST /api/scan/open` y `/api/scan/sync` | El escáner: abrir el puesto con su código, y subir la cola |
 | `GET /api/admin/<evento>` y `/csv`, `POST .../cadena`, `.../entrar`, `.../salir` | El panel: el estado en JSON, la lista en CSV, el contraste con la cadena y la sesión |
+| `GET` y `POST /api/admin/<evento>/stands` | Stands y ruta: leer, y agregar, cambiar o sacar un stand y fijar la meta |
+| `GET` y `POST /api/pase/<pase>/ruta?k=<clave>` | La ruta de una credencial, y la respuesta de la persona a la pregunta de permiso o cómo quiere aparecer en la pantalla |
+| `GET /api/stand/<código>`, `POST .../contacto`, `GET .../csv` | El panel del stand en JSON, la calificación y la nota de un contacto, y el CSV |
+| `GET /api/vivo/<evento>` y `GET .../sorteo` | La pantalla en vivo en JSON, y la lista del sorteo (JSON con huella, o `?formato=csv`) |
 
 ## Probarlo
 
@@ -74,6 +81,7 @@ node scripts/inscribir-prueba.mjs [--pago] [--api http://localhost:3000]   # una
 node scripts/prueba-escaner.mjs --base http://localhost:3000               # el escáner en Chrome sin interfaz, con y sin red
 node scripts/smoke-contrato.mjs    # los helpers del contrato, de punta a punta
 node scripts/capturas.mjs --base http://localhost:3000 --salida data/capturas   # cada pantalla en tres tamaños y dos idiomas
+node scripts/capturas-stands.mjs   # los stands, la ruta y la pantalla en vivo, sin la red de Stellar (hace falta pnpm build antes)
 ```
 
 `pnpm e2e` (`scripts/e2e-testnet.mjs`) levanta un servidor de desarrollo propio sobre una base nueva en `data/e2e`, crea el evento de muestra, inscribe a una persona gratis y a otra con la entrada paga (y comprueba que la plata llegó a quien organiza y a Rumbo en la misma transacción), abre sus credenciales, las pasa por la puerta y por la mesa del almuerzo con la API del escáner, intenta el segundo canje y la segunda entrada, y comprueba con `status()`, `attendees()` e `info()` en la cadena y con el panel, el informe y el CSV que los números coinciden. Deja la transcripción con los ids de las transacciones en [demo/e2e-testnet.txt](demo/e2e-testnet.txt). Con `--base` usa un servidor ya levantado. El contrato tiene sus propias pruebas: `cargo test --workspace` desde la raíz del repositorio.
@@ -102,7 +110,7 @@ Castellano por defecto, inglés con `?lang=en`. El middleware (`src/middleware.t
 - En un componente de cliente: `const t = useT()` (de `@/i18n/client.tsx`).
 - Los textos con huecos: `t("pago.precio", { monto: 10 })`.
 
-Cada área tiene su diccionario en `src/i18n/`: `comun.ts` (lo general), `evento.ts`, `escaner.ts` y `panel.ts`, con el prefijo de su área en las claves y los dos idiomas en el mismo cambio. `index.ts` los une.
+Cada área tiene su diccionario en `src/i18n/`: `comun.ts` (lo general), `evento.ts`, `escaner.ts`, `panel.ts`, `stands.ts` (los stands, la ruta y el permiso) y `vivo.ts` (la pantalla en vivo), con el prefijo de su área en las claves y los dos idiomas en el mismo cambio. `index.ts` los une.
 
 ### Los datos: `src/server/repo.ts`
 

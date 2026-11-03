@@ -60,7 +60,7 @@ test("los stands y la pantalla en vivo hablan como el resto: credencial y pass, 
   const propios = (lang) => [...Object.entries(stands[lang]), ...Object.entries(vivo[lang])];
   assert.deepEqual(propios("es").filter(([, texto]) => /\bpases?\b/i.test(texto)).map(([clave]) => clave), []);
   assert.deepEqual(propios("en").filter(([, texto]) => /\b(credentials?|badges?)\b/i.test(texto)).map(([clave]) => clave), []);
-  // Tinkazo es otro producto: no se nombra en lo que ve la gente (docs/marca.md y CLAUDE.md)
+  // Tinkazo es otro producto: no se nombra en lo que ve la gente
   assert.deepEqual(conPalabra("es", /tinkazo/i), []);
   assert.deepEqual(conPalabra("en", /tinkazo/i), []);
 });
