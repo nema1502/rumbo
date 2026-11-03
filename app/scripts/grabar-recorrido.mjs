@@ -20,12 +20,12 @@
 // y los toques se marcan con un círculo donde de verdad se tocó.
 //
 //   node scripts/grabar-recorrido.mjs --base http://127.0.0.1:3000 [--lang es,en] [--port 9481]
-//        [--salida ../site/assets] [--trabajo data/recorrido] [--fase todo|grabar|componer] [--crf 30]
+//        [--salida ../site/assets] [--trabajo data/recorrido] [--fase todo|grabar|componer] [--crf 28]
 //        [--nombre-es "Valentina Rojas"] [--nombre-en "Lucía Vargas"]
 //
 // Hace falta el servidor levantado (next start) con la misma carpeta de datos que este script, el evento de
-// muestra (pnpm seed) y ffmpeg (FFMPEG=<ruta>, o en el PATH). Tarda unos cuatro minutos por idioma en grabar
-// (cada paso por la cadena es una transacción) y otros tantos en componer. Con --fase componer se rearma el
+// muestra (pnpm seed) y ffmpeg (FFMPEG=<ruta>, o en el PATH). Tarda unos dos minutos por idioma en grabar (cada
+// paso por la cadena es una transacción) y otros dos o tres en componer. Con --fase componer se rearma el
 // video con lo ya grabado en --trabajo, sin tocar la red.
 import { spawn } from "node:child_process";
 import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync, writeSync } from "node:fs";
@@ -49,7 +49,7 @@ const PORT = Number(opcion("--port", process.env.CDP_PORT || 9481));
 const SALIDA = resolve(opcion("--salida", join(APP_DIR, "..", "site", "assets")));
 const TRABAJO = resolve(opcion("--trabajo", join(APP_DIR, "data", "recorrido")));
 const FASE = opcion("--fase", "todo");
-const CRF = Number(opcion("--crf", 30));
+const CRF = Number(opcion("--crf", 28));
 const SLUG = opcion("--slug", "hackaton-comunidad");
 const NOMBRES = { es: opcion("--nombre-es", "Valentina Rojas"), en: opcion("--nombre-en", "Lucía Vargas") };
 const FPS = 30;
