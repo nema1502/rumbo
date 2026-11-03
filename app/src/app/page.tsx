@@ -12,7 +12,7 @@ export default async function HomePage() {
   const lang = await getLang();
   const t = await getT();
   const repo = getRepo();
-  const events = await repo.listEvents();
+  const events = (await repo.listEvents()).filter((event) => event.published);
   const cards = await Promise.all(events.map(async (event) => ({ event, tickets: await repo.listTicketTypes(event.id) })));
   // La pista para quien desarrolla va a la consola del servidor, no a la pantalla de la gente.
   if (cards.length === 0 && process.env.NODE_ENV !== "production") {
@@ -49,9 +49,12 @@ export default async function HomePage() {
           </ul>
         )}
       </div>
-      <p>
+      <p className="fila">
         <Link className="enlace" href="/scan">
           {t("inicio.escaner")}
+        </Link>
+        <Link className="enlace" href="/admin/nuevo">
+          {t("kit.inicio.armar")}
         </Link>
       </p>
     </section>

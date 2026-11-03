@@ -29,7 +29,13 @@ export function formatEventWhen(lang: Lang, event: EventTimes): EventWhen {
   const date = capitalize(formatDate(lang, event.startsAt, event.timezone, { weekday: "long", day: "numeric", month: "long" }));
   const start = formatDate(lang, event.startsAt, event.timezone, hourOptions(lang));
   const end = event.endsAt ? formatDate(lang, event.endsAt, event.timezone, hourOptions(lang)) : null;
-  return { date, time: end ? t("evento.horario", { desde: start, hasta: end }) : start };
+  if (!end || !event.endsAt) return { date, time: start };
+  // Un evento de varios días (la hackatón) termina otro día: se dice cuál, no solo la hora.
+  const day = (iso: string) => formatDate(lang, iso, event.timezone, { year: "numeric", month: "numeric", day: "numeric" });
+  if (day(event.startsAt) !== day(event.endsAt)) {
+    return { date, time: t("kit.cuando.hasta", { desde: start, hasta: formatDate(lang, event.endsAt, event.timezone, { weekday: "long", day: "numeric", month: "long", ...hourOptions(lang) }) }) };
+  }
+  return { date, time: t("evento.horario", { desde: start, hasta: end }) };
 }
 
 export function formatEventWhere(event: { place: string; venue: string | null }): string {

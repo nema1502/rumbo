@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ slug: string }> };
 
 /** A dónde se puede seguir después de entrar. Nada más, para que el enlace no lleve a cualquier lado. */
-const NEXT_PAGES: Record<string, string> = { "": "", informe: "/informe", stands: "/stands" };
+const NEXT_PAGES: Record<string, string> = { "": "", informe: "/informe", stands: "/stands", armar: "/armar", importar: "/importar" };
 
 async function enter(request: NextRequest, slug: string, key: string | null, next: string): Promise<NextResponse> {
   const event = await getRepo().getEventBySlug(slug);

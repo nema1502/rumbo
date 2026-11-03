@@ -49,6 +49,7 @@ export async function POST(request: NextRequest, { params }: { params: Params })
       origin: request.nextUrl.origin,
       clientKey: clientKey(request.headers),
       contactConsent: body.contactConsent === true,
+      diet: text(body.diet),
     });
   } catch (error) {
     if (error instanceof RegistrationNotFound) return NextResponse.json({ error: "not_found", what: error.what }, { status: 404 });

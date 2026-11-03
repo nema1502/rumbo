@@ -28,10 +28,13 @@ export function stationOf(access: StationAccess): ScanStation {
     return { id: access.stand.id, kind: "stand", name: access.stand.name, place: null };
   }
   if (access.kind === "benefit" && access.benefit) {
-    return { id: access.benefit.id, kind: "benefit", name: access.benefit.name, place: access.benefit.station };
+    return { id: access.benefit.id, kind: "benefit", name: access.benefit.name, place: access.benefit.station, food: isFood(access.benefit.kind) };
   }
   return GATE_STATION;
 }
+
+/** Un beneficio de comida (almuerzo, refrigerio, cena): ahí se muestra la dieta de cada persona. La polera y el premio no. */
+const isFood = (kind: string): boolean => kind === "lunch" || kind === "other";
 
 /** Los puestos de un evento: la puerta y una mesa por cada beneficio que alguna entrada trae en el contrato. */
 export async function scanStations(repo: Repo, eventId: string): Promise<ScanStation[]> {
@@ -42,7 +45,7 @@ export async function scanStations(repo: Repo, eventId: string): Promise<ScanSta
   }
   const stations: ScanStation[] = [GATE_STATION];
   for (const benefit of benefits) {
-    if (onChain.has(benefit.id)) stations.push({ id: benefit.id, kind: "benefit", name: benefit.name, place: benefit.station });
+    if (onChain.has(benefit.id)) stations.push({ id: benefit.id, kind: "benefit", name: benefit.name, place: benefit.station, food: isFood(benefit.kind) });
   }
   return stations;
 }
@@ -87,6 +90,11 @@ export async function buildSnapshot(repo: Repo, access: StationAccess): Promise<
     redeemed.set(redemption.passId, byBenefit);
   }
 
+  const station = stationOf(access);
+  const [types, teams] = await Promise.all([repo.listTicketTypes(event.id), repo.listPassTeams(event.id)]);
+  const kindOfType = new Map(types.map((t) => [t.id, t.credentialKind] as const));
+  const teamOf = new Map(teams.map((t) => [t.passId, t.team.name] as const));
+
   const infos: ScanPassInfo[] = [];
   for (const pass of passes) {
     if (pass.status === "pending") continue;
@@ -97,10 +105,21 @@ export async function buildSnapshot(repo: Repo, access: StationAccess): Promise<
       benefits: benefits.map((b) => b.id),
       checkedInAt: pass.checkedInAt ?? checkedIn.get(pass.id) ?? null,
       redeemed: redeemed.get(pass.id) ?? {},
+      credential: kindOfType.get(pass.ticketTypeId) ?? "attendee",
+      team: teamOf.get(pass.id) ?? null,
+      // La dieta solo baja a los puestos de comida: la puerta y las demás mesas no la necesitan.
+      diet: station.kind === "benefit" && station.food ? pass.diet : null,
     });
   }
 
-  return { event: toScanEvent(event, stations), station: stationOf(access), publicKey: access.publicKey, passes: infos, generatedAt: new Date().toISOString() };
+  // Si el beneficio del puesto tiene tope (150 poleras): cuántas quedan, según lo que algún escáner ya subió.
+  let stock: ScanSnapshot["stock"] = null;
+  if (station.kind === "benefit" && access.benefit?.stock != null) {
+    const used = new Set(redemptions.filter((r) => r.benefitId === station.id && !r.duplicate).map((r) => r.passId));
+    stock = { total: access.benefit.stock, left: Math.max(0, access.benefit.stock - used.size) };
+  }
+
+  return { event: toScanEvent(event, stations), station, publicKey: access.publicKey, passes: infos, generatedAt: new Date().toISOString(), stock };
 }
 
 /**

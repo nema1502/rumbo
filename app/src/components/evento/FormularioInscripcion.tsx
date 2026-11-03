@@ -46,6 +46,7 @@ function Campos({ state, comunidad }: { state: FormState; comunidad: string }) {
         defaultValue={state.values?.email ?? ""}
         error={state.fields?.email}
       />
+      <Campo id="dieta" name="dieta" etiqueta={t("kit.dieta.campo")} ayuda={t("kit.dieta.ayuda")} maxLength={120} autoComplete="off" />
       {/* Opcional y desmarcada: solo quien la marca entra en la lista de contactos de la comunidad. */}
       <label className="casilla" htmlFor="contacto">
         <input id="contacto" name="contacto" type="checkbox" value="si" defaultChecked={state.values?.contact === true} />

@@ -143,10 +143,13 @@ test("el veredicto distingue la impresa, el QR vencido y el que no es de este ev
   const ajeno = await verificar(await buildLivePayload(qr.buildLiveGrant(passA, otherKeys), T0));
   const pase = { id: passA, name: "Ana Prueba", benefits: [], checkedInAt: null, redeemed: {} };
   const visto = (v) => decideVerdict(v, GATE_STATION, pase, undefined);
-  assert.deepEqual(visto(printed), { kind: "ok", action: "checkin", passId: passA, name: "Ana Prueba", via: "printed" });
-  assert.deepEqual(visto(vivo), { kind: "ok", action: "checkin", passId: passA, name: "Ana Prueba" });
-  assert.deepEqual(visto(vencido), { kind: "no", reason: "expired", passId: passA, name: "Ana Prueba" });
-  assert.deepEqual(visto(ajeno), { kind: "no", reason: "invalid", passId: null, name: null });
+  // En la puerta el veredicto dice también quién es (asistente, sin equipo) y nunca la dieta; de un QR que no vale, nada.
+  const quien = { credential: "attendee", team: null, diet: null };
+  const nadie = { credential: null, team: null, diet: null };
+  assert.deepEqual(visto(printed), { kind: "ok", action: "checkin", passId: passA, name: "Ana Prueba", via: "printed", ...quien });
+  assert.deepEqual(visto(vivo), { kind: "ok", action: "checkin", passId: passA, name: "Ana Prueba", ...quien });
+  assert.deepEqual(visto(vencido), { kind: "no", reason: "expired", passId: passA, name: "Ana Prueba", ...nadie });
+  assert.deepEqual(visto(ajeno), { kind: "no", reason: "invalid", passId: null, name: null, ...nadie });
   const yaEntro = decideVerdict(printed, GATE_STATION, { ...pase, checkedInAt: "2026-11-22T09:10:00-04:00" }, undefined);
   assert.equal(yaEntro.kind, "already");
   assert.equal(yaEntro.via, "printed");

@@ -81,6 +81,7 @@ export async function registerAction(_prev: FormState, formData: FormData): Prom
       origin: await requestOrigin(),
       clientKey: clientKey(await headers()),
       contactConsent: contact,
+      diet: field("dieta"),
     });
   } catch (error) {
     if (error instanceof RegistrationNotFound) return { error: t("evento.error.entrada"), values };

@@ -6,6 +6,7 @@
 // clave pública del evento (para verificar las credenciales), su puesto y la lista de pases con lo que trae
 // cada uno y lo que ya se usó. Después decide solo. Lo que registra va a una cola local
 // (src/lib/cola.ts) y, cuando hay red, a /api/scan/sync, que lo lleva al contrato con la cuenta de puerta.
+import type { CredentialKind } from "./credential-kinds.ts";
 import type { QrVerification } from "./qr-codec.ts";
 
 export type StationKind = "gate" | "benefit" | "stand";
@@ -19,6 +20,8 @@ export interface ScanStation {
   name: string;
   /** Dónde está el puesto ("Mesa del almuerzo"), si quien organiza lo dijo. */
   place: string | null;
+  /** Si es un puesto de comida (almuerzo, refrigerio, cena): ahí se muestra la dieta de cada persona, en grande. */
+  food?: boolean;
 }
 
 export const GATE_STATION: ScanStation = { id: "gate", kind: "gate", name: "", place: null };
@@ -43,6 +46,12 @@ export interface ScanPassInfo {
   checkedInAt: string | null;
   /** Id del beneficio ya canjeado y cuándo. */
   redeemed: Record<string, string>;
+  /** Quién es en el evento (jurado, mentoría...). Una foto vieja no lo trae: se toma como asistente. */
+  credential?: CredentialKind;
+  /** El equipo, si el evento se inscribe por equipos. */
+  team?: string | null;
+  /** La restricción de dieta. Solo viaja a los puestos de comida, no a la puerta ni a los demás. */
+  diet?: string | null;
   /**
    * Los stands que ya visitó y cuándo. En el escáner de un stand viene solo el suyo: quien auspicia nunca se
    * entera de qué otros stands visitó la persona. Las fotos viejas, guardadas antes de los stands, no lo traen.
@@ -77,6 +86,8 @@ export interface ScanSnapshot {
   /** Solo en el escáner de un stand: sus visitas y quién aceptó compartir su contacto. */
   stand?: ScanStandInfo;
   generatedAt: string;
+  /** Si el beneficio del puesto tiene tope (150 poleras): cuántos hay y cuántos quedan según el servidor. */
+  stock?: { total: number; left: number } | null;
 }
 
 export type ScanAction = "checkin" | "redeem" | "visit";
@@ -178,7 +189,7 @@ export interface LocalUsage {
   visited?: Record<string, string>;
 }
 
-export type NoReason = "invalid" | "expired" | "unknown" | "not_included" | "not_checked_in";
+export type NoReason = "invalid" | "expired" | "unknown" | "not_included" | "not_checked_in" | "sold_out";
 
 /**
  * Cómo se leyó la credencial, cuando no es la lectura de siempre del QR del celular: la impresa (el QR fijo,
@@ -186,11 +197,27 @@ export type NoReason = "invalid" | "expired" | "unknown" | "not_included" | "not
  */
 export type ReadVia = "printed" | "manual";
 
+/** Lo que el veredicto dice de la persona, además de su nombre: quién es en el evento, su equipo y, en la comida, su dieta. */
+export interface VerdictWho {
+  credential: CredentialKind | null;
+  team: string | null;
+  /** Solo en un puesto de comida y solo si la persona dijo algo. */
+  diet: string | null;
+}
+
 /** Los tres veredictos: verde (entró, canjeado), amarillo (ya entró, ya canjeado) y neutro (no corresponde). */
 export type Verdict =
-  | { kind: "ok"; action: ScanAction; passId: string; name: string | null; via?: ReadVia }
-  | { kind: "already"; action: ScanAction; passId: string; name: string | null; at: string; via?: ReadVia }
-  | { kind: "no"; reason: NoReason; passId: string | null; name: string | null };
+  | ({ kind: "ok"; action: ScanAction; passId: string; name: string | null; left?: number | null; via?: ReadVia } & VerdictWho)
+  | ({ kind: "already"; action: ScanAction; passId: string; name: string | null; at: string; via?: ReadVia } & VerdictWho)
+  | ({ kind: "no"; reason: NoReason; passId: string | null; name: string | null } & VerdictWho);
+
+const NOBODY: VerdictWho = { credential: null, team: null, diet: null };
+
+/** Quién es la persona para el veredicto: su credencial, su equipo y, solo en un puesto de comida, su dieta. */
+export function whoIs(pass: ScanPassInfo | undefined, station: ScanStation): VerdictWho {
+  if (!pass) return NOBODY;
+  return { credential: pass.credential ?? "attendee", team: pass.team ?? null, diet: station.kind === "benefit" && station.food ? (pass.diet ?? null) : null };
+}
 
 /**
  * Decide qué pasa con una lectura, sin red: la firma de la credencial, lo que el servidor sabía del
@@ -212,29 +239,31 @@ export function decideVerdict(
 ): Verdict {
   if (!verification.ok) {
     // Un QR que venció (por ejemplo una captura de pantalla) es de alguien: se dice de quién.
-    if (verification.reason === "expired") return { kind: "no", reason: "expired", passId: verification.passId, name: pass?.name ?? null };
-    return { kind: "no", reason: "invalid", passId: null, name: null };
+    if (verification.reason === "expired") return { kind: "no", reason: "expired", passId: verification.passId, name: pass?.name ?? null, ...NOBODY };
+    return { kind: "no", reason: "invalid", passId: null, name: null, ...NOBODY };
   }
   const passId = verification.passId;
   const name = pass?.name ?? null;
   const checkedInAt = pass?.checkedInAt ?? local?.checkedInAt ?? null;
   const via: { via?: ReadVia } = verification.via === "printed" ? { via: "printed" } : {};
+  const who = whoIs(pass, station);
 
   if (station.kind === "gate") {
-    if (checkedInAt) return { kind: "already", action: "checkin", passId, name, at: checkedInAt, ...via };
-    return { kind: "ok", action: "checkin", passId, name, ...via };
+    if (checkedInAt) return { kind: "already", action: "checkin", passId, name, at: checkedInAt, ...via, ...who };
+    return { kind: "ok", action: "checkin", passId, name, ...via, ...who };
   }
 
+  // En un stand, quien auspicia ve el nombre (si la persona aceptó) y nada más: ni su credencial ni su equipo.
   if (station.kind === "stand") {
     const visitedAt = pass?.visited?.[station.id] ?? local?.visited?.[station.id] ?? null;
-    if (visitedAt) return { kind: "already", action: "visit", passId, name, at: visitedAt };
-    return { kind: "ok", action: "visit", passId, name };
+    if (visitedAt) return { kind: "already", action: "visit", passId, name, at: visitedAt, ...NOBODY };
+    return { kind: "ok", action: "visit", passId, name, ...NOBODY };
   }
 
-  if (!pass) return { kind: "no", reason: "unknown", passId, name: null };
-  if (!pass.benefits.includes(station.id)) return { kind: "no", reason: "not_included", passId, name };
-  if (!checkedInAt) return { kind: "no", reason: "not_checked_in", passId, name };
+  if (!pass) return { kind: "no", reason: "unknown", passId, name: null, ...NOBODY };
+  if (!pass.benefits.includes(station.id)) return { kind: "no", reason: "not_included", passId, name, ...who };
+  if (!checkedInAt) return { kind: "no", reason: "not_checked_in", passId, name, ...who };
   const redeemedAt = pass.redeemed[station.id] ?? local?.redeemed[station.id] ?? null;
-  if (redeemedAt) return { kind: "already", action: "redeem", passId, name, at: redeemedAt, ...via };
-  return { kind: "ok", action: "redeem", passId, name, ...via };
+  if (redeemedAt) return { kind: "already", action: "redeem", passId, name, at: redeemedAt, ...via, ...who };
+  return { kind: "ok", action: "redeem", passId, name, ...via, ...who };
 }

@@ -50,7 +50,11 @@ Nada de `data/` ni de `.env.local` se versiona.
 | `/e/<evento>/listo?pase=<id>&k=<clave>` | "Inscripción lista" o "Entrada paga", y el enlace a la credencial |
 | `/p/<pase>?k=<clave>` | La credencial: el QR que se renueva solo cada 20 segundos (también sin conexión), el nombre, "Credencial N de M", el estado y lo que le toca a la persona. "Descargar en SVG" baja la versión para imprimir, con un QR fijo marcado como impresa |
 | `/scan` | El escáner del voluntario: el código del puesto, la cámara, los tres veredictos, la cola local. Instalable, funciona sin red. En la puerta, además, el respaldo manual: buscar a alguien por nombre o correo, marcarle la entrada o agregarlo |
-| `/admin/<evento>` | El panel de quien organiza: contadores en vivo, códigos de puesto, pases, dobles, CSV y el contraste con la cadena |
+| `/admin/<evento>` | El panel de quien organiza: contadores en vivo, canjes por franja, códigos de puesto, pases, dobles, CSV y el contraste con la cadena |
+| `/admin/nuevo` | Armar un evento desde una plantilla: elegirla, contar lo básico, y queda el borrador |
+| `/admin/<evento>/armar` | El borrador: credenciales, canjes, puestos y topes; "Publicar el evento" |
+| `/admin/<evento>/importar` | Importar la lista de Luma o de Bevy; cada persona recibe su credencial por correo |
+| `/e/<evento>/equipo` | La inscripción por equipos de la hackatón |
 | `/admin/<evento>/informe` | El informe para quien auspicia: números, nunca personas, con hoja de impresión |
 | `/admin/<evento>/stands` | Stands y ruta: un stand por auspiciante con su código, la meta de la ruta y los números de cada uno |
 | `/stand/<código>` | El panel de quien atiende un stand: sus visitas y los contactos de quienes aceptaron compartirlos, con calificación, nota y CSV |
@@ -74,6 +78,66 @@ Cada parte tiene su guía: [la inscripción y la credencial](src/server/evento/R
 | `GET` y `POST /api/pase/<pase>/ruta?k=<clave>` | La ruta de una credencial, y la respuesta de la persona a la pregunta de permiso o cómo quiere aparecer en la pantalla |
 | `GET /api/stand/<código>`, `POST .../contacto`, `GET .../csv` | El panel del stand en JSON, la calificación y la nota de un contacto, y el CSV |
 | `GET /api/vivo/<evento>` y `GET .../sorteo` | La pantalla en vivo en JSON, y la lista del sorteo (JSON con huella, o `?formato=csv`) |
+| `POST /api/admin/<evento>/importar` y `GET .../asistencia` | Importar una lista (vista, importar y tandas de correos) y bajar la asistencia en la forma de Bevy |
+
+## El kit listo
+
+Una comunidad arma su evento en dos minutos con una plantilla y trae su lista desde donde ya inscribe (Luma, Bevy). Todo está en `src/server/kit/` y `src/components/kit/`; los textos, en `src/i18n/kit.ts`; las tablas nuevas, en `src/server/migrations/007-kit.sql`. Los eventos son gratis por defecto: lo pago (la entrada con polera, el kit del taller) es opcional y viene apagado.
+
+### Plantillas
+
+`/admin/nuevo` elige entre seis plantillas y pide lo básico (nombre, día y hora, ciudad, quién organiza, cuántos lugares). Crea un **borrador**: el evento, sus tipos de credencial, sus canjes y lo que trae cada tipo. El borrador no se ve en la página pública hasta que se publica.
+
+| Plantilla | Dura | Lugares | Qué trae |
+|---|---|---|---|
+| DevFest | 1 día | 300 | Almuerzo, refrigerio, café del auspiciante; cena para oradores, mentoría y organización; polera para oradores |
+| Build with AI | 1 día | 150 | Almuerzo, refrigerio, café del auspiciante; cena para mentoría y organización |
+| Día de la Mujer (IWD) | 1 día | 120 | Almuerzo, refrigerio, café del auspiciante; cena para oradoras, mentoras y organización |
+| Hackatón | 2 días | 200 | Desayuno, almuerzo, refrigerio y cena del día 1 y del día 2, cada franja un canje distinto; mentoría y jurado; **inscripción por equipos** |
+| Meetup | 3 horas | 60 | Refrigerio y café del auspiciante |
+| Taller | 4 horas | 40 | Refrigerio; kit del taller opcional |
+
+Todas traen además el premio del sorteo (no viene con la credencial: lo ganan quienes salen en el sorteo) y los puestos del escáner, que salen de los canjes: la puerta y una mesa por canje (almuerzo, refrigerio, merch, premios...). La entrada paga ("con polera", "con kit") existe en todas, apagada, a 10 USDC de prueba.
+
+`/admin/<evento>/armar` es el borrador: cada tipo de credencial se enciende o se apaga, se renombra y se le tilda lo que trae; cada canje tiene su nombre, su puesto y cuántos hay (el tope). "Publicar el evento" guarda y prepara el contrato de cada entrada (`src/server/kit/publicar.ts`); el evento recién entonces recibe inscripciones. Crear eventos lo controla `RUMBO_CREATE_KEY` (la "clave de la casa"): vacía, está abierto en desarrollo y cerrado en producción.
+
+### Credenciales por tipo
+
+Cada tipo de entrada es un tipo de credencial: asistente, oradora u orador, mentora o mentor, jurado, voluntaria o voluntario, organización y auspiciante (`src/lib/credential-kinds.ts`). Cada tipo trae sus propios canjes: el jurado y la mentoría tienen cena, quien es voluntario tiene su polera de staff. La credencial en pantalla y la que se imprime llevan el tipo en grande (la banda de arriba cambia de color si no es asistente) y el equipo si lo hay; el escáner lo muestra en cada veredicto. **Solo el asistente se inscribe desde la página pública**: las demás se entregan por invitación, importando la lista.
+
+### Importar desde Luma y desde Bevy
+
+`/admin/<evento>/importar` (el evento tiene que estar publicado): se sube el CSV, se revisa lo que se leyó, se eligen los estados que entran (por defecto, aprobadas o confirmadas) y qué credencial recibe cada tipo de entrada de la lista, y se importa. Cada persona recibe su enlace por correo, **de a tandas de cinco** (la pantalla las pide una tras otra con su barra de avance; si se cierra, lo pendiente se retoma). Al final: "Importadas 142, salteadas 6 duplicadas, 3 con correo inválido".
+
+- Una persona no se duplica: el mismo correo (sin importar mayúsculas) dos veces en el archivo entra una vez, y quien ya tiene credencial en el evento no se toca (ni su entrada, ni sus canjes, ni su tipo): **volver a importar no pisa los check-ins ya hechos**.
+- La cuenta de Stellar se crea igual que en la inscripción; a la cadena no va ningún dato personal.
+- Lo que la lista trae de más se ignora. Se importa solo a los tipos de entrada gratis.
+
+Las columnas se buscan por nombre, sin importar mayúsculas, tildes ni si se separa con espacio o con guion bajo. Lo que lee de cada plataforma:
+
+| Qué | Luma | Bevy |
+|---|---|---|
+| Nombre | `name`, o `first_name` y `last_name` | `First Name` y `Last Name` (o `Name`) |
+| Correo | `email` | `Email` |
+| Estado | `approval_status`: `approved` entra; `pending_approval` e `invited` son pendientes; `declined` rechazada | `Attendee Status` o `Registration Status`: `Registered`, `Checked In` y `Attended` entran; `Waitlisted` es lista de espera; `Cancelled` cancelada |
+| Tipo de entrada | `ticket_name` | `Ticket Type` |
+| Dieta (opcional) | una pregunta de la inscripción con "dieta", "alimentaria" o "alergia" en el título | igual (`diet`, `dietary`, `allergy`) |
+
+El resto (teléfono, fechas, URL del QR, pagos, cupón, UTM, respuestas, empresa, cargo, capítulo) se ignora. La lista se reconoce como de Luma por `api_id`, `guest_id`, `qr_code_url` o `approval_status` con `checked_in_at`, y como de Bevy por `Chapter`, `Event ID`, `Event Name`, `Attendee ID`, `Registration Date` o el estado del asistente; cualquier otro archivo con una columna de correos (en castellano también: `nombre`, `correo`, `estado`) se importa igual. Una entrada que se llama como un tipo de credencial (`Speaker`, `Mentor`, `Jurado`, `Volunteer`, `Sponsor`, `Orador`...) va sugerida a ese tipo, y quien organiza lo puede cambiar antes de importar.
+
+El lector (`src/server/kit/csv.ts`) viene del de Tinkazo (MIT): comillas, nombres con coma, punto y coma de Excel en español, BOM, UTF-16 y Windows-1252, filas más cortas o más largas que el encabezado. Sus pruebas, pasadas a `node --test`, están en `tests/kit-csv.test.mjs`. **Sin verificar con un export real:** los nombres de las columnas de Luma salen de su ayuda y del lector de Tinkazo, que ya leyó exports reales; los de Bevy son una inferencia, porque su documentación pública no los lista. Si una columna no se reconoce, la lista se importa igual mientras tenga correos.
+
+Los CSV de ejemplo, inventados, están en `tests/fixtures/` como `luma-invitados.csv.txt` y `bevy-asistentes.csv.txt`: terminan en `.txt` porque el auditor de subida frena cualquier `.csv` (puede traer personas reales).
+
+### Comidas por franja, topes, dieta y asistencia
+
+- **Comidas por franja.** En un evento de varios días cada comida es un canje distinto (`Desayuno, día 1`, `Almuerzo, día 1`...). El panel muestra, en "Canjes por franja", cuántas personas canjearon cada uno, para pedir la comida justa.
+- **Tope por canje.** Cada canje puede tener un total (150 poleras). El panel dice cuántas quedan y avisa cuando se acaban; el escáner de esa mesa baja el total que sabe el servidor, descuenta lo que ese escáner ya entregó sin conexión y, cuando no queda ninguna, responde "no corresponde" y no anota nada.
+- **Dieta.** La inscripción (y una pregunta de la lista importada) puede traer una restricción de dieta, opcional. Se guarda en la credencial y solo viaja a los escáneres de los puestos de comida, donde sale en grande.
+- **Asistencia.** `GET /api/admin/<evento>/asistencia` baja un CSV con la forma de una lista de Bevy (`First Name`, `Last Name`, `Email`, `Ticket Type`) y la columna `Attended` (`Yes` o `No`) que piden las ligas de hackatones, más `Checked In At`, `Credential Type` y `Team`. Los GDG pueden devolverla a su plataforma.
+- **Equipos.** La hackatón se inscribe en `/e/<evento>/equipo`: nombre del equipo y hasta cinco integrantes; cada uno recibe su propia credencial por correo. El equipo se ve en la credencial, en el panel y en el escáner.
+
+Lo que el kit **no** hace todavía: cambiar el tope de un canje o los precios después de publicar, desplegar el contrato de cada entrada probado contra la red (`networkProvisioner` está escrito y revisado por tipos, pero no se corrió), importar a una entrada de pago, ni leer un `.xlsx` (hay que exportar CSV).
 
 ## Probarlo
 
@@ -88,6 +152,7 @@ node scripts/smoke-contrato.mjs    # los helpers del contrato, de punta a punta
 node scripts/capturas.mjs --base http://localhost:3000 --salida data/capturas   # cada pantalla en tres tamaños y dos idiomas
 node scripts/capturas-stands.mjs   # los stands, la ruta y la pantalla en vivo, sin la red de Stellar (hace falta pnpm build antes)
 pnpm informe -- --datos informes/ejemplo.json --lang es --salida informes/ejemplo-es.pdf      # el informe de ejemplo (hace falta XeLaTeX)
+node scripts/capturas-kit.mjs --salida data/capturas-kit   # las pantallas del kit en 1440x900 y 390x844, en es y en; levanta la app adentro, con una base propia y cuentas, contrato y correo de mentira: no toca la red de prueba
 ```
 
 `pnpm e2e` (`scripts/e2e-testnet.mjs`) levanta un servidor de desarrollo propio sobre una base nueva en `data/e2e`, crea el evento de muestra, inscribe a una persona gratis y a otra con la entrada paga (y comprueba que la plata llegó a quien organiza y a Rumbo en la misma transacción), abre sus credenciales, las pasa por la puerta y por la mesa del almuerzo con la API del escáner, intenta el segundo canje y la segunda entrada, y comprueba con `status()`, `attendees()` e `info()` en la cadena y con el panel, el informe y el CSV que los números coinciden. Deja la transcripción con los ids de las transacciones en [demo/e2e-testnet.txt](demo/e2e-testnet.txt). Con `--base` usa un servidor ya levantado. El contrato tiene sus propias pruebas: `cargo test --workspace` desde la raíz del repositorio.
@@ -100,12 +165,12 @@ src/app/api/        las rutas de la API: evento, pase, scan, admin
 src/app/globals.css los tokens de la marca (día y noche) y los componentes base
 src/components/     Marca, SelectorIdioma, BotonTema, ui.tsx (Boton, BotonEnlace, Tarjeta, Chip, Campo, Pantalla, Aviso) y los de cada área: evento/, escaner/, panel/
 src/i18n/           los diccionarios por área (comun, evento, escaner, panel) y el helper t(clave)
-src/server/         lo que corre solo en el servidor: repo, accounts, stellar, mailer, qr, qr-keys, env, evento/, escaner, puerta, panel, stands, informe, verificacion
-src/lib/            lo que comparten servidor y navegador: la forma del QR, Ed25519 y la verificación, el QR que rota, el veredicto del escáner, la cola local, la búsqueda, los códigos de puesto
+src/server/         lo que corre solo en el servidor: repo, accounts, stellar, mailer, qr, qr-keys, env, evento/, escaner, puerta, panel, stands, informe, verificacion, kit/ (plantillas, borrador, publicar, importar, csv, equipos, asistencia)
+src/lib/            lo que comparten servidor y navegador: la forma del QR, Ed25519 y la verificación, el QR que rota, el veredicto del escáner, la cola local, la búsqueda, los códigos de puesto, los tipos de credencial
 public/             el service worker del escáner (sw.js) y su manifiesto
 scripts/            setup-dev, seed, e2e-testnet, capturas, informe, certificados, paquete-embajadores, las pruebas de cada área y lib/ (env, browser, latex)
 informes/           las plantillas de XeLaTeX del informe y del certificado, sus textos, las fuentes, la marca y los ejemplos
-tests/              las pruebas sin red (pnpm test): el CSV, los frenos, el escáner y su cola, la firma del QR y su ventana de tiempo, el respaldo de la puerta, el envío de transacciones, los stands, el informe, los errores, los textos; lib/ arma una base vacía por archivo
+tests/              las pruebas sin red (pnpm test): el CSV, los frenos, el escáner y su cola, la firma del QR y su ventana de tiempo, el respaldo de la puerta, el envío de transacciones, los stands, el informe, los errores, los textos, y las del kit (kit-*.test.mjs, con los CSV de ejemplo en fixtures/); lib/ arma una base vacía por archivo
 demo/               la transcripción del flujo entero en la red de prueba
 ```
 
@@ -117,11 +182,11 @@ Castellano por defecto, inglés con `?lang=en`. El middleware (`src/middleware.t
 - En un componente de cliente: `const t = useT()` (de `@/i18n/client.tsx`).
 - Los textos con huecos: `t("pago.precio", { monto: 10 })`.
 
-Cada área tiene su diccionario en `src/i18n/`: `comun.ts` (lo general), `evento.ts`, `escaner.ts`, `panel.ts`, `stands.ts` (los stands, la ruta y el permiso), `vivo.ts` (la pantalla en vivo) y `verificacion.ts` (la verificación de un certificado), con el prefijo de su área en las claves y los dos idiomas en el mismo cambio. `index.ts` los une.
+Cada área tiene su diccionario en `src/i18n/`: `comun.ts` (lo general), `evento.ts`, `escaner.ts`, `panel.ts`, `stands.ts` (los stands, la ruta y el permiso), `vivo.ts` (la pantalla en vivo), `verificacion.ts` (la verificación de un certificado) y `kit.ts` (las plantillas, la importación y los equipos), con el prefijo de su área en las claves y los dos idiomas en el mismo cambio. `index.ts` los une.
 
 ### Los datos: `src/server/repo.ts`
 
-`Repo` es la interfaz; `getRepo()` da la instancia (`SqliteRepo` hoy, `SupabaseRepo` es un esqueleto). Las tablas están en `src/server/migrations/` (`001-inicial.sql` lo general, `002-acceso-credencial.sql` las claves de acceso de las credenciales, `003-panel.sql` las del panel, `006-llaves-ed25519.sql` las llaves con las que se firman los QR, `008-stands.sql` los stands y la ruta, `009-consentimiento-contacto.sql` la casilla opcional de contacto de la inscripción); las migraciones se aplican solas al abrir la base.
+`Repo` es la interfaz; `getRepo()` da la instancia (`SqliteRepo` hoy, `SupabaseRepo` es un esqueleto). Las tablas están en `src/server/migrations/` (`001-inicial.sql` lo general, `002-acceso-credencial.sql` las claves de acceso de las credenciales, `003-panel.sql` las del panel, `006-llaves-ed25519.sql` las llaves con las que se firman los QR, `007-kit.sql` las plantillas, los tipos de credencial, los equipos, los topes y la dieta, `008-stands.sql` los stands y la ruta, `009-consentimiento-contacto.sql` la casilla opcional de contacto de la inscripción); las migraciones se aplican solas al abrir la base.
 
 - **Eventos.** Las llaves con las que se firman sus QR no están acá sino en `event_qr_keys` (`src/server/qr-keys.ts`): una llave privada por evento que no sale del servidor, y su clave pública, que es lo único que recibe el escáner.
 - **Tipos de entrada**: cada uno con su precio en USDC de prueba y su contrato en la red (el precio es fijo por contrato: el evento de muestra tiene uno gratis y uno pago).

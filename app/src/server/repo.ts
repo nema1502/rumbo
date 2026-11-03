@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { DatabaseSync, SQLInputValue } from "node:sqlite";
+import { CREDENTIAL_KINDS, isCredentialKind, type CredentialKind } from "../lib/credential-kinds.ts";
 import { appDir, dataDir, getEnv } from "./env.ts";
 import { newPassId } from "./qr.ts";
 
@@ -13,6 +14,9 @@ export type PassStatus = "pending" | "active" | "checked_in";
 export type BenefitKind = "lunch" | "merch" | "prize" | "other";
 /** De dónde salió un beneficio de un pase: de su entrada, del sorteo, o dado a mano. */
 export type GrantSource = "ticket" | "raffle" | "manual";
+
+// Los tipos de credencial (quién es la persona en el evento) viven en src/lib/credential-kinds.ts.
+export { CREDENTIAL_KINDS, isCredentialKind, type CredentialKind };
 
 export interface EventRecord {
   id: string;
@@ -32,6 +36,12 @@ export interface EventRecord {
   /** El contrato rumbo-pass del evento, para los tipos de entrada que no tienen el suyo. */
   contractId: string | null;
   capacity: number | null;
+  /** La plantilla de la que salió (src/server/kit/plantillas.ts), o null si se armó a mano. */
+  template: string | null;
+  /** Un borrador (false) se edita en el panel y no se ve en la página pública. */
+  published: boolean;
+  /** Si se inscribe por equipos (la hackatón). */
+  teamSignup: boolean;
   createdAt: string;
 }
 
@@ -48,6 +58,9 @@ export interface NewEvent {
   organizerAccount?: string | null;
   contractId?: string | null;
   capacity?: number | null;
+  template?: string | null;
+  published?: boolean;
+  teamSignup?: boolean;
 }
 
 export type EventPatch = Partial<Omit<NewEvent, "slug">>;
@@ -61,6 +74,10 @@ export interface TicketType {
   /** El contrato rumbo-pass con ese precio. Si es null se usa el del evento. */
   contractId: string | null;
   sortOrder: number;
+  /** Quién es la persona con esta entrada: asistente, jurado, mentora... */
+  credentialKind: CredentialKind;
+  /** El lugar que ocupa en la plantilla del evento, si salió de una. */
+  templateSlot: string | null;
 }
 
 export interface NewTicketType {
@@ -69,6 +86,8 @@ export interface NewTicketType {
   priceUsdc?: number;
   contractId?: string | null;
   sortOrder?: number;
+  credentialKind?: CredentialKind;
+  templateSlot?: string | null;
 }
 
 export interface TicketTypePatch {
@@ -76,6 +95,7 @@ export interface TicketTypePatch {
   priceUsdc?: number;
   contractId?: string | null;
   sortOrder?: number;
+  credentialKind?: CredentialKind;
 }
 
 export interface Benefit {
@@ -86,6 +106,10 @@ export interface Benefit {
   /** El puesto donde se canjea ("Mesa del almuerzo"). */
   station: string | null;
   sortOrder: number;
+  /** La clave que tiene en la plantilla del evento, si salió de una. */
+  templateKey: string | null;
+  /** Cuántos hay en total (150 poleras), o null si no hay tope. */
+  stock: number | null;
 }
 
 export interface NewBenefit {
@@ -94,6 +118,31 @@ export interface NewBenefit {
   kind: BenefitKind;
   station?: string | null;
   sortOrder?: number;
+  templateKey?: string | null;
+  stock?: number | null;
+}
+
+export interface BenefitPatch {
+  name?: string;
+  station?: string | null;
+  sortOrder?: number;
+  stock?: number | null;
+}
+
+export interface Team {
+  id: string;
+  eventId: string;
+  name: string;
+  createdAt: string;
+}
+
+/** Una importación de lista: de dónde vino y el resumen (JSON) que va sumando la importación en tandas. */
+export interface ImportRun {
+  id: string;
+  eventId: string;
+  source: string;
+  summary: Record<string, unknown>;
+  createdAt: string;
 }
 
 /** Un beneficio que trae un tipo de entrada, con su número en el contrato de esa entrada. */
@@ -127,6 +176,10 @@ export interface Pass {
   /** Si aceptó que la comunidad que organiza le escriba sobre sus próximos eventos (la casilla opcional del formulario). */
   contactConsent: boolean;
   contactConsentAt: string | null;
+  /** La restricción de dieta que la persona dijo al inscribirse, o null. */
+  diet: string | null;
+  /** La importación de lista de la que salió, o null si se inscribió sola. */
+  importRunId: string | null;
 }
 
 export interface NewPass {
@@ -135,9 +188,12 @@ export interface NewPass {
   ticketTypeId: string;
   account?: string | null;
   status?: PassStatus;
+  diet?: string | null;
+  importRunId?: string | null;
 }
 
 export interface PassPatch {
+  diet?: string | null;
   /** Para retomar una inscripción que quedó pendiente con otra entrada. Solo se cambia en pases pendientes. */
   ticketTypeId?: string;
   account?: string | null;
@@ -258,14 +314,21 @@ export interface Repo {
   getTicketType(id: string): Promise<TicketType | null>;
   createTicketType(input: NewTicketType): Promise<TicketType>;
   updateTicketType(id: string, patch: TicketTypePatch): Promise<TicketType>;
+  /** Borra un tipo de entrada sin credenciales (el borrador de un evento). Con credenciales falla. */
+  deleteTicketType(id: string): Promise<void>;
 
   // Beneficios: el catálogo del evento y qué trae cada entrada
   listBenefits(eventId: string): Promise<Benefit[]>;
   getBenefit(id: string): Promise<Benefit | null>;
   createBenefit(input: NewBenefit): Promise<Benefit>;
+  updateBenefit(id: string, patch: BenefitPatch): Promise<Benefit>;
+  /** Borra un beneficio sin canjes (el borrador de un evento), con lo que de él cuelga. */
+  deleteBenefit(id: string): Promise<void>;
   /** Dice que la entrada trae ese beneficio, y con qué número se canjea en su contrato. */
   linkBenefit(ticketTypeId: string, benefitId: string, chainIndex: number): Promise<void>;
   listTicketTypeBenefits(ticketTypeId: string): Promise<TicketTypeBenefit[]>;
+  /** Quita todos los beneficios de una entrada (para volver a numerarlos al editar el borrador). */
+  clearTicketTypeBenefits(ticketTypeId: string): Promise<void>;
 
   // Personas
   getPersonById(id: string): Promise<Person | null>;
@@ -307,6 +370,24 @@ export interface Repo {
   saveDevAccount(input: Omit<DevAccount, "createdAt">): Promise<DevAccount>;
   markDevAccountFunded(personId: string): Promise<void>;
 
+  // Equipos (la inscripción de la hackatón)
+  /** Crea el equipo, o devuelve el que ya tenía ese nombre en el evento (sin importar mayúsculas). */
+  createTeam(eventId: string, name: string): Promise<{ team: Team; created: boolean }>;
+  getTeam(id: string): Promise<Team | null>;
+  listTeams(eventId: string): Promise<Team[]>;
+  /** Pone la credencial en el equipo. Si ya estaba en otro, lo cambia. */
+  setPassTeam(passId: string, teamId: string): Promise<void>;
+  getPassTeam(passId: string): Promise<Team | null>;
+  listTeamPasses(teamId: string): Promise<Pass[]>;
+  /** El equipo de cada credencial del evento que tiene uno. */
+  listPassTeams(eventId: string): Promise<Array<{ passId: string; team: Team }>>;
+
+  // Importaciones de lista
+  createImportRun(input: { eventId: string; source: string; summary: Record<string, unknown> }): Promise<ImportRun>;
+  getImportRun(id: string): Promise<ImportRun | null>;
+  updateImportRun(id: string, summary: Record<string, unknown>): Promise<ImportRun>;
+  listPassesByImportRun(runId: string): Promise<Pass[]>;
+
   // El informe
   getEventStats(eventId: string): Promise<EventStats>;
 }
@@ -337,6 +418,9 @@ function rowToEvent(row: Row): EventRecord {
     organizerAccount: strOrNull(row.organizer_account),
     contractId: strOrNull(row.contract_id),
     capacity: numOrNull(row.capacity),
+    template: strOrNull(row.template),
+    published: bool(row.published),
+    teamSignup: bool(row.team_signup),
     createdAt: str(row.created_at),
   };
 }
@@ -349,6 +433,8 @@ function rowToTicketType(row: Row): TicketType {
     priceUsdc: num(row.price_usdc),
     contractId: strOrNull(row.contract_id),
     sortOrder: num(row.sort_order),
+    credentialKind: isCredentialKind(row.credential_kind) ? row.credential_kind : "attendee",
+    templateSlot: strOrNull(row.template_slot),
   };
 }
 
@@ -360,6 +446,22 @@ function rowToBenefit(row: Row): Benefit {
     kind: str(row.kind) as BenefitKind,
     station: strOrNull(row.station),
     sortOrder: num(row.sort_order),
+    templateKey: strOrNull(row.template_key),
+    stock: numOrNull(row.stock),
+  };
+}
+
+function rowToTeam(row: Row): Team {
+  return { id: str(row.id), eventId: str(row.event_id), name: str(row.name), createdAt: str(row.created_at) };
+}
+
+function rowToImportRun(row: Row): ImportRun {
+  return {
+    id: str(row.id),
+    eventId: str(row.event_id),
+    source: str(row.source),
+    summary: JSON.parse(str(row.summary)) as Record<string, unknown>,
+    createdAt: str(row.created_at),
   };
 }
 
@@ -382,6 +484,8 @@ function rowToPass(row: Row): Pass {
     checkedInAt: strOrNull(row.checked_in_at),
     contactConsent: bool(row.contact_consent),
     contactConsentAt: strOrNull(row.contact_consent_at),
+    diet: strOrNull(row.diet),
+    importRunId: strOrNull(row.import_run_id),
   };
 }
 
@@ -499,8 +603,8 @@ export class SqliteRepo implements Repo {
     const id = randomUUID();
     this.run(
       `INSERT INTO events (id, slug, name, description, starts_at, ends_at, timezone, place, venue, organizer_name,
-         organizer_account, contract_id, capacity, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         organizer_account, contract_id, capacity, created_at, template, published, team_signup)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       id,
       input.slug,
       input.name,
@@ -515,6 +619,9 @@ export class SqliteRepo implements Repo {
       input.contractId ?? null,
       input.capacity ?? null,
       now(),
+      input.template ?? null,
+      input.published === false ? 0 : 1,
+      input.teamSignup ? 1 : 0,
     );
     return (await this.getEventById(id))!;
   }
@@ -532,6 +639,9 @@ export class SqliteRepo implements Repo {
     if (patch.organizerAccount !== undefined) columns.organizer_account = patch.organizerAccount;
     if (patch.contractId !== undefined) columns.contract_id = patch.contractId;
     if (patch.capacity !== undefined) columns.capacity = patch.capacity;
+    if (patch.template !== undefined) columns.template = patch.template;
+    if (patch.published !== undefined) columns.published = patch.published ? 1 : 0;
+    if (patch.teamSignup !== undefined) columns.team_signup = patch.teamSignup ? 1 : 0;
     this.update("events", id, columns);
     const event = await this.getEventById(id);
     if (!event) throw new Error(`No existe el evento ${id}`);
@@ -552,13 +662,15 @@ export class SqliteRepo implements Repo {
   async createTicketType(input: NewTicketType): Promise<TicketType> {
     const id = randomUUID();
     this.run(
-      "INSERT INTO ticket_types (id, event_id, name, price_usdc, contract_id, sort_order) VALUES (?, ?, ?, ?, ?, ?)",
+      "INSERT INTO ticket_types (id, event_id, name, price_usdc, contract_id, sort_order, credential_kind, template_slot) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
       id,
       input.eventId,
       input.name,
       input.priceUsdc ?? 0,
       input.contractId ?? null,
       input.sortOrder ?? 0,
+      input.credentialKind ?? "attendee",
+      input.templateSlot ?? null,
     );
     return (await this.getTicketType(id))!;
   }
@@ -569,10 +681,16 @@ export class SqliteRepo implements Repo {
     if (patch.priceUsdc !== undefined) columns.price_usdc = patch.priceUsdc;
     if (patch.contractId !== undefined) columns.contract_id = patch.contractId;
     if (patch.sortOrder !== undefined) columns.sort_order = patch.sortOrder;
+    if (patch.credentialKind !== undefined) columns.credential_kind = patch.credentialKind;
     this.update("ticket_types", id, columns);
     const ticketType = await this.getTicketType(id);
     if (!ticketType) throw new Error(`No existe el tipo de entrada ${id}`);
     return ticketType;
+  }
+
+  async deleteTicketType(id: string): Promise<void> {
+    // passes.ticket_type_id no se borra en cascada: con credenciales, la base se niega y el error sube.
+    this.run("DELETE FROM ticket_types WHERE id = ?", id);
   }
 
   // Beneficios
@@ -589,15 +707,38 @@ export class SqliteRepo implements Repo {
   async createBenefit(input: NewBenefit): Promise<Benefit> {
     const id = randomUUID();
     this.run(
-      "INSERT INTO benefits (id, event_id, name, kind, station, sort_order) VALUES (?, ?, ?, ?, ?, ?)",
+      "INSERT INTO benefits (id, event_id, name, kind, station, sort_order, template_key, stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
       id,
       input.eventId,
       input.name,
       input.kind,
       input.station ?? null,
       input.sortOrder ?? 0,
+      input.templateKey ?? null,
+      input.stock ?? null,
     );
     return (await this.getBenefit(id))!;
+  }
+
+  async updateBenefit(id: string, patch: BenefitPatch): Promise<Benefit> {
+    const columns: Record<string, SQLInputValue> = {};
+    if (patch.name !== undefined) columns.name = patch.name;
+    if (patch.station !== undefined) columns.station = patch.station;
+    if (patch.sortOrder !== undefined) columns.sort_order = patch.sortOrder;
+    if (patch.stock !== undefined) columns.stock = patch.stock;
+    this.update("benefits", id, columns);
+    const benefit = await this.getBenefit(id);
+    if (!benefit) throw new Error(`No existe el beneficio ${id}`);
+    return benefit;
+  }
+
+  async deleteBenefit(id: string): Promise<void> {
+    // redemptions.benefit_id no se borra en cascada: con canjes, la base se niega y el error sube.
+    this.run("DELETE FROM benefits WHERE id = ?", id);
+  }
+
+  async clearTicketTypeBenefits(ticketTypeId: string): Promise<void> {
+    this.run("DELETE FROM ticket_type_benefits WHERE ticket_type_id = ?", ticketTypeId);
   }
 
   async linkBenefit(ticketTypeId: string, benefitId: string, chainIndex: number): Promise<void> {
@@ -652,7 +793,7 @@ export class SqliteRepo implements Repo {
     const status = input.status ?? "pending";
     const at = now();
     this.run(
-      "INSERT INTO passes (id, event_id, person_id, ticket_type_id, account, status, created_at, activated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO passes (id, event_id, person_id, ticket_type_id, account, status, created_at, activated_at, diet, import_run_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       id,
       input.eventId,
       input.personId,
@@ -661,6 +802,8 @@ export class SqliteRepo implements Repo {
       status,
       at,
       status === "pending" ? null : at,
+      input.diet ?? null,
+      input.importRunId ?? null,
     );
     return (await this.getPass(id))!;
   }
@@ -704,6 +847,7 @@ export class SqliteRepo implements Repo {
     }
     const columns: Record<string, SQLInputValue> = {};
     if (patch.account !== undefined) columns.account = patch.account;
+    if (patch.diet !== undefined) columns.diet = patch.diet;
     if (patch.status !== undefined) {
       columns.status = patch.status;
       if (patch.status !== "pending" && patch.activatedAt === undefined) columns.activated_at = now();
@@ -856,6 +1000,74 @@ export class SqliteRepo implements Repo {
     this.run("UPDATE dev_accounts SET funded = 1 WHERE person_id = ?", personId);
   }
 
+  // Equipos
+
+  async createTeam(eventId: string, name: string): Promise<{ team: Team; created: boolean }> {
+    const clean = name.trim();
+    const existing = this.one("SELECT * FROM teams WHERE event_id = ? AND lower(name) = lower(?)", eventId, clean);
+    if (existing) return { team: rowToTeam(existing), created: false };
+    const id = randomUUID();
+    this.run("INSERT INTO teams (id, event_id, name, created_at) VALUES (?, ?, ?, ?)", id, eventId, clean, now());
+    return { team: (await this.getTeam(id))!, created: true };
+  }
+
+  async getTeam(id: string): Promise<Team | null> {
+    const row = this.one("SELECT * FROM teams WHERE id = ?", id);
+    return row ? rowToTeam(row) : null;
+  }
+
+  async listTeams(eventId: string): Promise<Team[]> {
+    return this.all("SELECT * FROM teams WHERE event_id = ? ORDER BY created_at", eventId).map(rowToTeam);
+  }
+
+  async setPassTeam(passId: string, teamId: string): Promise<void> {
+    this.run(
+      "INSERT INTO pass_teams (pass_id, team_id) VALUES (?, ?) ON CONFLICT (pass_id) DO UPDATE SET team_id = excluded.team_id",
+      passId,
+      teamId,
+    );
+  }
+
+  async getPassTeam(passId: string): Promise<Team | null> {
+    const row = this.one("SELECT t.* FROM teams t JOIN pass_teams pt ON pt.team_id = t.id WHERE pt.pass_id = ?", passId);
+    return row ? rowToTeam(row) : null;
+  }
+
+  async listTeamPasses(teamId: string): Promise<Pass[]> {
+    return this.all("SELECT p.* FROM passes p JOIN pass_teams pt ON pt.pass_id = p.id WHERE pt.team_id = ? ORDER BY p.created_at", teamId).map(rowToPass);
+  }
+
+  async listPassTeams(eventId: string): Promise<Array<{ passId: string; team: Team }>> {
+    return this.all(
+      `SELECT pt.pass_id, t.* FROM pass_teams pt JOIN teams t ON t.id = pt.team_id WHERE t.event_id = ?`,
+      eventId,
+    ).map((row) => ({ passId: str(row.pass_id), team: rowToTeam(row) }));
+  }
+
+  // Importaciones de lista
+
+  async createImportRun(input: { eventId: string; source: string; summary: Record<string, unknown> }): Promise<ImportRun> {
+    const id = randomUUID();
+    this.run("INSERT INTO import_runs (id, event_id, source, summary, created_at) VALUES (?, ?, ?, ?, ?)", id, input.eventId, input.source, JSON.stringify(input.summary), now());
+    return (await this.getImportRun(id))!;
+  }
+
+  async getImportRun(id: string): Promise<ImportRun | null> {
+    const row = this.one("SELECT * FROM import_runs WHERE id = ?", id);
+    return row ? rowToImportRun(row) : null;
+  }
+
+  async updateImportRun(id: string, summary: Record<string, unknown>): Promise<ImportRun> {
+    this.run("UPDATE import_runs SET summary = ? WHERE id = ?", JSON.stringify(summary), id);
+    const run = await this.getImportRun(id);
+    if (!run) throw new Error(`No existe la importación ${id}`);
+    return run;
+  }
+
+  async listPassesByImportRun(runId: string): Promise<Pass[]> {
+    return this.all("SELECT * FROM passes WHERE import_run_id = ? ORDER BY created_at, id", runId).map(rowToPass);
+  }
+
   // El informe
 
   async getEventStats(eventId: string): Promise<EventStats> {
@@ -927,11 +1139,15 @@ export class SupabaseRepo implements Repo {
   getTicketType(): Promise<TicketType | null> { return this.todo(); }
   createTicketType(): Promise<TicketType> { return this.todo(); }
   updateTicketType(): Promise<TicketType> { return this.todo(); }
+  deleteTicketType(): Promise<void> { return this.todo(); }
   listBenefits(): Promise<Benefit[]> { return this.todo(); }
   getBenefit(): Promise<Benefit | null> { return this.todo(); }
   createBenefit(): Promise<Benefit> { return this.todo(); }
+  updateBenefit(): Promise<Benefit> { return this.todo(); }
+  deleteBenefit(): Promise<void> { return this.todo(); }
   linkBenefit(): Promise<void> { return this.todo(); }
   listTicketTypeBenefits(): Promise<TicketTypeBenefit[]> { return this.todo(); }
+  clearTicketTypeBenefits(): Promise<void> { return this.todo(); }
   getPersonById(): Promise<Person | null> { return this.todo(); }
   getPersonByEmail(): Promise<Person | null> { return this.todo(); }
   upsertPerson(): Promise<Person> { return this.todo(); }
@@ -956,6 +1172,17 @@ export class SupabaseRepo implements Repo {
   getDevAccount(): Promise<DevAccount | null> { return this.todo(); }
   saveDevAccount(): Promise<DevAccount> { return this.todo(); }
   markDevAccountFunded(): Promise<void> { return this.todo(); }
+  createTeam(): Promise<{ team: Team; created: boolean }> { return this.todo(); }
+  getTeam(): Promise<Team | null> { return this.todo(); }
+  listTeams(): Promise<Team[]> { return this.todo(); }
+  setPassTeam(): Promise<void> { return this.todo(); }
+  getPassTeam(): Promise<Team | null> { return this.todo(); }
+  listTeamPasses(): Promise<Pass[]> { return this.todo(); }
+  listPassTeams(): Promise<Array<{ passId: string; team: Team }>> { return this.todo(); }
+  createImportRun(): Promise<ImportRun> { return this.todo(); }
+  getImportRun(): Promise<ImportRun | null> { return this.todo(); }
+  updateImportRun(): Promise<ImportRun> { return this.todo(); }
+  listPassesByImportRun(): Promise<Pass[]> { return this.todo(); }
   getEventStats(): Promise<EventStats> { return this.todo(); }
 }
 

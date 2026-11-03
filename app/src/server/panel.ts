@@ -7,6 +7,7 @@ import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { translate, type Lang } from "../i18n/index.ts";
+import type { CredentialKind } from "../lib/credential-kinds.ts";
 import { base32Encode, bytesToBase64url } from "../lib/qr-codec.ts";
 import { STATION_CODE_LENGTH, isValidStationCode, normalizeStationCode } from "../lib/station-code.ts";
 import { dataDir, getEnv } from "./env.ts";
@@ -232,6 +233,10 @@ export interface PanelPass {
   name: string;
   ticketTypeId: string;
   ticketTypeName: string;
+  /** Quién es en el evento: asistente, jurado, mentoría... */
+  kind: CredentialKind;
+  /** El equipo, si el evento se inscribe por equipos. */
+  team: string | null;
   status: PassStatus;
   /** Si el pase tiene cuenta en la cadena (y por eso se puede contrastar). */
   onChain: boolean;
@@ -276,6 +281,10 @@ export interface PanelBenefitRow {
   granted: number;
   redeemed: number;
   duplicates: number;
+  /** Cuántos hay en total (150 poleras), o null si no hay tope. */
+  stock: number | null;
+  /** Cuántos quedan: el stock menos lo canjeado, nunca menos que cero. Null si no hay tope. */
+  remaining: number | null;
 }
 
 export interface PanelTicketTypeRow {
@@ -313,13 +322,15 @@ interface Collected {
 }
 
 async function collect(event: EventRecord, repo: Repo): Promise<Collected> {
-  const [ticketTypes, benefits, passes, checkIns, redemptions] = await Promise.all([
+  const [ticketTypes, benefits, passes, checkIns, redemptions, passTeams] = await Promise.all([
     repo.listTicketTypes(event.id),
     repo.listBenefits(event.id),
     repo.listPasses(event.id),
     repo.listCheckIns(event.id),
     repo.listRedemptions(event.id),
+    repo.listPassTeams(event.id),
   ]);
+  const teamOf = new Map(passTeams.map((p) => [p.passId, p.team.name] as const));
   const persons = new Map(await Promise.all(passes.map(async (pass) => [pass.id, await repo.getPersonById(pass.personId)] as const)));
   const granted = new Map(await Promise.all(passes.map(async (pass) => [pass.id, await repo.listPassBenefits(pass.id)] as const)));
   const benefitById = new Map(benefits.map((b) => [b.id, b]));
@@ -339,6 +350,8 @@ async function collect(event: EventRecord, repo: Repo): Promise<Collected> {
       name: person?.name ?? "",
       ticketTypeId: pass.ticketTypeId,
       ticketTypeName: ticketTypeById.get(pass.ticketTypeId)?.name ?? "",
+      kind: ticketTypeById.get(pass.ticketTypeId)?.credentialKind ?? "attendee",
+      team: teamOf.get(pass.id) ?? null,
       status: pass.status,
       onChain: Boolean(pass.account),
       createdAt: pass.createdAt,
@@ -358,15 +371,20 @@ async function collect(event: EventRecord, repo: Repo): Promise<Collected> {
 
   // Lo otorgado se cuenta sobre las credenciales emitidas: un pase pendiente de pago todavía no tiene su almuerzo.
   const issuedPasses = panelPasses.filter((p) => p.status !== "pending");
-  const benefitRows: PanelBenefitRow[] = benefits.map((b) => ({
-    id: b.id,
-    name: b.name,
-    kind: b.kind,
-    station: b.station,
-    granted: issuedPasses.filter((p) => p.benefits.some((pb) => pb.benefitId === b.id)).length,
-    redeemed: panelPasses.filter((p) => p.benefits.some((pb) => pb.benefitId === b.id && pb.redeemed)).length,
-    duplicates: redemptions.filter((r) => r.duplicate && r.benefitId === b.id).length,
-  }));
+  const benefitRows: PanelBenefitRow[] = benefits.map((b) => {
+    const redeemedCount = panelPasses.filter((p) => p.benefits.some((pb) => pb.benefitId === b.id && pb.redeemed)).length;
+    return {
+      id: b.id,
+      name: b.name,
+      kind: b.kind,
+      station: b.station,
+      granted: issuedPasses.filter((p) => p.benefits.some((pb) => pb.benefitId === b.id)).length,
+      redeemed: redeemedCount,
+      duplicates: redemptions.filter((r) => r.duplicate && r.benefitId === b.id).length,
+      stock: b.stock,
+      remaining: b.stock === null ? null : Math.max(0, b.stock - redeemedCount),
+    };
+  });
   const tally = (kind: BenefitKind): Tally =>
     benefitRows
       .filter((b) => b.kind === kind)

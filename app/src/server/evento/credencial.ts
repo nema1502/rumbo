@@ -1,6 +1,7 @@
 // La credencial, armada: el pase con su persona, su evento, su número, su estado y lo que le toca.
 // El estado sale del espejo de la base y, cuando la base dice que algo todavía no pasó, se confirma
 // con status() en la cadena (con un tope de tiempo: si la red no contesta, vale el espejo).
+import type { CredentialKind } from "../../lib/credential-kinds.ts";
 import { buildLiveGrant, buildPrintedPayload, type LiveGrant } from "../qr.ts";
 import { getEventQrKeys } from "../qr-keys.ts";
 import { getRepo, type BenefitKind, type EventRecord, type Pass, type PassBenefit, type Person, type Repo, type TicketType } from "../repo.ts";
@@ -26,6 +27,10 @@ export interface CredentialView {
   person: Person;
   event: EventRecord;
   ticketType: TicketType;
+  /** Quién es en el evento: asistente, oradora u orador, mentoría, jurado, voluntariado, organización, auspiciante. */
+  kind: CredentialKind;
+  /** El equipo, si el evento se inscribe por equipos. */
+  team: string | null;
   /** "Credencial 3 de 200": el lugar entre las credenciales del evento y el cupo. */
   number: number;
   total: number;
@@ -83,11 +88,12 @@ export async function loadCredentialUnchecked(passId: string): Promise<Credentia
   const view = await repo.getPassView(passId);
   if (!view || view.pass.status === "pending") return null;
 
-  const [checkIns, redemptions, catalog, numbering] = await Promise.all([
+  const [checkIns, redemptions, catalog, numbering, team] = await Promise.all([
     repo.listCheckInsForPass(passId),
     repo.listRedemptionsForPass(passId),
     repo.listBenefits(view.event.id),
     passNumber(repo, view.pass, view.event),
+    repo.getPassTeam(passId),
   ]);
 
   const qrKeys = getEventQrKeys(view.event.id);
@@ -123,6 +129,8 @@ export async function loadCredentialUnchecked(passId: string): Promise<Credentia
     person: view.person,
     event: view.event,
     ticketType: view.ticketType,
+    kind: view.ticketType.credentialKind,
+    team: team?.name ?? null,
     number: numbering.number,
     total: numbering.total,
     paid,

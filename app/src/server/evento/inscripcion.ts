@@ -4,6 +4,7 @@
 // comisión de red), guarda el pase, le da los beneficios de su entrada, crea la clave de acceso y manda el
 // correo con el enlace personal. Nombres y correos quedan en la base; a la cadena va solo la cuenta.
 import type { Lang } from "../../i18n/types.ts";
+import { isPublicKind } from "../../lib/credential-kinds.ts";
 import { getAccountProvider } from "../accounts.ts";
 import { baseUrl } from "../env.ts";
 import { linkResendAttempts, registrationAttempts } from "../limites.ts";
@@ -26,8 +27,8 @@ export interface FieldErrors {
 }
 
 export const NAME_MAX = 80;
-const EMAIL_MAX = 120;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+export const EMAIL_MAX = 120;
+export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export function validateFields(fields: RegistrationFields): FieldErrors {
   const errors: FieldErrors = {};
@@ -55,6 +56,16 @@ export interface RegistrationInput extends RegistrationFields {
   clientKey?: string | null;
   /** La casilla opcional: acepta que la comunidad que organiza le escriba. Sin marcar, no. */
   contactConsent?: boolean;
+  /** Una restricción de dieta (vegetariana, alergias), opcional: se la muestra el escáner al servir la comida. */
+  diet?: string | null;
+}
+
+export const DIET_MAX = 120;
+
+/** La dieta como se guarda: sin espacios de más y no más larga que el tope. Vacía es null. */
+export function cleanDiet(raw: string | null | undefined): string | null {
+  const clean = (raw ?? "").replace(/\s+/g, " ").trim().slice(0, DIET_MAX).trim();
+  return clean || null;
 }
 
 export type FailureReason = "sold_out" | "not_paid" | "network" | "misconfigured" | "too_many";
@@ -130,9 +141,11 @@ async function sendPassEmail(args: { event: EventRecord; person: Person; pass: P
 export async function registerForEvent(input: RegistrationInput): Promise<RegistrationResult> {
   const repo = getRepo();
   const event = await repo.getEventBySlug(input.slug);
-  if (!event) throw new RegistrationNotFound("event");
+  // Un borrador todavía no recibe inscripciones.
+  if (!event || !event.published) throw new RegistrationNotFound("event");
   const ticketType = await repo.getTicketType(input.ticketTypeId);
-  if (!ticketType || ticketType.eventId !== event.id) throw new RegistrationNotFound("ticket");
+  // Las credenciales de oradores, jurado, voluntarios y demás se entregan por invitación: no se piden desde la página.
+  if (!ticketType || ticketType.eventId !== event.id || !isPublicKind(ticketType.credentialKind)) throw new RegistrationNotFound("ticket");
   const contractId = requireContractId(ticketType.contractId ?? event.contractId);
   const paid = ticketType.priceUsdc > 0;
   const email = normalizeEmail(input.email);
@@ -168,6 +181,8 @@ export async function registerForEvent(input: RegistrationInput): Promise<Regist
     // Quedó una inscripción empezada con otra entrada (la red falló a mitad de camino): sigue con la de ahora.
     pass = await repo.updatePass(pass.id, { ticketTypeId: ticketType.id });
   }
+  const diet = cleanDiet(input.diet);
+  if (diet && pass.diet !== diet) pass = await repo.updatePass(pass.id, { diet });
 
   const accounts = getAccountProvider(repo);
   let account: string;

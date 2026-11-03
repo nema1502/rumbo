@@ -5,6 +5,7 @@ import "@/components/evento/evento.css";
 import { FormularioInscripcion } from "@/components/evento/FormularioInscripcion.tsx";
 import { formatAmount } from "@/i18n/index.ts";
 import { getLang, getT } from "@/i18n/server.ts";
+import { isPublicKind } from "@/lib/credential-kinds.ts";
 import { formatEventWhen, joinList } from "@/server/evento/fecha.ts";
 import { getRepo } from "@/server/repo.ts";
 import { registerAction } from "./actions.ts";
@@ -26,9 +27,9 @@ export default async function RegistrationPage({ params, searchParams }: { param
   const { entrada } = await searchParams;
   const repo = getRepo();
   const event = await repo.getEventBySlug(slug);
-  if (!event) notFound();
+  if (!event || !event.published) notFound();
   const ticket = typeof entrada === "string" ? await repo.getTicketType(entrada) : null;
-  if (!ticket || ticket.eventId !== event.id) redirect(`/e/${encodeURIComponent(slug)}`);
+  if (!ticket || ticket.eventId !== event.id || !isPublicKind(ticket.credentialKind)) redirect(`/e/${encodeURIComponent(slug)}`);
 
   const lang = await getLang();
   const t = await getT();

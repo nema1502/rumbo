@@ -1,0 +1,18 @@
+api_id,name,first_name,last_name,email,phone_number,created_at,approval_status,checked_in_at,custom_source,qr_code_url,amount,amount_tax,amount_discount,currency,coupon_code,ticket_name,utm_source,¿Tenés alguna restricción alimentaria?,¿De qué comunidad venís?
+gst-0001,Ana Quiroga,Ana,Quiroga,ana.quiroga@example.com,+591 70000001,2026-11-01T14:02:00Z,approved,,,https://example.com/qr/0001,0,0,0,USD,,General,instagram,,GDG Santa Cruz
+gst-0002,"Quispe, María",María,"Quispe",maria.quispe@example.com,+591 70000002,2026-11-01T14:10:00Z,approved,,,https://example.com/qr/0002,0,0,0,USD,,General,,Vegetariana,WTM Santa Cruz
+gst-0003,jorge mamani,jorge,mamani,jorge.mamani@example.com,,2026-11-01T15:40:00Z,approved,,,https://example.com/qr/0003,0,0,0,USD,,General,,ninguna,
+gst-0004,ELENA CONDORI,ELENA,CONDORI,elena.condori@example.com,,2026-11-02T09:12:00Z,approved,,,https://example.com/qr/0004,0,0,0,USD,,General,,"Alergia a las nueces
+y al maní",n8n Bolivia
+gst-0005,Rosa Villca,Rosa,Villca,rosa.villca@example.com,,2026-11-02T10:00:00Z,pending_approval,,,,0,0,0,USD,,General,,,
+gst-0006,Mario Apaza,Mario,Apaza,mario.apaza@example.com,,2026-11-02T10:05:00Z,invited,,,,0,0,0,USD,,General,,,
+gst-0007,Nina Rocha,Nina,Rocha,nina.rocha@example.com,,2026-11-02T11:00:00Z,declined,,,,0,0,0,USD,,General,,,
+gst-0008,Lucía Fernández,Lucía,Fernández,lucia.fernandez@example.com,,2026-11-02T12:30:00Z,approved,,,https://example.com/qr/0008,0,0,0,USD,,Speaker,,Sin gluten,GDG Santa Cruz
+gst-0009,Diego Rojas,Diego,Rojas,diego.rojas@example.com,,2026-11-02T12:31:00Z,approved,,,https://example.com/qr/0009,0,0,0,USD,,Jurado,,,
+gst-0010,Camila Rojas,Camila,Rojas,camila.rojas@example.com,,2026-11-02T12:40:00Z,approved,,,https://example.com/qr/0010,0,0,0,USD,,Mentor,,,
+gst-0011,Pablo Gutiérrez,Pablo,Gutiérrez,pablo.gutierrez@example.com,,2026-11-02T13:00:00Z,approved,,,https://example.com/qr/0011,0,0,0,USD,,Volunteer,,,
+gst-0012,Ana Quiroga,Ana,Quiroga,ANA.QUIROGA@example.com,,2026-11-03T08:00:00Z,approved,,,https://example.com/qr/0012,0,0,0,USD,,General,,,
+gst-0013,Sin Arroba,Sin,Arroba,sin.arroba.example.com,,2026-11-03T08:10:00Z,approved,,,,0,0,0,USD,,General,,,
+gst-0014,Correo Roto,Correo,Roto,correo.roto@,,2026-11-03T08:11:00Z,approved,,,,0,0,0,USD,,General,,,
+gst-0015,Sin Correo,Sin,Correo,,,2026-11-03T08:12:00Z,approved,,,,0,0,0,USD,,General,,,
+gst-0016,Valeria Choque,Valeria,Choque,valeria.choque@example.com,,2026-11-03T09:00:00Z,approved,,,https://example.com/qr/0016,0,0,0,USD,,General,,,GDG Santa Cruz

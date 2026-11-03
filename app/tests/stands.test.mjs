@@ -315,14 +315,16 @@ test("el escáner del stand: su código abre su stand, no recibe la lista de asi
 test("el veredicto en un stand: visita nueva, y 'ya visitó' por lo que sabía el servidor o por lo que registró este celular", () => {
   const stand = { id: "stand-1", kind: "stand", name: "Acme Cloud", place: null };
   const bien = { ok: true, passId: "ABCD2345" };
-  assert.deepEqual(decideVerdict(bien, stand, undefined, undefined), { kind: "ok", action: "visit", passId: "ABCD2345", name: null });
+  // Quien auspicia no ve la credencial, el equipo ni la dieta de nadie.
+  const nadie = { credential: null, team: null, diet: null };
+  assert.deepEqual(decideVerdict(bien, stand, undefined, undefined), { kind: "ok", action: "visit", passId: "ABCD2345", name: null, ...nadie });
   const servidor = { id: "ABCD2345", name: "", benefits: [], checkedInAt: null, redeemed: {}, visited: { "stand-1": "2026-11-22T10:00:00.000Z" } };
   assert.equal(decideVerdict(bien, stand, servidor, undefined).kind, "already");
   const local = { checkedInAt: null, redeemed: {}, visited: { "stand-1": "2026-11-22T10:01:00.000Z" } };
   assert.equal(decideVerdict(bien, stand, undefined, local).kind, "already");
   // la visita a otro stand no cuenta, y una firma mala no suma nada
   assert.equal(decideVerdict(bien, stand, { ...servidor, visited: { "stand-2": "2026-11-22T10:00:00.000Z" } }, undefined).kind, "ok");
-  assert.deepEqual(decideVerdict({ ok: false, reason: "bad_signature" }, stand, undefined, undefined), { kind: "no", reason: "invalid", passId: null, name: null });
+  assert.deepEqual(decideVerdict({ ok: false, reason: "bad_signature" }, stand, undefined, undefined), { kind: "no", reason: "invalid", passId: null, name: null, ...nadie });
 });
 
 test("la pantalla en vivo: cuenta lo que pasó, y el ranking usa nombre de pila o alias, nunca correos ni apellidos", async () => {

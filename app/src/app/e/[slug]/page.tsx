@@ -4,8 +4,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import "@/components/evento/evento.css";
 import { FilaEntrada } from "@/components/evento/FilaEntrada.tsx";
-import { Aviso, Chip } from "@/components/ui.tsx";
+import { Aviso, BotonEnlace, Chip } from "@/components/ui.tsx";
 import { getLang, getT } from "@/i18n/server.ts";
+import { isPublicKind } from "@/lib/credential-kinds.ts";
 import { formatEventWhen, formatEventWhere, joinList } from "@/server/evento/fecha.ts";
 import { getRepo, type TicketTypeBenefit } from "@/server/repo.ts";
 
@@ -13,10 +14,23 @@ export const dynamic = "force-dynamic";
 
 type Params = Promise<{ slug: string }>;
 
+/** Hasta cuántas cosas de "Qué incluye" se muestran enteras; con más, se ven dos y el resto se despliega. */
+const INCLUIDOS_ENTEROS = 4;
+const INCLUIDOS_A_LA_VISTA = 2;
+
+function Incluido({ name, detail }: { name: string; detail: string | null }) {
+  return (
+    <li>
+      <span>{name}</span>
+      {detail && <span className="detalle">{detail}</span>}
+    </li>
+  );
+}
+
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
   const event = await getRepo().getEventBySlug(slug);
-  if (!event) return {};
+  if (!event || !event.published) return {};
   const description = event.description || undefined;
   return { title: event.name, description, openGraph: { title: event.name, description, type: "website" } };
 }
@@ -25,11 +39,14 @@ export default async function EventPage({ params }: { params: Params }) {
   const { slug } = await params;
   const repo = getRepo();
   const event = await repo.getEventBySlug(slug);
-  if (!event) notFound();
+  // Un borrador (el evento recién salido de una plantilla) no se ve hasta que se publica.
+  if (!event || !event.published) notFound();
 
   const lang = await getLang();
   const t = await getT();
-  const [tickets, catalog] = await Promise.all([repo.listTicketTypes(event.id), repo.listBenefits(event.id)]);
+  const [allTickets, catalog] = await Promise.all([repo.listTicketTypes(event.id), repo.listBenefits(event.id)]);
+  // Solo el asistente se inscribe desde la página; oradores, jurado y demás reciben su credencial por invitación.
+  const tickets = allTickets.filter((ticket) => isPublicKind(ticket.credentialKind));
   const benefitsByTicket = new Map<string, TicketTypeBenefit[]>();
   for (const ticket of tickets) benefitsByTicket.set(ticket.id, await repo.listTicketTypeBenefits(ticket.id));
 
@@ -44,6 +61,8 @@ export default async function EventPage({ params }: { params: Params }) {
     else if (withTickets.length < tickets.length) detail = t("evento.incluye.con", { entrada: joinList(lang, withTickets.map((ticket) => ticket.name)) });
     return { benefit, detail };
   });
+
+  const visibles = included.length > INCLUIDOS_ENTEROS ? INCLUIDOS_A_LA_VISTA : included.length;
 
   return (
     <section className="evento">
@@ -60,14 +79,14 @@ export default async function EventPage({ params }: { params: Params }) {
         {included.length > 0 && (
           <div className="evento-incluye-bloque">
             <h2 className="evento-subtitulo">{t("evento.incluye")}</h2>
-            <ul className="evento-incluye">
-              {included.map(({ benefit, detail }) => (
-                <li key={benefit.id}>
-                  <span>{benefit.name}</span>
-                  {detail && <span className="detalle">{detail}</span>}
-                </li>
-              ))}
-            </ul>
+            <ul className="evento-incluye">{included.slice(0, visibles).map(({ benefit, detail }) => <Incluido key={benefit.id} name={benefit.name} detail={detail} />)}</ul>
+            {included.length > visibles && (
+              // Un evento de varios días lista una comida por franja: el resto se despliega, para que la entrada quede a la vista.
+              <details className="evento-incluye-mas">
+                <summary>{t("kit.evento.verMas", { n: included.length - visibles })}</summary>
+                <ul className="evento-incluye">{included.slice(visibles).map(({ benefit, detail }) => <Incluido key={benefit.id} name={benefit.name} detail={detail} />)}</ul>
+              </details>
+            )}
           </div>
         )}
       </header>
@@ -86,6 +105,11 @@ export default async function EventPage({ params }: { params: Params }) {
               t={t}
             />
           ))
+        )}
+        {event.teamSignup && tickets.length > 0 && (
+          <BotonEnlace variante="secundario" href={`/e/${encodeURIComponent(slug)}/equipo`}>
+            {t("kit.equipo.boton")}
+          </BotonEnlace>
         )}
       </div>
     </section>
