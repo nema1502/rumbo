@@ -14,7 +14,7 @@
 // Sin --salida, queda en data/paquetes/<slug>/ (fuera del repositorio: el CSV de contactos lleva correos).
 // --lang es el idioma del informe y del resumen (en por defecto: lo lee el programa). La fila del Airtable
 // va con los encabezados en inglés. El paquete oficial de la SDF no es público: los campos se ajustan
-// cuando la Chapter Lead pase la plantilla.
+// cuando el programa le pase al capítulo la plantilla oficial.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { parseArgs } from "node:util";

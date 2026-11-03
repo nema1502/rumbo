@@ -84,7 +84,7 @@ Deja en `data/paquetes/<evento>/` (o en `--salida`):
 
 Acepta también las opciones del informe (`--auspiciante` y las demás).
 
-**El paquete oficial de la SDF no es público:** los campos de `airtable.csv` y del resumen se ajustan cuando la Chapter Lead pase la plantilla oficial.
+**El paquete oficial de la SDF no es público:** los campos de `airtable.csv` y del resumen se ajustan cuando el programa le pase al capítulo la plantilla oficial.
 
 ### El consentimiento de contacto
 

@@ -169,7 +169,7 @@
     "paquete.archivo.airtable": "la fila para el Airtable del capítulo",
     "paquete.archivo.contactos": "los correos de quienes aceptaron que el capítulo les escriba (no lo reenvíes a terceros)",
     "paquete.contrato": "Contrato",
-    "paquete.nota": "El paquete oficial de la SDF no es público: los campos se ajustan cuando la Chapter Lead pase la plantilla."
+    "paquete.nota": "El paquete oficial de la SDF no es público: los campos se ajustan cuando el programa le pase al capítulo la plantilla oficial."
   },
   "en": {
     "ejemplo.franja": "Example with fictitious data",
@@ -341,6 +341,6 @@
     "paquete.archivo.airtable": "the row for the chapter's Airtable",
     "paquete.archivo.contactos": "the emails of those who agreed to hear from the chapter (do not forward it to third parties)",
     "paquete.contrato": "Contract",
-    "paquete.nota": "The official SDF package is not public: the fields get adjusted once the Chapter Lead shares the template."
+    "paquete.nota": "The official SDF package is not public: the fields get adjusted once the program shares the official template with the chapter."
   }
 }
