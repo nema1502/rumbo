@@ -4,6 +4,7 @@
 // comisión de red), guarda el pase, le da los beneficios de su entrada, crea la clave de acceso y manda el
 // correo con el enlace personal. Nombres y correos quedan en la base; a la cadena va solo la cuenta.
 import type { Lang } from "../../i18n/types.ts";
+import { isPublicKind } from "../../lib/credential-kinds.ts";
 import { getAccountProvider } from "../accounts.ts";
 import { baseUrl } from "../env.ts";
 import { linkResendAttempts, registrationAttempts } from "../limites.ts";
@@ -128,9 +129,11 @@ async function sendPassEmail(args: { event: EventRecord; person: Person; pass: P
 export async function registerForEvent(input: RegistrationInput): Promise<RegistrationResult> {
   const repo = getRepo();
   const event = await repo.getEventBySlug(input.slug);
-  if (!event) throw new RegistrationNotFound("event");
+  // Un borrador todavía no recibe inscripciones.
+  if (!event || !event.published) throw new RegistrationNotFound("event");
   const ticketType = await repo.getTicketType(input.ticketTypeId);
-  if (!ticketType || ticketType.eventId !== event.id) throw new RegistrationNotFound("ticket");
+  // Las credenciales de oradores, jurado, voluntarios y demás se entregan por invitación: no se piden desde la página.
+  if (!ticketType || ticketType.eventId !== event.id || !isPublicKind(ticketType.credentialKind)) throw new RegistrationNotFound("ticket");
   const contractId = requireContractId(ticketType.contractId ?? event.contractId);
   const paid = ticketType.priceUsdc > 0;
   const email = normalizeEmail(input.email);

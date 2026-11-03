@@ -4,8 +4,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import "@/components/evento/evento.css";
 import { FilaEntrada } from "@/components/evento/FilaEntrada.tsx";
-import { Aviso, Chip } from "@/components/ui.tsx";
+import { Aviso, BotonEnlace, Chip } from "@/components/ui.tsx";
 import { getLang, getT } from "@/i18n/server.ts";
+import { isPublicKind } from "@/lib/credential-kinds.ts";
 import { formatEventWhen, formatEventWhere, joinList } from "@/server/evento/fecha.ts";
 import { getRepo, type TicketTypeBenefit } from "@/server/repo.ts";
 
@@ -16,7 +17,7 @@ type Params = Promise<{ slug: string }>;
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
   const event = await getRepo().getEventBySlug(slug);
-  if (!event) return {};
+  if (!event || !event.published) return {};
   const description = event.description || undefined;
   return { title: event.name, description, openGraph: { title: event.name, description, type: "website" } };
 }
@@ -25,11 +26,14 @@ export default async function EventPage({ params }: { params: Params }) {
   const { slug } = await params;
   const repo = getRepo();
   const event = await repo.getEventBySlug(slug);
-  if (!event) notFound();
+  // Un borrador (el evento recién salido de una plantilla) no se ve hasta que se publica.
+  if (!event || !event.published) notFound();
 
   const lang = await getLang();
   const t = await getT();
-  const [tickets, catalog] = await Promise.all([repo.listTicketTypes(event.id), repo.listBenefits(event.id)]);
+  const [allTickets, catalog] = await Promise.all([repo.listTicketTypes(event.id), repo.listBenefits(event.id)]);
+  // Solo el asistente se inscribe desde la página; oradores, jurado y demás reciben su credencial por invitación.
+  const tickets = allTickets.filter((ticket) => isPublicKind(ticket.credentialKind));
   const benefitsByTicket = new Map<string, TicketTypeBenefit[]>();
   for (const ticket of tickets) benefitsByTicket.set(ticket.id, await repo.listTicketTypeBenefits(ticket.id));
 
@@ -86,6 +90,11 @@ export default async function EventPage({ params }: { params: Params }) {
               t={t}
             />
           ))
+        )}
+        {event.teamSignup && tickets.length > 0 && (
+          <BotonEnlace variante="secundario" href={`/e/${encodeURIComponent(slug)}/equipo`}>
+            {t("kit.equipo.boton")}
+          </BotonEnlace>
         )}
       </div>
     </section>

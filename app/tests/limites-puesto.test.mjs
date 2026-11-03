@@ -108,10 +108,12 @@ test("la migración borra los códigos de ocho letras, y el panel crea los de do
   for (const f of todas.filter((f) => f < "005")) copyFileSync(join(APP_DIR, "src", "server", "migrations", f), join(viejas, f));
   const archivo = join(mkdtempSync(join(tmpdir(), "rumbo-base-")), "rumbo.db");
   process.env.RUMBO_MIGRATIONS_DIR = viejas;
-  const antes = new SqliteRepo(archivo);
-  const evento = await antes.createEvent({ slug: "viejo", name: "Viejo", startsAt: "2026-11-22T09:00:00-04:00", place: "Santa Cruz", organizerName: "La comunidad" });
+  new SqliteRepo(archivo);
   const { DatabaseSync } = await import("node:sqlite");
   const db = new DatabaseSync(archivo);
+  // El evento va con SQL de esa época: el repo de ahora ya escribe columnas que esa base no tiene.
+  const evento = { id: "evento-viejo" };
+  db.prepare("INSERT INTO events (id, slug, name, starts_at, place, organizer_name, qr_key, created_at) VALUES (?, 'viejo', 'Viejo', '2026-11-22T09:00:00-04:00', 'Santa Cruz', 'La comunidad', x'00', ?)").run(evento.id, new Date().toISOString());
   db.prepare("INSERT INTO station_codes (code, event_id, kind, benefit_id, created_at) VALUES (?, ?, 'gate', NULL, ?)").run("ABCDEFGH", evento.id, new Date().toISOString());
   // ahora con todas las migraciones
   delete process.env.RUMBO_MIGRATIONS_DIR;

@@ -3,6 +3,7 @@
 import { comun } from "./comun.ts";
 import { evento } from "./evento.ts";
 import { escaner } from "./escaner.ts";
+import { kit } from "./kit.ts";
 import { panel } from "./panel.ts";
 import { DEFAULT_LANG, type Lang, type Messages } from "./types.ts";
 
@@ -10,8 +11,8 @@ export { LANGS, DEFAULT_LANG, LANG_COOKIE, LANG_HEADER, LANG_QUERY, isLang } fro
 export type { Lang, Messages, AreaDictionary } from "./types.ts";
 
 export const dictionaries: Record<Lang, Messages> = {
-  es: { ...comun.es, ...evento.es, ...escaner.es, ...panel.es },
-  en: { ...comun.en, ...evento.en, ...escaner.en, ...panel.en },
+  es: { ...comun.es, ...evento.es, ...escaner.es, ...panel.es, ...kit.es },
+  en: { ...comun.en, ...evento.en, ...escaner.en, ...panel.en, ...kit.en },
 };
 
 /** Variables para los textos con huecos: "{monto} USDC de prueba" con { monto: 10 }. */
