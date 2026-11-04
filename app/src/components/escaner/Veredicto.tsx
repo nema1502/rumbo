@@ -4,7 +4,7 @@
 // solo a los pocos segundos, o al tocar.
 import { useEffect } from "react";
 import { useLang, useT } from "@/i18n/client.tsx";
-import { formatDate } from "@/i18n/index.ts";
+import { formatDate, sameDay } from "@/i18n/index.ts";
 import { kindLabelKey } from "@/lib/credential-kinds.ts";
 import type { ScanStation, Verdict } from "@/lib/escaner-api.ts";
 
@@ -60,10 +60,16 @@ export function Veredicto({ veredicto, puesto, timezone, onCerrar }: Props) {
         ? t(veredicto.action === "checkin" ? "escaner.yaEntro" : veredicto.action === "visit" ? "stands.escaner.yaVisito" : "escaner.yaCanjeado")
         : t("escaner.noCorresponde");
 
+  // "Ya entró a las 09:03"; si fue otro día (una hackatón de dos días), con el día: "Ya entró el 21 nov, 18:40".
+  const cuando = (iso: string) =>
+    sameDay(iso, Date.now(), timezone)
+      ? t("escaner.aLas", { hora: formatDate(lang, iso, timezone, { hour: "2-digit", minute: "2-digit" }) })
+      : t("escaner.elDia", { fecha: formatDate(lang, iso, timezone, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) });
+
   // En un stand, una visita nueva dice lo que pasa con el contacto: la persona decide desde su celular.
   const detalle =
     veredicto.kind === "already"
-      ? t("escaner.aLas", { hora: formatDate(lang, veredicto.at, timezone, { hour: "2-digit", minute: "2-digit" }) })
+      ? cuando(veredicto.at)
       : veredicto.kind === "no"
         ? veredicto.reason === "sold_out"
           ? t("kit.escaner.agotadoMotivo", { beneficio: puesto.name })
@@ -74,7 +80,10 @@ export function Veredicto({ veredicto, puesto, timezone, onCerrar }: Props) {
             ? puesto.name
             : null;
 
-  const nombre = veredicto.name || (veredicto.passId ? t("escaner.sinNombre", { id: veredicto.passId }) : null);
+  // En un stand, quien no aceptó compartir su contacto no tiene nombre, y el código del pase no lo reemplaza: con
+  // "Visita registrada" alcanza. En la puerta y en las mesas el código sirve para buscar a la persona en el panel.
+  const esVisita = veredicto.kind !== "no" && veredicto.action === "visit";
+  const nombre = veredicto.name || (veredicto.passId && !esVisita ? t("escaner.sinNombre", { id: veredicto.passId }) : null);
   // Cómo se leyó, si no fue el QR del celular: la credencial impresa (que se puede copiar) o marcada a mano.
   const via = veredicto.kind !== "no" && veredicto.via ? t(`escaner.via.${veredicto.via}`) : null;
   // Quién es en el evento: el voluntario que atiende una mesa ve de un vistazo si es jurado, mentoría o asistente.
