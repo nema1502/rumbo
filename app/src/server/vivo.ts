@@ -7,7 +7,8 @@
 // para que la pieza que sortea (con aleatoriedad comprobable) la tome tal cual. Quien organiza la congela antes
 // de sortear (tabla raffle_lists, migración 012): desde ese momento la lista que se proyecta es la que se sortea,
 // aunque alguien entre después.
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import { base32Encode } from "../lib/qr-codec.ts";
 import { getDb, jsonParam, readJson } from "./base/index.ts";
 import type { EventRecord } from "./repo.ts";
 import { effectiveTarget, getRouteGoal, listStands, routeRanking, LIVE_RANKING_SIZE, type RankingRow } from "./stands.ts";
@@ -234,4 +235,37 @@ export function raffleListCsv(list: RaffleList): string {
     "n,pass_id",
   ];
   return `${head.join("\r\n")}\r\n${list.participants.map((id, i) => `${i + 1},${id}`).join("\r\n")}${list.participants.length ? "\r\n" : ""}`;
+}
+
+// ---------- El enlace del proyector ----------
+// La computadora del proyector queda a la vista de toda la sala (y a veces es prestada): no tiene por qué llevar la
+// clave de organizador. Su enlace lleva una clave propia (tabla screen_keys, migración 013) que abre solo la pantalla
+// en vivo en modo proyector y su JSON, nada más: ni el sorteo, ni el CSV, ni el panel.
+
+const SCREEN_KEY_BYTES = 15;
+
+/** La clave del enlace del proyector del evento. Se crea la primera vez que hace falta. */
+export async function getOrCreateScreenKey(eventId: string): Promise<string> {
+  const db = getDb();
+  const select = async () => (await db.one("SELECT key FROM screen_keys WHERE event_id = ?", [eventId]))?.key as string | undefined;
+  const found = await select();
+  if (found) return found;
+  // Si dos pedidos llegan a la vez, gana el primero y el otro lee la clave que quedó.
+  const key = base32Encode(new Uint8Array(randomBytes(SCREEN_KEY_BYTES)));
+  await db.run("INSERT INTO screen_keys (event_id, key, created_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING", [eventId, key, new Date().toISOString()]);
+  return (await select()) as string;
+}
+
+/** Si la clave es la del enlace del proyector de ese evento. Se compara sin que el tiempo delate en qué letra difiere. */
+export async function verifyScreenKey(eventId: string, key: string | null | undefined): Promise<boolean> {
+  if (!key) return false;
+  const expected = Buffer.from(await getOrCreateScreenKey(eventId), "utf8");
+  const given = Buffer.from(key.trim().toUpperCase(), "utf8");
+  return expected.length === given.length && timingSafeEqual(expected, given);
+}
+
+/** Un enlace de proyector nuevo (si el de antes quedó a la vista de quien no debía): el viejo deja de abrir en el acto. */
+export async function regenerateScreenKey(eventId: string): Promise<string> {
+  await getDb().run("DELETE FROM screen_keys WHERE event_id = ?", [eventId]);
+  return getOrCreateScreenKey(eventId);
 }

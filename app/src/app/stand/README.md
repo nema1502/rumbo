@@ -26,6 +26,7 @@ La pregunta podía hacerse en la pantalla del escáner, pero ahí quien contesta
 - **El código de un stand se puede cambiar** desde "Stands y ruta": el de antes deja de abrir el escáner y el panel en el acto.
 - **El logo de un stand es una ruta de esta app** (`/muestra/logo.svg`, `src/lib/logo.ts`), nunca un enlace a otro servidor: ese servidor sabría la IP y la hora de cada persona que abre su credencial. La credencial manda además `Content-Security-Policy: img-src 'self' data:`.
 - **La lista del sorteo no lleva datos personales:** solo los códigos de credencial de quienes entraron (las credenciales de asistente, salvo que se pida incluir a todas), ordenados, con la huella SHA-256 de la lista y cómo se calcula. Quien organiza la congela desde la pantalla en vivo (`POST /api/vivo/<evento>/sorteo`, tabla `raffle_lists`): desde ahí la que se proyecta, con su huella, es la que se exporta y se sortea, aunque alguien entre después. Esta parte no sortea nada.
+- **La computadora del proyector no tiene la clave del panel:** quien organiza abre `/vivo/<evento>` con su clave y copia desde ahí el enlace para el proyector (`?pantalla=<clave>`, tabla `screen_keys`, `verifyScreenKey` en `src/server/vivo.ts`), que abre solo la pantalla en modo proyector y su JSON: sin el sorteo, sin el CSV y sin enlaces al panel. Se cambia desde la misma pantalla, y el anterior deja de servir en el acto.
 
 ## Los números para el informe
 

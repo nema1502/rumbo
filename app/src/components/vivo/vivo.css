@@ -118,3 +118,11 @@ button.viv-boton { border: 0; cursor: pointer; font-family: inherit; }
 .viv-huella { font-size: clamp(0.85rem, 1.8vh, 1.15rem); color: var(--tinta-2); overflow-wrap: anywhere; }
 .viv-huella code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: 0.02em; }
 .viv-huella-etiqueta { color: var(--apagado); }
+
+/* El enlace del proyector, solo para quien organiza: un diálogo sobre la pantalla, que no mueve la grilla ni queda a la vista */
+.viv-dialogo { border: 1px solid var(--linea); border-radius: 24px; padding: 0; background: var(--tarjeta); color: var(--tinta); max-width: min(92vw, 56rem); }
+.viv-dialogo::backdrop { background: rgba(5, 12, 24, 0.72); }
+.viv-dialogo-caja { display: grid; gap: 14px; padding: clamp(18px, 3vh, 32px) clamp(20px, 3vw, 40px); font-size: clamp(0.95rem, 2vh, 1.25rem); color: var(--tinta-2); }
+.viv-dialogo-caja h2 { font-size: clamp(1.3rem, 3.2vh, 2rem); color: var(--tinta); }
+.viv-proyector-enlace { overflow-wrap: anywhere; padding: 10px 14px; border-radius: 12px; background: rgba(244, 239, 230, 0.06); }
+.viv-proyector-enlace code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; color: var(--tinta); }

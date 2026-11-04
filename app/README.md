@@ -58,7 +58,7 @@ Nada de `data/` ni de `.env.local` se versiona.
 | `/admin/<evento>/informe` | El informe para quien auspicia: números, nunca personas, con hoja de impresión |
 | `/admin/<evento>/stands` | Stands y ruta: un stand por auspiciante con su código, la meta de la ruta y los números de cada uno |
 | `/stand/<código>` | El panel de quien atiende un stand: sus visitas y los contactos de quienes aceptaron compartirlos, con calificación, nota y CSV |
-| `/vivo/<evento>` | La pantalla en vivo para proyectar: quienes entraron, almuerzos y merch entregados, el ranking de la ruta y el espacio del sorteo |
+| `/vivo/<evento>` | La pantalla en vivo para proyectar: quienes entraron, almuerzos y merch entregados, el ranking de la ruta y el espacio del sorteo. Quien organiza la abre con su clave y copia el enlace para el proyector (`?pantalla=`), que muestra la pantalla y nada más |
 | `/v/<pase>?c=<código>` | La verificación pública de un certificado de asistencia: si esa persona entró, cuándo, y el enlace a su entrada en el registro público |
 
 Al terminar el evento, `pnpm informe`, `pnpm certificados` y `pnpm paquete-embajadores` arman en PDF el informe del evento (para quien organiza, quien auspicia y el programa de embajadores de Stellar), un certificado verificable por persona que entró y el paquete para el capítulo. Todo eso, con sus plantillas de XeLaTeX y sus ejemplos, está en [informes/](informes/README.md).
@@ -77,7 +77,7 @@ Cada parte tiene su guía: [la inscripción y la credencial](src/server/evento/R
 | `GET` y `POST /api/admin/<evento>/stands` | Stands y ruta: leer, y agregar, cambiar o sacar un stand, cambiarle el código, fijar la meta y sacar a alguien de la pantalla en vivo |
 | `GET` y `POST /api/pase/<pase>/ruta?k=<clave>` | La ruta de una credencial, y la respuesta de la persona a la pregunta de permiso o cómo quiere aparecer en la pantalla |
 | `GET /api/stand/<código>`, `POST .../contacto`, `GET .../csv` | El panel del stand en JSON, la calificación y la nota de un contacto, y el CSV |
-| `GET /api/vivo/<evento>`, `GET` y `POST .../sorteo` | La pantalla en vivo en JSON, y la lista del sorteo (JSON con huella y algoritmo, o `?formato=csv`; `POST` la congela o vuelve a la viva) |
+| `GET` y `POST /api/vivo/<evento>`, `GET` y `POST .../sorteo` | La pantalla en vivo en JSON (con la clave del panel o con el enlace del proyector, `?pantalla=`; `POST` cambia ese enlace), y la lista del sorteo (JSON con huella y algoritmo, o `?formato=csv`; `POST` la congela o vuelve a la viva) |
 | `POST /api/admin/<evento>/importar` y `GET .../asistencia` | Importar una lista (vista, importar y tandas de correos) y bajar la asistencia en la forma de Bevy |
 
 ## El kit listo

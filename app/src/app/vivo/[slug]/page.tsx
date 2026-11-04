@@ -1,6 +1,7 @@
 // La pantalla en vivo, para proyectar en el evento: cuántas personas entraron, los almuerzos y la merch
-// entregados, el ranking de la ruta de stands y el espacio del sorteo. La abre quien organiza con su clave
-// (la misma del panel) y se actualiza sola cada tres segundos.
+// entregados, el ranking de la ruta de stands y el espacio del sorteo. Se actualiza sola cada tres segundos.
+// La abre quien organiza con su clave (la misma del panel) y desde ahí copia el enlace para el proyector
+// (?pantalla=...), que muestra la pantalla y nada más: la computadora del proyector no lleva la clave del panel.
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { AccesoPanel } from "@/components/panel/AccesoPanel.tsx";
@@ -8,10 +9,11 @@ import { PantallaVivo } from "@/components/vivo/PantallaVivo.tsx";
 import "@/components/vivo/vivo.css";
 import "../../admin/panel.css";
 import { getT } from "@/i18n/server.ts";
+import { SCREEN_KEY_QUERY } from "@/lib/pantalla.ts";
 import { verifyOrganizerKey } from "@/server/panel.ts";
 import { PANEL_KEY_QUERY, panelKeyFromCookies } from "@/server/panel-sesion.ts";
 import { getRepo } from "@/server/repo.ts";
-import { getLiveState } from "@/server/vivo.ts";
+import { getLiveState, getOrCreateScreenKey, verifyScreenKey } from "@/server/vivo.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +30,12 @@ export default async function VivoPage({ params, searchParams }: { params: Param
   const event = await getRepo().getEventBySlug(slug);
   if (!event) notFound();
 
+  // El proyector: con su enlace, la pantalla en modo solo lectura, sin pasar por la clave del panel.
+  const screenKey = query[SCREEN_KEY_QUERY];
+  if (typeof screenKey === "string" && (await verifyScreenKey(event.id, screenKey))) {
+    return <PantallaVivo slug={slug} initial={await getLiveState(event)} acceso={{ kind: "screen", key: screenKey.trim().toUpperCase() }} />;
+  }
+
   const key = query[PANEL_KEY_QUERY];
   if (typeof key === "string" && key) redirect(`/api/admin/${slug}/entrar?k=${encodeURIComponent(key)}&next=vivo`);
 
@@ -35,5 +43,5 @@ export default async function VivoPage({ params, searchParams }: { params: Param
   if (!(await verifyOrganizerKey(event.id, await panelKeyFromCookies(slug)))) {
     return <AccesoPanel slug={slug} eventName={event.name} t={t} error={query.error === "clave"} next="vivo" />;
   }
-  return <PantallaVivo slug={slug} initial={await getLiveState(event)} />;
+  return <PantallaVivo slug={slug} initial={await getLiveState(event)} acceso={{ kind: "organizer", screenKey: await getOrCreateScreenKey(event.id) }} />;
 }
