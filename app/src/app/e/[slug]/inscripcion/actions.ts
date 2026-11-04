@@ -62,6 +62,7 @@ const FAILURE_KEYS: Record<FailureReason, string> = {
   wallet_mismatch: "evento.error.correoOtraCuenta",
   signature_invalid: "evento.error.autorizacion",
   signature_expired: "evento.error.autorizacionVencida",
+  ticket_mismatch: "evento.error.entradaPropia",
 };
 
 /** De dónde llegó el pedido, para que el enlace del correo abra en el mismo servidor en desarrollo. */

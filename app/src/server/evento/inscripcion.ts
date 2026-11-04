@@ -99,7 +99,9 @@ export type FailureReason =
   /** La autorización firmada no es la que se dio a firmar, o la firma no vale. */
   | "signature_invalid"
   /** El pedido de firma venció o ya se usó: hay que empezar de nuevo. */
-  | "signature_expired";
+  | "signature_expired"
+  /** La credencial que ya le reservó una importación es de una entrada paga, y eligió la gratis: tiene que elegir la suya. */
+  | "ticket_mismatch";
 
 /** Lo que el navegador tiene que firmar con la cuenta propia (client.signAuthEntry), y con qué id devolverlo. */
 export interface SignatureRequest {
@@ -288,11 +290,11 @@ export async function registerForEvent(input: RegistrationInput): Promise<Regist
   const event = await repo.getEventBySlug(input.slug);
   // Un borrador todavía no recibe inscripciones.
   if (!event || !event.published) throw new RegistrationNotFound("event");
-  const ticketType = await repo.getTicketType(input.ticketTypeId);
+  let ticketType = await repo.getTicketType(input.ticketTypeId);
   // Las credenciales de oradores, jurado, voluntarios y demás se entregan por invitación: no se piden desde la página.
   if (!ticketType || ticketType.eventId !== event.id || !isPublicKind(ticketType.credentialKind)) throw new RegistrationNotFound("ticket");
-  const contractId = requireContractId(ticketType.contractId ?? event.contractId);
-  const paid = ticketType.priceUsdc > 0;
+  let contractId = requireContractId(ticketType.contractId ?? event.contractId);
+  let paid = ticketType.priceUsdc > 0;
   const email = normalizeEmail(input.email);
   const name = input.name.trim();
 
@@ -335,6 +337,17 @@ export async function registerForEvent(input: RegistrationInput): Promise<Regist
   if (pass.ticketTypeId !== ticketType.id) {
     // Quedó una inscripción empezada con otra entrada (la red falló a mitad de camino): sigue con la de ahora.
     pass = await repo.updatePass(pass.id, { ticketTypeId: ticketType.id });
+    if (pass.ticketTypeId !== ticketType.id) {
+      // La credencial vino de una importación (una oradora, un jurado) y conserva su entrada: la inscripción sigue
+      // con esa, su contrato y su precio, no con la que eligió en la página. Si la suya es paga y eligió la gratis,
+      // se le dice: no se la inscribe gratis en un contrato que no es el de su credencial.
+      const own = await repo.getTicketType(pass.ticketTypeId);
+      if (!own) return failed("misconfigured", `la entrada ${pass.ticketTypeId} de la credencial ${pass.id} no existe`);
+      if (own.priceUsdc > 0 && !paid) return failed("ticket_mismatch", `la credencial ${pass.id} es de la entrada paga ${own.id}`);
+      ticketType = own;
+      contractId = requireContractId(own.contractId ?? event.contractId);
+      paid = own.priceUsdc > 0;
+    }
   }
   const diet = cleanDiet(input.diet);
   if (diet && pass.diet !== diet) pass = await repo.updatePass(pass.id, { diet });

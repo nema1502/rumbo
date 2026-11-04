@@ -135,6 +135,59 @@ test("la página pública no le cambia el tipo a una credencial pendiente que vi
   assert.equal((await repo.getPass(pase.id)).ticketTypeId, ev.porKind.attendee.id);
 });
 
+test("quien se importó como oradora y se inscribe sola por la página queda en el contrato de su entrada, no en el de asistente; si la suya es paga y eligió la gratis, se le dice", async () => {
+  const guardados = { accounts: globalThis.__rumboAccounts, mailer: globalThis.__rumboMailer, register: stellar.rumboPass.register, buy: stellar.rumboPass.buy };
+  let n = 0;
+  const contratos = [];
+  globalThis.__rumboAccounts = { kind: "dev", getOrCreateForPerson: async (id) => `G${id.replace(/-/g, "").toUpperCase().padEnd(55, "A").slice(0, 55)}`, authSigner: async () => ({ address: "GFIRMA", signAuthEntry: async (e) => e }) };
+  stellar.rumboPass.register = async (contractId) => {
+    contratos.push(["register", contractId]);
+    return { hash: `h-${++n}`, ledger: 1, returnValue: n, number: n };
+  };
+  stellar.rumboPass.buy = async (contractId) => {
+    contratos.push(["buy", contractId]);
+    return { hash: `h-${++n}`, ledger: 1, returnValue: n, number: n };
+  };
+  globalThis.__rumboMailer = { kind: "dev", send: async () => ({ id: "1", outcome: "sent" }) };
+  try {
+    const ev = await eventoPublicado("Oradora se inscribe");
+    const speaker = ev.porKind.speaker;
+    const p = await imp.prepareImport(repo, ev.event, imp.parseGuests("Name,Email,Ticket\nOra Dora,ora.dora@example.com,Speaker\n"), opciones(ev, { mapping: { [imp.labelKey("Speaker")]: speaker.id } }));
+    const [pendiente] = await repo.listPassesByImportRun(p.run.id);
+    assert.equal(pendiente.ticketTypeId, speaker.id);
+    // Antes de que le llegue el correo de la importación, se inscribe sola por la página, con la entrada de asistente.
+    const r = await registerForEvent({ slug: ev.event.slug, ticketTypeId: ev.porKind.attendee.id, name: "Ora Dora", email: "ORA.DORA@example.com", lang: "es", clientKey: "1.1.1.1" });
+    assert.equal(r.kind, "created");
+    assert.equal(r.pass.id, pendiente.id, "es su credencial, no otra");
+    assert.equal(r.ticketType.id, speaker.id, "la inscripción siguió con su entrada de oradora");
+    assert.deepEqual(contratos.at(-1), ["register", speaker.contractId], "en el contrato de la entrada de oradora, no en el de asistente");
+    assert.notEqual(speaker.contractId, ev.porKind.attendee.contractId);
+    const pase = await repo.getPass(pendiente.id);
+    assert.deepEqual([pase.status, pase.ticketTypeId], ["active", speaker.id]);
+    const suyos = (await repo.listTicketTypeBenefits(speaker.id)).map((b) => b.id).sort();
+    assert.deepEqual((await repo.listPassBenefits(pase.id)).map((b) => b.id).sort(), suyos, "con los beneficios de su entrada");
+
+    // Una credencial reservada con una entrada paga: si elige la gratis en la página, se le dice; con la suya, paga.
+    const paga = await repo.createTicketType({ eventId: ev.event.id, name: "Con polera", priceUsdc: 10, contractId: "CPAGOPRUEBA", credentialKind: "attendee" });
+    const run = await repo.createImportRun({ eventId: ev.event.id, source: "prueba", summary: {} });
+    const persona = await repo.upsertPerson({ name: "Pago Pendiente", email: "pago.pendiente@example.com" });
+    const reservado = await repo.createPass({ eventId: ev.event.id, personId: persona.id, ticketTypeId: paga.id, status: "pending", importRunId: run.id });
+    const antes = contratos.length;
+    const f = await registerForEvent({ slug: ev.event.slug, ticketTypeId: ev.porKind.attendee.id, name: "Pago Pendiente", email: "pago.pendiente@example.com", lang: "es", clientKey: "1.1.1.2" });
+    assert.deepEqual([f.kind, f.reason], ["failed", "ticket_mismatch"]);
+    assert.equal(contratos.length, antes, "no se mandó nada al contrato");
+    assert.equal((await repo.getPass(reservado.id)).status, "pending");
+    const ok = await registerForEvent({ slug: ev.event.slug, ticketTypeId: paga.id, name: "Pago Pendiente", email: "pago.pendiente@example.com", lang: "es", clientKey: "1.1.1.3" });
+    assert.deepEqual([ok.kind, ok.paid, ok.ticketType.id], ["created", true, paga.id]);
+    assert.deepEqual(contratos.at(-1), ["buy", "CPAGOPRUEBA"]);
+  } finally {
+    globalThis.__rumboAccounts = guardados.accounts;
+    globalThis.__rumboMailer = guardados.mailer;
+    stellar.rumboPass.register = guardados.register;
+    stellar.rumboPass.buy = guardados.buy;
+  }
+});
+
 // ---------- Los correos (H-D2) ----------
 
 test("en producción el correo de desarrollo no manda nada y lo dice; en desarrollo guarda el archivo y al registro va solo el dominio", async () => {
