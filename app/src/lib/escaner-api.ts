@@ -86,8 +86,11 @@ export interface ScanSnapshot {
   /** Solo en el escáner de un stand: sus visitas y quién aceptó compartir su contacto. */
   stand?: ScanStandInfo;
   generatedAt: string;
-  /** Si el beneficio del puesto tiene tope (150 poleras): cuántos hay y cuántos quedan según el servidor. */
-  stock?: { total: number; left: number } | null;
+  /**
+   * Si el beneficio del puesto tiene tope (150 poleras): cuántos hay, cuántos quedan según el servidor y, si
+   * dos mesas sin red entregaron de más, por cuántas se pasó (`over`; una foto vieja no lo trae).
+   */
+  stock?: { total: number; left: number; over?: number } | null;
 }
 
 export type ScanAction = "checkin" | "redeem" | "visit";
@@ -112,10 +115,14 @@ export interface ScanItem {
  */
 export type ScanItemStatus = "synced" | "duplicate" | "retry" | "rejected";
 
+/** Un canje que entró, pero con él se pasó el tope del beneficio (dos mesas sin red lo entregaron de más). */
+export const STOCK_EXCEEDED = "stock_exceeded";
+
 export interface ScanItemResult {
   clientId: string;
   status: ScanItemStatus;
   txHash: string | null;
+  /** Por qué no entró; o, con `synced`, un aviso como STOCK_EXCEEDED. */
   error: string | null;
 }
 
@@ -126,11 +133,18 @@ export interface OpenRequest {
 
 export interface SyncRequest extends OpenRequest {
   items: ScanItem[];
+  /**
+   * Si el escáner quiere la foto fresca del evento con la respuesta. Armarla cuesta varias consultas por
+   * pedido, y el escáner sincroniza cada pocos segundos: la pide cada tanto, no en cada vuelta. Un escáner de
+   * una versión anterior no manda el campo, y entonces la foto va siempre, como antes.
+   */
+  snapshot?: boolean;
 }
 
 export interface SyncResponse {
   results: ScanItemResult[];
-  snapshot: ScanSnapshot;
+  /** La foto fresca, si se pidió (o si el pedido no dijo nada). */
+  snapshot: ScanSnapshot | null;
 }
 
 /** Cuántos registros manda el escáner por vez. Cada uno es una transacción en la red de prueba. */

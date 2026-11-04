@@ -20,6 +20,7 @@ import {
   type ScanSession,
 } from "@/lib/cola.ts";
 import {
+  STOCK_EXCEEDED,
   SYNC_BATCH_SIZE,
   decideVerdict,
   manualScannerId,
@@ -121,6 +122,8 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
   const [camara, setCamara] = useState<"ok" | CameraProblem>("ok");
   const [puertaManual, setPuertaManual] = useState(false);
   const [usoLocal, setUsoLocal] = useState<Map<string, LocalUsage>>(new Map());
+  /** El servidor avisó que con lo que esta mesa (u otra) entregó se pasó el tope del beneficio. */
+  const [topePasado, setTopePasado] = useState(false);
 
   const colaRef = useRef<ColaLocal | null>(null);
   const sesionRef = useRef<ScanSession | null>(null);
@@ -173,8 +176,10 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
   /**
    * Vacía la cola contra el servidor, de a pocos: cada registro es una transacción. Lo que vuelve
    * como "retry" espera a la próxima vuelta. Cada registro viaja con el código del puesto en que se
-   * hizo: primero lo del puesto abierto (y su respuesta trae la foto fresca del evento, que se pide igual
-   * cada tanto aunque no haya nada pendiente), después lo que quedó de otros puestos de este celular.
+   * hizo: primero lo del puesto abierto, después lo que quedó de otros puestos de este celular. La foto
+   * fresca del evento (lo que registraron los otros puestos) se pide con el primer lote del puesto abierto
+   * solo cada tanto, no en cada vuelta: armarla le cuesta al servidor, y lo que este celular registró ya lo
+   * sabe por su propia cola. En un stand se pide siempre, para ver enseguida quién aceptó compartir su contacto.
    */
   const sincronizar = useCallback(
     async (forzarRefresh = false) => {
@@ -189,17 +194,18 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
           sesionActual,
         );
       const grupos = await listos();
-      const cadaCuanto = s.snapshot.station.kind === "stand" ? STAND_REFRESH_EVERY_MS : REFRESH_EVERY_MS;
+      const esStand = s.snapshot.station.kind === "stand";
+      const cadaCuanto = esStand ? STAND_REFRESH_EVERY_MS : REFRESH_EVERY_MS;
       const necesitaRefresh = forzarRefresh || Date.now() - ultimoRefreshRef.current > cadaCuanto;
       if (grupos.length === 0 && !necesitaRefresh) return;
       sincronizandoRef.current = true;
       setSincronizando(true);
 
-      /** Manda un lote con su código. "cerrado": el código ya no es de ningún puesto. */
-      const enviar = async (code: string, lote: QueueEntry[], actual: boolean): Promise<"ok" | "cerrado"> => {
+      /** Manda un lote con su código, y pide la foto si `conFoto`. "cerrado": el código ya no es de ningún puesto. */
+      const enviar = async (code: string, lote: QueueEntry[], conFoto: boolean): Promise<"ok" | "cerrado"> => {
         const { status, data } = await postJson<SyncResponse>(
           "/api/scan/sync",
-          { code, items: lote.map(({ clientId, action, passId, benefitId, scannedAt, scannerId }) => ({ clientId, action, passId, benefitId, scannedAt, scannerId })) },
+          { code, snapshot: conFoto, items: lote.map(({ clientId, action, passId, benefitId, scannedAt, scannerId }) => ({ clientId, action, passId, benefitId, scannedAt, scannerId })) },
           SYNC_TIMEOUT_MS,
         );
         if (status === 401 || status === 404) return "cerrado";
@@ -212,8 +218,9 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
           } else {
             await c.update(result.clientId, { status: result.status, txHash: result.txHash, lastError: result.error });
           }
+          if (result.error === STOCK_EXCEEDED) setTopePasado(true);
         }
-        if (actual) {
+        if (conFoto && data.snapshot) {
           await actualizarSnapshot(data.snapshot);
           ultimoRefreshRef.current = Date.now();
         }
@@ -221,13 +228,15 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
       };
 
       try {
-        // El puesto abierto, aunque no tenga nada pendiente: así llega la foto fresca.
+        // El puesto abierto, aunque no tenga nada pendiente si toca pedir la foto fresca.
         let lote = grupos.find((g) => g.actual)?.entries ?? [];
+        let conFoto = necesitaRefresh || esStand;
         do {
-          if ((await enviar(s.code, lote.slice(0, SYNC_BATCH_SIZE), true)) === "cerrado") {
+          if ((await enviar(s.code, lote.slice(0, SYNC_BATCH_SIZE), conFoto)) === "cerrado") {
             setSesionInvalida(true);
             break;
           }
+          conFoto = esStand;
           setSesionInvalida(false);
           await refrescarLocal();
           lote = (await listos()).find((g) => g.actual)?.entries ?? [];
@@ -342,6 +351,7 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
     setVeredicto(null);
     setPuertaManual(false);
     setSesionInvalida(false);
+    setTopePasado(false);
     setCodigo("");
     setFase("elegir");
   }
@@ -533,6 +543,7 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
   const puesto = snapshot.station;
   const sinCamara = camara !== "ok";
   const escribiendo = modoTexto || sinCamara;
+  const sobreTope = puesto.kind === "benefit" && (topePasado || (snapshot.stock?.over ?? 0) > 0);
 
   return (
     <section className="pantalla esc-pantalla">
@@ -562,6 +573,7 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
             </button>
           </Aviso>
         )}
+        {sobreTope && <Aviso tono="alerta">{t("kit.escaner.topePasado", { beneficio: puesto.name })}</Aviso>}
         {puertaManual && puesto.kind === "gate" ? (
           <Manual
             code={sesion.code}

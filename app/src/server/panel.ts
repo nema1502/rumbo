@@ -256,6 +256,8 @@ export interface PanelBenefitRow {
   stock: number | null;
   /** Cuántos quedan: el stock menos lo canjeado, nunca menos que cero. Null si no hay tope. */
   remaining: number | null;
+  /** Por cuántos se pasó el tope (dos mesas sin red que entregaron de más). Cero si no hay tope o no se pasó. */
+  exceeded: number;
 }
 
 export interface PanelTicketTypeRow {
@@ -293,17 +295,19 @@ interface Collected {
 }
 
 async function collect(event: EventRecord, repo: Repo): Promise<Collected> {
-  const [ticketTypes, benefits, passes, checkIns, redemptions, passTeams] = await Promise.all([
+  // Todo por lote: el panel se pide cada cinco segundos, y con trescientas credenciales no puede costar seiscientas consultas.
+  const [ticketTypes, benefits, withPerson, granted, checkIns, redemptions, passTeams] = await Promise.all([
     repo.listTicketTypes(event.id),
     repo.listBenefits(event.id),
-    repo.listPasses(event.id),
+    repo.listPassesWithPerson(event.id),
+    repo.listPassBenefitsByEvent(event.id),
     repo.listCheckIns(event.id),
     repo.listRedemptions(event.id),
     repo.listPassTeams(event.id),
   ]);
   const teamOf = new Map(passTeams.map((p) => [p.passId, p.team.name] as const));
-  const persons = new Map(await Promise.all(passes.map(async (pass) => [pass.id, await repo.getPersonById(pass.personId)] as const)));
-  const granted = new Map(await Promise.all(passes.map(async (pass) => [pass.id, await repo.listPassBenefits(pass.id)] as const)));
+  const passes = withPerson.map((w) => w.pass);
+  const persons = new Map(withPerson.map((w) => [w.pass.id, w.person] as const));
   const benefitById = new Map(benefits.map((b) => [b.id, b]));
   const ticketTypeById = new Map(ticketTypes.map((t) => [t.id, t]));
 
@@ -354,6 +358,7 @@ async function collect(event: EventRecord, repo: Repo): Promise<Collected> {
       duplicates: redemptions.filter((r) => r.duplicate && r.benefitId === b.id).length,
       stock: b.stock,
       remaining: b.stock === null ? null : Math.max(0, b.stock - redeemedCount),
+      exceeded: b.stock === null ? 0 : Math.max(0, redeemedCount - b.stock),
     };
   });
   const tally = (kind: BenefitKind): Tally =>

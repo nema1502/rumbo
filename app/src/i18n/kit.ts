@@ -137,6 +137,7 @@ export const kit = {
     "kit.panel.canjeados": "{canjeados} de {otorgados}",
     "kit.panel.quedan": "Quedan {n} de {total}",
     "kit.panel.agotado": "Se acabó",
+    "kit.panel.pasadas": "Pasadas por {n}",
     "kit.panel.sinTope": "Sin tope",
     "kit.panel.equipo": "Equipo {nombre}",
 
@@ -240,6 +241,7 @@ export const kit = {
     "kit.escaner.quedan": "Quedan {n}",
     "kit.escaner.ultima": "Fue la última.",
     "kit.escaner.agotadoMotivo": "No quedan más: {beneficio}.",
+    "kit.escaner.topePasado": "Se entregaron más de las que había: {beneficio}. Avisale a quien organiza.",
 
     // El correo de una credencial importada
     "kit.correo.asunto": "Tu credencial para {evento}",
@@ -379,6 +381,7 @@ export const kit = {
     "kit.panel.canjeados": "{canjeados} of {otorgados}",
     "kit.panel.quedan": "{n} of {total} left",
     "kit.panel.agotado": "Sold out",
+    "kit.panel.pasadas": "Over by {n}",
     "kit.panel.sinTope": "No limit",
     "kit.panel.equipo": "Team {nombre}",
 
@@ -482,6 +485,7 @@ export const kit = {
     "kit.escaner.quedan": "{n} left",
     "kit.escaner.ultima": "That was the last one.",
     "kit.escaner.agotadoMotivo": "None left: {beneficio}.",
+    "kit.escaner.topePasado": "More were handed out than there were: {beneficio}. Tell the organizer.",
 
     // The email for an imported pass
     "kit.correo.asunto": "Your pass for {evento}",

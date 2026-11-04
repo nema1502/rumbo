@@ -23,13 +23,11 @@ export function splitName(full: string): [string, string] {
 
 /** El CSV de asistencia: una fila por credencial emitida (las pendientes de pago no entran), con marca de orden para que Excel lo abra en UTF-8. */
 export async function buildAttendanceCsv(event: EventRecord, repo: Repo = getRepo()): Promise<string> {
-  const [passes, types, teams] = await Promise.all([repo.listPasses(event.id), repo.listTicketTypes(event.id), repo.listPassTeams(event.id)]);
+  const [passes, types, teams] = await Promise.all([repo.listPassesWithPerson(event.id), repo.listTicketTypes(event.id), repo.listPassTeams(event.id)]);
   const typeById = new Map(types.map((t) => [t.id, t] as const));
   const teamOf = new Map(teams.map((t) => [t.passId, t.team.name] as const));
   const rows: Array<Array<string | number>> = [];
-  for (const pass of passes.filter((p) => p.status !== "pending")) {
-    const person = await repo.getPersonById(pass.personId);
-    if (!person) continue;
+  for (const { pass, person } of passes.filter((p) => p.pass.status !== "pending")) {
     const [first, last] = splitName(person.name);
     const type = typeById.get(pass.ticketTypeId);
     rows.push([first, last, person.email, type?.name ?? "", pass.status === "checked_in" ? "Yes" : "No", pass.checkedInAt ?? "", type?.credentialKind ?? "attendee", teamOf.get(pass.id) ?? ""]);

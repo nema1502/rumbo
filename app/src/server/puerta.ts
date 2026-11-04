@@ -53,7 +53,8 @@ export function maskEmail(email: string): string {
 export async function searchDoor(repo: Repo, event: EventRecord, query: string): Promise<DoorMatch[]> {
   const needle = normalizeSearch(query);
   if (needle.length < SEARCH_MIN_LENGTH) return [];
-  const [passes, checkIns, ticketTypes] = await Promise.all([repo.listPasses(event.id), repo.listCheckIns(event.id), repo.listTicketTypes(event.id)]);
+  // Los pases con su persona en una sola consulta: la búsqueda se pide con cada letra que escribe el voluntario.
+  const [passes, checkIns, ticketTypes] = await Promise.all([repo.listPassesWithPerson(event.id), repo.listCheckIns(event.id), repo.listTicketTypes(event.id)]);
   const mirrored = new Map<string, string>();
   for (const checkIn of checkIns) {
     const previous = mirrored.get(checkIn.passId);
@@ -62,10 +63,8 @@ export async function searchDoor(repo: Repo, event: EventRecord, query: string):
   const ticketName = new Map(ticketTypes.map((ticket) => [ticket.id, ticket.name]));
 
   const matches: DoorMatch[] = [];
-  for (const pass of passes) {
+  for (const { pass, person } of passes) {
     if (pass.status === "pending") continue;
-    const person = await repo.getPersonById(pass.personId);
-    if (!person) continue;
     if (!normalizeSearch(person.name).includes(needle) && !person.email.toLowerCase().includes(needle)) continue;
     matches.push({
       passId: pass.id,

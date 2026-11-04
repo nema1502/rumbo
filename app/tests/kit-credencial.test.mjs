@@ -154,7 +154,7 @@ test("un canje con tope (150 poleras) lleva la cuenta: el panel dice cuántas qu
   const codigos = await ensureStationCodes(event, repo);
   const acceso = await resolveStationCode(codigos.find((c) => c.benefitId === polera.id).code, repo);
   const foto = await buildSnapshot(repo, acceso);
-  assert.deepEqual(foto.stock, { total: 3, left: 1 });
+  assert.deepEqual(foto.stock, { total: 3, left: 1, over: 0 });
   // Lo que no tiene tope no lleva cuenta.
   const almuerzo = (await repo.listBenefits(event.id)).find((b) => b.templateKey === "lunch-1");
   const sinTope = await buildSnapshot(repo, await resolveStationCode(codigos.find((c) => c.benefitId === almuerzo.id).code, repo));
