@@ -50,6 +50,23 @@ export function clearPanelCookie(response: NextResponse, slug: string): void {
   response.cookies.set(panelCookieName(slug), "", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 0 });
 }
 
+/**
+ * A dónde puede volver /admin después de entrar como organizador (?volver=): solo una ruta propia del panel, que
+ * empiece con /admin/. Nada de otro sitio ("//otro", "/\otro", "https://..."), ni caracteres de control, ni algo que
+ * al resolverse salga de /admin/. Si no sirve, null y /admin muestra Mis eventos.
+ */
+export function safeReturnPath(raw: unknown): string | null {
+  if (typeof raw !== "string" || raw.length > 300 || !raw.startsWith("/admin/")) return null;
+  if (/[\\\u0000-\u001F\u007F]/.test(raw) || raw.startsWith("//")) return null;
+  try {
+    const url = new URL(raw, "http://rumbo.invalid");
+    if (url.origin !== "http://rumbo.invalid" || !url.pathname.startsWith("/admin/")) return null;
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return null;
+  }
+}
+
 /** Una redirección a una ruta de la propia app. Relativa a propósito: así no depende de cómo llegue el host. */
 export function seeOther(path: string): NextResponse {
   return new NextResponse(null, { status: 303, headers: { Location: path } });

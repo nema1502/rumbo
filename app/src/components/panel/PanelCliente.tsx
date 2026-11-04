@@ -14,6 +14,7 @@ import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
 import type { ChainSyncSummary, PanelDuplicate, PanelPass, PanelState } from "@/server/panel.ts";
 import type { PanelVia } from "@/server/panel-sesion.ts";
 import { BotonCopiar } from "./BotonCopiar.tsx";
+import { CompartirPanel } from "./CompartirPanel.tsx";
 import { Contador } from "./Contador.tsx";
 
 const POLL_MS = 5000;
@@ -146,6 +147,11 @@ export function PanelCliente({ slug, initial, publicado = false, via = "key" }: 
   return (
     <section className="panel">
       <header className="panel-cabecera">
+        {via === "organizer" && (
+          <Link className="enlace panel-mis-eventos" href="/admin">
+            {t("panel.cuenta.misEventos")}
+          </Link>
+        )}
         <p className="panel-sobre">
           <span>{t("panel.titulo")}</span>
           {conexion === "ok" && <Chip estado="listo">{t("panel.enVivo")}</Chip>}
@@ -165,9 +171,10 @@ export function PanelCliente({ slug, initial, publicado = false, via = "key" }: 
       {publicado && <Aviso tono="listo">{t("kit.armar.publicado")}</Aviso>}
       {conexion === "vencida" && (
         <Aviso tono="alerta">
-          {t("panel.sesionVencida")}{" "}
-          <Link className="enlace" href={`/admin/${slug}`}>
-            {t("panel.volverAEntrar")}
+          {via === "organizer" ? t("panel.sesionVencidaCuenta") : t("panel.sesionVencida")}{" "}
+          {/* Con la cuenta, la vuelta es entrar como organizador y caer de nuevo acá; con la clave, la puerta del panel. */}
+          <Link className="enlace" href={via === "organizer" ? `/admin?volver=${encodeURIComponent(`/admin/${slug}`)}` : `/admin/${slug}`}>
+            {via === "organizer" ? t("panel.cuenta.titulo") : t("panel.volverAEntrar")}
           </Link>
         </Aviso>
       )}
@@ -292,6 +299,8 @@ export function PanelCliente({ slug, initial, publicado = false, via = "key" }: 
         </Tarjeta>
       </div>
 
+      {via === "organizer" && <CompartirPanel slug={slug} />}
+
       <section className="panel-seccion">
         <div className="pases-cabecera">
           <h2>
@@ -337,13 +346,9 @@ export function PanelCliente({ slug, initial, publicado = false, via = "key" }: 
         )}
       </section>
 
-      {/* Con la clave se sale de este panel; con la cuenta se cierra la sesión, y Mis eventos queda a mano. */}
+      {/* Con la clave se sale de este panel; con la cuenta se cierra la sesión en este navegador (Mis eventos queda arriba). */}
       <form className="panel-salir" method="post" action={via === "organizer" ? "/api/organizador/salir" : `/api/admin/${slug}/salir`}>
-        {via === "organizer" && (
-          <Link className="enlace" href="/admin">
-            {t("panel.cuenta.misEventos")}
-          </Link>
-        )}
+        {via === "organizer" && <span className="apagado chico">{t("panel.cuenta.salirAyuda")}</span>}
         <button type="submit" className="enlace">
           {via === "organizer" ? t("panel.cuenta.salir") : t("panel.acceso.salir")}
         </button>

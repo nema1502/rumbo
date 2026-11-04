@@ -2,8 +2,10 @@
 // cada canje, dónde se canjea y cuántos hay. Una sola acción principal: "Publicar el evento". Es un formulario
 // común, sin JavaScript en el navegador: las casillas apagan y encienden cada credencial.
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AccesoPanel } from "@/components/panel/AccesoPanel.tsx";
+import { CompartirPanel } from "@/components/panel/CompartirPanel.tsx";
 import { Aviso, Boton, Campo, Chip, Tarjeta } from "@/components/ui.tsx";
 import type { T } from "@/i18n/index.ts";
 import { getLang, getT } from "@/i18n/server.ts";
@@ -46,7 +48,8 @@ export default async function DraftPage({ params, searchParams }: { params: Para
   if (typeof key === "string" && key) redirect(`/api/admin/${encodeURIComponent(slug)}/entrar?k=${encodeURIComponent(key)}&next=armar`);
 
   const t = await getT();
-  if (!(await panelAccess(event))) {
+  const access = await panelAccess(event);
+  if (!access) {
     return <AccesoPanel slug={slug} eventName={event.name} t={t} error={query.error === "clave"} next="armar" conCuenta={pollarEnabled()} />;
   }
   // Ya publicado, o armado a mano: no hay borrador que editar.
@@ -64,6 +67,11 @@ export default async function DraftPage({ params, searchParams }: { params: Para
   return (
     <form className="pantalla armar" action={guardarBorrador}>
       <header className="pantalla-cabecera">
+        {access.via === "organizer" && (
+          <Link className="enlace panel-mis-eventos" href="/admin">
+            {t("panel.cuenta.misEventos")}
+          </Link>
+        )}
         <p className="panel-sobre">
           <Chip estado="pendiente">{t("kit.armar.borrador")}</Chip>
           <span>{t(draft.template.nameKey)}</span>
@@ -122,6 +130,9 @@ export default async function DraftPage({ params, searchParams }: { params: Para
             </span>
           </label>
         </section>
+
+        {/* Quien entró con la cuenta no tiene clave: si quiere sumar a alguien que coorganiza, el enlace se pide acá. */}
+        {access.via === "organizer" && <CompartirPanel slug={slug} />}
       </div>
       <div className="pantalla-accion">
         <div className="armar-acciones">

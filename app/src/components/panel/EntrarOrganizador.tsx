@@ -2,7 +2,8 @@
 // Entrar como organizador: con Google o con el correo por Pollar (lo mismo que la inscripción, IngresoPollar.tsx)
 // y después "Entrar al panel", que prueba que la cuenta es de quien entró (el desafío SEP-53 de
 // /api/cuenta/desafio, firmado con client.stellar.sep53.signMessage) y abre la sesión en /api/organizador/entrar.
-// Con la cookie puesta, la página de /admin se vuelve a pedir y muestra Mis eventos.
+// Con la cookie puesta, la página de /admin se vuelve a pedir y muestra Mis eventos, o vuelve a la página del panel
+// de la que venía (volver, ya revisada en el servidor: solo una ruta que empieza con /admin/).
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AccionesIngreso, FormulariosCorreo, useIngresoPollar } from "@/components/evento/IngresoPollar.tsx";
@@ -12,7 +13,7 @@ import { useLang, useT } from "@/i18n/client.tsx";
 
 type Paso = "prueba" | "entrando";
 
-export function EntrarOrganizador({ pollarKey }: { pollarKey: string }) {
+export function EntrarOrganizador({ pollarKey, volver = null }: { pollarKey: string; volver?: string | null }) {
   const t = useT();
   const lang = useLang();
   const router = useRouter();
@@ -47,9 +48,10 @@ export function EntrarOrganizador({ pollarKey }: { pollarKey: string }) {
       if (sesion.status === 429) return setError(t("panel.cuenta.error.demasiados"));
       if (sesion.status === 503) return setError(t("panel.cuenta.sinPollar"));
       if (!sesion.ok) return setError(t("panel.cuenta.error.entrar"));
-      // La cookie ya está: la página se vuelve a pedir al servidor y muestra Mis eventos.
+      // La cookie ya está: de vuelta al panel del que venía, o la página se vuelve a pedir y muestra Mis eventos.
       entro = true;
-      router.refresh();
+      if (volver) router.replace(volver);
+      else router.refresh();
     } catch (err) {
       console.warn("[pollar] No se pudo entrar como organizador", err);
       setError(t("panel.cuenta.error.entrar"));
@@ -71,7 +73,7 @@ export function EntrarOrganizador({ pollarKey }: { pollarKey: string }) {
     <section className="pantalla form-inscripcion cuenta-organizador">
       <header className="pantalla-cabecera">
         <h1>{t("panel.cuenta.titulo")}</h1>
-        <p className="bajada">{t("panel.cuenta.bajada")}</p>
+        <p className="bajada">{volver ? t("panel.cuenta.bajadaVolver") : t("panel.cuenta.bajada")}</p>
       </header>
       <div className="pantalla-cuerpo">
         {wallet ? (
@@ -82,7 +84,13 @@ export function EntrarOrganizador({ pollarKey }: { pollarKey: string }) {
             </button>
           </Aviso>
         ) : (
-          <FormulariosCorreo ingreso={ingreso} pollar={pollar} />
+          <>
+            <FormulariosCorreo ingreso={ingreso} pollar={pollar} />
+            {/* Sin cuenta todavía, los botones van pegados al título: abajo, solos, dejaban un hueco en la pantalla. */}
+            <div className="cuenta-acciones">
+              <AccionesIngreso ingreso={ingreso} pollar={pollar} />
+            </div>
+          </>
         )}
       </div>
       <div className="pantalla-accion">
@@ -95,10 +103,8 @@ export function EntrarOrganizador({ pollarKey }: { pollarKey: string }) {
               {t("panel.cuenta.entrar")}
             </Boton>
           </>
-        ) : (
-          <AccionesIngreso ingreso={ingreso} pollar={pollar} />
-        )}
-        <p className="nota">{t("evento.cuenta.custodia")}</p>
+        ) : null}
+        <p className="nota">{t("panel.cuenta.custodia")}</p>
       </div>
     </section>
   );

@@ -356,3 +356,46 @@ test("el nombre que manda el navegador se limpia: sin caracteres de control ni N
   assert.deepEqual([guardado.name, guardado.provider], ["", "pollar"]);
   assert.equal((await entrarCon(conCorreo, { name: { no: "texto" } })).status, 200, "un nombre que no es texto no rompe nada");
 });
+
+test("compartir el panel: con la sesión se pide el enlace con la clave, recién ahí se arma, y abre el panel sin cuenta", async () => {
+  const { POST: compartir } = await import("../src/app/api/admin/[slug]/compartir/route.ts");
+  const { verifyOrganizerKey } = await import("../src/server/panel.ts");
+  const dueña = Keypair.random();
+  const sesion = (await entrarCon(dueña)).token;
+  const ajena = (await entrarCon(Keypair.random())).token;
+  const creado = await org.createEventWithAccount(repo, await repo.getOrganizerByAccount(dueña.publicKey()), plantilla);
+  const slug = creado.event.slug;
+  const url = `http://localhost/api/admin/${slug}/compartir`;
+  const { getDb } = await import("../src/server/base/index.ts");
+  const claves = async () => (await getDb().all("SELECT key FROM organizer_keys WHERE event_id = ?", [creado.event.id])).length;
+  assert.equal(await claves(), 0, "crear con la cuenta no arma ninguna clave");
+
+  const res = await compartir(await pedido(url, { headers: conCookie(sesion) }), enRuta(slug));
+  assert.equal(res.status, 200);
+  const { path } = await res.json();
+  const clave = new URL(path, "http://localhost").searchParams.get("k");
+  assert.ok(path.startsWith(`/admin/${slug}?k=`), path);
+  assert.equal(await verifyOrganizerKey(creado.event.id, clave), true, "la clave abre el panel");
+  assert.equal(await claves(), 1);
+  const otraVez = await (await compartir(await pedido(url, { headers: conCookie(sesion) }), enRuta(slug))).json();
+  assert.equal(otraVez.path, path, "la misma clave, no una nueva cada vez");
+
+  assert.equal((await compartir(await pedido(url, { headers: conCookie(ajena) }), enRuta(slug))).status, 401);
+  assert.equal((await compartir(await pedido(url), enRuta(slug))).status, 401);
+  assert.equal((await compartir(await pedido(url, { headers: { ...conCookie(sesion), origin: "https://otro-sitio.example" } }), enRuta(slug))).status, 403);
+});
+
+test("a dónde vuelve /admin después de entrar: solo a una ruta propia del panel", async () => {
+  const { safeReturnPath } = await import("../src/server/panel-sesion.ts");
+  assert.equal(safeReturnPath("/admin/mi-evento"), "/admin/mi-evento");
+  assert.equal(safeReturnPath("/admin/mi-evento/armar"), "/admin/mi-evento/armar");
+  assert.equal(safeReturnPath("/admin/nuevo"), "/admin/nuevo");
+  for (const malo of ["/admin", "/", "https://otro.example/admin/x", "//otro.example/admin/x", "/admin/../e/x", "/admin/%2e%2e/e", "/admin/\\otro", "/admin/x\nSet-Cookie", "admin/x", undefined, ["/admin/x"], 42]) {
+    const vuelta = safeReturnPath(malo);
+    assert.ok(vuelta === null || vuelta.startsWith("/admin/"), `${JSON.stringify(malo)} -> ${vuelta}`);
+    if (typeof malo === "string" && !malo.startsWith("/admin/")) assert.equal(vuelta, null, JSON.stringify(malo));
+  }
+  assert.equal(safeReturnPath("/admin/../e/x"), null, "lo que al resolverse sale de /admin/");
+  assert.equal(safeReturnPath("/admin/\\otro"), null, "una barra invertida, que el navegador lee como /");
+  assert.equal(safeReturnPath("/admin/x\nSet-Cookie"), null);
+});

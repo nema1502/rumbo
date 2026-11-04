@@ -1,25 +1,30 @@
 // La puerta de quien organiza: sin sesión, "Entrar como organizador" (con Google o con el correo, por Pollar);
-// con sesión, "Mis eventos" y "Crear evento". Con Pollar apagado no hay cuenta de organizador: se dice, y queda
-// la clave de cada evento (/admin/<evento>), que sigue valiendo siempre.
+// con sesión, "Mis eventos" y "Crear evento". Si llega con ?volver=/admin/<evento> (la sesión venció en el panel,
+// o el panel pidió entrar), después de entrar vuelve ahí; solo a una ruta propia que empiece con /admin/. Con
+// Pollar apagado no hay cuenta de organizador: la lista de paneles, que se abren con la clave de cada evento.
 import type { Metadata } from "next";
 import Link from "next/link";
 import "@/components/evento/evento.css";
 import { EntrarOrganizador } from "@/components/panel/EntrarOrganizador.tsx";
-import { Aviso, BotonEnlace, Chip, Pantalla, Tarjeta } from "@/components/ui.tsx";
+import { BotonEnlace, Chip, Pantalla, Tarjeta, Aviso } from "@/components/ui.tsx";
 import { getLang, getT } from "@/i18n/server.ts";
 import { pollarPublishableKey } from "@/server/accounts.ts";
 import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
 import { organizerFromCookies } from "@/server/organizador.ts";
+import { safeReturnPath } from "@/server/panel-sesion.ts";
 import { getRepo } from "@/server/repo.ts";
 
 export const dynamic = "force-dynamic";
 
+type Search = Promise<Record<string, string | string[] | undefined>>;
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
-  return { title: t("panel.cuenta.titulo"), robots: { index: false, follow: false } };
+  return { title: pollarPublishableKey() ? t("panel.cuenta.titulo") : t("panel.cuenta.paneles"), robots: { index: false, follow: false } };
 }
 
-export default async function OrganizerHomePage() {
+export default async function OrganizerHomePage({ searchParams }: { searchParams: Search }) {
+  const query = await searchParams;
   const t = await getT();
   const lang = await getLang();
   const repo = getRepo();
@@ -27,12 +32,11 @@ export default async function OrganizerHomePage() {
 
   if (!organizer) {
     const pollarKey = pollarPublishableKey();
-    if (pollarKey) return <EntrarOrganizador pollarKey={pollarKey} />;
+    if (pollarKey) return <EntrarOrganizador pollarKey={pollarKey} volver={safeReturnPath(query.volver)} />;
     const events = (await repo.listEvents()).filter((event) => event.published);
     return (
-      <Pantalla titulo={t("panel.cuenta.titulo")} accion={<BotonEnlace href="/">{t("noEncontrado.volver")}</BotonEnlace>}>
-        <Aviso>{t("panel.cuenta.sinPollar")}</Aviso>
-        <p>{t("panel.cuenta.sinPollarAyuda")}</p>
+      <Pantalla titulo={t("panel.cuenta.paneles")} accion={<BotonEnlace href="/">{t("noEncontrado.volver")}</BotonEnlace>}>
+        <p>{t("panel.cuenta.panelesAyuda")}</p>
         <ul className="lista">
           {events.map((event) => (
             <li key={event.id}>
@@ -71,8 +75,9 @@ export default async function OrganizerHomePage() {
                       {when.date}, {when.time}
                     </p>
                     <p>{formatEventWhere(event)}</p>
+                    {/* Una sola acción principal en la pantalla ("Crear evento"): el panel de cada uno es secundario. */}
                     <div className="fila tarjeta-pie">
-                      <BotonEnlace href={event.published ? panel : `${panel}/armar`} variante={event.published ? "primario" : "secundario"}>
+                      <BotonEnlace href={event.published ? panel : `${panel}/armar`} variante="secundario">
                         {event.published ? t("panel.cuenta.abrirPanel") : t("panel.cuenta.seguirArmando")}
                       </BotonEnlace>
                     </div>
@@ -88,6 +93,7 @@ export default async function OrganizerHomePage() {
           {t("panel.cuenta.crear")}
         </BotonEnlace>
         <form className="panel-salir" method="post" action="/api/organizador/salir">
+          <span className="apagado chico">{t("panel.cuenta.salirAyuda")}</span>
           <button type="submit" className="enlace">
             {t("panel.cuenta.salir")}
           </button>
