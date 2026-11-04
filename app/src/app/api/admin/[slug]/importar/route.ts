@@ -6,8 +6,8 @@
 //                    pide una y otra vez hasta que no queda ninguna
 // Pide la clave de organizador. Nada de esto toca la página pública: es para quien organiza.
 import { NextResponse, type NextRequest } from "next/server";
-import { DEFAULT_LANG, LANG_COOKIE, LANG_QUERY, isLang, type Lang } from "@/i18n/index.ts";
 import { authorizePanelRequest } from "@/server/panel-sesion.ts";
+import { langOfRequest, originOfRequest } from "@/server/pedido.ts";
 import { getRepo } from "@/server/repo.ts";
 import {
   BATCH_SIZE,
@@ -29,20 +29,6 @@ type Context = { params: Promise<{ slug: string }> };
 
 /** El tope del archivo: una lista de unos miles de personas pesa unos cientos de KB. */
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
-
-function langOf(request: NextRequest): Lang {
-  const fromQuery = request.nextUrl.searchParams.get(LANG_QUERY);
-  const fromCookie = request.cookies.get(LANG_COOKIE)?.value;
-  return isLang(fromQuery) ? fromQuery : isLang(fromCookie) ? fromCookie : DEFAULT_LANG;
-}
-
-/** De dónde se pidió, para que en desarrollo el enlace del correo abra en el mismo servidor. */
-function originOf(request: NextRequest): string | null {
-  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  if (!host) return null;
-  const proto = request.headers.get("x-forwarded-proto") ?? (/^(localhost|127\.0\.0\.1)(:|$)/.test(host) ? "http" : "https");
-  return `${proto}://${host}`;
-}
 
 const fail = (error: string, status: number) => NextResponse.json({ ok: false, error }, { status, headers: { "Cache-Control": "no-store" } });
 
@@ -77,7 +63,7 @@ export async function POST(request: NextRequest, { params }: Context) {
     if (typeof runId !== "string" || !runId) return fail("bad_request", 400);
     const run = await repo.getImportRun(runId);
     if (!run || run.eventId !== event.id) return fail("not_found", 404);
-    const result = await activateBatch(repo, event, runId, BATCH_SIZE, defaultImportDeps(langOf(request), originOf(request), repo));
+    const result = await activateBatch(repo, event, runId, BATCH_SIZE, defaultImportDeps(langOfRequest(request), originOfRequest(request), repo));
     const status = await importStatus(repo, runId);
     return NextResponse.json({ ok: true, result, summary: status?.summary ?? null }, { headers: { "Cache-Control": "no-store" } });
   }

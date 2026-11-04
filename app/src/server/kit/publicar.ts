@@ -2,9 +2,9 @@
 // tiene son fijos por contrato), y recién después el evento se ve en la página pública y recibe inscripciones.
 // Quien despliega los contratos es un `ContractProvisioner`: el de verdad (networkProvisioner) los crea en la red
 // de prueba desde el WASM que ya subió el despliegue de muestra; las pruebas usan uno falso, sin red.
-//
-// SIN VERIFICAR CONTRA LA RED: networkProvisioner está escrito con el SDK y revisado por tipos, pero no se
-// corrió contra la red de prueba. Si algo falla, publicar devuelve el error y el borrador queda como estaba.
+// networkProvisioner corrió contra la red de prueba el 4-nov-2026, por el servidor MCP (pnpm e2e:mcp): seis
+// contratos en treinta segundos, con sus ids en demo/mcp.txt. Si algo falla, publicar devuelve el error y el
+// borrador queda como estaba.
 import { Address, Operation, TransactionBuilder, BASE_FEE, nativeToScVal } from "@stellar/stellar-sdk";
 import { isPublicKind } from "../../lib/credential-kinds.ts";
 import type { EventRecord, Repo } from "../repo.ts";
