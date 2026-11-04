@@ -113,11 +113,12 @@ test("la hora del servidor se mide con el viaje de ida y vuelta, y un salto del 
     return respuesta;
   };
   assert.equal(await measureClockOffset(servidor, now), 10_000);
-  // Un desfase chico no se corrige; una respuesta rota o sin red no corrige nada.
+  // Un desfase chico no se corrige (la medida es 0); una respuesta rota o sin red no es una medida (null), para
+  // que quien mide conserve la última buena y aplique un 0 de verdad (tests/reloj.test.mjs).
   assert.equal(await measureClockOffset(async () => ({ ok: true, json: async () => ({ now: reloj + 1000 }) }), now), 0);
-  assert.equal(await measureClockOffset(async () => ({ ok: false, json: async () => ({}) }), now), 0);
-  assert.equal(await measureClockOffset(async () => ({ ok: true, json: async () => ({ now: "ayer" }) }), now), 0);
-  assert.equal(await measureClockOffset(async () => { throw new Error("sin red"); }, now), 0);
+  assert.equal(await measureClockOffset(async () => ({ ok: false, json: async () => ({}) }), now), null);
+  assert.equal(await measureClockOffset(async () => ({ ok: true, json: async () => ({ now: "ayer" }) }), now), null);
+  assert.equal(await measureClockOffset(async () => { throw new Error("sin red"); }, now), null);
   // El reloj de pared avanzó cinco minutos más que el monotónico: saltó.
   assert.equal(clockJumpSince({ wall: 0, mono: 0 }, { wall: 300_000 + 1000, mono: 1000 }), 300_000);
   assert.equal(clockJumpSince({ wall: 0, mono: 0 }, { wall: 1200, mono: 1000 }), 0, "doscientos milisegundos no son un salto");

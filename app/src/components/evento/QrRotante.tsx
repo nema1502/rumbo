@@ -40,8 +40,9 @@ export function QrRotante({ grant }: { grant: LiveGrant }) {
       midiendo = true;
       const medida = await measureClockOffset();
       midiendo = false;
-      // Sin red la medida es 0: se conserva la última que sí se midió.
-      if (vivo && medida !== 0) desfase.current = medida;
+      // Sin medida (sin red) se conserva la última que sí se midió. Un 0 medido también se aplica: el reloj se
+      // sincronizó solo y volvió a estar bien, y con la corrección de antes el QR saldría de una ventana vieja.
+      if (vivo && medida !== null) desfase.current = medida;
     }
 
     async function armar() {

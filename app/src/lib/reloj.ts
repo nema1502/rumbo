@@ -11,21 +11,23 @@ export const CLOCK_REMEASURE_MS = 60_000;
 export const CLOCK_JUMP_MS = 5_000;
 
 /**
- * Cuánto hay que sumarle al reloj de este aparato para tener la hora del servidor (0 si está bien, o si no hay red).
- * `fetchImpl` y `now` son para las pruebas.
+ * Cuánto hay que sumarle al reloj de este aparato para tener la hora del servidor: 0 si está bien, y null si no se
+ * pudo medir (sin red, el servidor no contestó o contestó algo que no es una hora). Null no es 0: quien llama
+ * conserva la última medida buena cuando no hay medida, y aplica un 0 medido, porque un reloj que se sincronizó
+ * solo y volvió a estar bien ya no necesita la corrección de antes. `fetchImpl` y `now` son para las pruebas.
  */
-export async function measureClockOffset(fetchImpl: typeof fetch = fetch, now: () => number = Date.now): Promise<number> {
+export async function measureClockOffset(fetchImpl: typeof fetch = fetch, now: () => number = Date.now): Promise<number | null> {
   try {
     const before = now();
     const response = await fetchImpl("/api/hora", { cache: "no-store", signal: AbortSignal.timeout(4000) });
     const after = now();
-    if (!response.ok) return 0;
-    const { now: serverNow } = (await response.json()) as { now?: number };
-    if (typeof serverNow !== "number" || !Number.isFinite(serverNow)) return 0;
+    if (!response.ok) return null;
+    const { now: serverNow } = (await response.json()) as { now?: unknown };
+    if (typeof serverNow !== "number" || !Number.isFinite(serverNow)) return null;
     // Lo que dijo el servidor vale para la mitad del viaje: a la vuelta ya pasó la mitad.
     return clockOffset(serverNow + (after - before) / 2, after);
   } catch {
-    return 0;
+    return null;
   }
 }
 

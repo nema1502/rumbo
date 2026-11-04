@@ -72,12 +72,12 @@ function deviceId(): string {
 
 /**
  * Cuánto hay que sumarle al reloj de este celular para tener la hora del servidor, medido con el viaje de ida y
- * vuelta a /api/hora cada vez que llega una foto (hay red). Si esa medida no sale, vale la hora de la foto, que
- * llegó recién, sin compensar el viaje: mejor que nada.
+ * vuelta a /api/hora cada vez que llega una foto (hay red). Un 0 medido vale (el reloj está bien). Si la medida no
+ * sale (null), vale la hora de la foto, que llegó recién, sin compensar el viaje: mejor que nada.
  */
 async function medirDesfase(generatedAt: string): Promise<number> {
   const medida = await measureClockOffset();
-  return medida !== 0 ? medida : clockOffset(Date.parse(generatedAt), Date.now());
+  return medida ?? clockOffset(Date.parse(generatedAt), Date.now());
 }
 
 function vibrar(kind: Verdict["kind"]): void {
