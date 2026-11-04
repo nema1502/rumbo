@@ -32,13 +32,43 @@ Todo corre contra la red de prueba de Stellar (testnet): si `STELLAR_NETWORK` di
 
 Lo que hoy es distinto de producción, y la interfaz lo dice ("Modo de prueba: la cuenta la guarda el servidor; en producción es tuya, con Google o con una passkey"):
 
-- **La cuenta de cada persona la crea y la guarda el servidor** (`DevAccountProvider`, tabla `dev_accounts` en la base local): la fondea con friendbot, le agrega la línea de confianza al USDC de prueba, le da un saldo inicial del emisor propio (`RUMBO_INITIAL_TEST_USDC`, cien por defecto) y firma por ella cuando el contrato se lo pide. En producción la cuenta es de la persona (Google con Pollar, o una passkey) y el servidor no tiene su llave.
+- **La cuenta de cada persona la crea y la guarda el servidor** (`DevAccountProvider`, tabla `dev_accounts` en la base local): la fondea con friendbot, le agrega la línea de confianza al USDC de prueba, le da un saldo inicial del emisor propio (`RUMBO_INITIAL_TEST_USDC`, cien por defecto) y firma por ella cuando el contrato se lo pide. Con Pollar prendido (abajo, "Entrar con Google") la cuenta es de la persona y el servidor no tiene su llave.
 - **El USDC es de prueba:** lo emite una cuenta propia en la red de prueba y en pantalla se llama "USDC de prueba". No vale nada fuera de la demostración.
 - **Las comisiones de red las paga el servidor** con una cuenta patrocinadora, así ninguna cuenta de persona necesita XLM. Eso sí se queda igual en producción.
 - **En desarrollo la base es un archivo SQLite** (`data/rumbo.db`); en producción es Postgres en Supabase (abajo, "En producción"). **Los correos se escriben a disco** (`data/correos/`) en vez de mandarse: Resend queda como interfaz con su esqueleto, por hacer.
 - **El panel se abre con una clave por evento** en vez de una cuenta de organizador.
 
 Nada de `data/` ni de `.env.local` se versiona.
+
+## Entrar con Google (Pollar)
+
+Con `RUMBO_ACCOUNTS=pollar` y `NEXT_PUBLIC_POLLAR_PUBLISHABLE_KEY` (la clave publicable de la app "Rumbo" en [Pollar](https://pollar.xyz), red de prueba), quien se inscribe entra con Google o con su correo (un código de un solo uso), y su credencial queda en su propia cuenta de Stellar, que crea y custodia Pollar. El servidor nunca tiene esa llave. Sin las dos variables, todo sigue en el modo de prueba de arriba, que queda como respaldo y para las pruebas. El SDK es `@pollar/core` 0.11.5, en versión exacta.
+
+Cómo va una inscripción:
+
+1. **Entrar.** El formulario muestra "Entrar con Google" y "Entrar con mi correo" (`src/components/evento/FormularioConCuenta.tsx`, con un solo `PollarClient` por pestaña en `usePollar.ts`). Google abre una pestaña nueva; al terminar, esa pestaña cae en la portada de la app y la inscripción sigue en la de antes, que ya dice "Entraste como ..." y trae el nombre y el correo escritos. Pollar crea la cuenta al entrar: mientras tanto la pantalla dice "Estamos creando tu cuenta de Stellar" y espera hasta un minuto y medio.
+2. **Probar que la cuenta es suya.** El servidor da un desafío de un solo uso que vence a los cinco minutos (`POST /api/cuenta/desafio`, o la acción del formulario); el navegador lo firma con `client.stellar.sep53.signMessage` y el servidor verifica la firma ed25519 sobre `SHA-256("Stellar Signed Message:\n" + mensaje)` con esa clave pública (`src/server/cuenta-propia.ts`). Recién ahí la persona queda ligada a la cuenta, con el proveedor `pollar` (tabla `wallet_links`). Una cuenta es de una sola persona y una persona tiene una sola cuenta propia: el contrato da un pase por cuenta.
+3. **La cuenta en la red.** Si Pollar todavía no la creó, la crea la patrocinadora con 2 XLM (`walletChain.ensureAccount`). Para la entrada paga, la cuenta tiene que aceptar el USDC de prueba: el servidor contesta `needs_trustline` y el navegador lo pide con `client.setTrustline`; en la red de prueba el servidor le da después el saldo de prueba (`RUMBO_INITIAL_TEST_USDC`), como en el modo de prueba.
+4. **Autorizar sin pagar comisión.** El servidor simula `register` o `buy` con la patrocinadora como fuente y devuelve la autorización de la persona sin firmar (con las credenciales de antes de CAP-71, las que entiende cualquier billetera), y la guarda como pedido de un solo uso (`wallet_auth_requests`). El navegador la firma con `client.signAuthEntry(entry, { validUntilLedger })` (unos cinco minutos) y la devuelve (`POST /api/evento/<slug>/inscripcion/firma`, o la acción del formulario). El servidor revisa que sea la misma que dio a firmar, de esa cuenta y con una firma que valga, y la manda con el envío de siempre, que ya trata `DUPLICATE` y `TRY_AGAIN_LATER`. Nada personal va a la cadena: el contrato, la función, la cuenta y un nonce.
+5. **El final** es el de siempre: el pase activo con la cuenta de la persona, sus beneficios, su clave y el correo con el enlace.
+
+La API sigue igual para el modo de prueba. Con la cuenta propia, `POST /api/evento/<slug>/inscripcion` lleva además `wallet: { provider: "pollar", publicKey, challengeId, signature }` y contesta 202 con `needs_signature` (`requestId`, `authEntry`, `validUntilLedger`, `fn`) o `needs_trustline` (`asset`). Con Pollar prendido, sin `wallet` contesta 401 `wallet_required`. Quien inscribe a otras personas (un equipo, la puerta, una lista importada) no puede firmar por ellas: esas siguen, solo en la red de prueba, con la cuenta de prueba que guarda el servidor. `POLLAR_APP_ID` y `POLLAR_SECRET_KEY` se quedan en el servidor y esta inscripción no los usa.
+
+Lo probado: el lado del servidor de punta a punta contra la red de prueba en `pnpm e2e`, con una llave local que hace de billetera de Pollar (firma el desafío y la autorización), y en `tests/cuenta-propia.test.mjs` sin red: el desafío, la verificación de la firma, que un desafío no sirva dos veces, que una firma de otra cuenta no valga y que una autorización cambiada o de otra llave no se mande. Lo que no se puede probar sin una persona: entrar con una cuenta de Google real, y que el firmante de Pollar acepte la autorización del contrato del evento.
+
+### Probar Google a mano
+
+1. En `app/.env.local`, `RUMBO_ACCOUNTS=pollar` (la clave publicable ya está). La base, la de siempre: SQLite.
+2. El evento de muestra apunta a los contratos de muestra, y el gratis tiene el cupo lleno con las corridas de prueba: `pnpm seed -- --contratos-nuevos` le despliega un contrato gratis y uno pago nuevos (tarda medio minuto).
+3. `pnpm dev`, y abrir `http://localhost:3000/e/hackaton-comunidad` (con `localhost`, que es el dominio que tiene permitido la app de Pollar; `127.0.0.1:3000` también está permitido).
+4. "Inscribirme" en la entrada gratis, y "Entrar con Google". Se abre una pestaña con Google: elegir la cuenta. Esa pestaña termina en la portada de la app y se puede cerrar. En la pestaña de la inscripción tiene que decir "Entraste como <tu correo>", con tu nombre y tu correo escritos. Si dice "Estamos creando tu cuenta de Stellar", esperar unos segundos.
+5. "Confirmar inscripción". La pantalla dice cada paso: "Confirmando que la cuenta es tuya", "Preparando tu inscripción", "Autorizando con tu cuenta" y "Anotándote en el evento", y lleva a la confirmación con la credencial. El correo con el enlace queda en `data/correos/`.
+6. La credencial quedó en la cuenta de Pollar: `node -e "const {DatabaseSync}=require('node:sqlite');console.log(new DatabaseSync('data/rumbo.db').prepare('SELECT w.public_key, w.provider, p.account, p.tx_hash FROM wallet_links w JOIN passes p ON p.person_id = w.person_id').all())"` muestra la cuenta ligada (la misma que el panel de Pollar le da a ese usuario), la del pase y la transacción, que se puede abrir en `https://stellar.expert/explorer/testnet/tx/<tx_hash>`.
+7. La entrada paga: volver al evento y "Comprar" en "Con almuerzo", y "Pagar 10 USDC de prueba". Antes de autorizar aparece "Habilitando el USDC de prueba en tu cuenta" (Pollar agrega la línea de confianza); después el servidor le da el saldo de prueba y sigue igual que la gratis.
+8. Con el correo: "Salir", "Inscribirme" otra vez con otro correo que no tenga Google, "Entrar con mi correo", el código que llega y "Entrar".
+9. Recargar la página después de entrar: la sesión sigue, pero el nombre y el correo no vuelven escritos (Pollar los tiene solo en memoria).
+
+Si algo falla, la consola del navegador dice `[pollar] ...` con lo que contestó Pollar, y la del servidor `[inscripcion] <motivo>: <detalle>`. Si dice "Tu cuenta no autorizó la inscripción", el firmante de Pollar rechazó la autorización: Pollar firma por las cuentas que custodia solo lo que permite la política de la app (contratos y funciones) y con un vencimiento acotado. Cada evento tiene su propio contrato, con `register` (gratis) o `buy` (paga, que adentro llama a `transfer` del contrato del USDC de prueba, `CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ`).
 
 ## El recorrido
 
@@ -137,7 +167,7 @@ Los CSV de ejemplo, inventados, están en `tests/fixtures/` como `luma-invitados
 - **Asistencia.** `GET /api/admin/<evento>/asistencia` baja un CSV con la forma de una lista de Bevy (`First Name`, `Last Name`, `Email`, `Ticket Type`) y la columna `Attended` (`Yes` o `No`) que piden las ligas de hackatones, más `Checked In At`, `Credential Type` y `Team`. Los GDG pueden devolverla a su plataforma.
 - **Equipos.** La hackatón se inscribe en `/e/<evento>/equipo`: nombre del equipo y hasta cinco integrantes; cada uno recibe su propia credencial por correo. El equipo se ve en la credencial, en el panel y en el escáner.
 
-Lo que el kit **no** hace todavía: cambiar el tope de un canje o los precios después de publicar, desplegar el contrato de cada entrada probado contra la red (`networkProvisioner` está escrito y revisado por tipos, pero no se corrió), importar a una entrada de pago, ni leer un `.xlsx` (hay que exportar CSV).
+Lo que el kit **no** hace todavía: cambiar el tope de un canje o los precios después de publicar, importar a una entrada de pago, ni leer un `.xlsx` (hay que exportar CSV). `networkProvisioner`, el que despliega el contrato de cada entrada, ya corre contra la red de prueba: `pnpm e2e` despliega con él los dos contratos de cada corrida, y `pnpm seed -- --contratos-nuevos` los del evento de muestra; publicar un evento desde el panel con él todavía no se probó de punta a punta.
 
 ## Probarlo
 
@@ -155,9 +185,10 @@ node scripts/capturas.mjs --base http://localhost:3000 --salida data/capturas   
 node scripts/capturas-stands.mjs   # los stands, la ruta y la pantalla en vivo, sin la red de Stellar (hace falta pnpm build antes)
 pnpm informe -- --datos informes/ejemplo.json --lang es --salida informes/ejemplo-es.pdf      # el informe de ejemplo (hace falta XeLaTeX)
 node scripts/capturas-kit.mjs --salida data/capturas-kit   # las pantallas del kit en 1440x900 y 390x844, en es y en; levanta la app adentro, con una base propia y cuentas, contrato y correo de mentira: no toca la red de prueba
+node scripts/capturas-pollar.mjs --salida data/capturas-pollar   # entrar con Google o con el correo y cada paso de la inscripción con la cuenta propia, en 1440x900 y 390x844, en es y en; igual que el kit, sin la red de prueba y con un Pollar de mentira que firma con una llave local
 ```
 
-`pnpm e2e` (`scripts/e2e-testnet.mjs`) levanta un servidor de desarrollo propio sobre una base nueva en `data/e2e`, crea el evento de muestra, inscribe a una persona gratis y a otra con la entrada paga (y comprueba que la plata llegó a quien organiza y a Rumbo en la misma transacción), abre sus credenciales, las pasa por la puerta y por la mesa del almuerzo con la API del escáner, intenta el segundo canje y la segunda entrada, y comprueba con `status()`, `attendees()` e `info()` en la cadena y con el panel, el informe y el CSV que los números coinciden. Deja la transcripción con los ids de las transacciones en [demo/e2e-testnet.txt](demo/e2e-testnet.txt). Con `--base` usa un servidor ya levantado. Con `--motor postgres` la base es Postgres: levanta un Postgres local (`pnpm db:local`, PGlite servido por la red, que comparten el servidor, el seed y el script), lo migra con `pnpm db:migrate` y corre todo con `RUMBO_REPO=postgres` y el driver de producción. El contrato tiene sus propias pruebas: `cargo test --workspace` desde la raíz del repositorio.
+`pnpm e2e` (`scripts/e2e-testnet.mjs`) levanta un servidor de desarrollo propio sobre una base nueva en `data/e2e`, crea el evento de muestra con dos contratos nuevos para la corrida (los de muestra tienen cupo de cincuenta y se llenan; `--contratos muestra` usa esos), inscribe a una persona gratis y a otra con la entrada paga (y comprueba que la plata llegó a quien organiza y a Rumbo en la misma transacción), abre sus credenciales, las pasa por la puerta y por la mesa del almuerzo con la API del escáner, intenta el segundo canje y la segunda entrada, y comprueba con `status()`, `attendees()` e `info()` en la cadena y con el panel, el informe y el CSV que los números coinciden. Al final hace lo mismo con la cuenta propia: una llave local hace de billetera de Pollar, sin cuenta en la red, firma el desafío y la autorización de una inscripción gratis y de una entrada paga, y pasa por la puerta. Deja la transcripción con los ids de las transacciones en [demo/e2e-testnet.txt](demo/e2e-testnet.txt). Con `--base` usa un servidor ya levantado. Con `--motor postgres` la base es Postgres: levanta un Postgres local (`pnpm db:local`, PGlite servido por la red, que comparten el servidor, el seed y el script), lo migra con `pnpm db:migrate` y corre todo con `RUMBO_REPO=postgres` y el driver de producción. El contrato tiene sus propias pruebas: `cargo test --workspace` desde la raíz del repositorio.
 
 ## Cómo está armada
 
@@ -203,7 +234,7 @@ Todo lo que lee o escribe datos pasa por `src/server/base` (`getDb()`), con el m
 
 ### Las cuentas: `src/server/accounts.ts`
 
-`AccountProvider` es la interfaz: `getOrCreateForPerson(personId)` devuelve la cuenta de Stellar de la persona (clave pública), `authSigner(personId)` da quien firma por ella lo que el contrato le pide, y `signAndSubmit(personId, tx)` firma y manda con la comisión patrocinada. `DevAccountProvider` es la de hoy y es solo para la red de prueba; `PollarAccountProvider` y `PasskeyAccountProvider` son esqueletos.
+`AccountProvider` es la interfaz: `getOrCreateForPerson(personId)` devuelve la cuenta de Stellar de la persona (clave pública), `authSigner(personId)` da quien firma por ella lo que el contrato le pide, y `signAndSubmit(personId, tx)` firma y manda con la comisión patrocinada. `DevAccountProvider` es la del modo de prueba y es solo para la red de prueba. `PollarAccountProvider` (con `RUMBO_ACCOUNTS=pollar` y la clave publicable) da la cuenta propia de quien entró con Pollar y, como el servidor no puede firmar por ella, `authSigner` falla con `SignsOnDevice`: la inscripción va en dos pasos ("Entrar con Google", arriba). Para quien no entró con Pollar (un equipo, una lista importada) sigue con la de prueba. `PasskeyAccountProvider` es un esqueleto.
 
 ### La red: `src/server/stellar.ts`
 
@@ -240,7 +271,7 @@ Están todas en [`.env.example`](.env.example), con lo que hace cada una. Las ll
 
 ## En producción
 
-La app corre en Vercel y la base es Postgres en Supabase, por el pooler en modo transacción. Además de las variables de siempre (`STELLAR_*`, `RUMBO_ACCOUNTS`, `RUMBO_MAILER`, `RUMBO_CREATE_KEY`, `NEXT_PUBLIC_BASE_URL`):
+La app corre en Vercel y la base es Postgres en Supabase, por el pooler en modo transacción. Además de las variables de siempre (`STELLAR_*`, `RUMBO_ACCOUNTS`, `RUMBO_MAILER`, `RUMBO_CREATE_KEY`, `NEXT_PUBLIC_BASE_URL`, y con Pollar `NEXT_PUBLIC_POLLAR_PUBLISHABLE_KEY`, que Next pone en el navegador al compilar y el servidor lee al pedir):
 
 | Variable | Qué es |
 |---|---|
