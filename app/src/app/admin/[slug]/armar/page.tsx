@@ -8,10 +8,10 @@ import { Aviso, Boton, Campo, Chip, Tarjeta } from "@/components/ui.tsx";
 import type { T } from "@/i18n/index.ts";
 import { getLang, getT } from "@/i18n/server.ts";
 import { kindLabelKey } from "@/lib/credential-kinds.ts";
+import { pollarEnabled } from "@/server/accounts.ts";
 import { readDraft, type DraftSlotView } from "@/server/kit/borrador.ts";
 import { templateStations } from "@/server/kit/plantillas.ts";
-import { verifyOrganizerKey } from "@/server/panel.ts";
-import { PANEL_KEY_QUERY, panelKeyFromCookies } from "@/server/panel-sesion.ts";
+import { PANEL_KEY_QUERY, panelAccess } from "@/server/panel-sesion.ts";
 import { getRepo } from "@/server/repo.ts";
 import { guardarBorrador } from "./actions.ts";
 
@@ -46,8 +46,8 @@ export default async function DraftPage({ params, searchParams }: { params: Para
   if (typeof key === "string" && key) redirect(`/api/admin/${encodeURIComponent(slug)}/entrar?k=${encodeURIComponent(key)}&next=armar`);
 
   const t = await getT();
-  if (!(await verifyOrganizerKey(event.id, await panelKeyFromCookies(slug)))) {
-    return <AccesoPanel slug={slug} eventName={event.name} t={t} error={query.error === "clave"} next="armar" />;
+  if (!(await panelAccess(event))) {
+    return <AccesoPanel slug={slug} eventName={event.name} t={t} error={query.error === "clave"} next="armar" conCuenta={pollarEnabled()} />;
   }
   // Ya publicado, o armado a mano: no hay borrador que editar.
   if (event.published || !event.template) redirect(`/admin/${encodeURIComponent(slug)}`);

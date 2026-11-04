@@ -17,6 +17,7 @@ import {
 import { Aviso, Boton, BotonEnlace, Campo, Tarjeta } from "@/components/ui.tsx";
 import { useT } from "@/i18n/client.tsx";
 import type { ResumenEntrada } from "./FormularioInscripcion.tsx";
+import { AccionesIngreso, FormulariosCorreo, useIngresoPollar } from "./IngresoPollar.tsx";
 import { usePollar } from "./usePollar.ts";
 
 type Paso = "prueba" | "preparando" | "usdc" | "autorizando" | "anotando";
@@ -65,19 +66,12 @@ export function YaTenias({ slug, correo }: { slug: string; correo: string }) {
 export function FormularioConCuenta({ pollarKey, slug, eventName, when, ticket, paid, monto, comunidad }: Props) {
   const t = useT();
   const pollar = usePollar(pollarKey);
-  const { client, auth, wallet, provisioning, profile } = pollar;
+  const { client, wallet, provisioning, profile } = pollar;
+  // Entrar (Google, o el correo y su código) es lo mismo que para la cuenta de organizador: IngresoPollar.tsx.
+  const ingreso = useIngresoPollar(pollar);
   const [paso, setPaso] = useState<Paso | null>(null);
   const [estado, setEstado] = useState<WalletFormState>({});
-  const [conCorreo, setConCorreo] = useState(false);
-  const [correoIngreso, setCorreoIngreso] = useState("");
-  const [codigo, setCodigo] = useState("");
   const [esperaVencida, setEsperaVencida] = useState(false);
-  // El correo al que Pollar mandó el código: el estado de error ya no lo trae.
-  const [correoDelCodigo, setCorreoDelCodigo] = useState("");
-  const correoEnCurso = "email" in auth ? auth.email : undefined;
-  useEffect(() => {
-    if (correoEnCurso) setCorreoDelCodigo(correoEnCurso);
-  }, [correoEnCurso]);
 
   // Si Pollar tarda demasiado en crear la cuenta, se sigue igual: el servidor la crea.
   useEffect(() => {
@@ -90,10 +84,6 @@ export function FormularioConCuenta({ pollarKey, slug, eventName, when, ticket, 
 
   const ocupado = paso !== null;
   const creandoCuenta = wallet !== null && provisioning === "CREATING" && !esperaVencida;
-  const errorCode = auth.step === "error" ? auth.errorCode : null;
-  const codigoMal = errorCode === "EMAIL_CODE_INVALID" || errorCode === "EMAIL_CODE_EXPIRED";
-  const pidiendoCodigo = auth.step === "entering_code" || auth.step === "verifying_email_code" || codigoMal;
-  const correoCodigo = correoEnCurso ?? (correoDelCodigo || correoIngreso.trim());
 
   /** El desafío, la prueba (SEP-53) y la inscripción con esa prueba. Cada vuelta pide un desafío nuevo. */
   async function probarEInscribir(c: PollarClient, address: string, datos: Omit<WalletRegistrationInput, "wallet">): Promise<WalletFormState | undefined> {
@@ -177,8 +167,7 @@ export function FormularioConCuenta({ pollarKey, slug, eventName, when, ticket, 
   async function salir() {
     if (!client) return;
     setEstado({});
-    setConCorreo(false);
-    setCodigo("");
+    ingreso.reiniciar();
     await client.logout().catch(() => undefined);
   }
 
@@ -202,103 +191,15 @@ export function FormularioConCuenta({ pollarKey, slug, eventName, when, ticket, 
 
   // Todavía no entró: Google, o el correo con un código.
   if (!wallet) {
-    const enCurso = auth.step === "creating_session" || auth.step === "sending_email" || auth.step === "opening_oauth" || auth.step === "authenticating" || auth.step === "verifying_email_code";
-    const listo = pollar.ready && client !== null;
-    let espera: string | null = null;
-    if (!pollar.ready && !pollar.loadFailed) espera = t("evento.cuenta.cargando");
-    else if (auth.step === "opening_oauth") espera = t("evento.cuenta.abriendoGoogle");
-    else if (auth.step === "creating_session" || auth.step === "sending_email") espera = t("evento.cuenta.mandando");
-    else if (auth.step === "verifying_email_code") espera = t("evento.cuenta.verificando");
-    else if (auth.step === "authenticating" || auth.step === "authenticated") espera = t("evento.cuenta.entrando");
-    // Con el correo abierto, la acción principal es la del correo; Google queda como la otra opción.
-    const conElCorreo = conCorreo || pidiendoCodigo;
-
     return (
       <section className="pantalla form-inscripcion">
         {cabecera}
         <div className="pantalla-cuerpo">
           {resumen}
-          {conCorreo && !pidiendoCodigo && (
-            <form
-              className="cuenta-correo"
-              noValidate
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (client && correoIngreso.trim()) client.login({ provider: "email", email: correoIngreso.trim() });
-              }}
-            >
-              <Campo
-                id="correo-ingreso"
-                type="email"
-                etiqueta={t("campo.correo")}
-                autoComplete="email"
-                inputMode="email"
-                value={correoIngreso}
-                onChange={(e) => setCorreoIngreso(e.target.value)}
-                disabled={enCurso}
-              />
-              <Boton type="submit" disabled={!listo || enCurso || !correoIngreso.trim()}>
-                {t("evento.cuenta.mandarCodigo")}
-              </Boton>
-            </form>
-          )}
-          {pidiendoCodigo && (
-            <form
-              className="cuenta-correo"
-              noValidate
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (client && codigo.trim()) client.verifyEmailCode(codigo.trim());
-              }}
-            >
-              <Campo
-                id="codigo"
-                etiqueta={t("evento.cuenta.codigoCampo")}
-                ayuda={t("evento.cuenta.codigoAyuda", { correo: correoCodigo })}
-                error={codigoMal ? t("evento.cuenta.error.codigo") : undefined}
-                autoComplete="one-time-code"
-                inputMode="numeric"
-                value={codigo}
-                onChange={(e) => setCodigo(e.target.value)}
-                disabled={auth.step === "verifying_email_code"}
-              />
-              <div className="fila">
-                <Boton type="submit" disabled={!codigo.trim() || auth.step === "verifying_email_code"}>
-                  {t("evento.cuenta.entrar")}
-                </Boton>
-                <button type="button" className="enlace" onClick={() => client?.login({ provider: "email", email: correoCodigo })}>
-                  {t("evento.cuenta.otroCodigo")}
-                </button>
-              </div>
-            </form>
-          )}
+          <FormulariosCorreo ingreso={ingreso} pollar={pollar} />
         </div>
         <div className="pantalla-accion">
-          {/* Lo que está pasando, junto a los botones: siempre a la vista, también en el celular. */}
-          <div aria-live="polite" className="cuenta-estado">
-            {espera && <Aviso>{espera}</Aviso>}
-            {pollar.loadFailed && <Aviso tono="alerta">{t("evento.cuenta.error.cargar")}</Aviso>}
-            {errorCode && !codigoMal && <Aviso tono="alerta">{t("evento.cuenta.error.entrar")}</Aviso>}
-          </div>
-          <Boton grande={!conElCorreo} variante={conElCorreo ? "secundario" : "primario"} disabled={!listo || enCurso} onClick={() => client?.login({ provider: "google" })}>
-            {t("evento.cuenta.google")}
-          </Boton>
-          {conElCorreo ? (
-            <Boton
-              variante="secundario"
-              onClick={() => {
-                client?.cancelLogin();
-                setConCorreo(false);
-                setCodigo("");
-              }}
-            >
-              {t("evento.cuenta.volver")}
-            </Boton>
-          ) : (
-            <Boton variante="secundario" disabled={!listo} onClick={() => setConCorreo(true)}>
-              {t("evento.cuenta.correo")}
-            </Boton>
-          )}
+          <AccionesIngreso ingreso={ingreso} pollar={pollar} />
           <p className="nota">{t("evento.cuenta.custodia")}</p>
         </div>
       </section>

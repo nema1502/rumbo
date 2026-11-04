@@ -95,7 +95,11 @@
 .panel .panel-accion { position: static; }
 .panel-accion-estado { color: var(--tinta-2); font-size: 0.95rem; flex: 1 1 260px; margin: 0; }
 .panel-accion .boton { margin-left: auto; }
-.panel-salir { display: flex; justify-content: flex-end; }
+.panel-salir { display: flex; justify-content: flex-end; gap: 16px; }
+.panel-salir button.enlace, .mis-eventos button.enlace { background: none; border: 0; font: inherit; font-weight: 600; cursor: pointer; }
+/* Mis eventos: "Crear evento" al pie, con "Salir" al lado */
+.mis-eventos .pantalla-accion { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.mis-eventos .pantalla-accion .boton { flex: 1 1 260px; }
 
 /* Entrar con la clave */
 .acceso-form { display: grid; gap: 16px; }

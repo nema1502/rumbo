@@ -12,6 +12,7 @@ import { isManualScannerId } from "@/lib/escaner-api.ts";
 import { formatStationCode, stationCodesExpired } from "@/lib/station-code.ts";
 import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
 import type { ChainSyncSummary, PanelDuplicate, PanelPass, PanelState } from "@/server/panel.ts";
+import type { PanelVia } from "@/server/panel-sesion.ts";
 import { BotonCopiar } from "./BotonCopiar.tsx";
 import { Contador } from "./Contador.tsx";
 
@@ -39,7 +40,7 @@ function fechaHora(lang: Lang, timeZone: string, iso: string): string {
   return new Intl.DateTimeFormat(LOCALES[lang], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: lang === "es" ? "h23" : "h12", timeZone }).format(new Date(iso));
 }
 
-export function PanelCliente({ slug, initial, publicado = false }: { slug: string; initial: PanelState; publicado?: boolean }) {
+export function PanelCliente({ slug, initial, publicado = false, via = "key" }: { slug: string; initial: PanelState; publicado?: boolean; via?: PanelVia }) {
   const t = useT();
   const lang = useLang();
   const [state, setState] = useState<PanelState>(initial);
@@ -336,9 +337,15 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
         )}
       </section>
 
-      <form className="panel-salir" method="post" action={`/api/admin/${slug}/salir`}>
+      {/* Con la clave se sale de este panel; con la cuenta se cierra la sesión, y Mis eventos queda a mano. */}
+      <form className="panel-salir" method="post" action={via === "organizer" ? "/api/organizador/salir" : `/api/admin/${slug}/salir`}>
+        {via === "organizer" && (
+          <Link className="enlace" href="/admin">
+            {t("panel.cuenta.misEventos")}
+          </Link>
+        )}
         <button type="submit" className="enlace">
-          {t("panel.acceso.salir")}
+          {via === "organizer" ? t("panel.cuenta.salir") : t("panel.acceso.salir")}
         </button>
       </form>
 

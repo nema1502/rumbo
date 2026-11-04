@@ -1,10 +1,12 @@
 // Armar un evento desde una plantilla, en dos pasos: elegir la plantilla (una sola acción: "Seguir") y contar lo
 // básico del evento (otra sola acción: "Crear el borrador"). Lo demás se edita en /admin/<evento>/armar.
+// Con la sesión de organizador (/admin) no hace falta la clave de la casa; sin ella, todo como siempre.
 import type { Metadata } from "next";
 import { Aviso, Boton, BotonEnlace, Campo, Chip, Pantalla, Tarjeta } from "@/components/ui.tsx";
 import { getLang, getT } from "@/i18n/server.ts";
 import { createGate } from "@/server/kit/acceso.ts";
 import { TEMPLATES, TEMPLATE_IDS, isTemplateId, suggestedStart, templateStations } from "@/server/kit/plantillas.ts";
+import { organizerFromCookies } from "@/server/organizador.ts";
 import { crearBorrador } from "./actions.ts";
 
 export const dynamic = "force-dynamic";
@@ -35,9 +37,10 @@ export default async function NewEventPage({ searchParams }: { searchParams: Sea
   const t = await getT();
   const lang = await getLang();
   const gate = createGate();
+  const organizer = await organizerFromCookies();
 
-  // Cerrado (producción sin RUMBO_CREATE_KEY): se dice quién tiene la clave y la salida es volver al inicio.
-  if (!gate.open) {
+  // Cerrado (producción sin RUMBO_CREATE_KEY) y sin cuenta de organizador: se dice quién tiene la clave y la salida es volver al inicio.
+  if (!gate.open && !organizer) {
     return (
       <Pantalla titulo={t("kit.nuevo.titulo")} accion={<BotonEnlace href="/">{t("noEncontrado.volver")}</BotonEnlace>}>
         <Aviso>{t("kit.datos.cerrado")}</Aviso>
@@ -86,7 +89,8 @@ export default async function NewEventPage({ searchParams }: { searchParams: Sea
   }
 
   const spec = TEMPLATES[chosen];
-  const error = ERRORS[one("error")];
+  const errorKey = ERRORS[one("error")];
+  const error = one("error") === "tope" ? t("panel.cuenta.tope", { n: one("tope") }) : errorKey ? t(errorKey) : null;
   const stations = templateStations(spec, lang);
   const kinds = Object.keys(spec.slots).filter((slot) => spec.slots[slot as keyof typeof spec.slots].included);
   return (
@@ -97,7 +101,7 @@ export default async function NewEventPage({ searchParams }: { searchParams: Sea
       </header>
       <div className="pantalla-cuerpo">
         <input type="hidden" name="plantilla" value={chosen} />
-        {error && <Aviso tono="alerta">{t(error)}</Aviso>}
+        {error && <Aviso tono="alerta">{error}</Aviso>}
         <div className="kit-form">
           <Campo id="nombre" name="nombre" etiqueta={t("kit.datos.nombre")} defaultValue={one("nombre") || t(spec.nameKey)} maxLength={80} autoComplete="off" />
           <Campo id="cuando" name="cuando" type="datetime-local" etiqueta={t("kit.datos.cuando")} defaultValue={one("cuando") || suggestedStart()} required />
@@ -117,8 +121,9 @@ export default async function NewEventPage({ searchParams }: { searchParams: Sea
             ayuda={t("kit.datos.cupoAyuda")}
             defaultValue={one("cupo") || String(spec.capacity)}
           />
-          {gate.needsKey && <Campo id="clave" name="clave" type="password" etiqueta={t("kit.datos.clave")} ayuda={t("kit.datos.claveAyuda")} autoComplete="off" required />}
+          {gate.needsKey && !organizer && <Campo id="clave" name="clave" type="password" etiqueta={t("kit.datos.clave")} ayuda={t("kit.datos.claveAyuda")} autoComplete="off" required />}
         </div>
+        {organizer && <Aviso tono="listo">{t("panel.cuenta.nuevoSinClave")}</Aviso>}
         <Tarjeta className="kit-resumen">
           <h2>{t(spec.nameKey)}</h2>
           <div className="fila">

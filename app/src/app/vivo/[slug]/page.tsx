@@ -10,8 +10,8 @@ import "@/components/vivo/vivo.css";
 import "../../admin/panel.css";
 import { getT } from "@/i18n/server.ts";
 import { SCREEN_KEY_QUERY } from "@/lib/pantalla.ts";
-import { verifyOrganizerKey } from "@/server/panel.ts";
-import { PANEL_KEY_QUERY, panelKeyFromCookies } from "@/server/panel-sesion.ts";
+import { pollarEnabled } from "@/server/accounts.ts";
+import { PANEL_KEY_QUERY, panelAccess } from "@/server/panel-sesion.ts";
 import { getRepo } from "@/server/repo.ts";
 import { getLiveState, getOrCreateScreenKey, verifyScreenKey } from "@/server/vivo.ts";
 
@@ -40,8 +40,8 @@ export default async function VivoPage({ params, searchParams }: { params: Param
   if (typeof key === "string" && key) redirect(`/api/admin/${slug}/entrar?k=${encodeURIComponent(key)}&next=vivo`);
 
   const t = await getT();
-  if (!(await verifyOrganizerKey(event.id, await panelKeyFromCookies(slug)))) {
-    return <AccesoPanel slug={slug} eventName={event.name} t={t} error={query.error === "clave"} next="vivo" />;
+  if (!(await panelAccess(event))) {
+    return <AccesoPanel slug={slug} eventName={event.name} t={t} error={query.error === "clave"} next="vivo" conCuenta={pollarEnabled()} />;
   }
   return <PantallaVivo slug={slug} initial={await getLiveState(event)} acceso={{ kind: "organizer", screenKey: await getOrCreateScreenKey(event.id) }} />;
 }

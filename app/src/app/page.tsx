@@ -56,17 +56,9 @@ export default async function HomePage() {
       </div>
       <p className="inicio-operacion">
         <span>{t("inicio.operacion")}</span>
-        {events.length === 1 ? (
-          <Link className="enlace" href={`/admin/${events[0]!.slug}`}>
-            {t("inicio.panel")}
-          </Link>
-        ) : (
-          events.map((event) => (
-            <Link key={event.id} className="enlace" href={`/admin/${event.slug}`}>
-              {t("inicio.panelDe", { evento: event.name })}
-            </Link>
-          ))
-        )}
+        <Link className="enlace" href="/admin">
+          {t("inicio.organizador")}
+        </Link>
         <Link className="enlace" href="/scan">
           {t("inicio.escaner")}
         </Link>
