@@ -1,10 +1,12 @@
 "use server";
 // La acción de /admin/nuevo: crea el borrador del evento desde la plantilla y entra al panel de ese evento con su
 // clave, directo a la pantalla de armarlo. Si algo está mal, vuelve al formulario con lo que se había escrito.
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getLang } from "@/i18n/server.ts";
-import { verifyCreateKey } from "@/server/kit/acceso.ts";
+import { checkCreateKey } from "@/server/kit/acceso.ts";
 import { TemplateInputError, createEventFromTemplate, isTemplateId } from "@/server/kit/plantillas.ts";
+import { clientKey } from "@/server/limites.ts";
 import { getOrCreateOrganizerKey } from "@/server/panel.ts";
 import { rememberPanelKey } from "@/server/panel-sesion.ts";
 import { getRepo } from "@/server/repo.ts";
@@ -23,7 +25,9 @@ export async function crearBorrador(formData: FormData): Promise<void> {
     redirect(`/admin/nuevo?${params.toString()}`);
   };
 
-  if (!verifyCreateKey(field("clave"))) back("clave");
+  // La clave de la casa, con el freno de los códigos de puesto: con el freno puesto se dice eso y no "clave equivocada".
+  const check = await checkCreateKey(field("clave"), clientKey(await headers()));
+  if (check !== "ok") back(check === "blocked" ? "frenado" : "clave");
 
   const capacity = field("cupo") ? Number(field("cupo")) : null;
   let slug: string;

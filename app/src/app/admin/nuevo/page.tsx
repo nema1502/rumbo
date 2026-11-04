@@ -23,6 +23,7 @@ const ERRORS: Record<string, string> = {
   date: "kit.datos.errorFecha",
   capacity: "kit.datos.errorCupo",
   clave: "kit.datos.errorClave",
+  frenado: "kit.datos.errorFrenado",
 };
 
 export default async function NewEventPage({ searchParams }: { searchParams: Search }) {

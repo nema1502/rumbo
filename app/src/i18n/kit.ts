@@ -86,6 +86,7 @@ export const kit = {
     "kit.datos.errorFecha": "Escribí el día y la hora.",
     "kit.datos.errorCupo": "Poné un número de lugares entre 1 y 1000.",
     "kit.datos.errorClave": "Esa clave no abre la creación de eventos.",
+    "kit.datos.errorFrenado": "Demasiados intentos con la clave. Esperá diez minutos y probá de nuevo.",
     "kit.datos.cerrado": "Crear eventos todavía no está abierto en este servidor.",
 
     // El borrador
@@ -333,6 +334,7 @@ export const kit = {
     "kit.datos.errorFecha": "Write the day and the time.",
     "kit.datos.errorCupo": "Enter a number of spots between 1 and 1000.",
     "kit.datos.errorClave": "That key does not open event creation.",
+    "kit.datos.errorFrenado": "Too many tries with the key. Wait ten minutes and try again.",
     "kit.datos.cerrado": "Creating events is not open on this server yet.",
 
     // The draft
