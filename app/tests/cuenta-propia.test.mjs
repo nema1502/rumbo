@@ -178,11 +178,13 @@ test("la autorización firmada: vale la misma, de esa cuenta; con otra cuenta, c
 
 // ---------- La inscripción en dos pasos, por la API ----------
 
-test("un cuerpo JSON que es null, una lista o un texto contesta 400 en la inscripción y en su paso de firma, nunca 500", async () => {
+test("un cuerpo JSON que es null, una lista o un texto contesta 400 en la inscripción, en su paso de firma y en el desafío, nunca 500", async () => {
   for (const cuerpo of [null, [], "texto", 7]) {
     const r1 = await api(inscribir, `http://localhost/api/evento/${gratis.event.slug}/inscripcion`, cuerpo, gratis.event.slug);
     const r2 = await api(firmar, `http://localhost/api/evento/${gratis.event.slug}/inscripcion/firma`, cuerpo, gratis.event.slug);
     assert.deepEqual([r1.status, r1.cuerpo, r2.status, r2.cuerpo], [400, { error: "invalid_json" }, 400, { error: "invalid_json" }], JSON.stringify(cuerpo));
+    const r3 = await api(pedirDesafio, "http://localhost/api/cuenta/desafio", cuerpo);
+    assert.deepEqual([r3.status, r3.cuerpo], [400, { error: "invalid_json" }], `desafío con ${JSON.stringify(cuerpo)}`);
   }
 });
 
