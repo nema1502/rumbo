@@ -927,3 +927,4 @@ a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px soli
   .informe .pronto { order: 3; margin-top: 0; }
   .informe-texto .plegable { order: 4; margin-top: -10px; }
 }
+@media (max-width: 860px) { .sumar-flujo { justify-self: center; width: 100%; } }
