@@ -24,14 +24,17 @@ interface EstadoCadena {
   error: string | null;
 }
 
-/** La hora, con segundos, en el reloj de quien mira el panel. */
-function hora(lang: Lang, iso: string): string {
-  return new Intl.DateTimeFormat(LOCALES[lang], { hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: lang === "es" ? "h23" : "h12" }).format(new Date(iso));
+// Las horas van en la zona del evento, no en la del reloj de quien mira: el servidor (en Vercel, en UTC) y el
+// navegador tienen que escribir lo mismo, y quien organiza piensa en la hora de su ciudad.
+
+/** La hora, con segundos, en la zona del evento. */
+function hora(lang: Lang, timeZone: string, iso: string): string {
+  return new Intl.DateTimeFormat(LOCALES[lang], { hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: lang === "es" ? "h23" : "h12", timeZone }).format(new Date(iso));
 }
 
-/** Día y hora cortos, en el reloj de quien mira el panel. */
-function fechaHora(lang: Lang, iso: string): string {
-  return new Intl.DateTimeFormat(LOCALES[lang], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: lang === "es" ? "h23" : "h12" }).format(new Date(iso));
+/** Día y hora cortos, en la zona del evento. */
+function fechaHora(lang: Lang, timeZone: string, iso: string): string {
+  return new Intl.DateTimeFormat(LOCALES[lang], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: lang === "es" ? "h23" : "h12", timeZone }).format(new Date(iso));
 }
 
 export function PanelCliente({ slug, initial, publicado = false }: { slug: string; initial: PanelState; publicado?: boolean }) {
@@ -113,7 +116,7 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
           {conexion === "sinConexion" && <Chip estado="alerta">{t("estado.sinConexion")}</Chip>}
           {conexion === "vencida" && <Chip estado="alerta">{t("panel.sesionVencidaCorta")}</Chip>}
           <span className="apagado chico" suppressHydrationWarning>
-            {t("panel.actualizado", { hora: hora(lang, state.generatedAt) })}
+            {t("panel.actualizado", { hora: hora(lang, state.event.timezone, state.generatedAt) })}
           </span>
           {state.pendingSync > 0 && <Chip estado="pendiente">{t("panel.porSincronizar", { n: state.pendingSync })}</Chip>}
         </p>
@@ -165,7 +168,7 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
         />
       </div>
 
-      <DetalleCadena cadena={cadena} nombreDe={nombreDe} />
+      <DetalleCadena cadena={cadena} nombreDe={nombreDe} timezone={state.event.timezone} />
 
       {state.benefits.length > 0 && (
         <Tarjeta>
@@ -238,7 +241,7 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
                   <span className="doble-quien">{d.name}</span>
                   <span className="doble-que">{d.kind === "checkin" ? t("panel.dobles.entrada") : d.benefitName}</span>
                   <span className="apagado chico" suppressHydrationWarning>
-                    {fechaHora(lang, d.scannedAt)}
+                    {fechaHora(lang, state.event.timezone, d.scannedAt)}
                     {d.scannerId ? `, ${t("panel.dobles.escaner", { id: d.scannerId })}` : ""}
                   </span>
                 </li>
@@ -301,7 +304,7 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
 
       <div className="panel-accion">
         <p className="panel-accion-estado" suppressHydrationWarning>
-          {cadena.result ? t("panel.cadena.ultima", { fecha: fechaHora(lang, cadena.result.syncedAt) }) : t("panel.cadena.nunca")}
+          {cadena.result ? t("panel.cadena.ultima", { fecha: fechaHora(lang, state.event.timezone, cadena.result.syncedAt) }) : t("panel.cadena.nunca")}
         </p>
         <Boton onClick={actualizarDesdeCadena} disabled={cadena.busy} aria-busy={cadena.busy}>
           {cadena.busy ? t("panel.cadena.trabajando") : t("panel.cadena.boton")}
@@ -345,7 +348,7 @@ function FilaPase({ pass }: { pass: PanelPass }) {
 }
 
 /** Lo que trajo el último contraste con la cadena, con las diferencias para revisar. */
-function DetalleCadena({ cadena, nombreDe }: { cadena: EstadoCadena; nombreDe: (passId: string) => string }) {
+function DetalleCadena({ cadena, nombreDe, timezone }: { cadena: EstadoCadena; nombreDe: (passId: string) => string; timezone: string }) {
   const t = useT();
   const lang = useLang();
   if (cadena.error) return <Aviso tono="alerta">{cadena.error}</Aviso>;
@@ -355,7 +358,7 @@ function DetalleCadena({ cadena, nombreDe }: { cadena: EstadoCadena; nombreDe: (
   return (
     <Tarjeta className="cadena-detalle">
       <p suppressHydrationWarning>
-        <strong>{t("panel.cadena.ultima", { fecha: fechaHora(lang, result.syncedAt) })}</strong>
+        <strong>{t("panel.cadena.ultima", { fecha: fechaHora(lang, timezone, result.syncedAt) })}</strong>
       </p>
       <p>
         {coincide

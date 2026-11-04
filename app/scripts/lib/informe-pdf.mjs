@@ -186,8 +186,10 @@ export function buildInformeTex(data, lang, { now = new Date().toISOString() } =
   d.text("t.asistencia.titulo", t("asistencia.titulo"));
   d.text("t.asistencia.bajada", t("asistencia.bajada"));
   d.text("t.asistencia.verificados", t("asistencia.verificados"));
-  d.text("asistencia.verificados", f.n(checkedIn));
-  d.raw("asistencia.chip", checkedIn >= MIN_ATTENDEES ? `\\rumboChipListo{${tex(t("asistencia.cumple"))}}` : `\\rumboChipPendiente{${tex(t("asistencia.noCumple", { n: f.n(MIN_ATTENDEES - checkedIn) }))}}`);
+  // Para el programa cuentan solo quienes entraron con credencial de asistente; los informes viejos no traen el dato.
+  const verified = Number.isFinite(data.verifiedAttendees) ? data.verifiedAttendees : checkedIn;
+  d.text("asistencia.verificados", f.n(verified));
+  d.raw("asistencia.chip", verified >= MIN_ATTENDEES ? `\\rumboChipListo{${tex(t("asistencia.cumple"))}}` : `\\rumboChipPendiente{${tex(t("asistencia.noCumple", { n: f.n(MIN_ATTENDEES - verified) }))}}`);
   d.text("t.asistencia.minimo", t("asistencia.minimo"));
   if (!example && data.pendingSync > 0) d.text("asistencia.pendientes", t("asistencia.pendientes", { n: f.n(data.pendingSync) }));
   d.text("t.minutos.titulo", t("minutos.titulo"));

@@ -68,7 +68,7 @@ try {
     join(dir, "airtable.csv"),
     csv([
       ["Event name", "Date", "City", "Verified attendees", "Stellar content (minutes)", "Contract link", "Report link"],
-      [event.name, dateIso, event.place, data.checkedIn, data.stellarMinutes ?? "", contracts, reportLink],
+      [event.name, dateIso, event.place, data.verifiedAttendees ?? data.checkedIn, data.stellarMinutes ?? "", contracts, reportLink],
     ]),
   );
 
@@ -86,7 +86,9 @@ try {
   lines.push(`${t("paquete.ciudad")}: ${event.place}`);
   for (const c of data.contracts) lines.push(`${t("paquete.contrato")}: ${explorer(data.network, c.id)}`);
   lines.push("", `${t("paquete.requisitos")}:`);
-  lines.push(`- ${t("paquete.asistentes")}: ${yesNo(data.checkedIn >= MIN_ATTENDEES)} (${fl.n(data.checkedIn)})`);
+  // Para el mínimo cuentan solo las credenciales de asistente (el programa deja afuera a oradores, voluntarios y organización).
+  const verified = data.verifiedAttendees ?? data.checkedIn;
+  lines.push(`- ${t("paquete.asistentes")}: ${yesNo(verified >= MIN_ATTENDEES)} (${fl.n(verified)})`);
   lines.push(
     `- ${t("paquete.minutos")}: ${data.stellarMinutes == null ? t("paquete.sinDato", { opcion: "minutos-stellar" }) : `${yesNo(data.stellarMinutes >= MIN_STELLAR_MINUTES)} (${fl.n(data.stellarMinutes)})`}`,
   );

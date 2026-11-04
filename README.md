@@ -26,6 +26,8 @@ Rumbo is made for events of 80 to 500 people with sponsors and several benefits:
 
 ## What it does
 
+This is the whole product. The table in [Where it stands](#where-it-stands) says what is built today and what comes next.
+
 **For the organizer**
 
 1. Create the event, with a form or by describing it in plain words and approving the draft Rumbo proposes: ticket types, benefits, the pass design, the welcome email.
@@ -39,7 +41,7 @@ Rumbo is made for events of 80 to 500 people with sponsors and several benefits:
 **For the attendee**
 
 - Register with Google or a passkey. A Stellar account is created underneath without them having to know.
-- Receive an email with a personal link. Never keys or passwords.
+- Get a personal link to the pass on the confirmation screen; the email with that link comes next. Never keys or passwords.
 - Keep the pass on the phone and see what they are entitled to: "Saturday lunch: pending", "T-shirt M: paid, pick up at the desk", "Draw prize: a pair of headphones".
 
 **For the volunteer**
@@ -83,13 +85,13 @@ For counting lunches a database would do. Stellar adds what a database cannot:
 - **Every attendee leaves with a Stellar account** that works at the next event, created with Google or a passkey, with network fees sponsored so nobody needs to hold XLM.
 - **Payments to speakers and volunteers** in any country.
 - **Paying in your own currency.** In Bolivia, with the bank's QR code through a licensed ramp; the organizer receives USDC on the spot. No Stripe, no local gateway, no paperwork.
-- **An API, webhooks and an MCP server,** free for your own events. Platforms and agents that create events at volume pay per use, with x402.
+- **An API and an MCP server,** free for your own events; webhooks come next. Platforms and agents that create events at volume will pay per use, with x402.
 
 Rumbo is not a ticket NFT and not a place to speculate on resale. If the organizer allows resale, it happens at the original price.
 
 ## With Tinkazo
 
-[Tinkazo](https://tinkazo.app) runs draws anyone can check from their phone. Rumbo and Tinkazo are different products that fit together: Tinkazo decides who wins, Rumbo delivers what was won and runs everything else at the event. The prize from a Tinkazo draw lands on the winner's pass, the draw runs over the people who actually checked in, and entering a draw is always free, whether the event is paid or not.
+[Tinkazo](https://tinkazo.app) runs draws anyone can check from their phone. Rumbo and Tinkazo are different products that fit together: Tinkazo decides who wins, Rumbo delivers what was won and runs everything else at the event. The plan: the prize from a Tinkazo draw lands on the winner's pass, the draw runs over the people who actually checked in, and entering a draw is always free, whether the event is paid or not. Today Rumbo exports the list of people who checked in, with its fingerprint, so the draw can run over it.
 
 ## Where it stands
 

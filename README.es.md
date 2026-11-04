@@ -26,6 +26,8 @@ Rumbo está pensado para eventos de 80 a 500 personas con auspiciantes y varios 
 
 ## Qué hace
 
+Esto es el producto entero. La tabla de [Dónde está](#dónde-está) dice qué está hecho hoy y qué sigue.
+
 **Para quien organiza**
 
 1. Armá el evento con un formulario, o describilo en una frase y aprobá lo que Rumbo te propone: tipos de entrada, beneficios, el diseño de la credencial, el correo de bienvenida.
@@ -39,7 +41,7 @@ Rumbo está pensado para eventos de 80 a 500 personas con auspiciantes y varios 
 **Para quien asiste**
 
 - Se inscribe con Google o con una passkey. Debajo se le crea una cuenta de Stellar sin que tenga que saberlo.
-- Recibe un correo con un enlace personal. Nunca llaves ni contraseñas.
+- Recibe un enlace personal a su credencial en la pantalla de confirmación; el correo con ese enlace viene después. Nunca llaves ni contraseñas.
 - Tiene su credencial en el celular y ve lo que le toca: "almuerzo del sábado: pendiente", "polera M: pagada, para retirar", "premio del sorteo: unos auriculares".
 
 **Para quien hace de voluntario**
@@ -83,13 +85,13 @@ Para contar almuerzos alcanza una base de datos. Stellar suma lo que una base de
 - **Cada asistente sale con una cuenta de Stellar** que le sirve en el próximo evento, creada con Google o con una passkey, con las comisiones de red patrocinadas para que nadie tenga que tener XLM.
 - **Pagos a oradores y voluntarios** en cualquier país.
 - **Pagar en tu moneda.** En Bolivia, con el QR del banco por medio de una rampa con licencia; quien organiza recibe USDC al momento. Sin Stripe, sin pasarela local, sin papeles.
-- **Una API, webhooks y un servidor MCP,** gratis para tus propios eventos. Las plataformas y agentes que crean eventos a volumen pagan por uso, con x402.
+- **Una API y un servidor MCP,** gratis para tus propios eventos; los webhooks vienen después. Las plataformas y agentes que crean eventos a volumen van a pagar por uso, con x402.
 
 Rumbo no es una entrada NFT ni un lugar para especular con la reventa. Si quien organiza la permite, la reventa va al precio original.
 
 ## Con Tinkazo
 
-[Tinkazo](https://tinkazo.app) hace sorteos que cualquiera puede comprobar desde su celular. Rumbo y Tinkazo son productos distintos que encajan: Tinkazo decide quién gana, Rumbo entrega lo que se ganó y opera todo lo demás del evento. El premio de un sorteo de Tinkazo entra a la credencial de quien ganó, el sorteo se hace sobre quienes de verdad hicieron el check-in, y participar en el sorteo es gratis siempre, sea el evento pago o no.
+[Tinkazo](https://tinkazo.app) hace sorteos que cualquiera puede comprobar desde su celular. Rumbo y Tinkazo son productos distintos que encajan: Tinkazo decide quién gana, Rumbo entrega lo que se ganó y opera todo lo demás del evento. El plan: el premio de un sorteo de Tinkazo entra a la credencial de quien ganó, el sorteo se hace sobre quienes de verdad hicieron el check-in, y participar en el sorteo es gratis siempre, sea el evento pago o no. Hoy Rumbo exporta la lista de quienes entraron, con su huella, para hacer el sorteo sobre ella.
 
 ## Dónde está
 

@@ -30,16 +30,19 @@ export interface ChapterInput {
 }
 
 /** El sí o el no de cada requisito, con los números al lado para que se entienda por qué. */
-export function chapterSummary(data: Pick<EventReportData, "checkedIn">, input: ChapterInput): ChapterSummary {
+export function chapterSummary(data: Pick<EventReportData, "checkedIn" | "verifiedAttendees">, input: ChapterInput): ChapterSummary {
   const minutes = input.stellarMinutes ?? null;
   const spend = input.foodSpendUsd ?? null;
+  // La comida se reparte entre todas las personas que entraron; el mínimo de asistentes, solo entre quienes
+  // tienen credencial de asistente (el programa no cuenta a oradores, voluntarios ni organización).
+  const verified = data.verifiedAttendees ?? data.checkedIn;
   const perPerson = spend === null || data.checkedIn === 0 ? null : Math.round((spend / data.checkedIn) * 100) / 100;
-  const attendeesOk = data.checkedIn >= CHAPTER_MIN_ATTENDEES;
+  const attendeesOk = verified >= CHAPTER_MIN_ATTENDEES;
   const minutesOk = minutes === null ? null : minutes >= CHAPTER_MIN_STELLAR_MINUTES;
   const foodOk = perPerson === null ? null : perPerson <= CHAPTER_FOOD_CAP_USD;
   const checks = [attendeesOk, minutesOk, foodOk];
   return {
-    attendees: { verified: data.checkedIn, required: CHAPTER_MIN_ATTENDEES, ok: attendeesOk },
+    attendees: { verified, required: CHAPTER_MIN_ATTENDEES, ok: attendeesOk },
     stellarMinutes: { value: minutes, required: CHAPTER_MIN_STELLAR_MINUTES, ok: minutesOk },
     food: { spendUsd: spend, perPersonUsd: perPerson, capUsd: CHAPTER_FOOD_CAP_USD, ok: foodOk },
     contactsShared: input.contactsShared,

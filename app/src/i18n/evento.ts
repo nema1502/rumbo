@@ -21,8 +21,8 @@ export const evento = {
     // El formulario
     "evento.form.tituloGratis": "Inscribirme",
     "evento.form.tituloPago": "Comprar la entrada",
-    "evento.form.bajada": "Decinos quién sos y te mandamos la credencial al correo.",
-    "evento.form.correoAyuda": "Ahí te llega el enlace a tu credencial.",
+    "evento.form.bajada": "Decinos quién sos y tu credencial queda lista en segundos.",
+    "evento.form.correoAyuda": "Te identifica en este evento: con él recuperás tu credencial.",
     "evento.form.contacto": "Quiero que {comunidad} me escriba sobre sus próximos eventos.",
     "evento.form.contactoAyuda": "Opcional. Si no la marcás, tu correo se usa solo para tu credencial.",
     "evento.form.confirmarGratis": "Confirmar inscripción",
@@ -44,7 +44,7 @@ export const evento = {
 
     // Ya tenía su credencial
     "evento.existente.titulo": "Ya tenés tu credencial",
-    "evento.existente.texto": "Con ese correo ya hay una inscripción a este evento. Te mandamos el enlace a {correo}: buscalo ahí y abrilo. Si no llega, probá de nuevo en diez minutos.",
+    "evento.existente.texto": "Con ese correo ya hay una inscripción a este evento. Abrí el enlace que guardaste al inscribirte. Si no lo tenés, en la puerta te buscan por tu nombre y te marcan la entrada igual.",
 
     // La confirmación
     "evento.listo.tituloGratis": "Inscripción lista",
@@ -109,8 +109,8 @@ export const evento = {
 
     "evento.form.tituloGratis": "Register",
     "evento.form.tituloPago": "Buy the ticket",
-    "evento.form.bajada": "Tell us who you are and we will email you your pass.",
-    "evento.form.correoAyuda": "The link to your pass goes there.",
+    "evento.form.bajada": "Tell us who you are and your pass is ready in seconds.",
+    "evento.form.correoAyuda": "It identifies you at this event: with it you can recover your pass.",
     "evento.form.contacto": "I want {comunidad} to email me about its upcoming events.",
     "evento.form.contactoAyuda": "Optional. If you leave it unchecked, your email is used only for your pass.",
     "evento.form.confirmarGratis": "Confirm registration",
@@ -130,7 +130,7 @@ export const evento = {
     "evento.error.demasiados": "Too many registrations in a row from your connection. Try again in a few minutes.",
 
     "evento.existente.titulo": "You already have your pass",
-    "evento.existente.texto": "That email is already registered for this event. We sent the link to {correo}: look for it there and open it. If it does not arrive, try again in ten minutes.",
+    "evento.existente.texto": "That email is already registered for this event. Open the link you kept when you signed up. If you do not have it, at the door they can look you up by name and check you in anyway.",
 
     "evento.listo.tituloGratis": "You are registered",
     "evento.listo.tituloPago": "Ticket paid",

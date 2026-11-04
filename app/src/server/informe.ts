@@ -41,6 +41,12 @@ export interface EventReportData {
   duplicates: { checkIns: number; redemptions: number };
   /** Entradas y canjes que un escáner registró y todavía no llegaron al contrato: no cuentan hasta que lleguen. */
   pendingSync?: number;
+  /**
+   * Quienes entraron con una credencial de asistente: la cuenta que vale para el programa de embajadores de
+   * Stellar, que no cuenta a oradores, mentoría, jurado, voluntariado, organización ni auspiciantes. Los informes
+   * viejos no lo traen: se toma `checkedIn`.
+   */
+  verifiedAttendees?: number;
   ticketTypes: Array<{ name: string; priceUsdc: number; issued: number }>;
   benefits: Array<{ name: string; kind: BenefitKind; granted: number; redeemed: number; duplicates: number }>;
   /** Entradas por hora, en la hora del evento ("09:00"). Vacío si no hay horas o no entran en la página. */
@@ -122,6 +128,7 @@ export async function buildEventReportData(event: EventRecord, repo: Repo = getR
     issued: state.counters.issued,
     pending: state.counters.pending,
     checkedIn: state.counters.checkedIn,
+    verifiedAttendees: state.passes.filter((p) => p.status === "checked_in" && p.kind === "attendee").length,
     duplicates: {
       checkIns: state.duplicates.filter((d) => d.kind === "checkin").length,
       redemptions: state.duplicates.filter((d) => d.kind === "redemption").length,

@@ -91,13 +91,14 @@ export function Manual({ code, enLinea, snapshot, local, onMarcar, onVolver }: P
     setEnviando(true);
     setErrorAgregar(null);
     try {
-      const { data } = await postJson<DoorAddResponse>("/api/scan/agregar", { code, name: nombre, email: correo, lang }, SYNC_TIMEOUT_MS);
-      if (data && data.kind !== "error") {
+      const { status, data } = await postJson<DoorAddResponse>("/api/scan/agregar", { code, name: nombre, email: correo, lang }, SYNC_TIMEOUT_MS);
+      if (data && data.kind !== "error" && data.match) {
         // Quien ya estaba inscripta vuelve igual, para marcarle la entrada.
         onMarcar(data.match);
         return;
       }
-      const error: DoorAddError = data && data.kind === "error" ? data.error : "failed";
+      // Un 401, 403, 429 o 400 llega sin "kind" (o sin cuerpo): es un error, nunca un éxito sin persona.
+      const error: DoorAddError = data && data.kind === "error" ? data.error : status === 429 ? "too_many" : "failed";
       setErrorAgregar(t(`escaner.agregar.error.${error}`));
     } catch {
       setErrorAgregar(t("escaner.agregar.error.failed"));
