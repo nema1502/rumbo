@@ -409,31 +409,47 @@ export const TX_TIMEOUT_SECONDS = 60;
  * comisión de la simulación, la firma con la patrocinadora, la manda y espera el resultado.
  * La transacción tiene que tener a la patrocinadora como fuente y una sola operación de contrato.
  * Quien la construyó ya consumió un número de secuencia: construir y mandar van dentro de withSponsorLock.
+ *
+ * Con `presigned`, las autorizaciones ya vienen firmadas desde otro dispositivo (la cuenta propia de la
+ * persona, con Pollar): van en la operación desde la simulación, que entonces las verifica (enforce), y
+ * nadie más firma nada salvo la patrocinadora el sobre.
  */
-export async function submitSponsored(tx: Transaction, signers: AuthSigner[] = [], hooks: SubmitHooks = {}): Promise<TxResult> {
+export async function submitSponsored(
+  tx: Transaction,
+  signers: AuthSigner[] = [],
+  hooks: SubmitHooks = {},
+  presigned: xdr.SorobanAuthorizationEntry[] = [],
+): Promise<TxResult> {
   const server = getRpc();
   const sponsor = getSponsor();
   const op = tx.operations[0];
   if (!op || op.type !== "invokeHostFunction" || tx.operations.length !== 1) {
     throw new Error("submitSponsored espera una transacción con una sola operación de contrato");
   }
+  if (presigned.length > 0) {
+    // El mismo número de secuencia: cloneFrom lo copia.
+    tx = TransactionBuilder.cloneFrom(tx).clearOperations().addOperation(Operation.invokeHostFunction({ source: op.source, func: op.func, auth: presigned })).build();
+  }
 
-  const sim = await server.simulateTransaction(tx);
+  const sim = await server.simulateTransaction(tx, undefined, presigned.length > 0 ? "enforce" : undefined);
   if (rpc.Api.isSimulationError(sim)) throw errorFromSimulation(sim);
   if (rpc.Api.isSimulationRestore(sim)) {
     throw new ContractError("El contrato tiene estado archivado: hay que restaurarlo (restoreFootprint) antes de usarlo.", null);
   }
 
   const validUntil = sim.latestLedger + AUTH_VALID_LEDGERS;
-  const auth = await Promise.all(
-    (sim.result?.auth ?? []).map(async (entry) => {
-      const address = inspectAuthEntry(entry).address;
-      if (!address) return entry; // la cuenta fuente: la firma del sobre alcanza
-      const signer = signers.find((s) => s.address === address);
-      if (!signer) throw new Error(`Falta quien firme la autorización de ${address}`);
-      return signer.signAuthEntry(entry, validUntil);
-    }),
-  );
+  const auth =
+    presigned.length > 0
+      ? presigned
+      : await Promise.all(
+          (sim.result?.auth ?? []).map(async (entry) => {
+            const address = inspectAuthEntry(entry).address;
+            if (!address) return entry; // la cuenta fuente: la firma del sobre alcanza
+            const signer = signers.find((s) => s.address === address);
+            if (!signer) throw new Error(`Falta quien firme la autorización de ${address}`);
+            return signer.signAuthEntry(entry, validUntil);
+          }),
+        );
 
   const resourceFee = Math.ceil(Number(sim.minResourceFee) * RESOURCE_FEE_MARGIN);
   sim.transactionData.setResourceFee(resourceFee);
@@ -534,6 +550,45 @@ export function invoke(contractId: string, fn: ContractFn, args: xdr.ScVal[], si
   return withSponsorLock(async () => submitSponsored(await buildInvoke(contractId, fn, args), signers, hooks));
 }
 
+/**
+ * Cuánto vale la firma que da otro dispositivo (la cuenta propia, con Pollar): unos cinco minutos. Pollar
+ * rechaza las autorizaciones que vencen demasiado lejos, y la persona firma enseguida.
+ */
+export const EXTERNAL_AUTH_VALID_LEDGERS = 60;
+
+/** Lo que una cuenta propia tiene que firmar en su dispositivo: la autorización sin firmar y hasta qué ledger vale. */
+export interface PreparedAuth {
+  /** La autorización (SorobanAuthorizationEntry) en XDR base64, sin firmar. */
+  entryXdr: string;
+  validUntilLedger: number;
+  latestLedger: number;
+}
+
+/**
+ * Simula la operación para saber qué le va a pedir el contrato a `address`, sin firmar ni mandar nada (no
+ * gasta el número de secuencia de la patrocinadora: va fuera del turno). Pide las credenciales de antes de
+ * CAP-71 (useUpgradedAuth false), las que entiende cualquier billetera; la red acepta las dos. La operación
+ * tiene que pedirle autorización a esa cuenta y a ninguna otra.
+ */
+export async function prepareExternalAuth(contractId: string, fn: ContractFn, args: xdr.ScVal[], address: string): Promise<PreparedAuth> {
+  const tx = await buildInvoke(contractId, fn, args);
+  const sim = await getRpc().simulateTransaction(tx, undefined, "record", false);
+  if (rpc.Api.isSimulationError(sim)) throw errorFromSimulation(sim);
+  if (rpc.Api.isSimulationRestore(sim)) {
+    throw new ContractError("El contrato tiene estado archivado: hay que restaurarlo (restoreFootprint) antes de usarlo.", null);
+  }
+  const withAddress = (sim.result?.auth ?? []).filter((entry) => inspectAuthEntry(entry).address !== null);
+  if (withAddress.length !== 1 || inspectAuthEntry(withAddress[0]!).address !== address) {
+    throw new Error(`${fn} pide ${withAddress.length} autorizaciones de cuenta; se esperaba una sola, de ${address}`);
+  }
+  return { entryXdr: withAddress[0]!.toXdr("base64"), validUntilLedger: sim.latestLedger + EXTERNAL_AUTH_VALID_LEDGERS, latestLedger: sim.latestLedger };
+}
+
+/** Manda una operación del contrato con autorizaciones ya firmadas por otro dispositivo, en orden con las demás. */
+export function invokePresigned(contractId: string, fn: ContractFn, args: xdr.ScVal[], presigned: xdr.SorobanAuthorizationEntry[], hooks: SubmitHooks = {}): Promise<TxResult> {
+  return withSponsorLock(async () => submitSponsored(await buildInvoke(contractId, fn, args), [], hooks, presigned));
+}
+
 /** Lee del contrato sin mandar nada: simula y devuelve el valor convertido. */
 export async function readContract(contractId: string, fn: ContractFn, args: xdr.ScVal[] = []): Promise<unknown> {
   const source = getEnv("STELLAR_SPONSOR_SECRET") ? getSponsor().publicKey() : "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
@@ -592,6 +647,57 @@ export async function getBalance(publicKey: string, asset: Asset): Promise<strin
   return balance ? balance.balance : null;
 }
 
+/**
+ * Con qué XLM arranca la cuenta propia que crea la patrocinadora cuando Pollar todavía no la creó: la reserva
+ * de la cuenta (1) y la de una línea de confianza (0,5), con algo de sobra. La firma del contrato no gasta XLM
+ * de la persona: la comisión la paga siempre la patrocinadora.
+ */
+export const NEW_ACCOUNT_XLM = "2";
+
+/**
+ * Lo que necesita una cuenta propia (la de Pollar) antes de inscribirse. Es un objeto para que las pruebas sin
+ * red lo reemplacen, como rumboPass.
+ */
+export const walletChain = {
+  /**
+   * Que la cuenta exista en la red. Pollar la crea al entrar; si todavía no llegó (o falló), la crea la
+   * patrocinadora. Devuelve true si la creó acá.
+   */
+  async ensureAccount(address: string): Promise<boolean> {
+    if (await accountExists(address)) return false;
+    try {
+      await submitClassic([Operation.createAccount({ destination: address, startingBalance: NEW_ACCOUNT_XLM })]);
+      return true;
+    } catch (error) {
+      // Pollar la creó entre la pregunta y el pedido: está, que es lo que importa.
+      if (await accountExists(address)) return false;
+      throw error;
+    }
+  },
+  /** Si la cuenta ya acepta el USDC de prueba. La línea de confianza la agrega la persona (con Pollar, setTrustline). */
+  hasTestTrustline(address: string): Promise<boolean> {
+    return hasTrustline(address, getTestAsset().asset);
+  },
+  /**
+   * SOLO RED DE PRUEBA, como el saldo inicial del modo de prueba: si a la cuenta no le alcanza para la
+   * entrada, el emisor le manda USDC de prueba (RUMBO_INITIAL_TEST_USDC, o lo que falte si es más). Sin la
+   * llave del emisor no hace nada, y el contrato después dice que no se pudo cobrar.
+   */
+  async topUpTestUsdc(address: string, minimum: number): Promise<void> {
+    assertTestnet();
+    const test = getTestAsset();
+    const balance = Number((await getBalance(address, test.asset)) ?? 0);
+    if (balance >= minimum) return;
+    const issuer = getIssuer();
+    if (!issuer || issuer.publicKey() !== test.issuer) {
+      console.warn(`[cuentas] La cuenta ${address} no tiene saldo para la entrada y no tengo la llave del emisor ${test.issuer} (STELLAR_ISSUER_SECRET).`);
+      return;
+    }
+    const amount = Math.max(Number(getEnv("RUMBO_INITIAL_TEST_USDC", "100")), minimum - balance);
+    await submitClassic([Operation.payment({ destination: address, asset: test.asset, amount: amount.toFixed(ASSET_DECIMALS), source: issuer.publicKey() })], [issuer]);
+  },
+};
+
 // ---------- El contrato rumbo-pass ----------
 
 const addressArg = (address: string): xdr.ScVal => new Address(address).toScVal();
@@ -615,6 +721,18 @@ export const rumboPass = {
   /** Entrada paga: cobra en USDC de prueba y reparte en la misma operación. Firma quien compra. Devuelve el número de pase. */
   async buy(contractId: string, buyer: string, signer: AuthSigner): Promise<TxResult & { number: number }> {
     const result = await invoke(contractId, CONTRACT_FN.buy, [addressArg(buyer)], [signer]);
+    return { ...result, number: Number(result.returnValue) };
+  },
+  /**
+   * register o buy de una cuenta propia, paso 1: lo que la persona tiene que autorizar en su dispositivo, sin
+   * firmar. Si el contrato no lo va a aceptar (sin lugares, ya tiene pase, sin saldo), falla acá, como register.
+   */
+  prepare(contractId: string, fn: "register" | "buy", account: string): Promise<PreparedAuth> {
+    return prepareExternalAuth(contractId, CONTRACT_FN[fn], [addressArg(account)], account);
+  },
+  /** Paso 2: con la autorización ya firmada por la persona, la patrocinadora arma, paga y manda. Devuelve el número de pase. */
+  async submitSigned(contractId: string, fn: "register" | "buy", account: string, entry: xdr.SorobanAuthorizationEntry): Promise<TxResult & { number: number }> {
+    const result = await invokePresigned(contractId, CONTRACT_FN[fn], [addressArg(account)], [entry]);
     return { ...result, number: Number(result.returnValue) };
   },
   /** La entrada, una sola vez. La marca la puerta. Devuelve en qué lugar entró (el primero es 1). */

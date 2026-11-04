@@ -256,6 +256,14 @@ export function registrationAttempts(): Limiter {
   return limiter("registration", { windowMs: 10 * MINUTE, perKey: 60, global: 600, lockMs: 10 * MINUTE, maxLockMs: 6 * HOUR, forgetMs: 6 * HOUR });
 }
 
+/**
+ * Los desafíos para probar una cuenta propia (cada uno es una fila en la base): sesenta por IP en diez minutos,
+ * lo mismo que las inscripciones, porque cada inscripción con la cuenta propia pide uno.
+ */
+export function walletChallengeAttempts(): Limiter {
+  return limiter("wallet-challenge", { windowMs: 10 * MINUTE, perKey: 60, global: 1200, lockMs: 10 * MINUTE, maxLockMs: 6 * HOUR, forgetMs: 6 * HOUR });
+}
+
 /** El reenvío del enlace a un correo que ya tenía su credencial: uno cada diez minutos por correo y evento. */
 export function linkResendAttempts(): Limiter {
   return limiter("link-resend", { windowMs: 10 * MINUTE, perKey: 1, global: Number.MAX_SAFE_INTEGER, lockMs: 10 * MINUTE, maxLockMs: 10 * MINUTE, forgetMs: HOUR });
