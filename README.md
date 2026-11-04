@@ -104,7 +104,7 @@ Signing in with Google or with your email, with an account of your own through P
 
 [A video of just over a minute](site/assets/mvp-en.mp4), recorded on November 4, shows the real MVP at work on testnet, no mockups: the free sign-up, the pass with its changing QR code, the volunteer's camera reading that code at the door, an offline redemption that syncs by itself when the network is back, the dashboard and the sign-up transaction on stellar.expert (it is recorded by [app/scripts/grabar-recorrido.mjs](app/scripts/grabar-recorrido.mjs)).
 
-Without installing anything: the [landing page](https://rumbo-eventos.vercel.app) with a 31-second animation of the whole flow, and a [clickable mock-up](https://rumbo-eventos.vercel.app/#probar) (nothing is saved) where you sign up, get your pass, scan it as a volunteer (offline too) and see how the draw would run.
+Without installing anything: [the app itself, on testnet](https://rumbo-eventos-app.vercel.app/e/hackaton-comunidad), where you sign up to the sample event and get a real pass, and where organizers [sign in](https://rumbo-eventos-app.vercel.app/admin) to create their own; the [landing page](https://rumbo-eventos.vercel.app) with a 31-second animation of the whole flow, and a [clickable mock-up](https://rumbo-eventos.vercel.app/#probar) (nothing is saved) where you sign up, get your pass, scan it as a volunteer (offline too) and see how the draw would run.
 
 The contract started from an [event pass](https://stellar.expert/explorer/testnet/contract/CDSXJR7MBV3ZLHLQPVTWZYVVP3CNABMGO6RRPLSI2KVFSJ2UX4SUD7DP) written in September 2026 for Stellar Elite Bolivia: buy a pass, check in once, list who came. Rumbo extends it with benefits, redemptions and, later, protected payments.
 

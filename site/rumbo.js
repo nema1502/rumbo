@@ -20,6 +20,7 @@ const EN = {
   "nav.equipo": "The team",
   "nav.idioma": "ES",
   "nav.github": "GitHub",
+  "nav.entrar": "Sign in",
 
   "aria.inicio": "Rumbo, home",
   "aria.tema": "Switch theme",
@@ -40,6 +41,7 @@ const EN = {
   "portada.titulo": "Your whole event <em>in one QR&nbsp;code</em>.",
   "portada.bajada": "Register for free or sell tickets from any country, and run the door, redemptions and prizes from a single QR code.",
   "portada.cta": "See how it works",
+  "portada.crear": "Create your event",
   "portada.codigo": "The code, on GitHub",
   "portada.s1": "Paid in seconds",
   "portada.s2": "Redeemed once",

@@ -104,6 +104,12 @@ p { margin: 0; }
   .nav { margin-left: 0; }
   .nav a { padding-inline: 8px; font-size: 0.9rem; }
 }
+/* Hasta 1140 px, con "Entrar", los seis enlaces no caben en la fila de la marca: bajan a su propia fila, como
+   en el celular, en vez de que los botones queden colgando solos a la derecha */
+@media (min-width: 861px) and (max-width: 1140px) {
+  .cabecera .contenedor { row-gap: 0; }
+  .nav { order: 4; width: 100%; padding-bottom: 8px; }
+}
 .nav a { text-decoration: none; color: var(--tinta-2); padding: 10px 12px; border-radius: 999px; font-weight: 500; font-size: 0.95rem; white-space: nowrap; }
 .nav a:hover { background: var(--acento-suave); color: var(--tinta); }
 @media (hover: hover) {
@@ -124,6 +130,13 @@ p { margin: 0; }
 }
 .boton-icono:hover { background: var(--acento-suave); }
 .boton-icono svg { width: 18px; height: 18px; }
+/* Entrar a la app: la única acción llena de la cabecera */
+.boton-entrar { background: var(--acento); border-color: transparent; color: #0f1c2e; padding: 0 16px; }
+.boton-entrar:hover { background: var(--acento); filter: brightness(1.06); }
+/* GitHub queda con su ícono solo (y su nombre en aria-label): así la cabecera, con "Entrar", sigue en una fila */
+.boton-github .texto-boton { display: none; }
+/* En 340 px o menos tampoco entra el botón del tema: queda el del sistema */
+@media (max-width: 340px) { #tema { display: none; } }
 :root[data-theme="dark"] .solo-dia, :root:not([data-theme="dark"]) .solo-noche { display: none; }
 
 /* Botones */
@@ -137,13 +150,13 @@ p { margin: 0; }
 .boton-secundario { background: transparent; color: var(--tinta); border-color: var(--linea); }
 .boton-secundario:hover { background: var(--acento-suave); }
 .boton svg { width: 18px; height: 18px; }
-/* Las flechas de la portada dicen adónde lleva cada botón: abajo, a la animación; afuera, a GitHub */
+/* Las flechas de la portada dicen adónde lleva cada botón: abajo, a la animación; afuera, a la app */
 .cta .boton::after {
   content: ""; flex: none; width: 16px; height: 16px; background: currentColor;
   -webkit-mask: var(--flecha) center / contain no-repeat; mask: var(--flecha) center / contain no-repeat;
 }
-.cta .boton-primario { --flecha: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 5v14M6 13l6 6 6-6'/%3E%3C/svg%3E"); }
-.cta .boton-secundario { --flecha: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 17 17 7M8 7h9v9'/%3E%3C/svg%3E"); }
+.cta .boton[href^="#"] { --flecha: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 5v14M6 13l6 6 6-6'/%3E%3C/svg%3E"); }
+.cta .boton[href^="http"] { --flecha: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 17 17 7M8 7h9v9'/%3E%3C/svg%3E"); }
 
 /* Etiquetas y chips */
 .etiqueta { display: inline-block; font-size: 0.8rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; line-height: 1.3; }
@@ -373,6 +386,8 @@ p { margin: 0; }
   .credencial { padding: 18px; }
   .credencial-qr { width: 96px; height: 96px; }
   .texto-boton { display: none; }
+  /* En el celular la cabecera no entra con todo: GitHub sigue en el pie y "Entrar" queda a la vista */
+  .boton-github { display: none; }
   .herramienta { flex-direction: column; align-items: flex-start; gap: 4px; }
   .herramienta span:last-child { text-align: left; }
   .demo-video { display: none; }
@@ -489,8 +504,8 @@ p { margin: 0; }
   .motivo .icono { transition: background-color 0.2s ease, color 0.2s ease; }
   .nav a::after { transition: transform 0.25s var(--suave); }
   .cta .boton::after { transition: transform 0.2s var(--suave); }
-  .cta .boton-primario:hover::after { transform: translateY(2px); }
-  .cta .boton-secundario:hover::after { transform: translate(2px, -2px); }
+  .cta .boton[href^="#"]:hover::after { transform: translateY(2px); }
+  .cta .boton[href^="http"]:hover::after { transform: translate(2px, -2px); }
 }
 
 /* El cierre con salida: la invitación a contar el evento, en "Quién paga" y en "El equipo". */
