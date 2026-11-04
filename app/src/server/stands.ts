@@ -96,8 +96,10 @@ export function firstName(name: string): string | null {
   const clean = cleanLine(name, 120);
   const comma = clean.indexOf(",");
   const given = comma > 0 ? clean.slice(comma + 1).trim() : clean;
-  const first = [...(given.split(" ")[0] ?? "")].slice(0, ALIAS_MAX).join("");
-  return first && !NOT_A_NAME.test(first) ? first : null;
+  // La palabra entera se mira antes de recortarla: un correo largo recortado a veinte letras parecía un nombre.
+  const word = given.split(" ")[0] ?? "";
+  if (!word || NOT_A_NAME.test(word)) return null;
+  return [...word].slice(0, ALIAS_MAX).join("");
 }
 
 /** Lo que se muestra en la pantalla del evento: el alias si lo hay, si no el nombre de pila; null si la persona pidió no aparecer. */
@@ -584,7 +586,7 @@ export interface StandNumbers {
 
 export interface StandPanel {
   stand: Stand;
-  event: { name: string; slug: string; startsAt: string; timezone: string; place: string; venue: string | null };
+  event: { name: string; slug: string; startsAt: string; endsAt: string | null; timezone: string; place: string; venue: string | null };
   numbers: StandNumbers;
   /** El beneficio del auspiciante con sus canjes, si el stand tiene uno. */
   benefit: { id: string; name: string; granted: number; redeemed: number } | null;
@@ -625,7 +627,7 @@ export async function getStandPanel(standId: string, repo: Repo = getRepo()): Pr
   );
   return {
     stand,
-    event: { name: event.name, slug: event.slug, startsAt: event.startsAt, timezone: event.timezone, place: event.place, venue: event.venue },
+    event: { name: event.name, slug: event.slug, startsAt: event.startsAt, endsAt: event.endsAt, timezone: event.timezone, place: event.place, venue: event.venue },
     numbers: await standNumbers(standId),
     benefit: (await getStandReport(standId, repo))?.benefit ?? null,
     contacts,

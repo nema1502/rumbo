@@ -212,6 +212,11 @@ test("la etiqueta de la pantalla toma el nombre de pila de verdad, y nunca proye
     ["Dr. Pérez", null],
     ["  ", null],
     ["Quiroga, ana.q@example.com", null],
+    // Un correo largo recortado a veinte letras parecía un nombre: la palabra entera se mira antes de recortar.
+    ["anabelenquirogasoria@example.com", null],
+    ["anabelenquirogasoriamuylargo", "anabelenquirogasoria"],
+    ["https://anabelenquirogasoria.example", null],
+    ["anabelenquirogasoria59170012345", null],
   ];
   for (const [nombre, esperado] of casos) assert.equal(stands.publicLabel(nombre, null), esperado, JSON.stringify(nombre));
   // el alias, si lo hay, manda; y "no aparecer" manda sobre todo

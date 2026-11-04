@@ -14,6 +14,7 @@ import { BotonCopiar } from "@/components/panel/BotonCopiar.tsx";
 import { useLang, useT } from "@/i18n/client.tsx";
 import { LANG_QUERY, formatDate, otherLang } from "@/i18n/index.ts";
 import { SCREEN_KEY_QUERY, type ScreenAccess } from "@/lib/pantalla.ts";
+import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
 import type { LiveState, LiveTally } from "@/server/vivo.ts";
 
 const POLL_MS = 3000;
@@ -126,7 +127,9 @@ export function PantallaVivo({ slug, initial, acceso }: { slug: string; initial:
   }
 
   const { event, route, raffle } = vivo;
-  const lugar = event.venue ? `${event.venue}, ${event.place}` : event.place;
+  // La fecha como en todas las pantallas: "Domingo, 22 de noviembre, 09:00 a 19:00".
+  const when = formatEventWhen(lang, event);
+  const lugar = formatEventWhere(event);
   const enlaceProyector = `${origin}/vivo/${slug}?${SCREEN_KEY_QUERY}=${screenKey}`;
   // Al cambiar de idioma, el proyector conserva su clave en el enlace.
   const cambioIdioma = new URLSearchParams(acceso.kind === "screen" ? { [SCREEN_KEY_QUERY]: acceso.key, [LANG_QUERY]: otherLang(lang) } : { [LANG_QUERY]: otherLang(lang) }).toString();
@@ -145,7 +148,7 @@ export function PantallaVivo({ slug, initial, acceso }: { slug: string; initial:
         <div className="viv-evento">
           <h1>{event.name}</h1>
           <p>
-            {formatDate(lang, event.startsAt, event.timezone)}, {lugar}
+            {when.date}, {when.time}, {lugar}
           </p>
         </div>
         <div className="viv-estado">

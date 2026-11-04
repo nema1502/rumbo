@@ -33,7 +33,7 @@ export interface FrozenRaffle {
 
 export interface LiveState {
   generatedAt: string;
-  event: { slug: string; name: string; startsAt: string; timezone: string; place: string; venue: string | null };
+  event: { slug: string; name: string; startsAt: string; endsAt: string | null; timezone: string; place: string; venue: string | null };
   /** Credenciales emitidas (activas o que ya entraron). */
   issued: number;
   capacity: number | null;
@@ -96,7 +96,7 @@ export async function getLiveState(event: EventRecord, rankingSize = LIVE_RANKIN
   const frozen = await getFrozenRaffleList(event);
   return {
     generatedAt: new Date().toISOString(),
-    event: { slug: event.slug, name: event.name, startsAt: event.startsAt, timezone: event.timezone, place: event.place, venue: event.venue },
+    event: { slug: event.slug, name: event.name, startsAt: event.startsAt, endsAt: event.endsAt, timezone: event.timezone, place: event.place, venue: event.venue },
     issued: n(counts?.issued),
     capacity: event.capacity,
     entered,

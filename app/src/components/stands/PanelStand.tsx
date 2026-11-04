@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Aviso, Chip } from "@/components/ui.tsx";
 import { useLang, useT } from "@/i18n/client.tsx";
 import { formatDate, type Lang } from "@/i18n/index.ts";
+import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
 import type { StandContact, StandPanel } from "@/server/stands.ts";
 import { Logo } from "./RutaCredencial.tsx";
 
@@ -37,7 +38,9 @@ export function PanelStandCliente({ codigo, initial }: { codigo: string; initial
   }, [traer]);
 
   const { stand, event, numbers, benefit, contacts } = panel;
-  const lugar = event.venue ? `${event.venue}, ${event.place}` : event.place;
+  // La fecha como en todas las pantallas: "Domingo, 22 de noviembre, 09:00 a 19:00".
+  const when = formatEventWhen(lang, event);
+  const lugar = formatEventWhere(event);
 
   return (
     <section className="panel stand-panel">
@@ -52,7 +55,7 @@ export function PanelStandCliente({ codigo, initial }: { codigo: string; initial
         </div>
         <p className="bajada">{event.name}</p>
         <p className="secundario">
-          {formatDate(lang, event.startsAt, event.timezone)}, {lugar}
+          {when.date}, {when.time}, {lugar}
         </p>
       </header>
 

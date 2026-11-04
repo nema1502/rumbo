@@ -156,6 +156,8 @@ test("el consentimiento: sin aceptar no aparece el contacto; aceptar lo muestra 
   let panel = await stands.getStandPanel(d.stands[0].id, repo);
   assert.deepEqual(panel.numbers, { visits: 1, accepted: 0, waiting: 1, declined: 0 });
   assert.deepEqual(panel.contacts, []);
+  // La fecha del evento viaja entera (inicio y final): el panel la escribe como todas las pantallas.
+  assert.deepEqual([panel.event.startsAt, panel.event.endsAt], [d.event.startsAt, d.event.endsAt]);
   assert.ok(!JSON.stringify(panel).includes("ana.quiroga@example.com"));
   assert.ok(!JSON.stringify(panel).includes("Quiroga"));
   assert.equal(await stands.buildContactsCsv(d.stands[0].id, "es", repo), "\ufeffnombre,correo,calificación,nota,visita\r\n");
@@ -355,6 +357,7 @@ test("la pantalla en vivo: cuenta lo que pasó, y el ranking usa nombre de pila 
 
   const vivo = await getLiveState(d.event);
   assert.deepEqual([vivo.issued, vivo.entered, vivo.raffle.eligible], [4, 3, 3]);
+  assert.deepEqual([vivo.event.startsAt, vivo.event.endsAt], [d.event.startsAt, d.event.endsAt], "la pantalla recibe inicio y final, para escribir la fecha como todas");
   assert.deepEqual(vivo.lunch, { delivered: 2, granted: 4 });
   assert.deepEqual(vivo.merch, { delivered: 0, granted: 0 });
   assert.deepEqual([vivo.route.enabled, vivo.route.target, vivo.route.standCount, vivo.route.completed], [true, 2, 3, 1]);
