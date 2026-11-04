@@ -5,14 +5,17 @@
 //   - se abre una sesión de treinta días: una ficha de 128 bits al azar viaja en la cookie "rumbo.organizador" y en
 //     la base queda solo su huella (SHA-256), así quien lea la base no tiene con qué entrar;
 //   - sus eventos se abren con la sesión, además de con la clave por evento de siempre (panel-sesion.ts);
-//   - crea eventos sin la clave de la casa, con un tope por cuenta y por día (RUMBO_EVENTS_PER_DAY).
+//   - crea eventos sin la clave de la casa, con un tope por cuenta y por día (RUMBO_EVENTS_PER_DAY) y otro por IP
+//     (RUMBO_EVENTS_PER_IP_PER_DAY), porque las cuentas son gratis.
 // Lo que depende del pedido HTTP (la cookie) vive acá abajo, junto con lo demás, porque todo se usa junto.
 import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import type { NextRequest, NextResponse } from "next/server";
 import { verifyWalletProof, type ProofCheck, type WalletProof } from "./cuenta-propia.ts";
+import { BUSY, tryExclusive } from "./compartido.ts";
 import { getEnv } from "./env.ts";
-import { createEventFromTemplate, type NewEventFromTemplate } from "./kit/plantillas.ts";
+import { checkTemplateInput, createEventFromTemplate, type NewEventFromTemplate } from "./kit/plantillas.ts";
+import { eventCreateAttempts } from "./limites.ts";
 import { getRepo, type EventRecord, type Organizer, type OrganizerSession, type Repo } from "./repo.ts";
 
 export const ORGANIZER_COOKIE = "rumbo.organizador";
@@ -22,6 +25,7 @@ export const SESSION_TTL_MS = 30 * 24 * 3600_000;
 export const TOUCH_EVERY_MS = 3600_000;
 /** Cuántos eventos puede crear una cuenta en veinticuatro horas si RUMBO_EVENTS_PER_DAY no dice otra cosa. */
 export const DEFAULT_EVENTS_PER_DAY = 3;
+const DAY_MS = 24 * 3600_000;
 
 /** La huella con la que se guarda una ficha: SHA-256 en hex. La ficha nunca toca la base. */
 export function sessionIdOf(token: string): string {
@@ -105,22 +109,65 @@ export function eventsPerDay(): number {
   return Number.isInteger(n) && n > 0 ? n : DEFAULT_EVENTS_PER_DAY;
 }
 
-export type CreateWithAccount = { ok: true; event: EventRecord } | { ok: false; reason: "quota"; limit: number };
+export type CreateWithAccount =
+  | { ok: true; event: EventRecord }
+  | { ok: false; reason: "quota"; limit: number }
+  | { ok: false; reason: "busy" }
+  | { ok: false; reason: "ip"; waitMs: number };
+
+export interface CreateOptions {
+  /** Quién pide (clientKey): el tope por IP. Sin él, no se cuenta (el MCP y las pruebas que no lo pasan). */
+  requester?: string;
+  now?: number;
+}
 
 /**
- * Crea el borrador desde la plantilla a nombre de esa cuenta, sin la clave de la casa. El tope cuenta los eventos
- * que la cuenta creó en las últimas veinticuatro horas: en la red de prueba cada evento publicado despliega
- * contratos, y una cuenta no puede llenar el servidor. Los errores de los datos (TemplateInputError) suben tal cual.
+ * Crea el borrador desde la plantilla a nombre de esa cuenta, sin la clave de la casa. Dos topes: el de la cuenta
+ * (RUMBO_EVENTS_PER_DAY en las últimas veinticuatro horas) y el de la IP (eventCreateAttempts), porque una cuenta
+ * es gratis y se abren de a muchas. En la red de prueba cada evento publicado despliega contratos.
+ *
+ * Contar y crear van juntos dentro del turno crear-evento:<cuenta> (compartido.ts, que en Postgres vive en la base):
+ * sin él, una ráfaga de pedidos a la vez cuenta cero antes de que el primero escriba y pasan todos. Si el turno lo
+ * tiene otro pedido de la misma cuenta (un doble clic), contesta "busy" sin esperar. Los datos se revisan antes de
+ * gastar nada; sus errores (TemplateInputError) suben tal cual.
  */
 export async function createEventWithAccount(
   repo: Repo,
   organizer: Organizer,
   input: Omit<NewEventFromTemplate, "organizerId">,
-  now: number = Date.now(),
+  { requester, now = Date.now() }: CreateOptions = {},
 ): Promise<CreateWithAccount> {
+  checkTemplateInput(input);
+  const outcome = await tryExclusive(`crear-evento:${organizer.id}`, async (): Promise<CreateWithAccount> => {
+    const limit = eventsPerDay();
+    if ((await repo.countEventsByOrganizerSince(organizer.id, new Date(now - DAY_MS).toISOString())) >= limit) return { ok: false, reason: "quota", limit };
+    if (requester !== undefined) {
+      const waitMs = await eventCreateAttempts().take(requester);
+      if (waitMs > 0) return { ok: false, reason: "ip", waitMs };
+    }
+    return { ok: true, event: await createEventFromTemplate(repo, { ...input, organizerId: organizer.id }) };
+  });
+  return outcome === BUSY ? { ok: false, reason: "busy" } : outcome;
+}
+
+export type CreateQuota = { ok: true; limit: number; left: number } | { ok: false; reason: "quota"; limit: number; freesInMs: number } | { ok: false; reason: "ip"; freesInMs: number };
+
+/**
+ * Para la pantalla de /admin/nuevo: si esa cuenta (y esa IP) pueden crear un evento ahora, y si no, cuándo se libera.
+ * Solo mira: el que cuenta es createEventWithAccount.
+ */
+export async function createQuota(repo: Repo, organizer: Organizer, requester: string | undefined, now: number = Date.now()): Promise<CreateQuota> {
   const limit = eventsPerDay();
-  const since = new Date(now - 24 * 3600_000).toISOString();
-  if ((await repo.countEventsByOrganizerSince(organizer.id, since)) >= limit) return { ok: false, reason: "quota", limit };
-  const event = await createEventFromTemplate(repo, { ...input, organizerId: organizer.id });
-  return { ok: true, event };
+  const since = now - DAY_MS;
+  const recent = (await repo.listEventsByOrganizer(organizer.id))
+    .map((event) => Date.parse(event.createdAt))
+    .filter((at) => at >= since)
+    .sort((a, b) => a - b);
+  // Se libera cuando el más viejo de los que sobran sale de las veinticuatro horas.
+  if (recent.length >= limit) return { ok: false, reason: "quota", limit, freesInMs: Math.max(0, recent[recent.length - limit]! + DAY_MS - now) };
+  if (requester !== undefined) {
+    const waitMs = await eventCreateAttempts().blockedFor(requester);
+    if (waitMs > 0) return { ok: false, reason: "ip", freesInMs: waitMs };
+  }
+  return { ok: true, limit, left: limit - recent.length };
 }

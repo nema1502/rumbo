@@ -7,7 +7,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { pollarEnabled } from "@/server/accounts.ts";
 import { readWalletProof } from "@/server/cuenta-propia.ts";
-import { clientKey, organizerLoginAttempts } from "@/server/limites.ts";
+import { clientKey, organizerLoginAttempts, organizerSessionAttempts } from "@/server/limites.ts";
 import { loginOrganizer, setOrganizerCookie } from "@/server/organizador.ts";
 import { fromOwnSite } from "@/server/pedido.ts";
 import { getRepo } from "@/server/repo.ts";
@@ -28,6 +28,8 @@ export async function POST(request: NextRequest) {
   const attempts = organizerLoginAttempts();
   const requester = clientKey(request.headers);
   if ((await attempts.blockedFor(requester)) > 0) return NextResponse.json({ error: "too_many" }, { status: 429 });
+  // Las que salen bien también cuentan: cada llave que firma es una cuenta nueva, con su propio tope de eventos.
+  if ((await organizerSessionAttempts().take(requester)) > 0) return NextResponse.json({ error: "too_many" }, { status: 429 });
 
   const proof = readWalletProof(body.wallet);
   const name = typeof body.name === "string" ? body.name : undefined;

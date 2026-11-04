@@ -15,7 +15,7 @@ const { Keypair } = await import("@stellar/stellar-sdk");
 const { getRepo } = await import("../src/server/repo.ts");
 const propia = await import("../src/server/cuenta-propia.ts");
 const org = await import("../src/server/organizador.ts");
-const { organizerLoginAttempts, walletChallengeAttempts, stationCodeAttempts } = await import("../src/server/limites.ts");
+const { organizerLoginAttempts, organizerSessionAttempts, eventCreateAttempts, walletChallengeAttempts, stationCodeAttempts } = await import("../src/server/limites.ts");
 const { authorizePanelRequest } = await import("../src/server/panel-sesion.ts");
 const { getOrCreateOrganizerKey } = await import("../src/server/panel.ts");
 const { POST: pedirDesafio } = await import("../src/app/api/cuenta/desafio/route.ts");
@@ -33,6 +33,8 @@ beforeEach(async () => {
   await organizerLoginAttempts().clear();
   await walletChallengeAttempts().clear();
   await stationCodeAttempts().clear();
+  await organizerSessionAttempts().clear();
+  await eventCreateAttempts().clear();
   delete process.env.RUMBO_EVENTS_PER_DAY;
 });
 
@@ -175,7 +177,7 @@ test("el tope por día: con RUMBO_EVENTS_PER_DAY=2 el tercero no se crea y se di
   assert.deepEqual(await org.createEventWithAccount(repo, organizador, plantilla), { ok: false, reason: "quota", limit: 2 });
   assert.equal((await repo.listEventsByOrganizer(organizador.id)).length, 2);
   // Mañana puede de nuevo; y otra cuenta no está frenada por esta.
-  assert.equal((await org.createEventWithAccount(repo, organizador, plantilla, Date.now() + 25 * 3600_000)).ok, true);
+  assert.equal((await org.createEventWithAccount(repo, organizador, plantilla, { now: Date.now() + 25 * 3600_000 })).ok, true);
   const otra = await repo.upsertOrganizer({ publicKey: Keypair.random().publicKey(), provider: "pollar" });
   assert.equal((await org.createEventWithAccount(repo, otra, plantilla)).ok, true);
   // Sin la variable, el tope es tres; con una que no sirve, también.
@@ -267,4 +269,71 @@ test("entrar y salir desde otro sitio no tocan la sesión: un formulario ajeno c
   const salirPropio = await salir(ajeno("https://rum.bo/api/organizador/salir", { origin: "https://rum.bo", cookie: `${org.ORGANIZER_COOKIE}=${token}` }));
   assert.equal(salirPropio.status, 303);
   assert.equal(await repo.getOrganizerSession(org.sessionIdOf(token)), null);
+});
+
+test("el tope en una ráfaga: diez pedidos a la vez con tope 2 no pasan de dos, y el resto contesta ocupado o tope, nunca un error", async () => {
+  process.env.RUMBO_EVENTS_PER_DAY = "2";
+  const organizador = await repo.upsertOrganizer({ publicKey: Keypair.random().publicKey(), provider: "pollar" });
+  const rafaga = async () => Promise.all(Array.from({ length: 10 }, (_, i) => org.createEventWithAccount(repo, organizador, { ...plantilla, name: `Ráfaga ${i} de prueba` })));
+  const primera = await rafaga();
+  const creados = primera.filter((r) => r.ok).length;
+  assert.ok(creados >= 1 && creados <= 2, `crearon ${creados}`);
+  assert.ok(primera.every((r) => r.ok || r.reason === "busy" || r.reason === "quota"), JSON.stringify(primera.filter((r) => !r.ok)));
+  // Hasta llenar el tope, de a uno; después, otra ráfaga entera no crea nada.
+  while ((await repo.listEventsByOrganizer(organizador.id)).length < 2) assert.equal((await org.createEventWithAccount(repo, organizador, plantilla)).ok, true);
+  const segunda = await rafaga();
+  assert.equal(segunda.filter((r) => r.ok).length, 0);
+  assert.equal((await repo.listEventsByOrganizer(organizador.id)).length, 2, "en la base, exactamente el tope");
+  // El turno se suelta: la cuenta sigue frenada por el tope, no por el turno.
+  assert.deepEqual(await org.createQuota(repo, organizador, undefined).then((q) => [q.ok, q.reason, q.limit]), [false, "quota", 2]);
+});
+
+test("dos creaciones a la vez con el mismo nombre no chocan: cada una se lleva su propia dirección", async () => {
+  const cuentas = await Promise.all(Array.from({ length: 4 }, () => repo.upsertOrganizer({ publicKey: Keypair.random().publicKey(), provider: "pollar" })));
+  const mismo = { ...plantilla, name: "Mismo nombre a la vez" };
+  const resultados = await Promise.all(cuentas.map((cuenta) => org.createEventWithAccount(repo, cuenta, mismo)));
+  assert.ok(resultados.every((r) => r.ok), JSON.stringify(resultados));
+  const slugs = resultados.map((r) => r.event.slug);
+  assert.equal(new Set(slugs).size, 4, slugs.join(", "));
+  assert.ok(slugs.every((slug) => slug.startsWith("mismo-nombre-a-la-vez")), slugs.join(", "));
+  // Con la clave de la casa (sin cuenta) pasa lo mismo.
+  const { createEventFromTemplate } = await import("../src/server/kit/plantillas.ts");
+  const sinCuenta = await Promise.all(Array.from({ length: 3 }, () => createEventFromTemplate(repo, { ...plantilla, name: "Sin cuenta a la vez" })));
+  assert.equal(new Set(sinCuenta.map((e) => e.slug)).size, 3);
+});
+
+test("el tope por IP: las cuentas nuevas desde una misma conexión no pasan de RUMBO_EVENTS_PER_IP_PER_DAY eventos (diez)", async () => {
+  const resultados = [];
+  for (let i = 0; i < 4; i++) {
+    const cuenta = await repo.upsertOrganizer({ publicKey: Keypair.random().publicKey(), provider: "pollar" });
+    for (let j = 0; j < 3; j++) resultados.push(await org.createEventWithAccount(repo, cuenta, plantilla, { requester: "190.0.0.50" }));
+  }
+  assert.equal(resultados.filter((r) => r.ok).length, 10, "diez creados con cuatro cuentas de tres");
+  const frenados = resultados.filter((r) => !r.ok);
+  assert.equal(frenados.length, 2);
+  assert.ok(frenados.every((r) => r.reason === "ip" && r.waitMs > 20 * 3600_000), JSON.stringify(frenados));
+  // La pantalla lo sabe antes de mostrar el formulario; otra IP sigue.
+  const nueva = await repo.upsertOrganizer({ publicKey: Keypair.random().publicKey(), provider: "pollar" });
+  assert.equal((await org.createQuota(repo, nueva, "190.0.0.50")).reason, "ip");
+  assert.equal((await org.createQuota(repo, nueva, "190.0.0.51")).ok, true);
+  assert.equal((await org.createEventWithAccount(repo, nueva, plantilla, { requester: "190.0.0.51" })).ok, true);
+  // Un dato mal escrito no gasta nada del tope.
+  await assert.rejects(org.createEventWithAccount(repo, nueva, { ...plantilla, place: "" }, { requester: "190.0.0.52" }), { name: "TemplateInputError" });
+  assert.equal(await eventCreateAttempts().blockedFor("190.0.0.52"), 0);
+});
+
+test("la pantalla de crear sabe cuándo se libera el tope de la cuenta", async () => {
+  process.env.RUMBO_EVENTS_PER_DAY = "1";
+  const cuenta = await repo.upsertOrganizer({ publicKey: Keypair.random().publicKey(), provider: "pollar" });
+  assert.deepEqual(await org.createQuota(repo, cuenta, undefined), { ok: true, limit: 1, left: 1 });
+  const creado = await org.createEventWithAccount(repo, cuenta, plantilla);
+  const cuota = await org.createQuota(repo, cuenta, undefined, Date.parse(creado.event.createdAt) + 5 * 3600_000);
+  assert.deepEqual([cuota.ok, cuota.reason, cuota.limit, Math.round(cuota.freesInMs / 3600_000)], [false, "quota", 1, 19]);
+});
+
+test("entrar como organizador también tiene su freno por IP, aunque las pruebas salgan bien: cuentas nuevas en serie no", async () => {
+  for (let i = 0; i < 20; i++) assert.equal((await entrarCon(Keypair.random(), { ip: "190.0.0.60" })).status, 200, `entrada ${i + 1}`);
+  const frenada = await entrarCon(Keypair.random(), { ip: "190.0.0.60" });
+  assert.deepEqual([frenada.status, frenada.cuerpo, frenada.token], [429, { error: "too_many" }, null]);
+  assert.equal((await entrarCon(Keypair.random(), { ip: "190.0.0.61" })).status, 200, "otra IP sigue");
 });

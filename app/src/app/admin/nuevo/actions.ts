@@ -31,8 +31,9 @@ export async function crearBorrador(formData: FormData): Promise<void> {
   // Con la cuenta de organizador no hace falta la clave de la casa. Sin ella, la clave con el freno de los códigos
   // de puesto: con el freno puesto se dice eso y no "clave equivocada".
   const organizer = await organizerFromCookies();
+  const requester = clientKey(await headers());
   if (!organizer) {
-    const check = await checkCreateKey(field("clave"), clientKey(await headers()));
+    const check = await checkCreateKey(field("clave"), requester);
     if (check !== "ok") back(check === "blocked" ? "frenado" : "clave");
   }
 
@@ -60,8 +61,9 @@ export async function crearBorrador(formData: FormData): Promise<void> {
     };
     let event;
     if (organizer) {
-      const created = await createEventWithAccount(getRepo(), organizer, input);
-      if (!created.ok) return back("tope", { tope: String(created.limit) });
+      const created = await createEventWithAccount(getRepo(), organizer, input, { requester });
+      // Con el tope (de la cuenta o de la IP), la pantalla ya no muestra el formulario: dice cuándo se libera.
+      if (!created.ok) return back(created.reason === "busy" ? "ocupado" : "tope");
       event = created.event;
     } else {
       event = await createEventFromTemplate(getRepo(), input);

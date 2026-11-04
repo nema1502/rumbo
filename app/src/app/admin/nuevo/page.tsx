@@ -1,12 +1,19 @@
 // Armar un evento desde una plantilla, en dos pasos: elegir la plantilla (una sola acción: "Seguir") y contar lo
 // básico del evento (otra sola acción: "Crear el borrador"). Lo demás se edita en /admin/<evento>/armar.
-// Con la sesión de organizador (/admin) no hace falta la clave de la casa; sin ella, todo como siempre.
+// Con la sesión de organizador (/admin) no hace falta la clave de la casa, y con el tope de la cuenta (o de la IP)
+// alcanzado no hay formulario: se dice cuándo se libera. Sin sesión y con Pollar prendido, lo primero que se ofrece
+// es entrar como organizador; la clave de la casa queda como camino secundario. Con Pollar apagado, como siempre.
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Aviso, Boton, BotonEnlace, Campo, Chip, Pantalla, Tarjeta } from "@/components/ui.tsx";
+import type { T } from "@/i18n/index.ts";
 import { getLang, getT } from "@/i18n/server.ts";
+import { pollarEnabled } from "@/server/accounts.ts";
 import { createGate } from "@/server/kit/acceso.ts";
 import { TEMPLATES, TEMPLATE_IDS, isTemplateId, suggestedStart, templateStations } from "@/server/kit/plantillas.ts";
-import { organizerFromCookies } from "@/server/organizador.ts";
+import { clientKey } from "@/server/limites.ts";
+import { createQuota, organizerFromCookies, type CreateQuota } from "@/server/organizador.ts";
+import { getRepo } from "@/server/repo.ts";
 import { crearBorrador } from "./actions.ts";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +33,19 @@ const ERRORS: Record<string, string> = {
   capacity: "kit.datos.errorCupo",
   clave: "kit.datos.errorClave",
   frenado: "kit.datos.errorFrenado",
+  ocupado: "panel.cuenta.ocupado",
 };
+
+/** A dónde va "Entrar como organizador" desde acá: /admin, y después de entrar, de vuelta a crear. */
+const ENTRAR_Y_VOLVER = "/admin?volver=/admin/nuevo";
+
+/** El tope alcanzado, en palabras: cuántos (o desde esta conexión) y en cuánto se libera. */
+function topeTexto(t: T, quota: Extract<CreateQuota, { ok: false }>): string {
+  const cuantos = quota.reason === "ip" ? t("panel.cuenta.topeIp") : quota.limit === 1 ? t("panel.cuenta.topeUno") : t("panel.cuenta.tope", { n: quota.limit });
+  const horas = Math.ceil(quota.freesInMs / 3600_000);
+  const libera = horas <= 1 ? t("panel.cuenta.liberaUna") : t("panel.cuenta.libera", { horas });
+  return `${cuantos} ${libera}`;
+}
 
 export default async function NewEventPage({ searchParams }: { searchParams: Search }) {
   const query = await searchParams;
@@ -38,8 +57,27 @@ export default async function NewEventPage({ searchParams }: { searchParams: Sea
   const lang = await getLang();
   const gate = createGate();
   const organizer = await organizerFromCookies();
+  const conCuenta = pollarEnabled();
 
-  // Cerrado (producción sin RUMBO_CREATE_KEY) y sin cuenta de organizador: se dice quién tiene la clave y la salida es volver al inicio.
+  // Con el tope alcanzado no hay formulario que llenar: el aviso, cuándo se libera y la vuelta a Mis eventos.
+  if (organizer) {
+    const quota = await createQuota(getRepo(), organizer, clientKey(await headers()));
+    if (!quota.ok) {
+      return (
+        <Pantalla titulo={t("kit.nuevo.titulo")} accion={<BotonEnlace href="/admin">{t("panel.cuenta.volverMisEventos")}</BotonEnlace>}>
+          <Aviso tono="alerta">{topeTexto(t, quota)}</Aviso>
+        </Pantalla>
+      );
+    }
+  }
+
+  // Cerrado (producción sin RUMBO_CREATE_KEY) y sin cuenta de organizador. Con Pollar, la salida es entrar con la
+  // cuenta; sin Pollar, se dice quién tiene la clave y la salida es volver al inicio.
+  if (!gate.open && !organizer && conCuenta) {
+    return (
+      <Pantalla titulo={t("kit.nuevo.titulo")} bajada={t("panel.cuenta.nuevoEntrar")} accion={<BotonEnlace href={ENTRAR_Y_VOLVER}>{t("panel.cuenta.titulo")}</BotonEnlace>} />
+    );
+  }
   if (!gate.open && !organizer) {
     return (
       <Pantalla titulo={t("kit.nuevo.titulo")} accion={<BotonEnlace href="/">{t("noEncontrado.volver")}</BotonEnlace>}>
@@ -58,6 +96,7 @@ export default async function NewEventPage({ searchParams }: { searchParams: Sea
           <p className="bajada">{t("kit.nuevo.bajada")}</p>
         </header>
         <div className="pantalla-cuerpo">
+          {!organizer && conCuenta && <EntrarPrimero t={t} />}
           <fieldset className="plantillas">
             <legend className="oculto-visual">{t("kit.nuevo.elegir")}</legend>
             {TEMPLATE_IDS.map((id, index) => {
@@ -90,7 +129,7 @@ export default async function NewEventPage({ searchParams }: { searchParams: Sea
 
   const spec = TEMPLATES[chosen];
   const errorKey = ERRORS[one("error")];
-  const error = one("error") === "tope" ? t("panel.cuenta.tope", { n: one("tope") }) : errorKey ? t(errorKey) : null;
+  const error = errorKey ? t(errorKey) : null;
   const stations = templateStations(spec, lang);
   const kinds = Object.keys(spec.slots).filter((slot) => spec.slots[slot as keyof typeof spec.slots].included);
   return (
@@ -102,7 +141,6 @@ export default async function NewEventPage({ searchParams }: { searchParams: Sea
       <div className="pantalla-cuerpo">
         <input type="hidden" name="plantilla" value={chosen} />
         {error && <Aviso tono="alerta">{error}</Aviso>}
-        {organizer && <Aviso tono="listo">{t("panel.cuenta.nuevoSinClave")}</Aviso>}
         <div className="kit-form">
           <Campo id="nombre" name="nombre" etiqueta={t("kit.datos.nombre")} defaultValue={one("nombre") || t(spec.nameKey)} maxLength={80} autoComplete="off" />
           <Campo id="cuando" name="cuando" type="datetime-local" etiqueta={t("kit.datos.cuando")} defaultValue={one("cuando") || suggestedStart()} required />
@@ -122,6 +160,7 @@ export default async function NewEventPage({ searchParams }: { searchParams: Sea
             ayuda={t("kit.datos.cupoAyuda")}
             defaultValue={one("cupo") || String(spec.capacity)}
           />
+          {gate.needsKey && !organizer && conCuenta && <EntrarPrimero t={t} />}
           {gate.needsKey && !organizer && <Campo id="clave" name="clave" type="password" etiqueta={t("kit.datos.clave")} ayuda={t("kit.datos.claveAyuda")} autoComplete="off" required />}
         </div>
         <Tarjeta className="kit-resumen">
@@ -141,11 +180,24 @@ export default async function NewEventPage({ searchParams }: { searchParams: Sea
           {t("kit.datos.crear")}
         </Boton>
         <p className="nota">
+          {organizer && <>{t("panel.cuenta.nuevoNota")} </>}
           <a className="enlace" href="/admin/nuevo">
             {t("kit.datos.cambiar")}
           </a>
         </p>
       </div>
     </form>
+  );
+}
+
+/** Sin sesión y con Pollar: entrar como organizador va primero, y la clave de la casa queda para quien la tiene. */
+function EntrarPrimero({ t }: { t: T }) {
+  return (
+    <div className="kit-entrar-primero">
+      <p>{t("panel.cuenta.nuevoEntrar")}</p>
+      <BotonEnlace href={ENTRAR_Y_VOLVER} variante="secundario">
+        {t("panel.cuenta.titulo")}
+      </BotonEnlace>
+    </div>
   );
 }
