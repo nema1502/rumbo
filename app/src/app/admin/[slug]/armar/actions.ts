@@ -36,5 +36,6 @@ export async function guardarBorrador(formData: FormData): Promise<void> {
   const result = await publishEvent(repo, (await repo.getEventById(event.id)) ?? event);
   if (result.ok) redirect(`${base}?publicado=1`);
   if (result.reason === "deploy_failed") console.error(`[armar] No se pudo publicar ${slug}: ${result.detail ?? ""}`);
-  redirect(`${base}/armar?error=${result.reason === "no_capacity" ? "cupo" : "publicar"}`);
+  // "busy": otra pestaña (o el mismo botón dos veces) ya está publicando este evento.
+  redirect(`${base}/armar?error=${result.reason === "no_capacity" ? "cupo" : result.reason === "busy" ? "publicando" : "publicar"}`);
 }

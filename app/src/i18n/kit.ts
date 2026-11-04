@@ -125,6 +125,7 @@ export const kit = {
     "kit.armar.errorStock": "Cuántos hay tiene que ser un número entero, o quedar vacío.",
     "kit.armar.errorCupo": "Poné un número de lugares entre 1 y 1000 antes de publicar.",
     "kit.armar.errorPublicar": "No pudimos preparar las entradas. Probá de nuevo en un momento.",
+    "kit.armar.errorPublicando": "Este evento ya se está publicando desde otra pestaña. Esperá un momento y volvé a entrar al panel.",
     "kit.armar.errorGeneral": "No pudimos guardar los cambios. Probá de nuevo.",
     "kit.armar.yaPublicado": "Este evento ya está publicado.",
 
@@ -371,6 +372,7 @@ export const kit = {
     "kit.armar.errorStock": "How many there are must be a whole number, or empty.",
     "kit.armar.errorCupo": "Enter a number of spots between 1 and 1000 before publishing.",
     "kit.armar.errorPublicar": "We could not set up the tickets. Try again in a moment.",
+    "kit.armar.errorPublicando": "This event is already being published from another tab. Wait a moment and open the panel again.",
     "kit.armar.errorGeneral": "We could not save the changes. Try again.",
     "kit.armar.yaPublicado": "This event is already published.",
 

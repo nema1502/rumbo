@@ -30,6 +30,7 @@ const ERRORS: Record<string, string> = {
   stock: "kit.armar.errorStock",
   cupo: "kit.armar.errorCupo",
   publicar: "kit.armar.errorPublicar",
+  publicando: "kit.armar.errorPublicando",
   general: "kit.armar.errorGeneral",
 };
 
