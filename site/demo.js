@@ -142,7 +142,9 @@ const pend = () => t(e.pend === 1 ? "pend1" : "pendN", { n: e.pend });
 const ganado = () => !!e.sorteo;
 
 // El esqueleto fijo: así el aparato anima su ancho y conserva el scroll.
-escenario.innerHTML = '<div class="pb-roles" role="group"></div><div class="pb-tel"><div class="pb-pantalla"><div class="pb-barra" aria-hidden="true"></div><div class="pb-contenido"></div><div class="pb-capa"></div></div></div><p class="pb-anuncio" role="status" aria-live="polite"></p>';
+// El aparato va adentro de .pb-aparato, que es lo que se achica cuando la ventana es baja (demo.css): el teléfono
+// adentro sigue midiendo lo mismo y se escala entero, así ninguna pantalla lo corta.
+escenario.innerHTML = '<div class="pb-roles" role="group"></div><div class="pb-aparato"><div class="pb-tel"><div class="pb-pantalla"><div class="pb-barra" aria-hidden="true"></div><div class="pb-contenido"></div><div class="pb-capa"></div></div></div></div><p class="pb-anuncio" role="status" aria-live="polite"></p>';
 guia.innerHTML = `<p class="pb-guia-paso"></p><p class="pb-guia-texto" aria-live="polite"></p><p class="pb-guia-sub"></p><ol class="pb-progreso" aria-hidden="true"></ol><button class="boton boton-secundario" type="button" data-a="reiniciar" data-f="reiniciar">${ic('<path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5"/><path d="M3.5 3.5v5h5"/>')}<span></span></button>`;
 const $ = (s) => escenario.querySelector(s);
 const roles = $(".pb-roles"), tel = $(".pb-tel"), barra = $(".pb-barra");

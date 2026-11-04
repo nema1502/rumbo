@@ -9,10 +9,44 @@
 .pb-real [hidden] { display: none; }
 .pb { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 28px; }
 .pb > .encabezado { margin-bottom: 0; }
-.pb-escenario { order: 1; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: start; gap: 16px; min-height: 710px; }
+/* El escenario reserva su alto antes de que demo.js lo arme, para que la página no salte: las pestañas, el
+   aire y el aparato ya achicado si la ventana es baja. Lo que sobre (la tableta queda más baja que el teléfono
+   cuando la columna la achica) va abajo: las pestañas no se mueven bajo el dedo al cambiar de rol. */
+.pb-escenario { --pb-k-alto: 1; --pb-arriba: 210px; --pb-aire: 12px; order: 1; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: start; gap: var(--pb-aire); min-height: calc(54px + var(--pb-aire) + 640px * var(--pb-k-alto)); }
+/* En escritorio, el encabezado y la guía quedan centrados a la altura del aparato: las dos filas se reparten
+   por igual lo que sobra, y cada uno se pega al borde que comparten. */
 @media (min-width: 1001px) {
-  .pb { grid-template-columns: minmax(0, 1fr) minmax(0, 48%); grid-template-rows: auto 1fr; column-gap: 56px; }
-  .pb-escenario { grid-column: 2; grid-row: 1 / 3; }
+  .pb { grid-template-columns: minmax(0, 1fr) minmax(0, 48%); grid-template-rows: auto auto; column-gap: 56px; }
+  .pb > .encabezado { align-self: end; }
+  .pb-guia { align-self: start; }
+  /* Si la columna de texto es más alta que el aparato (ventanas angostas y bajas), el aparato se queda arriba,
+     donde se lo ve entero; si no, las dos filas lo abrazan y el texto queda centrado a su altura. */
+  .pb-escenario { grid-column: 2; grid-row: 1 / 3; align-self: start; }
+}
+
+/* El aparato entra entero en la pantalla. Cuando la ventana es baja (una laptop de 768 px), se achica hasta un
+   40 % como mucho; cuando la columna es angosta, lo que haga falta. tan(atan2(a, b)) divide dos largos y deja
+   un número, que calc() no sabe hacer solo. El teléfono adentro mide siempre lo mismo y se escala entero.
+   --pb-arriba es lo que hay sobre el aparato con la sección al tope: cabecera, relleno, pestañas y aire. */
+.pb-aparato { --pb-ancho: 370px; --pb-alto: 640px; --pb-k: 1; position: relative; width: var(--pb-ancho); max-width: 100%; height: var(--pb-alto); }
+.pb-aparato:has(> .pb-ancho) { --pb-ancho: 600px; }
+@media (min-width: 561px) {
+  .pb-escenario { --pb-k-alto: clamp(.6, tan(atan2(100dvh - var(--pb-arriba), 640px)), 1); container-type: inline-size; }
+  .pb-aparato {
+    --pb-k: min(var(--pb-k-alto), tan(atan2(100cqw, var(--pb-ancho))), 1);
+    width: calc(var(--pb-ancho) * var(--pb-k)); max-width: none; height: calc(var(--pb-alto) * var(--pb-k));
+  }
+  .pb-aparato > .pb-tel { width: var(--pb-ancho); max-width: none; height: var(--pb-alto); transform: scale(var(--pb-k)); transform-origin: 0 0; }
+}
+/* En una laptop de 768 px, Chrome y la barra de tareas dejan unos 600 a 635 px de ventana: menos relleno y
+   menos aire sobre el aparato, y la cuenta de arriba lo sabe. */
+@media (min-width: 1001px) and (max-height: 700px) {
+  #probar { padding-top: 28px; }
+  .pb-escenario { --pb-arriba: 180px; --pb-aire: 8px; }
+}
+/* Con la columna de texto angosta, la bajada en una línea menos para que la guía no caiga bajo el pliegue */
+@media (min-width: 1001px) and (max-width: 1200px) {
+  .pb > .encabezado p { font-size: 1rem; }
 }
 
 /* Lo que se repite */
@@ -29,7 +63,7 @@
 .pb-sug { box-shadow: 0 0 0 4px #e8541e66; }
 
 /* La guía */
-.pb-guia { order: 2; align-self: start; display: grid; gap: 10px; min-height: 268px; padding: 24px; border-radius: var(--radio); }
+.pb-guia { order: 2; align-self: start; display: grid; gap: 10px; min-height: 285px; padding: 24px; border-radius: var(--radio); }
 .pb-guia-paso { color: var(--acento-texto); font-size: .9rem; font-weight: 600; }
 .pb-guia-texto { min-height: 2.3em; font: 800 1.55rem/1.15 var(--display); letter-spacing: -.02em; text-wrap: balance; }
 .pb-guia-sub { min-height: 3.1em; color: var(--tinta-2); }
@@ -128,7 +162,8 @@
 [aria-checked="true"] > .pb-perilla { background: var(--acento); }
 [aria-checked="true"] > .pb-perilla::after { translate: 18px; }
 .pb-pend { background: var(--acento-suave); color: var(--acento-chip); }
-.pb-toast { position: absolute; inset: 46px 16px auto; padding: 12px 14px; border-radius: 14px; background: var(--tinta); color: var(--papel); font-weight: 600; }
+/* Abajo, donde el escáner tiene aire debajo del interruptor: arriba tapaba el título y pisaba los puestos */
+.pb-toast { position: absolute; inset: auto 16px 18px; padding: 12px 14px; border-radius: 14px; background: var(--tinta); color: var(--papel); font-weight: 600; }
 
 /* El veredicto, a pantalla entera */
 .pb-ver { position: absolute; inset: 40px 0 0; display: grid; place-content: center; justify-items: center; gap: 4px; padding: 20px; background: var(--papel); color: var(--tinta-2); text-align: center; }
@@ -145,7 +180,7 @@
 
 /* El panel: en la tableta, dos columnas */
 .pb-panel, .pb-izq, .pb-der { display: grid; gap: 12px; align-content: start; }
-@container (min-width: 460px) { .pb-panel { grid-template-columns: 1fr 1fr; gap: 22px; padding-top: 12px; } }
+@container (min-width: 560px) { .pb-panel { grid-template-columns: 1fr 1fr; gap: 22px; padding-top: 12px; } }
 .pb-cab { align-items: flex-start; }
 .pb-vivo { background: var(--verde-suave); color: var(--verde-chip); }
 .pb-cifras { display: grid; gap: 12px; margin: 4px 0 0; padding: 0; list-style: none; }
@@ -160,13 +195,18 @@
 
 /* El celular */
 @media (max-width: 560px) {
-  .pb-escenario { min-height: 630px; }
+  .pb-escenario { gap: 16px; min-height: 630px; }
+  .pb-aparato { width: 100%; height: auto; }
   .pb-tel, .pb-tel.pb-ancho { width: 100%; height: 560px; border-radius: 46px; }
-  .pb-roles { width: 100%; grid-auto-columns: minmax(0, 1fr); }
+  /* 1fr es minmax(auto, 1fr): la pestaña cuyo texto no entra ("Quien organiza" a 360 px) toma su ancho mínimo */
+  .pb-roles { width: 100%; grid-auto-columns: 1fr; }
   .pb-rol { padding: 0 6px; font-size: .86rem; }
   .pb-guia { min-height: 0; padding: 20px; }
   .pb-guia-texto { min-height: 3.45em; font-size: 1.35rem; }
   .pb-guia-sub { min-height: 4.65em; }
+}
+@media (max-width: 340px) {
+  .pb-rol { padding: 0 4px; font-size: .82rem; }
 }
 
 /* Movimiento */
@@ -178,7 +218,8 @@
 @keyframes pb-raya { to { top: 82%; } }
 @keyframes pb-latido { from { box-shadow: 0 0 0 0 #e8541e8c; } 70%, to { box-shadow: 0 0 0 12px #e8541e00; } }
 @media (prefers-reduced-motion: no-preference) {
-  .pb-tel { transition: width .45s var(--suave), border-radius .45s; }
+  .pb-tel { transition: width .45s var(--suave), border-radius .45s, transform .45s var(--suave); }
+  .pb-aparato { transition: width .45s var(--suave), height .45s var(--suave); }
   .pb-sug { animation: pb-latido 1.8s ease-out infinite; }
   .pb-entra { animation: pb-subir .45s var(--suave) backwards; }
   .pb-pop, .pb-ver.pb-entra .pb-ver-ic { animation: pb-pop .55s cubic-bezier(.3, 1.5, .5, 1) backwards; }

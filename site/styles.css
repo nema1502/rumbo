@@ -98,6 +98,12 @@ p { margin: 0; }
 .marca { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; text-decoration: none; font-family: var(--display); font-weight: 800; font-size: 1.35rem; letter-spacing: -0.02em; }
 .marca svg { width: 32px; height: 32px; }
 .nav { display: flex; gap: 4px; margin-left: 8px; order: 2; }
+/* Entre 1001 y 1140 px los seis enlaces no entraban en una fila y la cabecera crecía a dos (105 px) */
+@media (min-width: 1001px) and (max-width: 1140px) {
+  .cabecera .contenedor { gap: 10px; }
+  .nav { margin-left: 0; }
+  .nav a { padding-inline: 8px; font-size: 0.9rem; }
+}
 .nav a { text-decoration: none; color: var(--tinta-2); padding: 10px 12px; border-radius: 999px; font-weight: 500; font-size: 0.95rem; white-space: nowrap; }
 .nav a:hover { background: var(--acento-suave); color: var(--tinta); }
 @media (hover: hover) {
