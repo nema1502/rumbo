@@ -246,8 +246,8 @@ export function createRumboMcpServer(options: RumboMcpOptions = {}): McpServer {
     {
       title: "Verifiable list for the draw",
       description:
-        "The list of everyone who checked in, in the shape of a verifiable draw: only credential codes, sorted, with the SHA-256 of the list. Publish the hash before drawing; anyone can recompute it afterwards. The same list the live screen shows. This tool does not draw. Needs the event's organizer key.",
-      inputSchema: { event: eventSlug, organizer_key: organizerKey },
+        "The list for the draw, in a verifiable shape: only credential codes, sorted, with the SHA-256 of the list. If the organizer froze the list from the live screen, this is that frozen list (the one being drawn); otherwise the live list right now, of attendee credentials that checked in (all: true includes speakers, staff and sponsors). The same list the live screen shows. Publish the hash before drawing; anyone can recompute it afterwards. This tool does not draw. Needs the event's organizer key.",
+      inputSchema: { event: eventSlug, organizer_key: organizerKey, all: z.boolean().optional().describe("Include every credential that checked in, not only attendees (ignored when a frozen list exists)") },
       annotations: readOnly,
     },
     (args) => safely("draw_list", () => drawList(ctx, args)),
