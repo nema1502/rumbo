@@ -14,7 +14,9 @@
 import { randomUUID } from "node:crypto";
 import { translate, type Lang } from "../i18n/index.ts";
 import type { ConsentState, ScanStandVisit } from "../lib/escaner-api.ts";
+import { isLocalLogoPath, localLogoOrNull } from "../lib/logo.ts";
 import { getDb, type Row, type SqlValue } from "./base/index.ts";
+import { isFoodBenefit } from "./kit/plantillas.ts";
 import { clientKey, stationCodeAttempts } from "./limites.ts";
 import { csvCell, ensureStationCodes, resolveStationCode, type StationAccess, type StationStand } from "./panel.ts";
 import { ClientIdTaken, getRepo, type EventRecord, type Repo } from "./repo.ts";
@@ -23,7 +25,8 @@ import { ClientIdTaken, getRepo, type EventRecord, type Repo } from "./repo.ts";
 
 const all = (sql: string, ...params: SqlValue[]): Promise<Row[]> => getDb().all(sql, params);
 const one = (sql: string, ...params: SqlValue[]): Promise<Row | null> => getDb().one(sql, params);
-const run = async (sql: string, ...params: SqlValue[]): Promise<void> => void (await getDb().run(sql, params));
+/** Una sentencia que escribe: devuelve cuántas filas cambió. */
+const run = (sql: string, ...params: SqlValue[]): Promise<number> => getDb().run(sql, params);
 const str = (v: unknown): string => String(v);
 const strOrNull = (v: unknown): string | null => (v === null || v === undefined ? null : String(v));
 const num = (v: unknown): number => Number(v);
@@ -59,8 +62,15 @@ export class StandsError extends Error {
 
 // ---------- Limpiar lo que escribe la gente ----------
 
-/** Controles, separadores raros y marcas de dirección que cambian cómo se lee un texto en pantalla. */
-const INVISIBLE = new RegExp("[\\u0000-\\u001f\\u007f-\\u009f\\u200b-\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069\\ufeff]", "g");
+/**
+ * Lo que no se ve y cambia cómo se lee un texto en pantalla, o lo deja en blanco: controles, separadores raros,
+ * marcas de dirección, el guion blando, los rellenos (hangul, braille en blanco), los selectores de variante y
+ * las etiquetas (U+E0000 a U+E007F). Todo eso se vuelve un espacio.
+ */
+const INVISIBLE = new RegExp(
+  "[\u0000-\u001f\u007f-\u009f\u00ad\u034f\u061c\u115f\u1160\u180e\u200b-\u200f\u2028\u2029\u202a-\u202e\u2060-\u2064\u2066-\u2069\u2800\u3164\ufe00-\ufe0f\ufeff\uffa0\u{e0000}-\u{e007f}]",
+  "gu",
+);
 
 /** Una línea de texto limpia: sin controles, con los espacios juntos, de a lo sumo `max` letras. */
 export function cleanLine(input: unknown, max: number): string {
@@ -73,31 +83,49 @@ export const STAND_NAME_MAX = 60;
 export const ALIAS_MAX = 20;
 export const NOTE_MAX = 500;
 
-/** El nombre de pila: la primera palabra del nombre. */
-export function firstName(name: string): string {
-  return cleanLine(name.trim().split(/\s+/)[0] ?? "", ALIAS_MAX);
+/** Lo que no puede ser un nombre de pila en la pantalla: una arroba, una barra o un punto (un correo, un enlace) o dos dígitos seguidos (un teléfono). */
+const NOT_A_NAME = /[@/.]|\d{2}/;
+
+/**
+ * El nombre de pila: la primera palabra del nombre, o lo que sigue a la coma en "Apellido, Nombre". Null si lo
+ * que queda no parece un nombre (un correo, un teléfono, un enlace): la pantalla lo muestra como anónimo antes
+ * que proyectar un dato de contacto a toda la sala.
+ */
+export function firstName(name: string): string | null {
+  const clean = cleanLine(name, 120);
+  const comma = clean.indexOf(",");
+  const given = comma > 0 ? clean.slice(comma + 1).trim() : clean;
+  const first = [...(given.split(" ")[0] ?? "")].slice(0, ALIAS_MAX).join("");
+  return first && !NOT_A_NAME.test(first) ? first : null;
 }
 
 /** Lo que se muestra en la pantalla del evento: el alias si lo hay, si no el nombre de pila; null si la persona pidió no aparecer. */
 export function publicLabel(name: string, display: { alias: string | null; hidden: boolean } | null): string | null {
   if (display?.hidden) return null;
-  return display?.alias || firstName(name) || null;
+  return display?.alias || firstName(name);
 }
 
-/** El alias que escribió la persona. Vacío es "ninguno"; un correo no vale: la pantalla se ve desde toda la sala. */
+/** Lo que un alias no puede llevar: una arroba, un enlace (con "://", "www." o un dominio seguido de barra) o seis dígitos seguidos (un teléfono). */
+const NOT_AN_ALIAS = /@|:\/\/|www\.|\d{6}|[^\s.]\.[a-z]{2,}(?:\/|$)/i;
+
+/**
+ * El alias que escribió la persona. Vacío es "ninguno"; un correo, un enlace o un teléfono no valen: la pantalla
+ * se ve desde toda la sala. Se normaliza a NFKC antes de mirar, así una arroba de ancho completo es una arroba.
+ */
 export function cleanAlias(input: unknown): string | null {
   if (input === null || input === undefined) return null;
-  const alias = cleanLine(input, ALIAS_MAX);
-  if (alias.includes("@")) throw new StandsError("invalid_alias");
+  if (typeof input !== "string") throw new StandsError("invalid_alias");
+  const alias = cleanLine(input.normalize("NFKC"), ALIAS_MAX);
+  if (NOT_AN_ALIAS.test(alias)) throw new StandsError("invalid_alias");
   return alias || null;
 }
 
-const LOGO_RE = /^(https:\/\/[^\s"'<>]{4,280}|\/[A-Za-z0-9._~\-/]{1,200})$/;
-
+/** El logo: solo una ruta propia de la app (src/lib/logo.ts). Un enlace a otro servidor no vale: vería la IP de cada persona que abre su credencial. */
 function cleanLogo(input: unknown): string | null {
   if (input === null || input === undefined || input === "") return null;
-  if (typeof input !== "string" || !LOGO_RE.test(input.trim())) throw new StandsError("invalid_logo");
-  return input.trim();
+  const value = typeof input === "string" ? input.trim() : input;
+  if (!isLocalLogoPath(value)) throw new StandsError("invalid_logo");
+  return value;
 }
 
 // ---------- Los stands ----------
@@ -117,7 +145,8 @@ const rowToStand = (r: Row): Stand => ({
   id: str(r.id),
   eventId: str(r.event_id),
   name: str(r.name),
-  logoUrl: strOrNull(r.logo_url),
+  // Un logo de otro servidor guardado antes de la regla de rutas propias no se muestra.
+  logoUrl: localLogoOrNull(strOrNull(r.logo_url)),
   benefitId: strOrNull(r.benefit_id),
   sortOrder: num(r.sort_order),
   createdAt: str(r.created_at),
@@ -176,6 +205,20 @@ export async function updateStand(
 export async function deleteStand(standId: string): Promise<void> {
   if (!(await getStand(standId))) throw new StandsError("not_found");
   await run("DELETE FROM stands WHERE id = ?", standId);
+}
+
+/**
+ * Un código de puesto nuevo para el stand (si el de antes se filtró, o cambió quien atiende). El viejo deja de
+ * abrir el escáner y el panel en el acto: un escáner que lo tenga abierto ve "este puesto ya no se puede
+ * sincronizar". Devuelve el código nuevo.
+ */
+export async function regenerateStandCode(event: EventRecord, standId: string, repo: Repo = getRepo()): Promise<string> {
+  const stand = await getStand(standId);
+  if (!stand || stand.eventId !== event.id) throw new StandsError("not_found");
+  await run("DELETE FROM station_codes WHERE kind = 'stand' AND stand_id = ?", standId);
+  const code = (await ensureStationCodes(event, repo)).find((c) => c.kind === "stand" && c.standId === standId)?.code;
+  if (!code) throw new StandsError("not_found");
+  return code;
 }
 
 // ---------- La meta de la ruta ----------
@@ -436,8 +479,19 @@ export async function answerConsent(passId: string, standId: string, answer: unk
   if (answer !== "granted" && answer !== "declined") throw new StandsError("invalid_answer");
   const row = await one("SELECT * FROM stand_visits WHERE pass_id = ? AND stand_id = ?", passId, standId);
   if (!row) throw new StandsError("no_visit");
-  if (answer === "granted") await run("UPDATE stand_visits SET consent = 'granted', consent_at = ? WHERE id = ?", now(), str(row.id));
-  else await run("UPDATE stand_visits SET consent = 'declined', consent_at = ?, rating = NULL, note = NULL WHERE id = ?", now(), str(row.id));
+  if (answer === "granted") {
+    // Volver a decir que sí después de un "no" arranca limpio: la calificación y la nota se borraron con el "no" y
+    // no vuelven, ni siquiera una que se haya colado justo entre retirar el permiso y borrar. Si ya era "sí", quedan.
+    await run(
+      `UPDATE stand_visits SET consent = 'granted', consent_at = ?,
+         rating = CASE WHEN consent = 'granted' THEN rating END, note = CASE WHEN consent = 'granted' THEN note END
+       WHERE id = ?`,
+      now(),
+      str(row.id),
+    );
+  } else {
+    await run("UPDATE stand_visits SET consent = 'declined', consent_at = ?, rating = NULL, note = NULL WHERE id = ?", now(), str(row.id));
+  }
   return rowToVisit((await one("SELECT * FROM stand_visits WHERE id = ?", str(row.id))) as Row);
 }
 
@@ -453,6 +507,21 @@ export async function setDisplay(passId: string, input: { alias?: unknown; hidde
     hidden,
   );
   return { alias, hidden };
+}
+
+/**
+ * Quien organiza saca a una persona de la pantalla del evento (un alias que no va para proyectar): queda oculta y
+ * el alias se borra. La persona puede volver a elegir cómo aparecer desde su credencial, y lo nuevo pasa por el
+ * mismo filtro y la misma mirada. Solo un pase de este evento.
+ */
+export async function hideFromScreen(event: EventRecord, passId: string, repo: Repo = getRepo()): Promise<void> {
+  const pass = await repo.getPass(passId);
+  if (!pass || pass.eventId !== event.id) throw new StandsError("not_found");
+  await run(
+    `INSERT INTO route_display (pass_id, alias, hidden) VALUES (?, NULL, TRUE)
+     ON CONFLICT (pass_id) DO UPDATE SET alias = NULL, hidden = TRUE`,
+    pass.id,
+  );
 }
 
 // ---------- El escáner del stand ----------
@@ -554,7 +623,8 @@ export async function getStandPanel(standId: string, repo: Repo = getRepo()): Pr
 
 /**
  * La calificación (1 a 5) y la nota que escribe quien atiende el stand. Solo se puede sobre quien aceptó
- * compartir su contacto: sin permiso no hay nada que anotar.
+ * compartir su contacto: sin permiso no hay nada que anotar. La escritura misma exige que el permiso siga dado:
+ * si la persona lo retiró entre que se leyó la fila y se guardó la nota, no se guarda nada.
  */
 export async function saveContactNote(standId: string, passId: string, input: { rating?: unknown; note?: unknown }): Promise<StandContact["rating"]> {
   const row = await one("SELECT * FROM stand_visits WHERE stand_id = ? AND pass_id = ?", standId, passId);
@@ -571,7 +641,8 @@ export async function saveContactNote(standId: string, passId: string, input: { 
     if (typeof input.note !== "string") throw new StandsError("invalid_note");
     note = cleanLine(input.note, NOTE_MAX);
   }
-  await run("UPDATE stand_visits SET rating = ?, note = ? WHERE id = ?", rating, note || null, str(row.id));
+  const changed = await run("UPDATE stand_visits SET rating = ?, note = ? WHERE id = ? AND consent = 'granted'", rating, note || null, str(row.id));
+  if (changed !== 1) throw new StandsError("no_consent");
   return rating;
 }
 
@@ -711,18 +782,30 @@ export interface AdminStandRow extends Stand {
   report: StandReport;
 }
 
+/** Una fila de lo que hoy se proyecta, para quien organiza: con el pase, para poder sacarla de la pantalla. */
+export interface AdminScreenRow {
+  rank: number;
+  passId: string;
+  /** Lo que la sala ve: el alias o el nombre de pila; null si está oculta (se proyecta como anónima). */
+  label: string | null;
+  visited: number;
+  hidden: boolean;
+}
+
 export interface AdminStandsState {
   generatedAt: string;
   event: { slug: string; name: string };
   /** La meta que fijó quien organiza (la guardada, aunque hoy haya menos stands) y el nombre del premio. */
   goal: { target: number; prizeName: string | null } | null;
   stands: AdminStandRow[];
-  /** Lo que se puede regalar desde un stand: la merch y lo demás, sin el almuerzo ni los premios. */
+  /** Lo que se puede regalar desde un stand: la merch y lo demás que no sea comida (la dieta no viaja a un stand) ni premio. */
   benefits: Array<{ id: string; name: string }>;
   route: StandsReport["route"];
+  /** Quiénes están hoy en el ranking de la pantalla en vivo, con su pase, para sacar de la pantalla un alias que no va. */
+  screen: AdminScreenRow[];
 }
 
-/** Todo lo que necesita la pantalla "Stands y ruta": cada stand con su código y sus números, la meta y el resumen de la ruta. */
+/** Todo lo que necesita la pantalla "Stands y ruta": cada stand con su código y sus números, la meta, el resumen de la ruta y lo que se proyecta. */
 export async function getAdminStands(event: EventRecord, repo: Repo = getRepo()): Promise<AdminStandsState> {
   const codes = await ensureStationCodes(event, repo);
   const report = await getEventStandsReport(event, repo);
@@ -737,12 +820,18 @@ export async function getAdminStands(event: EventRecord, repo: Repo = getRepo())
       code: codes.find((c) => c.kind === "stand" && c.standId === stand.id)?.code ?? null,
       report: report.stands.find((r) => r.standId === stand.id) as StandReport,
     })),
-    benefits: (await repo.listBenefits(event.id)).filter((b) => b.kind === "merch" || b.kind === "other").map((b) => ({ id: b.id, name: b.name })),
+    benefits: (await repo.listBenefits(event.id))
+      .filter((b) => b.kind !== "prize" && !isFoodBenefit(b))
+      .map((b) => ({ id: b.id, name: b.name })),
     route: report.route,
+    screen: (await screenRows(event.id, LIVE_RANKING_SIZE)).map((r, i) => ({ rank: i + 1, passId: r.passId, label: r.label, visited: r.visited, hidden: r.hidden })),
   };
 }
 
 // ---------- El ranking de la ruta ----------
+
+/** Cuántas filas del ranking muestra la pantalla en vivo (y ve quien organiza para moderarlas). */
+export const LIVE_RANKING_SIZE = 8;
 
 export interface RankingRow {
   /** 1 para quien lleva más stands; a igualdad, gana quien llegó antes. */
@@ -753,9 +842,15 @@ export interface RankingRow {
   completed: boolean;
 }
 
-/** Los primeros de la ruta, para la pantalla del evento. */
-export async function routeRanking(eventId: string, limit = 10): Promise<RankingRow[]> {
-  const target = effectiveTarget(await getRouteGoal(eventId), (await listStands(eventId)).length);
+interface ScreenRow {
+  passId: string;
+  label: string | null;
+  visited: number;
+  hidden: boolean;
+}
+
+/** Las primeras personas de la ruta con lo que la pantalla muestra de cada una. El pase se queda del lado de quien organiza. */
+async function screenRows(eventId: string, limit: number): Promise<ScreenRow[]> {
   // Lo que no se cuenta va también en GROUP BY: Postgres lo pide, y en SQLite no cambia nada (es uno por pase).
   const rows = await all(
     `SELECT v.pass_id, COUNT(*) AS n, MAX(v.scanned_at) AS last_at, per.name, d.alias, d.hidden
@@ -766,10 +861,14 @@ export async function routeRanking(eventId: string, limit = 10): Promise<Ranking
     eventId,
     limit,
   );
-  return rows.map((r, i) => ({
-    rank: i + 1,
-    label: publicLabel(str(r.name), r.alias === null && r.hidden === null ? null : { alias: strOrNull(r.alias), hidden: bool(r.hidden) }),
-    visited: num(r.n),
-    completed: target !== null && num(r.n) >= target,
-  }));
+  return rows.map((r) => {
+    const display = r.alias === null && r.hidden === null ? null : { alias: strOrNull(r.alias), hidden: bool(r.hidden) };
+    return { passId: str(r.pass_id), label: publicLabel(str(r.name), display), visited: num(r.n), hidden: display?.hidden ?? false };
+  });
+}
+
+/** Los primeros de la ruta, para la pantalla del evento: sin el pase, solo lo que se proyecta. */
+export async function routeRanking(eventId: string, limit = LIVE_RANKING_SIZE): Promise<RankingRow[]> {
+  const target = effectiveTarget(await getRouteGoal(eventId), (await listStands(eventId)).length);
+  return (await screenRows(eventId, limit)).map((r, i) => ({ rank: i + 1, label: r.label, visited: r.visited, completed: target !== null && r.visited >= target }));
 }

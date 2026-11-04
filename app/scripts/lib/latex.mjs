@@ -73,6 +73,13 @@ export class TexData {
     if (on) this.raw(key, "1");
     return this;
   }
+  /** Una línea de preámbulo tal cual (datos.tex se lee antes de \begin{document}): por ejemplo, declarar una fuente. */
+  preamble(line) {
+    const body = String(line);
+    if (/\r|\n/.test(body)) throw new Error("Una línea de preámbulo no puede tener saltos de línea");
+    this.lines.push(body);
+    return this;
+  }
   url(key, value) {
     if (!/^[a-z0-9.]+$/i.test(key)) throw new Error(`Clave inválida para datos.tex: ${key}`);
     this.lines.push(`\\rumbourl{${key}}|${safeUrl(value)}|`);
@@ -128,7 +135,8 @@ export async function compileTemplate({ template, data, output, runs = 2, extraF
     const base = template.replace(/\.tex$/, "");
     let last = { code: 0, out: "" };
     for (let i = 0; i < runs; i++) {
-      last = await run(xelatexCommand(), ["-interaction=nonstopmode", "-halt-on-error", "-file-line-error", template], work);
+      // Sin shell: lo que va en datos.tex sale de la base (nombres que escribió la gente); aunque el escape lo deja como texto, XeLaTeX no corre ningún comando.
+      last = await run(xelatexCommand(), ["-no-shell-escape", "-interaction=nonstopmode", "-halt-on-error", "-file-line-error", template], work);
       if (last.code !== 0) break;
     }
     const logFile = join(work, `${base}.log`);

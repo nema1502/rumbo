@@ -205,7 +205,7 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
       const enviar = async (code: string, lote: QueueEntry[], conFoto: boolean): Promise<"ok" | "cerrado"> => {
         const { status, data } = await postJson<SyncResponse>(
           "/api/scan/sync",
-          { code, snapshot: conFoto, items: lote.map(({ clientId, action, passId, benefitId, scannedAt, scannerId }) => ({ clientId, action, passId, benefitId, scannedAt, scannerId })) },
+          { code, snapshot: conFoto, items: lote.map(({ clientId, action, passId, benefitId, scannedAt, scannerId, qr }) => ({ clientId, action, passId, benefitId, scannedAt, scannerId, ...(qr ? { qr } : {}) })) },
           SYNC_TIMEOUT_MS,
         );
         if (status === 401 || status === 404) return "cerrado";
@@ -423,6 +423,8 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
               passId: resultado.passId,
               benefitId: station.kind === "benefit" ? station.id : null,
               scannerId: s.scannerId,
+              // En un stand, la visita viaja con el QR leído: el servidor vuelve a comprobar la firma antes de contarla.
+              ...(resultado.action === "visit" ? { qr: limpio } : {}),
             }),
           );
           await refrescarLocal();

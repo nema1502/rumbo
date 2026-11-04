@@ -90,7 +90,7 @@ Si algo falla, la consola del navegador dice `[pollar] ...` con lo que contestó
 | `/admin/<evento>/informe` | El informe para quien auspicia: números, nunca personas, con hoja de impresión |
 | `/admin/<evento>/stands` | Stands y ruta: un stand por auspiciante con su código, la meta de la ruta y los números de cada uno |
 | `/stand/<código>` | El panel de quien atiende un stand: sus visitas y los contactos de quienes aceptaron compartirlos, con calificación, nota y CSV |
-| `/vivo/<evento>` | La pantalla en vivo para proyectar: quienes entraron, almuerzos y merch entregados, el ranking de la ruta y el espacio del sorteo |
+| `/vivo/<evento>` | La pantalla en vivo para proyectar: quienes entraron, almuerzos y merch entregados, el ranking de la ruta y el espacio del sorteo. Quien organiza la abre con su clave y copia el enlace para el proyector (`?pantalla=`), que muestra la pantalla y nada más |
 | `/v/<pase>?c=<código>` | La verificación pública de un certificado de asistencia: si esa persona entró, cuándo, y el enlace a su entrada en el registro público |
 
 Al terminar el evento, `pnpm informe`, `pnpm certificados` y `pnpm paquete-embajadores` arman en PDF el informe del evento (para quien organiza, quien auspicia y el programa de embajadores de Stellar), un certificado verificable por persona que entró y el paquete para el capítulo. Todo eso, con sus plantillas de XeLaTeX y sus ejemplos, está en [informes/](informes/README.md).
@@ -106,10 +106,10 @@ Cada parte tiene su guía: [la inscripción y la credencial](src/server/evento/R
 | `POST /api/scan/buscar` y `/api/scan/agregar` | El respaldo de la puerta (solo con el código del puesto Puerta): buscar por nombre o correo, e inscribir gratis a quien llegó sin credencial |
 | `GET /api/hora` | La hora del servidor, para que una credencial con el reloj desfasado arme el QR de la ventana que corresponde |
 | `GET /api/admin/<evento>` y `/csv`, `POST .../cadena`, `.../entrar`, `.../salir` | El panel: el estado en JSON, la lista en CSV, el contraste con la cadena y la sesión |
-| `GET` y `POST /api/admin/<evento>/stands` | Stands y ruta: leer, y agregar, cambiar o sacar un stand y fijar la meta |
+| `GET` y `POST /api/admin/<evento>/stands` | Stands y ruta: leer, y agregar, cambiar o sacar un stand, cambiarle el código, fijar la meta y sacar a alguien de la pantalla en vivo |
 | `GET` y `POST /api/pase/<pase>/ruta?k=<clave>` | La ruta de una credencial, y la respuesta de la persona a la pregunta de permiso o cómo quiere aparecer en la pantalla |
 | `GET /api/stand/<código>`, `POST .../contacto`, `GET .../csv` | El panel del stand en JSON, la calificación y la nota de un contacto, y el CSV |
-| `GET /api/vivo/<evento>` y `GET .../sorteo` | La pantalla en vivo en JSON, y la lista del sorteo (JSON con huella, o `?formato=csv`) |
+| `GET` y `POST /api/vivo/<evento>`, `GET` y `POST .../sorteo` | La pantalla en vivo en JSON (con la clave del panel o con el enlace del proyector, `?pantalla=`; `POST` cambia ese enlace), y la lista del sorteo (JSON con huella y algoritmo, o `?formato=csv`; `POST` la congela o vuelve a la viva) |
 | `POST /api/admin/<evento>/importar` y `GET .../asistencia` | Importar una lista (vista, importar y tandas de correos) y bajar la asistencia en la forma de Bevy |
 | `POST /api/mcp` | El servidor MCP por HTTP, con las mismas herramientas para el asistente (abajo, "El servidor MCP") |
 
@@ -169,7 +169,7 @@ Los CSV de ejemplo, inventados, están en `tests/fixtures/` como `luma-invitados
 
 - **Comidas por franja.** En un evento de varios días cada comida es un canje distinto (`Desayuno, día 1`, `Almuerzo, día 1`...). El panel muestra, en "Canjes por franja", cuántas personas canjearon cada uno, para pedir la comida justa.
 - **Tope por canje.** Cada canje puede tener un total (150 poleras). El panel dice cuántas quedan y avisa cuando se acaban; el escáner de esa mesa baja el total que sabe el servidor, descuenta lo que ese escáner ya entregó sin conexión y, cuando no queda ninguna, responde "no corresponde" y no anota nada. El tope no se puede hacer cumplir desde el servidor (dos mesas sin red deciden cada una por su cuenta, y la polera ya se entregó), pero sí se detecta: el canje que se pasa queda registrado con el aviso `stock_exceeded`, el escáner lo muestra ("avisale a quien organiza") y el panel dice "pasadas por N" en vez de recortar a cero.
-- **Dieta.** La inscripción (y una pregunta de la lista importada) puede traer una restricción de dieta, opcional. Se guarda en la credencial y solo viaja a los escáneres de los puestos de comida, donde sale en grande.
+- **Dieta.** La inscripción (y una pregunta de la lista importada) puede traer una restricción de dieta, opcional. Se guarda en la credencial y solo viaja a los escáneres de los puestos de comida (el almuerzo, y lo que la plantilla marcó como desayuno, refrigerio o cena: `isFoodBenefit` en `src/server/kit/plantillas.ts`), donde sale en grande. La mesa del café del auspiciante o de una taza no la recibe.
 - **Asistencia.** `GET /api/admin/<evento>/asistencia` baja un CSV con la forma de una lista de Bevy (`First Name`, `Last Name`, `Email`, `Ticket Type`) y la columna `Attended` (`Yes` o `No`) que piden las ligas de hackatones, más `Checked In At`, `Credential Type` y `Team`. Los GDG pueden devolverla a su plataforma.
 - **Equipos.** La hackatón se inscribe en `/e/<evento>/equipo`: nombre del equipo y hasta cinco integrantes; cada uno recibe su propia credencial por correo. El equipo se ve en la credencial, en el panel y en el escáner. Un equipo que ya existe se puede volver a mandar (para reintentar si la red falló para alguien, o para sumar gente), pero el pedido tiene que traer a todos los que ya están: quien conozca el correo de un solo integrante no mete gente en un equipo ajeno, y el equipo nunca pasa de cinco contando a quienes ya están.
 

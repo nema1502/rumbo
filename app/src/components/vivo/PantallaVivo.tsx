@@ -2,13 +2,18 @@
 // La pantalla en vivo: grande, oscura y con letra enorme, para proyectar. Tres cifras (quienes entraron, los
 // almuerzos y la merch entregados), el ranking de la ruta de stands y el espacio del sorteo. Pide los números
 // cada tres segundos mientras la pestaña está a la vista. Nunca muestra correos: el ranking usa el nombre de
-// pila o el alias que cada persona eligió.
+// pila o el alias que cada persona eligió. La lista del sorteo se congela desde acá: desde ese momento la que
+// se proyecta (con su huella) es la que se sortea, aunque alguien entre después. La misma pantalla tiene dos
+// modos (src/lib/pantalla.ts): quien organiza, con su clave del panel, ve además el enlace para el proyector y
+// maneja el sorteo; el proyector, con ese enlace, solo mira: sin botones ni enlaces al panel.
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { LogoRumbo } from "@/components/Marca.tsx";
+import { BotonCopiar } from "@/components/panel/BotonCopiar.tsx";
 import { useLang, useT } from "@/i18n/client.tsx";
 import { LANG_QUERY, formatDate, otherLang } from "@/i18n/index.ts";
+import { SCREEN_KEY_QUERY, type ScreenAccess } from "@/lib/pantalla.ts";
 import type { LiveState, LiveTally } from "@/server/vivo.ts";
 
 const POLL_MS = 3000;
@@ -17,12 +22,26 @@ const MIN_FILAS = 3;
 
 type Conexion = "ok" | "sinConexion" | "vencida";
 
-export function PantallaVivo({ slug, initial }: { slug: string; initial: LiveState }) {
+export function PantallaVivo({ slug, initial, acceso }: { slug: string; initial: LiveState; acceso: ScreenAccess }) {
   const t = useT();
   const lang = useLang();
   const pathname = usePathname();
+  const proyector = acceso.kind === "screen";
+  // El JSON se pide con lo mismo que abrió la página: la cookie del panel, o la clave del enlace del proyector.
+  const apiUrl = acceso.kind === "screen" ? `/api/vivo/${slug}?${SCREEN_KEY_QUERY}=${encodeURIComponent(acceso.key)}` : `/api/vivo/${slug}`;
   const [vivo, setVivo] = useState<LiveState>(initial);
   const [conexion, setConexion] = useState<Conexion>("ok");
+  const [incluirTodos, setIncluirTodos] = useState(false);
+  const [cambiandoLista, setCambiandoLista] = useState(false);
+  const [errorLista, setErrorLista] = useState(false);
+  // El enlace para el proyector, que solo ve quien organiza: se arma con el origen del navegador y se puede cambiar.
+  const [screenKey, setScreenKey] = useState(acceso.kind === "organizer" ? acceso.screenKey : "");
+  const [origin, setOrigin] = useState("");
+  const [cambiandoEnlace, setCambiandoEnlace] = useState(false);
+  const [errorEnlace, setErrorEnlace] = useState(false);
+  // El enlace se muestra en un diálogo: la grilla de la pantalla mide lo mismo con él abierto o cerrado.
+  const dialogoRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => setOrigin(window.location.origin), []);
   // Cuántas filas del ranking entran en el alto que sobra: la pantalla no se desplaza, se muestran las que caben.
   const cajaRef = useRef<HTMLDivElement>(null);
   const [filas, setFilas] = useState(MAX_FILAS);
@@ -45,7 +64,7 @@ export function PantallaVivo({ slug, initial }: { slug: string; initial: LiveSta
 
   const traer = useCallback(async () => {
     try {
-      const res = await fetch(`/api/vivo/${slug}`, { cache: "no-store" });
+      const res = await fetch(apiUrl, { cache: "no-store" });
       if (res.status === 401) return setConexion("vencida");
       if (!res.ok) throw new Error(String(res.status));
       setVivo((await res.json()) as LiveState);
@@ -53,7 +72,7 @@ export function PantallaVivo({ slug, initial }: { slug: string; initial: LiveSta
     } catch {
       setConexion((actual) => (actual === "vencida" ? actual : "sinConexion"));
     }
-  }, [slug]);
+  }, [apiUrl]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -69,9 +88,52 @@ export function PantallaVivo({ slug, initial }: { slug: string; initial: LiveSta
     };
   }, [traer]);
 
+  /** Congela la lista del sorteo de este momento, o vuelve a la viva. Después se vuelven a pedir los números. */
+  async function cambiarLista(action: "freeze" | "thaw") {
+    setCambiandoLista(true);
+    setErrorLista(false);
+    try {
+      const res = await fetch(`/api/vivo/${slug}/sorteo`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(action === "freeze" ? { action, all: incluirTodos } : { action }),
+      });
+      if (res.status === 401) return setConexion("vencida");
+      if (!res.ok) throw new Error(String(res.status));
+      await traer();
+    } catch {
+      setErrorLista(true);
+    } finally {
+      setCambiandoLista(false);
+    }
+  }
+
+  /** Un enlace de proyector nuevo: el de antes deja de servir en el acto. */
+  async function cambiarEnlace() {
+    if (!window.confirm(t("vivo.proyector.confirmarCambiar"))) return;
+    setCambiandoEnlace(true);
+    setErrorEnlace(false);
+    try {
+      const res = await fetch(`/api/vivo/${slug}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "screen-link" }) });
+      if (res.status === 401) return setConexion("vencida");
+      if (!res.ok) throw new Error(String(res.status));
+      setScreenKey(((await res.json()) as { screenKey: string }).screenKey);
+    } catch {
+      setErrorEnlace(true);
+    } finally {
+      setCambiandoEnlace(false);
+    }
+  }
+
   const { event, route, raffle } = vivo;
   const lugar = event.venue ? `${event.venue}, ${event.place}` : event.place;
+  const enlaceProyector = `${origin}/vivo/${slug}?${SCREEN_KEY_QUERY}=${screenKey}`;
+  // Al cambiar de idioma, el proyector conserva su clave en el enlace.
+  const cambioIdioma = new URLSearchParams(acceso.kind === "screen" ? { [SCREEN_KEY_QUERY]: acceso.key, [LANG_QUERY]: otherLang(lang) } : { [LANG_QUERY]: otherLang(lang) }).toString();
   const meta = route.target ?? route.standCount;
+  const congelada = raffle.frozen;
+  const participan = congelada ? congelada.total : raffle.eligible;
+  const todos = congelada ? "" : incluirTodos ? "?todos=1" : "";
 
   return (
     <div className="vivo" data-tema="noche">
@@ -94,17 +156,27 @@ export function PantallaVivo({ slug, initial }: { slug: string; initial: LiveSta
             </span>
           )}
           {conexion === "sinConexion" && <span className="viv-chip viv-chip-alerta">{t("estado.sinConexion")}</span>}
-          {conexion === "vencida" && (
-            <Link className="viv-chip viv-chip-alerta" href={`/admin/${slug}`}>
-              {t("vivo.sesionVencida")}
-            </Link>
-          )}
-          <a className="viv-enlace" href={`${pathname}?${LANG_QUERY}=${otherLang(lang)}`} hrefLang={otherLang(lang)} aria-label={t("nav.idiomaAria")}>
+          {conexion === "vencida" &&
+            (proyector ? (
+              <span className="viv-chip viv-chip-alerta">{t("vivo.proyector.vencido")}</span>
+            ) : (
+              <Link className="viv-chip viv-chip-alerta" href={`/admin/${slug}`}>
+                {t("vivo.sesionVencida")}
+              </Link>
+            ))}
+          <a className="viv-enlace" href={`${pathname}?${cambioIdioma}`} hrefLang={otherLang(lang)} aria-label={t("nav.idiomaAria")}>
             {t("nav.idioma")}
           </a>
-          <Link className="viv-enlace" href={`/admin/${slug}`}>
-            {t("vivo.volver")}
-          </Link>
+          {!proyector && (
+            <>
+              <button type="button" className="viv-enlace viv-enlace-boton" onClick={() => dialogoRef.current?.showModal()}>
+                {t("vivo.proyector.titulo")}
+              </button>
+              <Link className="viv-enlace" href={`/admin/${slug}`}>
+                {t("vivo.volver")}
+              </Link>
+            </>
+          )}
         </div>
       </header>
 
@@ -156,24 +228,83 @@ export function PantallaVivo({ slug, initial }: { slug: string; initial: LiveSta
             <h2 id="viv-sorteo-titulo">{t("vivo.sorteo.titulo")}</h2>
           </div>
           <div className="viv-sorteo-fila">
-            <p className="viv-sorteo-cifra" key={raffle.eligible}>
-              {raffle.eligible}
+            <p className="viv-sorteo-cifra" key={participan}>
+              {participan}
             </p>
-            <p className="viv-sorteo-texto">{raffle.eligible === 0 ? t("vivo.sorteo.ninguna") : t(raffle.eligible === 1 ? "vivo.sorteo.participa1" : "vivo.sorteo.participan")}</p>
+            <p className="viv-sorteo-texto">{participan === 0 ? t("vivo.sorteo.ninguna") : t(participan === 1 ? "vivo.sorteo.participa1" : "vivo.sorteo.participan")}</p>
           </div>
-          <div className="viv-acciones">
-            <a className="viv-boton" href={`/api/vivo/${slug}/sorteo`} download>
-              {t("vivo.sorteo.exportar")}
-            </a>
-            <a className="viv-enlace viv-enlace-chico" href={`/api/vivo/${slug}/sorteo?formato=csv`} download>
-              {t("vivo.sorteo.csv")}
-            </a>
-          </div>
-          <p className="viv-pie">{t("vivo.sorteo.nota")}</p>
+          {congelada ? (
+            <div className="viv-congelada" aria-live="polite">
+              <p className="viv-congelada-texto">
+                {t(congelada.total === 1 ? "vivo.sorteo.congelada1" : "vivo.sorteo.congelada", { hora: formatDate(lang, congelada.at, event.timezone, { hour: "2-digit", minute: "2-digit" }), n: congelada.total })}
+              </p>
+              <p className="viv-huella">
+                <span className="viv-huella-etiqueta">{t("vivo.sorteo.huella")}</span> <code>{congelada.sha256}</code>
+              </p>
+              <p className="viv-pie">{t("vivo.sorteo.notaCongelada")}</p>
+            </div>
+          ) : proyector ? null : (
+            <label className="viv-opcion">
+              <input type="checkbox" checked={incluirTodos} onChange={(e) => setIncluirTodos(e.target.checked)} disabled={cambiandoLista} />
+              <span>{t("vivo.sorteo.todos")}</span>
+            </label>
+          )}
+          {/* El proyector solo mira: congelar, descongelar y exportar son de quien organiza */}
+          {!proyector && (
+            <div className="viv-acciones">
+              {congelada ? (
+                <button type="button" className="viv-enlace viv-enlace-chico viv-enlace-boton" onClick={() => void cambiarLista("thaw")} disabled={cambiandoLista}>
+                  {t("vivo.sorteo.descongelar")}
+                </button>
+              ) : (
+                <button type="button" className="viv-boton" onClick={() => void cambiarLista("freeze")} disabled={cambiandoLista}>
+                  {cambiandoLista ? t("vivo.sorteo.congelando") : t("vivo.sorteo.congelar")}
+                </button>
+              )}
+              <a className={congelada ? "viv-boton" : "viv-enlace viv-enlace-chico"} href={`/api/vivo/${slug}/sorteo${todos}`} download>
+                {t("vivo.sorteo.exportar")}
+              </a>
+              <a className="viv-enlace viv-enlace-chico" href={`/api/vivo/${slug}/sorteo?formato=csv${todos ? "&todos=1" : ""}`} download>
+                {t("vivo.sorteo.csv")}
+              </a>
+            </div>
+          )}
+          {errorLista && <p className="viv-chip viv-chip-alerta">{t("vivo.sorteo.error")}</p>}
+          <p className="viv-pie">{congelada ? t("vivo.sorteo.nota") : `${t("vivo.sorteo.soloAsistentes")} ${t("vivo.sorteo.nota")}`}</p>
         </section>
       </div>
 
       <p className="viv-actualiza">{conexion === "sinConexion" ? t("vivo.sinConexion") : t("vivo.actualiza")}</p>
+
+      {/* El enlace para el proyector, solo para quien organiza: en un diálogo, para que no quede a la vista si esta pantalla se proyecta */}
+      {acceso.kind === "organizer" && (
+        <dialog
+          ref={dialogoRef}
+          className="viv-dialogo"
+          aria-labelledby="viv-proyector-titulo"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) e.currentTarget.close();
+          }}
+        >
+          <div className="viv-dialogo-caja">
+            <h2 id="viv-proyector-titulo">{t("vivo.proyector.titulo")}</h2>
+            <p>{t("vivo.proyector.ayuda")}</p>
+            <p className="viv-proyector-enlace">
+              <code>{enlaceProyector}</code>
+            </p>
+            <div className="viv-acciones">
+              <BotonCopiar texto={enlaceProyector} etiqueta={t("vivo.proyector.copiar")} listo={t("vivo.proyector.copiado")} aria-label={t("vivo.proyector.copiarAria")} />
+              <button type="button" className="viv-enlace viv-enlace-chico viv-enlace-boton" onClick={() => void cambiarEnlace()} disabled={cambiandoEnlace}>
+                {t("vivo.proyector.cambiar")}
+              </button>
+              <button type="button" className="viv-enlace viv-enlace-chico viv-enlace-boton" onClick={() => dialogoRef.current?.close()}>
+                {t("vivo.proyector.cerrar")}
+              </button>
+            </div>
+            {errorEnlace && <p className="viv-chip viv-chip-alerta">{t("vivo.proyector.error")}</p>}
+          </div>
+        </dialog>
+      )}
     </div>
   );
 }

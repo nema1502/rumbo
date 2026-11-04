@@ -6,10 +6,13 @@
 import type { ScanEvent, ScanItem, ScanItemResult, ScanItemStatus, ScanPassInfo, ScanSnapshot, ScanStation } from "../lib/escaner-api.ts";
 import { GATE_STATION, STOCK_EXCEEDED } from "../lib/escaner-api.ts";
 import { isValidPassId } from "../lib/qr-codec.ts";
+import { verifyQrSignature } from "../lib/qr-verify.ts";
 import { BUSY, LeaseLost, tryExclusive } from "./compartido.ts";
+import { isFoodBenefit } from "./kit/plantillas.ts";
 import { clientKey, stationCodeAttempts } from "./limites.ts";
 import { describeForLog } from "./log.ts";
 import { resolveStationCode, type StationAccess } from "./panel.ts";
+import { getEventPublicKey } from "./qr-keys.ts";
 import { ClientIdTaken, type CheckIn, type EventRecord, type PassBenefit, type PassView, type Repo, type SyncMark } from "./repo.ts";
 import { claimRoutePrize, isRoutePrize, recordVisit, StandsError, standScanVisits } from "./stands.ts";
 import {
@@ -30,13 +33,13 @@ export function stationOf(access: StationAccess): ScanStation {
     return { id: access.stand.id, kind: "stand", name: access.stand.name, place: null };
   }
   if (access.kind === "benefit" && access.benefit) {
-    return { id: access.benefit.id, kind: "benefit", name: access.benefit.name, place: access.benefit.station, food: isFood(access.benefit.kind) };
+    return { id: access.benefit.id, kind: "benefit", name: access.benefit.name, place: access.benefit.station, food: isFoodBenefit(access.benefit) };
   }
   return GATE_STATION;
 }
 
-/** Un beneficio de comida (almuerzo, refrigerio, cena): ahí se muestra la dieta de cada persona. La polera y el premio no. */
-const isFood = (kind: string): boolean => kind === "lunch" || kind === "other";
+// Un puesto de comida (almuerzo, refrigerio, cena: isFoodBenefit, en kit/plantillas.ts) es el único que recibe la
+// dieta de cada persona. Un beneficio "other" a secas (el café del auspiciante, una taza) no la necesita y no la ve.
 
 /** Los puestos de un evento: la puerta y una mesa por cada beneficio que alguna entrada trae en el contrato. */
 export async function scanStations(repo: Repo, eventId: string): Promise<ScanStation[]> {
@@ -47,7 +50,7 @@ export async function scanStations(repo: Repo, eventId: string): Promise<ScanSta
   }
   const stations: ScanStation[] = [GATE_STATION];
   for (const benefit of benefits) {
-    if (onChain.has(benefit.id)) stations.push({ id: benefit.id, kind: "benefit", name: benefit.name, place: benefit.station, food: isFood(benefit.kind) });
+    if (onChain.has(benefit.id)) stations.push({ id: benefit.id, kind: "benefit", name: benefit.name, place: benefit.station, food: isFoodBenefit(benefit) });
   }
   return stations;
 }
@@ -275,13 +278,15 @@ async function syncItem(repo: Repo, event: EventRecord, station: ScanStation, it
     error,
   });
   try {
+    // La visita a un stand se comprueba por su QR, antes de mirar nada del pase: así la respuesta no cuenta qué
+    // ids de pase existen. Los stands viven en la base, no en el contrato: no piden cuenta ni contrato.
+    if (item.action === "visit") return await syncVisit(repo, event, item, station);
     const view = await repo.getPassView(item.passId);
-    if (!view || view.event.id !== event.id) return result("rejected", null, "pase desconocido");
-    if (view.pass.status === "pending") return result("rejected", null, "pase sin activar");
-    // Los stands y el premio de la ruta viven en la base, no en el contrato: no piden cuenta ni contrato.
-    if (item.action === "visit") return await syncVisit(repo, item, station);
+    // Un mismo mensaje para un pase que no existe, uno de otro evento y uno sin activar: la respuesta no distingue.
+    if (!view || view.event.id !== event.id || view.pass.status === "pending") return result("rejected", null, UNKNOWN_PASS);
+    // El premio de la ruta también vive en la base.
     if (item.action === "redeem" && item.benefitId && (await isRoutePrize(event.id, item.benefitId))) return await syncRoutePrize(repo, event, item, view);
-    if (!view.pass.account) return result("rejected", null, "pase sin activar");
+    if (!view.pass.account) return result("rejected", null, UNKNOWN_PASS);
     if (!view.contractId) return result("rejected", null, "evento sin contrato");
     return item.action === "checkin"
       ? await syncCheckIn(repo, event, item, view, view.contractId, chain)
@@ -293,16 +298,29 @@ async function syncItem(repo: Repo, event: EventRecord, station: ScanStation, it
   }
 }
 
+/** Lo que se contesta por un pase que no existe, es de otro evento o todavía no se activó: lo mismo en los tres casos. */
+export const UNKNOWN_PASS = "pase desconocido o sin activar";
+/** Lo que se contesta por una visita sin su QR, con un QR que no cierra o con el QR de otro pase: lo mismo en los tres casos. */
+export const UNVERIFIED_VISIT = "visita sin credencial verificada";
+
 /**
- * La visita a un stand: un sello por persona y stand, solo en la base. Repetirla (otro escáner del mismo stand,
- * o la misma lectura que se reintenta) deja el mismo sello, así que siempre queda "sincronizada": una visita
- * repetida no es un doble que haya que revisar. El permiso para compartir el contacto arranca sin responder.
+ * La visita a un stand: un sello por persona y stand, solo en la base. Antes de contarla, el servidor vuelve a
+ * comprobar el QR que leyó el escáner (el del celular o el impreso) con la clave pública del evento: tiene que ser
+ * auténtico y de ese mismo pase. Sin eso, con el código de un stand bastaría un id de pase (ocho letras, por ejemplo
+ * de la lista del sorteo) para sumar visitas, subir el ranking y hasta ganar el premio de la ruta sin haber pasado.
+ * La ventana de tiempo no se exige: la cola puede subir la lectura mucho después. Repetir la visita (otro escáner
+ * del mismo stand, o la misma lectura que se reintenta) deja el mismo sello, así que siempre queda "sincronizada":
+ * una visita repetida no es un doble que haya que revisar. El permiso para compartir el contacto arranca sin responder.
  */
-async function syncVisit(repo: Repo, item: ScanItem, station: ScanStation): Promise<ScanItemResult> {
+async function syncVisit(repo: Repo, event: EventRecord, item: ScanItem, station: ScanStation): Promise<ScanItemResult> {
+  const rejected = (error: string): ScanItemResult => ({ clientId: item.clientId, status: "rejected", txHash: null, error });
+  if (!item.qr) return rejected(UNVERIFIED_VISIT);
+  const signed = await verifyQrSignature(item.qr, await getEventPublicKey(event.id));
+  if (!signed.ok || signed.passId !== item.passId) return rejected(UNVERIFIED_VISIT);
   try {
     await recordVisit({ standId: station.id, passId: item.passId, clientId: item.clientId, scannerId: item.scannerId, scannedAt: item.scannedAt }, repo);
   } catch (error) {
-    if (error instanceof StandsError) return { clientId: item.clientId, status: "rejected", txHash: null, error: "stand o pase desconocido" };
+    if (error instanceof StandsError) return rejected("stand o pase desconocido");
     throw error;
   }
   return { clientId: item.clientId, status: "synced", txHash: null, error: null };
@@ -506,6 +524,9 @@ export function isRealIsoDate(text: string): boolean {
 /** Sin NUL ni otros controles: Postgres no los guarda, y en un id o un nombre de escáner no significan nada. */
 const clean = (text: string): string => text.replace(/[\u0000-\u001f\u007f]/g, "");
 
+/** El QR del celular tiene 274 letras y el impreso 112: nada más largo es un QR. */
+const QR_MAX_LENGTH = 320;
+
 /** Los registros del pedido, con su forma comprobada. Devuelve null si alguno no tiene la forma esperada. */
 export function parseScanItems(raw: unknown): ScanItem[] | null {
   if (!Array.isArray(raw) || raw.length > MAX_ITEMS_PER_SYNC) return null;
@@ -519,9 +540,11 @@ export function parseScanItems(raw: unknown): ScanItem[] | null {
     const benefitId = typeof v.benefitId === "string" ? clean(v.benefitId) : null;
     const scannedAt = typeof v.scannedAt === "string" ? v.scannedAt : "";
     const scannerId = typeof v.scannerId === "string" ? clean(v.scannerId).slice(0, 64) : "";
+    const qr = typeof v.qr === "string" ? clean(v.qr).trim().toUpperCase() : "";
     if (!clientId || clientId.length > 64 || !ACTIONS.has(action) || !isValidPassId(passId) || !isRealIsoDate(scannedAt)) return null;
     if (benefitId !== null && benefitId.length > 64) return null;
-    items.push({ clientId, action: action as ScanItem["action"], passId, benefitId, scannedAt, scannerId });
+    if (qr.length > QR_MAX_LENGTH) return null;
+    items.push({ clientId, action: action as ScanItem["action"], passId, benefitId, scannedAt, scannerId, ...(qr ? { qr } : {}) });
   }
   return items;
 }

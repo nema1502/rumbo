@@ -35,13 +35,14 @@ Las secciones, en orden, y cada una se omite sola si no hay datos para ella:
 2. **Resumen en números:** credenciales emitidas, entraron, tasa de asistencia, canjes, premios entregados y dobles revisados; las barras de la inscripción a la mesa y la llegada hora por hora.
 3. **Asistencia verificada:** los asistentes verificados frente al mínimo de 20, los minutos de contenido de Stellar (con `--minutos-stellar`; sin él, queda un recuadro para escribirlo a mano), cómo se verifica, el contrato con su enlace a stellar.expert y una muestra de diez transacciones de entrada con sus enlaces.
 4. **La comida y lo que se entregó:** cada beneficio contra inscritos y contra quienes entraron; con `--gasto-comida`, el gasto por persona que entró frente al tope de US$ 25.
-5. **Para quien auspicia** (con `--auspiciante`): los canjes de su beneficio (`--beneficio-auspiciante`, el nombre de uno del catálogo), el alcance y cuántos contactos aceptaron compartirse (`--contactos-auspiciante`; solo el número).
-6. **El sorteo** (si hubo premios ganados): entre cuántas personas, los premios y, con `--comprobante-sorteo`, cómo se comprueba.
-7. **Cómo verificar este informe.**
+5. **Los stands y la ruta** (si el evento tiene stands): la meta, cuántas personas participaron y, por auspiciante, las visitas verificadas, los contactos que aceptaron, cuántos completaron la ruta y los canjes de su regalo. Solo números.
+6. **Para quien auspicia** (con `--auspiciante`): si el nombre es el de un stand del evento, las visitas a su stand, los canjes de su regalo y cuántos contactos aceptaron compartirse salen de ahí solos; `--beneficio-auspiciante` (el nombre de uno del catálogo) y `--contactos-auspiciante` los fuerzan si hace falta. Y el alcance del evento.
+7. **El sorteo** (si hubo premios ganados): entre cuántas personas, los premios y, con `--comprobante-sorteo`, cómo se comprueba.
+8. **Cómo verificar este informe.**
 
 ### De dónde salen los números
 
-Del mismo código que usa el panel y el informe web: [src/server/informe.ts](../src/server/informe.ts) llama a `getPanelState` de [src/server/panel.ts](../src/server/panel.ts) y al `Repo` para lo que el panel no trae (las transacciones de entrada y los contratos de cada entrada). Nada de consultas aparte.
+Del mismo código que usa el panel y el informe web: [src/server/informe.ts](../src/server/informe.ts) llama a `getPanelState` de [src/server/panel.ts](../src/server/panel.ts), a `getEventStandsReport` de [src/server/stands.ts](../src/server/stands.ts) para los stands y la ruta, y al `Repo` para lo que el panel no trae (las transacciones de entrada y los contratos de cada entrada). Nada de consultas aparte.
 
 - **Inscritos** son las credenciales emitidas (inscripciones gratis y entradas pagas); las inscripciones que no terminaron no cuentan.
 - **Entraron (verificados)** son los pases en estado "entró": el espejo solo lo marca cuando el contrato aceptó la entrada que firmó la cuenta de puerta. Si un escáner tiene entradas sin mandar, el informe lo avisa.
@@ -64,6 +65,8 @@ Uno por persona que entró, con su nombre, el evento, la fecha, el lugar, la dur
 El QR lleva a `/v/<pase>?c=<código>`, una página pública de solo lectura ([src/app/v/](../src/app/v/), con [src/server/verificacion.ts](../src/server/verificacion.ts)) que dice "Esta persona entró a <evento> el <fecha>", muestra el nombre que figura en el certificado para compararlo y enlaza la transacción de entrada en stellar.expert. El código es una firma del pase con la llave del evento, separada de la firma del QR de la credencial: con el enlace del certificado no se puede armar una credencial, y sin el código la página dice lo mismo que si el pase no existiera, así nadie puede recorrer los ids de pase (de cuarenta bits) para sacar nombres. Si la persona no entró, la página dice que no hay registro. La página no se indexa.
 
 `--base` es la dirección pública de la app; por defecto `NEXT_PUBLIC_BASE_URL`. Si apunta a `localhost`, el script avisa: esos QR no abren fuera de la computadora.
+
+Bricolage Grotesque, la fuente del nombre, es solo latina. Antes de compilar, el script lee qué letras cubre ([scripts/lib/fuentes.mjs](../scripts/lib/fuentes.mjs), la tabla `cmap` de la fuente) y, si un nombre lleva otras (cirílico, griego, árabe, chino), lo escribe con una fuente de respaldo del sistema: Segoe UI o Arial en Windows; Noto Sans, DejaVu Sans, Liberation Sans o Arial donde haya fontconfig. `--fuente-respaldo <nombre>` elige otra (y `--fuente-respaldo-archivo <ruta.ttf>` le dice el archivo, para saber qué cubre). Si ninguna fuente tiene esas letras, el script lo dice con el pase y el nombre de cada persona afectada y termina con código 2.
 
 El nombre va en el certificado y en la página de verificación; nunca en la cadena. Los PDF llevan nombres: por eso quedan en `data/`, fuera del repositorio.
 
@@ -93,7 +96,7 @@ La inscripción tiene una casilla opcional y desmarcada: "Quiero que <comunidad>
 ## Qué no incluye
 
 - **El informe no tiene datos personales:** ni nombres ni correos, solo números agregados y los identificadores públicos del contrato y de las transacciones. Lo comprueba una prueba ([tests/informe.test.mjs](../tests/informe.test.mjs)).
-- **Quien auspicia recibe solo el número** de contactos que aceptaron compartirse, nunca la lista.
+- **En el informe, quien auspicia recibe solo el número** de contactos que aceptaron compartirse. La lista de esas personas (nombre y correo, de quienes dijeron que sí desde su credencial) la ve en su propio panel, `/stand/<código>`, y la exporta desde ahí; el informe no la lleva.
 - **Los certificados llevan el nombre de una sola persona**, y el CSV de contactos del capítulo lleva correos: los dos quedan en `data/`, que no se versiona.
 
 ## Los ejemplos
@@ -136,4 +139,4 @@ XeLaTeX (TeX Live o TinyTeX) con `fontspec`, `babel` en castellano e inglés, `t
 | `ejemplo-es.pdf`, `ejemplo-en.pdf`, `ejemplo-certificado-es.pdf`, `ejemplo-certificado-en.pdf` | Los ejemplos ya generados |
 | `fuentes/`, `marca/` | Las fuentes con sus licencias y el logo en PDF |
 
-El generador escribe `datos.tex` con `\rumboset{clave}{valor}` (todo texto pasa por el escape de [scripts/lib/latex.mjs](../scripts/lib/latex.mjs), que aguanta `& % $ # _ { } ~ ^ \`) y `\rumbourl{clave}|enlace|` para los enlaces; la plantilla los lee con `\V{clave}` y `\U{clave}`, y si falta un dato no compila.
+El generador escribe `datos.tex` con `\rumboset{clave}{valor}` (todo texto pasa por el escape de [scripts/lib/latex.mjs](../scripts/lib/latex.mjs), que aguanta `& % $ # _ { } ~ ^ \`) y `\rumbourl{clave}|enlace|` para los enlaces; la plantilla los lee con `\V{clave}` y `\U{clave}`, y si falta un dato no compila. XeLaTeX corre con `-no-shell-escape`: lo que va en `datos.tex` lo escribió la gente, y aunque el escape lo deja como texto, ningún comando se ejecuta.

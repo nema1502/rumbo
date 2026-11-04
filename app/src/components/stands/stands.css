@@ -93,3 +93,10 @@
 @media (max-width: 380px) {
   .ruta-pregunta-botones { grid-template-columns: 1fr; }
 }
+
+/* La ayuda del código del stand y la lista de quiénes están en la pantalla en vivo (AdminStands.tsx) */
+.admin-stand-codigo-ayuda { margin-top: 6px; }
+.admin-pantalla { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+.admin-pantalla li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 10px; }
+.admin-pantalla-puesto { display: inline-grid; place-items: center; width: 1.8em; height: 1.8em; border-radius: 50%; background: var(--linea); font-family: var(--display); font-weight: 800; font-variant-numeric: tabular-nums; }
+.admin-pantalla-nombre { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

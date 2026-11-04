@@ -24,7 +24,8 @@
   \node[anchor=north west, inner sep=0, text width=180mm, align=left] at (26,-50) {%
     {\fontsize{12}{15}\selectfont\bfseries\color{naranjaTexto}\V{cert.sobre}\par}\vspace{7mm}%
     {\fontsize{13}{17}\selectfont\color{tinta2}\V{cert.certifica}\par}\vspace{3mm}%
-    {\rumboCifra\fontsize{\V{cert.tamNombre}}{\V{cert.interNombre}}\selectfont\color{tinta}\V{cert.nombre}\par}\vspace{5mm}%
+    % La fuente del nombre: Bricolage, o la de respaldo del sistema si el nombre lleva letras que Bricolage no tiene.
+    {\V{cert.fuenteNombre}\fontsize{\V{cert.tamNombre}}{\V{cert.interNombre}}\selectfont\color{tinta}\V{cert.nombre}\par}\vspace{5mm}%
     {\fontsize{13}{17}\selectfont\color{tinta2}\V{cert.rol}\par}\vspace{1.6mm}%
     {\rumboTitulo\fontsize{\V{cert.tamEvento}}{\V{cert.interEvento}}\selectfont\color{tinta}\V{cert.evento}\par}\vspace{2.6mm}%
     {\fontsize{11.5}{16}\selectfont\color{tinta2}\V{cert.cuando}\par}%

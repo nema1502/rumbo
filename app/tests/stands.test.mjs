@@ -13,8 +13,13 @@ const { ensureStationCodes, resolveStationCode } = await import("../src/server/p
 const { buildSnapshot, processScanItems, stationOf } = await import("../src/server/escaner.ts");
 const { getLiveState, buildRaffleList, raffleListCsv } = await import("../src/server/vivo.ts");
 const { decideVerdict } = await import("../src/lib/escaner-api.ts");
+const { getEventQrKeys } = await import("../src/server/qr-keys.ts");
+const { buildPrintedPayload } = await import("../src/server/qr.ts");
 
 const repo = getRepo();
+
+/** El QR impreso de un pase: una visita a un stand viaja con el QR leído, y el servidor lo vuelve a comprobar. */
+const qrImpreso = async (eventId, passId) => buildPrintedPayload(passId, await getEventQrKeys(eventId));
 
 /** La red de mentira: un stand y el premio de la ruta nunca deberían tocarla. */
 const noHayRed = {
@@ -286,7 +291,8 @@ test("el escáner del stand: su código abre su stand, no recibe la lista de asi
   assert.deepEqual(foto.passes, []);
   assert.deepEqual(foto.stand.visits, []);
 
-  const item = (clientId, pass, action = "visit") => ({ clientId, action, passId: pass.id, benefitId: null, scannedAt: ahora(), scannerId: "stand-1" });
+  const qr = { [a.pass.id]: await qrImpreso(d.event.id, a.pass.id), [b.pass.id]: await qrImpreso(d.event.id, b.pass.id) };
+  const item = (clientId, pass, action = "visit") => ({ clientId, action, passId: pass.id, benefitId: null, scannedAt: ahora(), scannerId: "stand-1", qr: qr[pass.id] });
   const resultados = await processScanItems(repo, d.event, puesto, [item("s-1", a.pass), item("s-2", b.pass), item("s-1", a.pass), item("s-3", a.pass, "checkin")], noHayRed);
   assert.deepEqual(
     resultados.filter((r) => r.clientId !== "s-3").map((r) => r.status),
@@ -389,8 +395,11 @@ test("la lista del sorteo: solo códigos de quienes entraron, siempre ordenada, 
   assert.equal((await buildRaffleList(d.event)).sha256, lista.sha256, "la misma lista da siempre la misma huella");
   assert.ok(!/@example\.com|Sorteo/.test(JSON.stringify(lista)), "sin nombres ni correos");
   const csv = raffleListCsv(lista);
-  assert.equal(csv.split("\r\n")[0], "n,pass_id");
-  assert.equal(csv.trim().split("\r\n").length, 4);
+  const lineas = csv.trim().split("\r\n");
+  assert.match(lineas[0], /^# evento /);
+  assert.match(lineas[1], new RegExp(`^# sha256 ${lista.sha256} `));
+  assert.equal(lineas[2], "n,pass_id");
+  assert.equal(lineas.length, 6);
 });
 
 test("los datos del stand se limpian: nombre, logo y beneficio", async () => {
@@ -398,12 +407,14 @@ test("los datos del stand se limpian: nombre, logo y beneficio", async () => {
   await assert.rejects(stands.createStand(d.event, { name: "   " }, repo), (e) => e.code === "invalid_name");
   await assert.rejects(stands.createStand(d.event, { name: "Sin logo", logoUrl: "javascript:alert(1)" }, repo), (e) => e.code === "invalid_logo");
   await assert.rejects(stands.createStand(d.event, { name: "Sin logo", logoUrl: "http://inseguro.example/logo.png" }, repo), (e) => e.code === "invalid_logo");
+  // un logo en otro servidor ver\u00eda la IP de cada persona que abre su credencial: solo rutas propias
+  await assert.rejects(stands.createStand(d.event, { name: "Sin logo", logoUrl: "https://ejemplo.example/logo.svg" }, repo), (e) => e.code === "invalid_logo");
   await assert.rejects(stands.createStand(d.event, { name: "Beneficio ajeno", benefitId: "no-existe" }, repo), (e) => e.code === "invalid_benefit");
   const otro = await eventoDePrueba(repo);
   await assert.rejects(stands.createStand(d.event, { name: "De otro evento", benefitId: otro.lunch.id }, repo), (e) => e.code === "invalid_benefit");
-  const ok = await stands.createStand(d.event, { name: "  Con   espacios \u202e raros ", logoUrl: "https://ejemplo.example/logo.svg" }, repo);
+  const ok = await stands.createStand(d.event, { name: "  Con   espacios \u202e raros ", logoUrl: "" }, repo);
   assert.equal(ok.name, "Con espacios raros");
-  assert.equal(ok.logoUrl, "https://ejemplo.example/logo.svg");
+  assert.equal(ok.logoUrl, null);
   const propio = await stands.createStand(d.event, { name: "Logo propio", logoUrl: "/muestra/logo.svg" }, repo);
   assert.equal(propio.logoUrl, "/muestra/logo.svg");
   await assert.rejects(stands.setRouteGoal(await eventoDePrueba(repo).then((x) => x.event), { target: 1 }, repo), (e) => e.code === "no_stands");

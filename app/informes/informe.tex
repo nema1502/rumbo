@@ -137,6 +137,19 @@
   }{}
 }{}
 
+% ---------- Los stands y la ruta ----------
+
+\rumboif{seccion.stands}{%
+  \rumboSeccion{\V{t.stands.titulo}}{\V{t.stands.bajada}}
+  \rumboParrafo{\V{t.stands.ruta}}
+  \vspace{2.4mm}
+  \begin{rumboTarjeta}
+    \V{stands.tabla}
+  \end{rumboTarjeta}
+  \vspace{2mm}
+  \rumboNota{\V{t.stands.nota}}
+}{}
+
 % ---------- Para quien auspicia ----------
 
 \rumboif{seccion.auspicio}{%

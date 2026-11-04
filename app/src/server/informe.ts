@@ -5,6 +5,7 @@
 import { reportNetwork, type ReportNetwork } from "./explorador.ts";
 import { getLastChainSync, getPanelState } from "./panel.ts";
 import { getRepo, type BenefitKind, type EventRecord, type Repo } from "./repo.ts";
+import { getEventStandsReport } from "./stands.ts";
 
 export const REPORT_VERSION = 1;
 /** Cuántas transacciones de entrada van en la muestra del informe. */
@@ -61,10 +62,27 @@ export interface EventReportData {
   stellarMinutes: number | null;
   /** Lo que informa quien organiza: el gasto en comida, en dólares. */
   foodSpendUsd: number | null;
-  /** Quien auspicia: su nombre, su beneficio (el nombre de uno del catálogo) y cuántos contactos aceptaron compartirse. */
-  sponsor: { name: string; benefit: string | null; contactsShared: number | null } | null;
+  /**
+   * Quien auspicia: su nombre, su beneficio (el nombre de uno del catálogo), cuántos contactos aceptaron compartirse y
+   * las visitas a su stand. Si el nombre es el de un stand, los números salen de ahí (stands.ts); si no, los pasa quien
+   * organiza por la línea de comandos.
+   */
+  sponsor: { name: string; benefit: string | null; contactsShared: number | null; visits?: number | null } | null;
   /** El sorteo comprobable: el enlace a su comprobante, si quien organiza lo pasa. */
   raffle: { proofUrl: string | null } | null;
+  /** Los stands de quienes auspician (src/server/stands.ts: getEventStandsReport), solo números. Vacío si el evento no tiene. */
+  stands?: ReportStand[];
+  /** La ruta de stands: la meta, cuántas personas participaron y cuántas la completaron. Null sin stands. */
+  route?: { target: number | null; standCount: number; participants: number; completed: number; prize: { name: string; granted: number; redeemed: number } | null } | null;
+}
+
+/** Un auspiciante en el informe: visitas verificadas, contactos que aceptaron, ruta completada y los canjes de su beneficio. Nunca quiénes. */
+export interface ReportStand {
+  name: string;
+  visits: number;
+  contactsAccepted: number;
+  routeCompleted: number;
+  benefit: { name: string; granted: number; redeemed: number } | null;
 }
 
 const HOUR_MS = 3_600_000;
@@ -119,6 +137,26 @@ export async function buildEventReportData(event: EventRecord, repo: Repo = getR
       ? { at: sync.syncedAt, checkedIn: sync.contracts.reduce((acc, c) => acc + c.checkedIn, 0) }
       : null;
 
+  // Los stands y la ruta, de donde salen también los números del auspiciante: siempre agregados.
+  const standsReport = await getEventStandsReport(event, repo);
+  const stands: ReportStand[] = standsReport.stands.map((s) => ({
+    name: s.name,
+    visits: s.visits,
+    contactsAccepted: s.contactsAccepted,
+    routeCompleted: s.routeCompleted,
+    benefit: s.benefit ? { name: s.benefit.name, granted: s.benefit.granted, redeemed: s.benefit.redeemed } : null,
+  }));
+  const route =
+    stands.length > 0
+      ? {
+          target: standsReport.route.target,
+          standCount: standsReport.route.standCount,
+          participants: standsReport.route.participants,
+          completed: standsReport.route.completed,
+          prize: standsReport.route.prize ? { name: standsReport.route.prize.name, granted: standsReport.route.prize.granted, redeemed: standsReport.route.prize.redeemed } : null,
+        }
+      : null;
+
   const e = state.event;
   return {
     version: REPORT_VERSION,
@@ -144,5 +182,7 @@ export async function buildEventReportData(event: EventRecord, repo: Repo = getR
     foodSpendUsd: null,
     sponsor: null,
     raffle: state.benefits.some((b) => b.kind === "prize" && b.granted > 0) ? { proofUrl: null } : null,
+    stands,
+    route,
   };
 }

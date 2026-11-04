@@ -51,13 +51,27 @@ const mayuscula = (s) => (s ? s[0].toLocaleUpperCase() + s.slice(1) : s);
 export const shortHash = (hash) => (hash.length > 20 ? `${hash.slice(0, 10)}\u2026${hash.slice(-6)}` : hash);
 const explorer = (network, kind, id) => `https://stellar.expert/explorer/${network === "public" ? "public" : "testnet"}/${kind}/${encodeURIComponent(id)}`;
 
-/** Lo que el informe necesita saber y no viene en los datos: lo informa quien organiza. */
+/** Un nombre para comparar: sin tildes, sin mayúsculas, sin espacios de más. */
+const fold = (text) => String(text ?? "").normalize("NFD").replace(/\p{M}+/gu, "").replace(/\s+/g, " ").trim().toLocaleLowerCase();
+
+/**
+ * Lo que el informe necesita saber y no viene en los datos: lo informa quien organiza. Si el auspiciante es un
+ * stand del evento (mismo nombre), sus números salen de los stands (las visitas, los contactos que aceptaron, su
+ * regalo); lo que se pasa por la línea de comandos manda sobre eso.
+ */
 export function applyOrganizerInput(data, { foodSpendUsd, stellarMinutes, sponsor, sponsorBenefit, sponsorContacts, raffleProof } = {}) {
   const out = structuredClone(data);
   if (foodSpendUsd !== undefined && foodSpendUsd !== null) out.foodSpendUsd = foodSpendUsd;
   if (stellarMinutes !== undefined && stellarMinutes !== null) out.stellarMinutes = stellarMinutes;
-  if (sponsor) out.sponsor = { name: sponsor, benefit: sponsorBenefit ?? out.sponsor?.benefit ?? null, contactsShared: sponsorContacts ?? out.sponsor?.contactsShared ?? null };
-  else if (out.sponsor && (sponsorBenefit || sponsorContacts !== undefined)) {
+  if (sponsor) {
+    const stand = (Array.isArray(out.stands) ? out.stands : []).find((s) => fold(s?.name) === fold(sponsor)) ?? null;
+    out.sponsor = {
+      name: sponsor,
+      benefit: sponsorBenefit ?? stand?.benefit?.name ?? out.sponsor?.benefit ?? null,
+      contactsShared: sponsorContacts ?? stand?.contactsAccepted ?? out.sponsor?.contactsShared ?? null,
+      visits: stand?.visits ?? out.sponsor?.visits ?? null,
+    };
+  } else if (out.sponsor && (sponsorBenefit || sponsorContacts !== undefined)) {
     out.sponsor = { ...out.sponsor, benefit: sponsorBenefit ?? out.sponsor.benefit, contactsShared: sponsorContacts ?? out.sponsor.contactsShared };
   }
   if (raffleProof) out.raffle = { proofUrl: raffleProof };
@@ -276,6 +290,30 @@ export function buildInformeTex(data, lang, { now = new Date().toISOString() } =
     d.text("t.gasto.nota", t("gasto.nota", { n: f.n(checkedIn) }));
   }
 
+  // Los stands y la ruta (src/server/stands.ts): un renglón por auspiciante, solo números.
+  const stands = (Array.isArray(data.stands) ? data.stands : []).filter((s) => s && typeof s.name === "string");
+  if (stands.length > 0) {
+    d.flag("seccion.stands");
+    const route = data.route ?? null;
+    d.text("t.stands.titulo", t("stands.titulo"));
+    d.text("t.stands.bajada", t("stands.bajada"));
+    d.text(
+      "t.stands.ruta",
+      route && route.target !== null && route.target !== undefined
+        ? t("stands.ruta", { meta: f.n(route.target), total: f.n(route.standCount), participan: f.n(route.participants), completaron: f.n(route.completed) })
+        : t("stands.sinMeta", { participan: f.n(route?.participants ?? 0) }),
+    );
+    const head = ["stands.col.stand", "stands.col.visitas", "stands.col.contactos", "stands.col.ruta", "stands.col.canjes"].map((k) => `\\rumboEncabezado{${tex(t(k))}}`).join(" & ");
+    const rows = stands
+      .map(
+        (s) =>
+          `{\\bfseries ${tex(s.name)}}\\newline{\\fontsize{7.8}{10}\\selectfont\\color{apagado}${tex(s.benefit ? s.benefit.name : t("stands.sinRegalo"))}} & ${tex(f.n(s.visits ?? 0))} & ${tex(f.n(s.contactsAccepted ?? 0))} & ${tex(f.n(s.routeCompleted ?? 0))} & ${s.benefit ? tex(f.n(s.benefit.redeemed ?? 0)) : "\\textendash"} \\\\ \\rumboEntreFilas`,
+      )
+      .join("\n");
+    d.raw("stands.tabla", `\\begin{rumboTabla}{L N{18mm} N{22mm} N{26mm} N{18mm}}\n\\rumboArriba ${head} \\\\ \\rumboEntreFilas\n${rows}\n\\end{rumboTabla}`);
+    d.text("t.stands.nota", t("stands.nota"));
+  }
+
   // Para quien auspicia
   if (data.sponsor?.name) {
     d.flag("seccion.auspicio");
@@ -287,8 +325,9 @@ export function buildInformeTex(data, lang, { now = new Date().toISOString() } =
     d.text("t.auspicio.nota", t("auspicio.nota"));
     const tiles = [];
     if (benefit) tiles.push(cifra(f.n(benefit.redeemed), t("auspicio.canjes", { beneficio: benefit.name }), t("auspicio.canjes.detalle", { pct: f.pct(benefit.redeemed, checkedIn) })));
+    if (sp.visits != null) tiles.push(cifra(f.n(sp.visits), t("auspicio.visitas"), t("auspicio.visitas.detalle")));
     tiles.push(cifra(f.n(issued), t("auspicio.alcance"), t("auspicio.alcance.detalle", { n: f.n(checkedIn) })));
-    if (!benefit) tiles.push(cifra(f.n(checkedIn), t("auspicio.entraron"), t("auspicio.entraron.detalle", { pct: f.pct(checkedIn, issued) })));
+    if (!benefit && sp.visits == null) tiles.push(cifra(f.n(checkedIn), t("auspicio.entraron"), t("auspicio.entraron.detalle", { pct: f.pct(checkedIn, issued) })));
     if (sp.contactsShared != null) tiles.push(cifra(f.n(sp.contactsShared), t("auspicio.contactos"), t("auspicio.contactos.detalle")));
     d.raw("auspicio.cifras", tiles.join("\n"));
   }
