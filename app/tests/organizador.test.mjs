@@ -242,7 +242,7 @@ test("entrar y salir desde otro sitio no tocan la sesión: un formulario ajeno c
   const llave = Keypair.random();
   const wallet = await probar(llave);
   // Lo que manda un <form method=post enctype=text/plain> de otro sitio con un solo campo (nombre, "=", valor): un JSON válido.
-  const cuerpo = `${JSON.stringify({ wallet, name: "Nicolás", x: "=" })}\r\n`;
+  const cuerpo = `${JSON.stringify({ wallet, name: "Persona de prueba", x: "=" })}\r\n`;
   const { NextRequest } = await import("next/server");
   const ajeno = (url, headers, body) => new NextRequest(url, { method: "POST", headers: new Headers({ "x-real-ip": "190.0.0.7", ...headers }), body });
   const formAjeno = await entrar(ajeno("https://rum.bo/api/organizador/entrar", { "content-type": "text/plain", origin: "https://otro-sitio.example", "sec-fetch-site": "cross-site" }, cuerpo));
@@ -340,7 +340,7 @@ test("entrar como organizador también tiene su freno por IP, aunque las pruebas
 
 test("el nombre que manda el navegador se limpia: sin caracteres de control ni NUL, hasta ochenta, y nunca un correo", async () => {
   assert.equal(org.cleanOrganizerName("  Ana\u0000 Organiza\u0007\u202E  "), "Ana Organiza");
-  assert.equal(org.cleanOrganizerName("ana@ejemplo.com"), "", "un correo no se guarda");
+  assert.equal(org.cleanOrganizerName("ana@example.com"), "", "un correo no se guarda");
   assert.equal(org.cleanOrganizerName(42), "");
   const largo = "😀".repeat(100);
   assert.equal(Array.from(org.cleanOrganizerName(largo)).length, 80);
@@ -351,7 +351,7 @@ test("el nombre que manda el navegador se limpia: sin caracteres de control ni N
   assert.equal((await entrarCon(llave, { name: "Bea\u0000 Correa" })).status, 200);
   assert.equal((await repo.getOrganizerByAccount(llave.publicKey())).name, "Bea Correa");
   const conCorreo = Keypair.random();
-  assert.equal((await entrarCon(conCorreo, { name: "bea@ejemplo.com" })).status, 200);
+  assert.equal((await entrarCon(conCorreo, { name: "bea@example.com" })).status, 200);
   const guardado = await repo.getOrganizerByAccount(conCorreo.publicKey());
   assert.deepEqual([guardado.name, guardado.provider], ["", "pollar"]);
   assert.equal((await entrarCon(conCorreo, { name: { no: "texto" } })).status, 200, "un nombre que no es texto no rompe nada");
