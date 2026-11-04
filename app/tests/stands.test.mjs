@@ -404,12 +404,14 @@ test("los datos del stand se limpian: nombre, logo y beneficio", async () => {
   await assert.rejects(stands.createStand(d.event, { name: "   " }, repo), (e) => e.code === "invalid_name");
   await assert.rejects(stands.createStand(d.event, { name: "Sin logo", logoUrl: "javascript:alert(1)" }, repo), (e) => e.code === "invalid_logo");
   await assert.rejects(stands.createStand(d.event, { name: "Sin logo", logoUrl: "http://inseguro.example/logo.png" }, repo), (e) => e.code === "invalid_logo");
+  // un logo en otro servidor ver\u00eda la IP de cada persona que abre su credencial: solo rutas propias
+  await assert.rejects(stands.createStand(d.event, { name: "Sin logo", logoUrl: "https://ejemplo.example/logo.svg" }, repo), (e) => e.code === "invalid_logo");
   await assert.rejects(stands.createStand(d.event, { name: "Beneficio ajeno", benefitId: "no-existe" }, repo), (e) => e.code === "invalid_benefit");
   const otro = await eventoDePrueba(repo);
   await assert.rejects(stands.createStand(d.event, { name: "De otro evento", benefitId: otro.lunch.id }, repo), (e) => e.code === "invalid_benefit");
-  const ok = await stands.createStand(d.event, { name: "  Con   espacios \u202e raros ", logoUrl: "https://ejemplo.example/logo.svg" }, repo);
+  const ok = await stands.createStand(d.event, { name: "  Con   espacios \u202e raros ", logoUrl: "" }, repo);
   assert.equal(ok.name, "Con espacios raros");
-  assert.equal(ok.logoUrl, "https://ejemplo.example/logo.svg");
+  assert.equal(ok.logoUrl, null);
   const propio = await stands.createStand(d.event, { name: "Logo propio", logoUrl: "/muestra/logo.svg" }, repo);
   assert.equal(propio.logoUrl, "/muestra/logo.svg");
   await assert.rejects(stands.setRouteGoal(await eventoDePrueba(repo).then((x) => x.event), { target: 1 }, repo), (e) => e.code === "no_stands");

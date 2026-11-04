@@ -74,10 +74,10 @@ Cada parte tiene su guía: [la inscripción y la credencial](src/server/evento/R
 | `POST /api/scan/buscar` y `/api/scan/agregar` | El respaldo de la puerta (solo con el código del puesto Puerta): buscar por nombre o correo, e inscribir gratis a quien llegó sin credencial |
 | `GET /api/hora` | La hora del servidor, para que una credencial con el reloj desfasado arme el QR de la ventana que corresponde |
 | `GET /api/admin/<evento>` y `/csv`, `POST .../cadena`, `.../entrar`, `.../salir` | El panel: el estado en JSON, la lista en CSV, el contraste con la cadena y la sesión |
-| `GET` y `POST /api/admin/<evento>/stands` | Stands y ruta: leer, y agregar, cambiar o sacar un stand y fijar la meta |
+| `GET` y `POST /api/admin/<evento>/stands` | Stands y ruta: leer, y agregar, cambiar o sacar un stand, cambiarle el código, fijar la meta y sacar a alguien de la pantalla en vivo |
 | `GET` y `POST /api/pase/<pase>/ruta?k=<clave>` | La ruta de una credencial, y la respuesta de la persona a la pregunta de permiso o cómo quiere aparecer en la pantalla |
 | `GET /api/stand/<código>`, `POST .../contacto`, `GET .../csv` | El panel del stand en JSON, la calificación y la nota de un contacto, y el CSV |
-| `GET /api/vivo/<evento>` y `GET .../sorteo` | La pantalla en vivo en JSON, y la lista del sorteo (JSON con huella, o `?formato=csv`) |
+| `GET /api/vivo/<evento>`, `GET` y `POST .../sorteo` | La pantalla en vivo en JSON, y la lista del sorteo (JSON con huella y algoritmo, o `?formato=csv`; `POST` la congela o vuelve a la viva) |
 | `POST /api/admin/<evento>/importar` y `GET .../asistencia` | Importar una lista (vista, importar y tandas de correos) y bajar la asistencia en la forma de Bevy |
 
 ## El kit listo

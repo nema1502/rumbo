@@ -6,6 +6,7 @@
 import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { translate, type Lang } from "../i18n/index.ts";
 import type { CredentialKind } from "../lib/credential-kinds.ts";
+import { localLogoOrNull } from "../lib/logo.ts";
 import { base32Encode, bytesToBase64url } from "../lib/qr-codec.ts";
 import { STATION_CODE_LENGTH, isValidStationCode, normalizeStationCode } from "../lib/station-code.ts";
 import { getDb, jsonParam, readJson, type Db } from "./base/index.ts";
@@ -169,7 +170,7 @@ export async function resolveStationCode(input: string, repo: Repo = getRepo()):
   if (station.kind === "stand") {
     const standRow = await db.one("SELECT id, name, logo_url FROM stands WHERE id = ?", [station.standId]);
     if (!standRow) return null;
-    stand = { id: String(standRow.id), name: String(standRow.name), logoUrl: standRow.logo_url === null ? null : String(standRow.logo_url) };
+    stand = { id: String(standRow.id), name: String(standRow.name), logoUrl: localLogoOrNull(standRow.logo_url) };
   }
   return { event, kind: station.kind, benefit, stand, benefits, publicKey: bytesToBase64url(await getEventPublicKey(event.id)) };
 }

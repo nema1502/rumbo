@@ -79,7 +79,7 @@ export function AdminStands({ slug, initial }: { slug: string; initial: AdminSta
     }
   }
 
-  const { stands, route, goal } = state;
+  const { stands, route, goal, screen } = state;
 
   return (
     <section className="panel">
@@ -159,10 +159,40 @@ export function AdminStands({ slug, initial }: { slug: string; initial: AdminSta
               onSacar={() => {
                 if (window.confirm(t("stands.admin.confirmarSacar", { nombre: stand.name }))) void accion({ action: "delete", standId: stand.id });
               }}
+              onRegenerar={() => {
+                if (window.confirm(t("stands.admin.confirmarRegenerar", { nombre: stand.name }))) void accion({ action: "regenerate", standId: stand.id });
+              }}
               onEditar={(valores) => accion({ action: "update", standId: stand.id, ...valores })}
             />
           ))}
         </ul>
+      )}
+
+      {stands.length > 0 && (
+        <Tarjeta>
+          <h2>{t("stands.admin.pantalla.titulo")}</h2>
+          <p className="chico">{t("stands.admin.pantalla.ayuda")}</p>
+          {screen.length === 0 ? (
+            <p className="chico apagado">{t("stands.admin.pantalla.vacia")}</p>
+          ) : (
+            <ol className="admin-pantalla">
+              {screen.map((row) => (
+                <li key={row.passId}>
+                  <span className="admin-pantalla-puesto">{row.rank}</span>
+                  <span className="admin-pantalla-nombre">{row.label ?? t("vivo.anonimo")}</span>
+                  <span className="chico apagado">{t("stands.admin.pantalla.avance", { n: row.visited })}</span>
+                  {row.hidden ? (
+                    <Chip estado="neutro">{t("stands.admin.pantalla.oculto")}</Chip>
+                  ) : (
+                    <Boton variante="secundario" className="boton-chico" onClick={() => void accion({ action: "hide", passId: row.passId })}>
+                      {t("stands.admin.pantalla.ocultar")}
+                    </Boton>
+                  )}
+                </li>
+              ))}
+            </ol>
+          )}
+        </Tarjeta>
       )}
     </section>
   );
@@ -202,7 +232,7 @@ function FormularioStand({
   return (
     <form className="admin-form-stand" onSubmit={alEnviar}>
       <Campo id={`${idBase}-nombre`} etiqueta={t("stands.admin.nombre")} value={valores.name} maxLength={60} onChange={(e) => setValores({ ...valores, name: e.target.value })} required />
-      <Campo id={`${idBase}-logo`} etiqueta={t("stands.admin.logo")} value={valores.logoUrl} type="url" inputMode="url" placeholder="https://" onChange={(e) => setValores({ ...valores, logoUrl: e.target.value })} />
+      <Campo id={`${idBase}-logo`} etiqueta={t("stands.admin.logo")} value={valores.logoUrl} placeholder="/muestra/logo.svg" autoComplete="off" onChange={(e) => setValores({ ...valores, logoUrl: e.target.value })} />
       {beneficios.length > 0 && (
         <Campo id={`${idBase}-beneficio`} etiqueta={t("stands.admin.beneficio")}>
           <select id={`${idBase}-beneficio`} value={valores.benefitId} onChange={(e) => setValores({ ...valores, benefitId: e.target.value })}>
@@ -228,6 +258,7 @@ function TarjetaStand({
   origin,
   beneficios,
   onSacar,
+  onRegenerar,
   onEditar,
 }: {
   stand: AdminStandRow;
@@ -235,6 +266,7 @@ function TarjetaStand({
   origin: string;
   beneficios: Array<{ id: string; name: string }>;
   onSacar: () => void;
+  onRegenerar: () => void;
   onEditar: (valores: Valores) => Promise<boolean>;
 }) {
   const t = useT();
@@ -284,8 +316,12 @@ function TarjetaStand({
           <BotonEnlace variante="secundario" className="boton-chico" href={`/stand/${codigo}`}>
             {t("stands.admin.abrirPanel")}
           </BotonEnlace>
+          <button type="button" className="enlace" onClick={onRegenerar}>
+            {t("stands.admin.regenerar")}
+          </button>
         </div>
       )}
+      {stand.code && <p className="chico apagado admin-stand-codigo-ayuda">{t("stands.admin.codigoAyuda")}</p>}
 
       <details className="admin-stand-editar">
         <summary>{t("stands.admin.editar")}</summary>

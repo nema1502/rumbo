@@ -22,7 +22,8 @@ export async function POST(request: NextRequest, { params }: Context) {
   } catch {
     return NextResponse.json({ error: "bad_request" }, { status: 400 });
   }
-  if (typeof body.passId !== "string") return NextResponse.json({ error: "bad_request" }, { status: 400 });
+  // Un cuerpo que es JSON pero no es un objeto ("null", una lista) tampoco sirve.
+  if (!body || typeof body !== "object" || Array.isArray(body) || typeof body.passId !== "string") return NextResponse.json({ error: "bad_request" }, { status: 400 });
   try {
     const rating = await saveContactNote(auth.stand.id, body.passId.toUpperCase(), { rating: body.rating, note: body.note });
     return NextResponse.json({ ok: true, rating }, { headers: { "Cache-Control": "no-store" } });
