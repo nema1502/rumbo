@@ -18,9 +18,11 @@ Los dos scripts se pueden correr las veces que haga falta: solo hacen lo que fal
 
 - **El evento:** `http://localhost:3000/e/hackaton-comunidad`. "Inscribirme" o "Comprar", nombre y correo, y la credencial tarda entre quince y cuarenta segundos (la red de prueba crea la cuenta, le da saldo y la inscribe en el contrato). El correo con el enlace personal queda en `data/correos/` y en la consola.
 - **El panel:** `node scripts/panel-clave.mjs` imprime el enlace del panel con su clave (`/admin/hackaton-comunidad?k=...`) y los códigos de puesto para los voluntarios. El informe para quien auspicia está en `/admin/hackaton-comunidad/informe`.
-- **El escáner:** `http://localhost:3000/scan`, con el código de un puesto. Con la cámara, o con "Escribir el código" y el texto que va debajo del QR de una credencial.
+- **El escáner:** `http://localhost:3000/scan`, con el código de un puesto. Con la cámara, o sin ella (una laptop, un celular por http): en la credencial, "Copiar el código" (debajo del QR) copia el texto del QR vigente, y en el escáner se pega en "Escribir el código".
 
 `pnpm seed -- --demo` agrega además a una persona de ejemplo con su pase y su cuenta de prueba; `node scripts/panel-pases-prueba.mjs` llena el panel con doce personas de prueba, canjes y dobles (solo el espejo, sin tocar la red).
+
+`pnpm seed -- --contratos-propios` despliega en la red de prueba dos contratos solo para el evento de muestra (con el WASM del despliegue, por el mismo camino que usa el kit al publicar) y apunta las entradas a ellos, en vez de a los compartidos de `deploy/testnet.json`. Conviene en toda base que no sea la de desarrollo (la de quien evalúa, la de producción): así el "Verificar el registro del evento" del panel no trae credenciales emitidas desde otras bases contra el mismo contrato. Se despliegan una sola vez; con `--refresh --contratos-propios` se renuevan. Sin la opción, el seed sigue usando los compartidos.
 
 Si los contratos del despliegue no existen (la red de prueba se reinicia cada tanto, la próxima vez el 16 de diciembre de 2026), hay que volver a desplegarlos como dice [contracts/rumbo-pass/README.md](../contracts/rumbo-pass/README.md) y correr `pnpm seed -- --refresh` para que las entradas apunten a los nuevos.
 
@@ -326,6 +328,10 @@ La app corre en Vercel y la base es Postgres en Supabase, por el pooler en modo 
 3. **Desplegar.** En el proyecto de Vercel de la app, con la carpeta raíz en `app`, cargar las variables para producción y desplegar. Al levantar, cada instancia comprueba `DATABASE_URL` y `RUMBO_DATA_KEY` (`src/instrumentation.ts`): si falta algo, no arranca y el registro dice qué.
 
 Para probar el motor de producción en esta máquina, sin Supabase: `pnpm db:local` levanta un Postgres local (PGlite servido por la red) y dice su `DATABASE_URL`; después, `pnpm db:migrate` y `pnpm dev` con `RUMBO_REPO=postgres`, esa `DATABASE_URL` y una `RUMBO_DATA_KEY`.
+
+## Lo que falta
+
+- **Un enlace de solo lectura por auspiciante.** Hoy el informe (`/admin/<evento>/informe`) lo abre quien organiza, con su clave, y quien auspicia lo recibe impreso o en PDF. Viene un enlace propio por auspiciante, sin la clave del panel, que muestre solo su informe.
 
 ## Cómo se escribe lo visible
 
