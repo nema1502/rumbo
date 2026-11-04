@@ -189,13 +189,13 @@ test("por la ruta /api/scan/sync la visita viaja con su QR, y parseScanItems ace
 
 test("la etiqueta de la pantalla toma el nombre de pila de verdad, y nunca proyecta un correo, un teléfono o un enlace", () => {
   const casos = [
-    ["Mejía Agreda, Nicolás Emir", "Nicolás"],
+    ["Quiroga Soria, Ana María", "Ana"],
     ["María José Flores", "María"],
     ["O'Brien Patrick", "O'Brien"],
     ["José-Luis Pérez", "José-Luis"],
     ["李小龍", "李小龍"],
     ["Ana‮evil Pérez", "Ana"],
-    ["juan.perez@gmail.com", null],
+    ["juan.perez@example.com", null],
     ["+591 70012345", null],
     ["70012345", null],
     ["https://wa.me/59170012345", null],
@@ -205,7 +205,7 @@ test("la etiqueta de la pantalla toma el nombre de pila de verdad, y nunca proye
   ];
   for (const [nombre, esperado] of casos) assert.equal(stands.publicLabel(nombre, null), esperado, JSON.stringify(nombre));
   // el alias, si lo hay, manda; y "no aparecer" manda sobre todo
-  assert.equal(stands.publicLabel("juan.perez@gmail.com", { alias: "Juancho", hidden: false }), "Juancho");
+  assert.equal(stands.publicLabel("juan.perez@example.com", { alias: "Juancho", hidden: false }), "Juancho");
   assert.equal(stands.publicLabel("Ana Pérez", { alias: null, hidden: true }), null);
 });
 
