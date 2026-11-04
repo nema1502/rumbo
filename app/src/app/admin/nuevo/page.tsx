@@ -102,6 +102,7 @@ export default async function NewEventPage({ searchParams }: { searchParams: Sea
       <div className="pantalla-cuerpo">
         <input type="hidden" name="plantilla" value={chosen} />
         {error && <Aviso tono="alerta">{error}</Aviso>}
+        {organizer && <Aviso tono="listo">{t("panel.cuenta.nuevoSinClave")}</Aviso>}
         <div className="kit-form">
           <Campo id="nombre" name="nombre" etiqueta={t("kit.datos.nombre")} defaultValue={one("nombre") || t(spec.nameKey)} maxLength={80} autoComplete="off" />
           <Campo id="cuando" name="cuando" type="datetime-local" etiqueta={t("kit.datos.cuando")} defaultValue={one("cuando") || suggestedStart()} required />
@@ -123,7 +124,6 @@ export default async function NewEventPage({ searchParams }: { searchParams: Sea
           />
           {gate.needsKey && !organizer && <Campo id="clave" name="clave" type="password" etiqueta={t("kit.datos.clave")} ayuda={t("kit.datos.claveAyuda")} autoComplete="off" required />}
         </div>
-        {organizer && <Aviso tono="listo">{t("panel.cuenta.nuevoSinClave")}</Aviso>}
         <Tarjeta className="kit-resumen">
           <h2>{t(spec.nameKey)}</h2>
           <div className="fila">
