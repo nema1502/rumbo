@@ -1,9 +1,11 @@
-// El inicio: la lista de eventos. Cada uno lleva a su página pública; abajo, las puertas del
-// escáner y del panel para quien organiza.
+// El inicio: la lista de eventos, cada uno con su página pública. Es para quien se inscribe; las puertas de
+// operación (el panel, el escáner, armar un evento) van en una línea chica al pie, y armar solo si este
+// servidor lo tiene abierto.
 import Link from "next/link";
 import { Aviso, BotonEnlace, Chip, Tarjeta } from "@/components/ui.tsx";
-import { formatDate } from "@/i18n/index.ts";
 import { getLang, getT } from "@/i18n/server.ts";
+import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
+import { createGate } from "@/server/kit/acceso.ts";
 import { getRepo } from "@/server/repo.ts";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +16,7 @@ export default async function HomePage() {
   const repo = getRepo();
   const events = (await repo.listEvents()).filter((event) => event.published);
   const cards = await Promise.all(events.map(async (event) => ({ event, tickets: await repo.listTicketTypes(event.id) })));
+  const gate = createGate();
   // La pista para quien desarrolla va a la consola del servidor, no a la pantalla de la gente.
   if (cards.length === 0 && process.env.NODE_ENV !== "production") {
     console.info("[inicio] Todavía no hay eventos. Para crear el de muestra: pnpm seed");
@@ -30,32 +33,48 @@ export default async function HomePage() {
           <Aviso>{t("inicio.vacio")}</Aviso>
         ) : (
           <ul className="lista">
-            {cards.map(({ event, tickets }) => (
-              <li key={event.id}>
-                <Tarjeta>
-                  {tickets.some((ticket) => ticket.priceUsdc === 0) && <Chip estado="listo">{t("inicio.gratis")}</Chip>}
-                  <h2>{event.name}</h2>
-                  <p>{formatDate(lang, event.startsAt, event.timezone)}</p>
-                  <p>{event.venue ? `${event.venue}, ${event.place}` : event.place}</p>
-                  <div className="fila tarjeta-pie">
-                    <BotonEnlace href={`/e/${event.slug}`}>{t("inicio.abrir")}</BotonEnlace>
-                    <Link className="enlace" href={`/admin/${event.slug}`}>
-                      {t("inicio.panel")}
-                    </Link>
-                  </div>
-                </Tarjeta>
-              </li>
-            ))}
+            {cards.map(({ event, tickets }) => {
+              const when = formatEventWhen(lang, event);
+              return (
+                <li key={event.id}>
+                  <Tarjeta>
+                    {tickets.some((ticket) => ticket.priceUsdc === 0) && <Chip estado="listo">{t("inicio.gratis")}</Chip>}
+                    <h2>{event.name}</h2>
+                    <p>
+                      {when.date}, {when.time}
+                    </p>
+                    <p>{formatEventWhere(event)}</p>
+                    <div className="fila tarjeta-pie">
+                      <BotonEnlace href={`/e/${event.slug}`}>{t("inicio.abrir")}</BotonEnlace>
+                    </div>
+                  </Tarjeta>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
-      <p className="fila">
+      <p className="inicio-operacion">
+        <span>{t("inicio.operacion")}</span>
+        {events.length === 1 ? (
+          <Link className="enlace" href={`/admin/${events[0]!.slug}`}>
+            {t("inicio.panel")}
+          </Link>
+        ) : (
+          events.map((event) => (
+            <Link key={event.id} className="enlace" href={`/admin/${event.slug}`}>
+              {t("inicio.panelDe", { evento: event.name })}
+            </Link>
+          ))
+        )}
         <Link className="enlace" href="/scan">
           {t("inicio.escaner")}
         </Link>
-        <Link className="enlace" href="/admin/nuevo">
-          {t("kit.inicio.armar")}
-        </Link>
+        {gate.open && (
+          <Link className="enlace" href="/admin/nuevo">
+            {t("kit.inicio.armar")}
+          </Link>
+        )}
       </p>
     </section>
   );

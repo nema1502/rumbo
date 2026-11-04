@@ -87,6 +87,7 @@ export const kit = {
     "kit.datos.errorCupo": "Poné un número de lugares entre 1 y 1000.",
     "kit.datos.errorClave": "Esa clave no abre la creación de eventos.",
     "kit.datos.cerrado": "Crear eventos todavía no está abierto en este servidor.",
+    "kit.datos.cerradoAyuda": "Quien administra este servidor tiene la clave para abrirlo.",
 
     // El borrador
     "kit.armar.titulo": "Revisá y publicá",
@@ -318,6 +319,7 @@ export const kit = {
     "kit.datos.errorCupo": "Enter a number of spots between 1 and 1000.",
     "kit.datos.errorClave": "That key does not open event creation.",
     "kit.datos.cerrado": "Creating events is not open on this server yet.",
+    "kit.datos.cerradoAyuda": "Whoever runs this server has the key to open it.",
 
     // The draft
     "kit.armar.titulo": "Review and publish",

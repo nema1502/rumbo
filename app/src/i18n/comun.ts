@@ -45,10 +45,12 @@ export const comun = {
     "pago.precio": "{monto} USDC de prueba",
 
     "inicio.titulo": "Eventos",
-    "inicio.bajada": "Elegí un evento para inscribirte o ver tu credencial.",
+    "inicio.bajada": "Elegí un evento para inscribirte.",
     "inicio.vacio": "Todavía no hay eventos.",
     "inicio.abrir": "Ver el evento",
     "inicio.panel": "Panel de quien organiza",
+    "inicio.panelDe": "Panel de {evento}",
+    "inicio.operacion": "Para quien organiza y para voluntarios:",
     "inicio.escaner": "Escáner del voluntario",
     "inicio.gratis": "Inscripción gratis",
 
@@ -103,10 +105,12 @@ export const comun = {
     "pago.precio": "{monto} test USDC",
 
     "inicio.titulo": "Events",
-    "inicio.bajada": "Pick an event to register or to see your pass.",
+    "inicio.bajada": "Pick an event to sign up.",
     "inicio.vacio": "No events yet.",
     "inicio.abrir": "See the event",
     "inicio.panel": "Organizer panel",
+    "inicio.panelDe": "{evento} panel",
+    "inicio.operacion": "For organizers and volunteers:",
     "inicio.escaner": "Volunteer scanner",
     "inicio.gratis": "Free registration",
 
