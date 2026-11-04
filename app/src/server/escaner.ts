@@ -6,7 +6,7 @@
 import type { ScanEvent, ScanItem, ScanItemResult, ScanItemStatus, ScanPassInfo, ScanSnapshot, ScanStation } from "../lib/escaner-api.ts";
 import { GATE_STATION, STOCK_EXCEEDED } from "../lib/escaner-api.ts";
 import { isValidPassId } from "../lib/qr-codec.ts";
-import { BUSY, tryExclusive } from "./compartido.ts";
+import { BUSY, LeaseLost, tryExclusive } from "./compartido.ts";
 import { clientKey, stationCodeAttempts } from "./limites.ts";
 import { describeForLog } from "./log.ts";
 import { resolveStationCode, type StationAccess } from "./panel.ts";
@@ -257,9 +257,14 @@ async function processOne(repo: Repo, event: EventRecord, station: ScanStation, 
   // Una hora imposible (el reloj de un celular en otro año) no entra al espejo: con Postgres quedaría reintentando para siempre.
   if (!isScannedAtInRange(item.scannedAt)) return result("rejected", null, "hora de la lectura fuera de rango");
   // El mismo clientId no va dos veces a la vez al contrato: si otro pedido (de esta instancia o de otra) lo está
-  // mandando, este vuelve a la cola del escáner y se reintenta.
-  const outcome = await tryExclusive(`scan:${item.clientId}`, () => syncItem(repo, event, station, item, chain));
-  return outcome === BUSY ? result("retry", null, "en curso") : outcome;
+  // mandando, este vuelve a la cola del escáner y se reintenta. Lo mismo si el turno se perdió a mitad de camino.
+  try {
+    const outcome = await tryExclusive(`scan:${item.clientId}`, () => syncItem(repo, event, station, item, chain));
+    return outcome === BUSY ? result("retry", null, "en curso") : outcome;
+  } catch (error) {
+    if (error instanceof LeaseLost) return result("retry", null, "en curso");
+    throw error;
+  }
 }
 
 async function syncItem(repo: Repo, event: EventRecord, station: ScanStation, item: ScanItem, chain: ScanChain): Promise<ScanItemResult> {

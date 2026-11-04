@@ -3,6 +3,11 @@
 // los turnos y los frenos que antes vivían en la memoria de un proceso valen entre instancias; y lo que dos
 // pedidos hacen a la vez (el mismo clientId, el mismo correo, el mismo premio) queda una sola vez.
 // Las migraciones de Postgres se prueban siempre, con un PGlite propio: no dependen del motor de la corrida.
+//
+// Lo que estas pruebas no ejercitan: el Postgres local (PGlite, también cuando se sirve por la red) atiende una
+// transacción por vez, así que nunca hay dos transacciones abiertas a la par. Las pruebas de "dos pedidos a la
+// vez" comprueban el resultado (una sola fila), pero no que un candado como el FOR UPDATE del freno frene de
+// verdad a una transacción mientras otra escribe: eso solo se ve contra un Postgres de varias conexiones.
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import { copyFileSync, mkdtempSync, readdirSync } from "node:fs";
@@ -21,7 +26,7 @@ const { getEventQrKeys } = await import("../src/server/qr-keys.ts");
 const { getOrCreateAccessKey } = await import("../src/server/evento/acceso.ts");
 const { getPanelState } = await import("../src/server/panel.ts");
 const { AttemptLimiter, DbAttemptLimiter } = await import("../src/server/limites.ts");
-const { BUSY, acquireLease, releaseLease, serialized, tryExclusive } = await import("../src/server/compartido.ts");
+const { BUSY, LeaseLost, acquireLease, releaseLease, serialized, tryExclusive } = await import("../src/server/compartido.ts");
 const { withSponsorLock } = await import("../src/server/stellar.ts");
 const stands = await import("../src/server/stands.ts");
 
@@ -226,6 +231,85 @@ test("lo que llega dos veces a la vez queda una sola vez: el clientId, el correo
   const [uno, dos] = await Promise.all(["premio-1", "premio-2"].map((clientId) => repo.recordRedemption({ clientId, eventId: d.event.id, passId: pass.id, benefitId: premio.id, scannerId: "x" })));
   const ganados = await Promise.all([stands.claimRoutePrize(uno.id), stands.claimRoutePrize(dos.id)]);
   assert.deepEqual([...ganados].sort(), [false, true], "uno solo gana el premio");
+});
+
+test("si el turno se pierde a mitad del trabajo, quien lo pidió recibe LeaseLost en vez de un resultado, y el siguiente puede tomarlo", soloPg, async () => {
+  const opciones = { ttlMs: 400, renewMs: 50, waitMs: 5_000 };
+  let terminoA = false;
+  const a = serialized(
+    "prueba-perdido",
+    async () => {
+      await sleep(700);
+      terminoA = true;
+      return "A";
+    },
+    opciones,
+  );
+  // Mientras A trabaja, su turno desaparece (venció sin renovarse y otra instancia lo tomó: acá, se borra la fila).
+  await sleep(120);
+  await getDb().run("DELETE FROM leases WHERE name = 'prueba-perdido'");
+  await assert.rejects(a, (error) => error instanceof LeaseLost && /prueba-perdido/.test(error.message));
+  assert.equal(terminoA, false, "se avisó enseguida, sin esperar a que A terminara");
+  // El trabajo que sigue corriendo no le saca el turno a quien lo tomó después.
+  const b = await serialized("prueba-perdido", async () => "B", opciones);
+  assert.equal(b, "B");
+  await sleep(700);
+  assert.equal(await getDb().one("SELECT 1 AS yes FROM leases WHERE name = 'prueba-perdido'"), null, "al final, libre");
+});
+
+test("el turno se mide con el reloj de la base: tomarlo, renovarlo y vencer no dependen de la hora de la instancia", soloPg, async () => {
+  const ficha = await acquireLease(getDb(), "prueba-reloj", 5_000);
+  assert.ok(ficha);
+  const fila = await getDb().one("SELECT expires_at, now() AS ahora FROM leases WHERE name = 'prueba-reloj'");
+  const restante = Date.parse(fila.expires_at) - Date.parse(fila.ahora);
+  assert.ok(restante > 4_000 && restante <= 5_000, `vence en ${restante} ms según la base`);
+  await releaseLease(getDb(), "prueba-reloj", ficha);
+});
+
+test("un NUL en un texto no corta nada: Postgres no lo guarda, y la capa de datos lo saca antes de mandarlo", soloPg, async () => {
+  const persona = await repo.upsertPerson({ name: "Caro\u0000Tres", email: `caro-nul-${randomUUID()}@example.com` });
+  assert.equal(persona.name, "CaroTres");
+  const d = await eventoDePrueba(repo);
+  const { pass } = await paseDePrueba(repo, d);
+  const entrada = await repo.recordCheckIn({ clientId: "nul\u0000-1", eventId: d.event.id, passId: pass.id, scannerId: "p\u0000uerta" });
+  assert.deepEqual([entrada.clientId, entrada.scannerId], ["nul-1", "puerta"]);
+});
+
+test("la 012 cierra para la API de Supabase las funciones y las secuencias que vengan después", async () => {
+  // Una base con los roles de la API y los permisos por omisión que trae un proyecto de Supabase, antes de migrar.
+  const sinMigraciones = mkdtempSync(join(tmpdir(), "rumbo-sin-migraciones-"));
+  const db = await pgliteCon(sinMigraciones);
+  try {
+    await db.exec(`
+      CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS;
+      GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO anon, authenticated, service_role;
+    `);
+    await migratePostgres(db, MIGRACIONES_PG);
+    // Lo que una migración futura agregaría sin acordarse de los permisos: una función que lee personas y una secuencia.
+    await db.exec("CREATE FUNCTION public.cuantas_personas() RETURNS bigint LANGUAGE sql SECURITY DEFINER AS $$ SELECT count(*) FROM persons $$; CREATE SEQUENCE public.numero_seq;");
+    const como = async (rol, sql) => {
+      await db.exec(`SET ROLE ${rol}`);
+      try {
+        await db.one(sql);
+        return "puede";
+      } catch {
+        return "no puede";
+      } finally {
+        await db.exec("RESET ROLE");
+      }
+    };
+    assert.equal(await como("anon", "SELECT public.cuantas_personas() AS n"), "no puede", "anon no ejecuta una función nueva");
+    assert.equal(await como("authenticated", "SELECT public.cuantas_personas() AS n"), "no puede");
+    assert.equal(await como("anon", "SELECT nextval('public.numero_seq') AS n"), "no puede", "anon no usa una secuencia nueva");
+    assert.equal(await como("anon", "SELECT * FROM persons"), "no puede", "y las tablas siguen cerradas (011)");
+    assert.equal(await como("service_role", "SELECT public.cuantas_personas() AS n"), "puede", "la llave de servicio sigue pudiendo");
+    assert.equal(await como("anon", "SELECT 1 AS uno"), "puede", "anon sigue existiendo para lo suyo");
+  } finally {
+    await db.close();
+  }
 });
 
 /** Una base PGlite propia, en memoria, con las migraciones de `dir` (todas, si no se dice). */
