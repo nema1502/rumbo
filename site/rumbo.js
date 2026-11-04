@@ -1,10 +1,13 @@
 // Idioma y tema de la página. El castellano vive en el HTML; acá está el inglés.
 // Elegir: ?lang=en o ?lang=es, ?theme=dark o ?theme=light; lo elegido se recuerda en el navegador.
 
-// Los pasos de "Así se ve" se resaltan siguiendo el video: cada uno desde su segundo, y
-// ninguno antes de PASOS_DEMO[0] ni después de FIN_DEMO. Si el video cambia, se ajusta acá.
+// Los pasos de "La idea en 30 segundos" se resaltan siguiendo la animación: cada uno desde su segundo,
+// y ninguno antes de PASOS_DEMO[0] ni después de FIN_DEMO. Si el video cambia, se ajusta acá.
 const PASOS_DEMO = [4.3, 12.6, 16.3, 24.7];
 const FIN_DEMO = 29.2;
+// Lo mismo para el corte del producto real (mvp-corte-*.mp4, 23 s, armado con ffmpeg desde mvp-*.mp4):
+// la credencial, la puerta (con la segunda vez), el canje sin señal y el panel.
+const PASOS_CORTE = [0, 4.5, 12.5, 19.5];
 
 // Lo que se anima solo se oculta con la clase js (la cabecera de la página ya la pone).
 document.documentElement.classList.add("js");
@@ -12,12 +15,11 @@ if (document.readyState === "loading") document.addEventListener("DOMContentLoad
 else setTimeout(animar);
 
 const EN = {
-  "nav.como": "How it works",
-  "nav.pagos": "Payments",
-  "nav.stellar": "Why Stellar",
-  "nav.abierto": "Open",
-  "nav.crece": "How it grows",
-  "nav.equipo": "The team",
+  "nav.ver": "See it",
+  "nav.probar": "Try it",
+  "nav.informe": "Reports",
+  "nav.hace": "What it does",
+  "nav.viene": "What's next",
   "nav.idioma": "ES",
   "nav.github": "GitHub",
   "nav.entrar": "Sign in",
@@ -25,29 +27,29 @@ const EN = {
   "aria.inicio": "Rumbo, home",
   "aria.tema": "Switch theme",
   "aria.secciones": "Sections",
-  "aria.esencial": "The essentials",
   "aria.credencial": "A sample pass",
   "aria.pausar": "Pause the pass animation",
+  "aria.videos": "Which video to watch",
+  "aria.corte": "The Rumbo app running: the pass, the door, an offline redemption and the dashboard",
   "aria.video": "Animation of the Rumbo flow",
+  "aria.informe": "A sample report that builds itself",
   "aria.arquitectura": "How the pieces connect",
   "aria.enlaces": "Links",
 
-  "ver.mas": "See more",
-  "ver.detalle": "See the details",
-  "ver.seis": "See all six",
-  "ver.ruta": "See the roadmap",
+  "sello.hecho": "Built on",
+  "etiqueta.anda": "Live now",
+  "etiqueta.pronto": "Coming soon",
+  "etiqueta.diciembre": "Coming in December",
+  "cta.crear": "Create your event",
+  "cta.probar": "Try the real thing",
 
-  "portada.ante": "Community events on Stellar",
+  "ver.mas": "See more",
+  "ver.ruta": "See the full roadmap",
+
   "portada.titulo": "Your whole event <em>in one QR&nbsp;code</em>.",
-  "portada.bajada": "Register for free or sell tickets from any country, and run the door, redemptions and prizes from a single QR code.",
-  "portada.cta": "See how it works",
-  "portada.crear": "Create your event",
-  "portada.codigo": "The code, on GitHub",
-  "portada.s1": "Paid in seconds",
-  "portada.s2": "Redeemed once",
-  "portada.s3": "Works offline",
-  "portada.nota": "Made in Bolivia, in Spanish and English from day one. Open core under MIT.",
-  "portada.estado": "First version running on Stellar's test network: sign-up, pass, offline scanner, booths, dashboard, report and MCP server, with the code on GitHub. Google sign-in is in the code, pending a run with a real account; real payments come next.",
+  "portada.bajada": "Register people for free or bring your guest list. Event day and the report, sorted.",
+  "portada.ver": "See how it works",
+  "portada.confianza": "Signing up is free. The first version already runs on Stellar's test network.",
 
   "cred.evento": "Community hackathon",
   "cred.tipo": "General admission",
@@ -66,34 +68,82 @@ const EN = {
   "cred.b3s": "5 of 6 booths",
   "cred.b3e": "won",
 
-  "demo.ante": "How it looks",
-  "demo.titulo": "From sign-up to report, in half a minute.",
-  "demo.bajada": "What one person goes through, and what the organizer sees.",
-  "demo.abrir": "Watch the animation",
+  "ver.ante": "How it looks",
+  "ver.titulo": "From the QR to the door, for real.",
+  "ver.real": "The real product",
+  "ver.idea": "The idea in 30 seconds",
+  "ver.p1": "The QR code that changes.",
+  "ver.p2": "The door scans.",
+  "ver.p3": "No signal, it keeps going.",
+  "ver.p4": "The dashboard, live.",
+  "ver.completo": "Watch the full video",
+  "ver.probalo": "Try it yourself, right here",
   "demo.p1": "Sign-up is free; if they pay, the money arrives already split.",
   "demo.p2": "The QR pass lands on the phone, with everything they get.",
   "demo.p3": "The volunteer redeems, and a second try shows in big letters.",
   "demo.p4": "The dashboard counts everything, and the sponsor report writes itself.",
-  "demo.nota": "A hand-made animation of the flow, not a recording. The real MVP, recorded, is further down, in Try it.",
+  "demo.nota": "A hand-made animation of the idea: not a recording.",
 
-  "como.ante": "How it works",
-  "como.titulo": "Everyone at the event, in one place.",
+  "sumar.ante": "With what you already use",
+  "sumar.titulo": "You do not have to switch platforms.",
+  "sumar.linea": "Stay on your platform and bring your list, or register people for free here.",
+  "sumar.lista": "Your guest list",
+  "sumar.o": "or",
+  "sumar.gratis": "Free sign-up on Rumbo",
+  "sumar.s1": "QR pass",
+  "sumar.s2": "Door",
+  "sumar.s3": "Redemptions",
+  "sumar.s4": "Reports",
+  "sumar.lector": "Bring your guest list or register people for free on Rumbo; Rumbo builds the QR pass, the door, the redemptions and the reports.",
+
+  "informe.ante": "Reports",
+  "informe.titulo": "The report builds itself.",
+  "informe.linea": "Picture having to report on your event: it is already counted.",
+  "informe.a.t": "For sponsors",
+  "informe.a.p": "How many checked in and used their benefit, with no names.",
+  "informe.b.t": "For Stellar ambassadors",
+  "informe.b.p": "Verified attendance, the minimum of twenty and the chapter row.",
+  "informe.pronto": "The event wrap-up, in Word to edit and send.",
+  "inf.titulo": "Event report",
+  "inf.evento": "Chapter meetup, November",
+  "inf.f1": "Registered",
+  "inf.f2": "Checked in, verified",
+  "inf.f3": "Lunches redeemed",
+  "inf.f4": "Sponsor's coffee",
+  "inf.s1": "Twenty or more verified attendees",
+  "inf.s2": "Row ready for the chapter spreadsheet",
+  "capitulos.bajada": "The Stellar Ambassador Program counts an event when it has at least twenty verified attendees. Rumbo gets that count ready, and anyone can check it.",
+  "capitulos.a.t": "Twenty, verified",
+  "capitulos.a.p": "Every entry is recorded on Stellar, and the count adds itself up: attendees only, no speakers or organizers.",
+  "capitulos.b.t": "Food, accounted for",
+  "capitulos.b.p": "The food spend you report, divided by the people who checked in, is compared with the per-person cap; lunch redemptions say how many ate.",
+  "capitulos.c.t": "The report, ready",
+  "capitulos.c.p": "Attendance, redemptions and the link to the draw, if the organizer adds it, in one report for the monthly update, with no names on chain.",
+  "capitulos.fuente": "What the ambassador program asks for",
+
+  "hace.ante": "What it does",
+  "hace.titulo": "Event day, sorted.",
+  "hace.c1": "A QR code that changes: a screenshot will not work.",
+  "hace.c2": "The door, from a phone and with no signal.",
+  "hace.c3": "Each redemption, only once.",
+  "hace.c4": "The dashboard, live.",
+  "hace.mas": "See what it does for each person and each event",
   "como.bajada": "Today a community event takes six tools and a spreadsheet, and in many countries you cannot charge for tickets.",
   "problema.h1": "Registration",
-  "problema.h1b": "Luma",
+  "problema.h1b": "a form",
   "problema.h2": "Badges",
-  "problema.h2b": "Canva",
+  "problema.h2b": "a hand-made design",
   "problema.h3": "Lunch and snacks",
   "problema.h3b": "paper tickets or a column ticked by hand",
   "problema.h4": "Merch",
-  "problema.h4b": "Instagram and WhatsApp messages",
+  "problema.h4b": "social and chat messages",
   "problema.h5": "Prizes",
   "problema.h5b": "a photo",
   "problema.h6": "Sponsor report",
   "problema.h6b": "assembled from memory",
-  "problema.remate.p": "In much of the world the organizer cannot charge for tickets: the platforms they already use need a Stripe account, and Stripe does not pay out in their country. Bolivia is one of them.",
+  "problema.remate.p": "In much of the world charging for tickets by card is not possible: payment gateways do not pay out in that country. Bolivia is one of them.",
   "como.para": "Rumbo is made for events of 80 to 500 people with sponsors and several benefits: hackathons, DevFests, community conferences, bootcamps, chapter meetups.",
-  "casos.bajada": "What you do today with a form, a WhatsApp group and a spreadsheet, in one place, with what gets handed out under control.",
+  "casos.bajada": "What you do today with a form, a group chat and a spreadsheet, in one place, with what gets handed out under control.",
   "como.r1.n": "If you organize",
   "como.r1.l": "Build the page, get paid and follow it all live.",
   "como.r1.a": "Create the event and publish the page, with free or paid registration.",
@@ -128,20 +178,21 @@ const EN = {
   "casos.c4.p": "Today the home page lists the events. Later, a community with a calendar: every event of a GDG, a chapter or a university on one page, with the people who already came and their attendance history.",
 
   "pagos.ante": "How people pay",
-  "pagos.titulo": "Get paid even where Stripe does not pay out.",
+  "pagos.titulo": "Signing up is free. Charging, if you want.",
   "pagos.g.t": "Free means free",
   "pagos.g.p": "If your event is free, so is Rumbo.",
   "pagos.c.t": "If you charge",
-  "pagos.c.p": "The fee is written into the contract, and the money arrives already split.",
-  "pagos.m.t": "In your currency or in USDC",
-  "pagos.m.p": "In USDC from any country; with your bank's QR code, in bolivianos, coming next.",
-  "pagos.m1.t": "With your bank's QR code, in bolivianos (coming next)",
+  "pagos.c.p": "The money arrives already split.",
+  "pagos.m.t": "With your bank's QR code",
+  "pagos.m.p": "Pay in bolivianos.",
+  "paga.ver": "See who pays and how",
+  "pagos.m1.t": "With your bank's QR code, in bolivianos (coming soon)",
   "pagos.m1.p": "People will pay the way they pay for everything: by scanning their bank's QR code. A licensed ramp converts the bolivianos and the organizer receives USDC on the spot. Bolivia first, then each country with its own ramp.",
   "pagos.m2.t": "In USDC, from any country",
-  "pagos.m2.p": "With the account that creates itself when you sign in with Google or your email. No card, no XLM and no bank account on the other side.",
+  "pagos.m2.p": "With the account that creates itself when you sign in with Google or your email. No card, no XLM and no bank account on the other side. Today it runs on the test network; real payments arrive in December.",
   "pagos.m3.t": "No money in the middle",
   "pagos.m3.p": "The contract splits the organizer's share and the fee in the same operation. Rumbo never holds the money, and if the event is cancelled, protected payment (coming next) will refund it on its own.",
-  "pagos.bajada": "In much of Latin America you cannot charge with Stripe, and local gateways ask for a company, paperwork and days of waiting. Here the money goes from the buyer to the organizer in a single operation.",
+  "pagos.bajada": "In much of Latin America you cannot charge through card gateways, and local ones ask for a company, paperwork and days of waiting. Here the money goes from the buyer to the organizer in a single operation.",
   "paga.ante": "Who pays",
   "paga.titulo": "Communities have almost no money. So someone else pays.",
   "paga.f1": "Tickets",
@@ -154,7 +205,7 @@ const EN = {
   "paga.f8": "Small communities, free",
   "paga.bajada": "Free events are free, and that is how people arrive. The fee appears when money changes hands, and sponsors pay to know what happened with what they put in.",
   "paga.c1.t": "If you sell tickets",
-  "paga.c1.p": "A fee per paid ticket, written into the event's contract and lower than what card platforms charge on their free plans. It is charged in the same operation: nobody holds the money in between.",
+  "paga.c1.p": "A fee per paid ticket, written into the event's contract. It is charged in the same operation: nobody holds the money in between.",
   "paga.c8.t": "If you sell merch or workshops",
   "paga.c8.p": "The same fee as a ticket. Whatever the event sells (the T-shirt, the workshop kit) goes inside a paid ticket and lands on the pass as one more redemption.",
   "paga.c2.t": "If you sponsor",
@@ -173,18 +224,44 @@ const EN = {
   "llamado.p": "Organizing an event in December? We want to build it with you.",
   "llamado.boton": "Tell us about your event",
 
-  "capitulos.ante": "For Stellar chapters",
-  "capitulos.titulo": "Every chapter event, with its attendance proven.",
-  "capitulos.bajada": "The Stellar Ambassador Program counts an event when it has at least twenty verified attendees. Rumbo gets that count ready, and anyone can check it.",
-  "capitulos.a.t": "Twenty, verified",
-  "capitulos.a.p": "Every entry is recorded on Stellar, and the count adds itself up: attendees only, no speakers or organizers.",
-  "capitulos.b.t": "Food, accounted for",
-  "capitulos.b.p": "The food spend you report, divided by the people who checked in, is compared with the per-person cap; lunch redemptions say how many ate.",
-  "capitulos.c.t": "The report, ready",
-  "capitulos.c.p": "Attendance, redemptions and the link to the draw, if the organizer adds it, in one report for the monthly update, with no names on chain.",
-  "capitulos.fuente": "What the ambassador program asks for",
-  "stellar.ante": "Why Stellar",
-  "stellar.titulo": "What a database cannot do.",
+  "viene.ante": "What's next",
+  "viene.titulo": "The roadmap, out in the open.",
+  "viene.v1.t": "The event wrap-up, in Word",
+  "viene.v2.t": "Your bank's QR code",
+  "viene.v3.t": "Social media challenges, checked by QR",
+  "viene.v4.t": "Big doors, no queue",
+  "viene.v5.t": "Payments with real money",
+  "crece.porque": "Communities bring sponsors, paid events bring networks, and networks bring the platforms that want to build on top.",
+  "crece.e1.tag": "First",
+  "crece.e1.t": "One community",
+  "crece.e2.tag": "Then",
+  "crece.e2.t": "Events that charge",
+  "crece.e3.tag": "Later",
+  "crece.e3.t": "Networks and platforms",
+  "crece.e1.a": "Event page with free or paid registration",
+  "crece.e1.b": "Templates, and importing your guest list",
+  "crece.e1.c": "Pass with QR code, on the phone and for printing",
+  "crece.e1.d": "Check-in and redemptions with an offline scanner",
+  "crece.e1.e": "Organizer dashboard and sponsor report",
+  "crece.e1.f": "An MCP server: the event is set up from your assistant, in plain words",
+  "crece.e2.a": "Protected payment with automatic refund",
+  "crece.e2.b": "The pass by email, then webhooks and Telegram notices",
+  "crece.e2.c": "The prize from a draw landing on the winner's pass",
+  "crece.e2.d": "Sign-in with a passkey (your phone's fingerprint)",
+  "crece.e2.e": "Passes in Apple and Google Wallet",
+  "crece.e3.a": "Bank QR payments in bolivianos",
+  "crece.e3.b": "Resale at the original price",
+  "crece.e3.c": "Pay-per-use API",
+  "crece.e3.d": "Payments to speakers",
+  "crece.e3.e": "Licenses for community networks",
+  "crece.alojado": "Developers at a GDG or a WTM chapter learn Stellar by adapting their own event's system. The hosted service will be the convenient part: event setup, emails, real time, payments and reports.",
+  "crece.remate.t": "Open core, hosted service.",
+  "crece.remate.p": "People learn Stellar by adapting the code, and Rumbo will charge for the hosted service.",
+
+  "stellar.titulo": "Payments without borders, redemptions that never repeat.",
+  "stellar.linea": "Nothing technical: people sign in with Google or their email.",
+  "stellar.estado": "First version, in test mode. The code is open.",
+  "stellar.ver": "Why Stellar",
   "stellar.bajada": "For counting lunches a spreadsheet would do. This is what Stellar adds.",
   "stellar.v1": "<strong>Get paid from any country,</strong> with the fee split off in the same operation.",
   "stellar.v2": "<strong>Single-use vouchers,</strong> with each pass redemption recorded on the ledger, not in a spreadsheet.",
@@ -197,8 +274,7 @@ const EN = {
   "stellar.m6.p": "Later on, other platforms and agents will create events, passes and vouchers at volume, paying cents in USDC through x402. For your own events, the API and the MCP server are free.",
   "stellar.nota": "On the test network the voucher is not money, but the lunch is real. The booth-route prize is the exception: that redemption lives in the database, not on the ledger.",
 
-  "hecho.ante": "How it is built",
-  "hecho.titulo": "A contract, an app and a scanner.",
+  "hecho.ver": "How it is built",
   "arq.n1": "The person",
   "arq.n1b": "registers and pays from the phone",
   "arq.n2": "The Rumbo app",
@@ -229,8 +305,7 @@ const EN = {
   "hecho.d3.t": "There is already a seed",
   "hecho.d3.p": "The contract starts from an event pass written in September 2026 for Stellar Elite Bolivia, with nine tests and a run on the test network.",
 
-  "abierto.ante": "Open and connected",
-  "abierto.titulo": "Rumbo does not want to be another island.",
+  "abierto.ver": "Open and connected",
   "abierto.c1": "API",
   "abierto.c2": "MCP server",
   "abierto.c3": "Import and export",
@@ -243,7 +318,7 @@ const EN = {
   "abierto.m2.t": "An MCP server",
   "abierto.m2.p": "The assistant you already use sets up the event, loads the list and reads you the numbers and the report, with the same tools the app uses.",
   "abierto.m3.t": "Import and export",
-  "abierto.m3.p": "Bring your list from Luma, Bevy (not yet checked against a real export) or a spreadsheet, and take everything to CSV whenever you want (Google Sheets next).",
+  "abierto.m3.p": "Bring your guest list from the platform you already use or from a spreadsheet, and take everything to CSV whenever you want (Google Sheets next).",
   "abierto.m4.t": "Notices where people are",
   "abierto.m4.p": "The pass, the reminders and last-minute changes will arrive by email, in the calendar and on Telegram; today the link stays on screen and, when a list is imported, comes down as a CSV.",
   "abierto.m5.t": "A verifiable list for the draw",
@@ -251,74 +326,40 @@ const EN = {
   "abierto.m6.t": "Open source under MIT",
   "abierto.m6.p": "The contract, the scanner and the event template are on GitHub. Any community can run them, adapt them and learn Stellar with its own event.",
 
-  "crece.ante": "How it grows",
-  "crece.titulo": "From one community to a network.",
-  "crece.bajada": "Each stage pays for the next.",
-  "crece.e1.tag": "First",
-  "crece.e1.t": "One community",
-  "crece.e1.p": "Passes, check-in and redemptions on the test network, free.",
-  "crece.e2.tag": "Then",
-  "crece.e2.t": "Events that charge",
-  "crece.e2.p": "Real USDC tickets, and sponsorships with verified redemption.",
-  "crece.e3.tag": "Later",
-  "crece.e3.t": "Networks and platforms",
-  "crece.e3.p": "Licenses for networks, and an API other apps pay per use.",
-  "crece.porque": "Communities bring sponsors, paid events bring networks, and networks bring the platforms that want to build on top.",
-  "crece.e1.a": "Event page with free or paid registration",
-  "crece.e1.b": "Templates and importing the guest list from Luma or Bevy",
-  "crece.e1.c": "Pass with QR code, on the phone and for printing",
-  "crece.e1.d": "Check-in and redemptions with an offline scanner",
-  "crece.e1.e": "Organizer dashboard and sponsor report",
-  "crece.e1.f": "An MCP server: the event is set up from your assistant, in plain words",
-  "crece.e2.a": "Protected payment with automatic refund",
-  "crece.e2.b": "The pass by email, then webhooks and Telegram notices",
-  "crece.e2.c": "The prize from a draw landing on the winner's pass",
-  "crece.e2.d": "Sign-in with a passkey (your phone's fingerprint)",
-  "crece.e2.e": "Passes in Apple and Google Wallet",
-  "crece.e3.a": "Bank QR payments in bolivianos",
-  "crece.e3.b": "Resale at the original price",
-  "crece.e3.c": "Pay-per-use API",
-  "crece.e3.d": "Payments to speakers",
-  "crece.e3.e": "Licenses for community networks",
-  "crece.alojado": "Developers at a GDG or a WTM chapter learn Stellar by adapting their own event's system. The hosted service will be the convenient part: event setup, emails, real time, payments and reports.",
-  "crece.remate.t": "Open core, hosted service.",
-  "crece.remate.p": "People learn Stellar by adapting the code, and Rumbo will charge for the hosted service.",
-
-  "principios.ante": "Principles",
+  "equipo.titulo": "The team",
+  "equipo.n1.rol": "Product and smart contracts",
+  "equipo.n2.rol": "Full-stack development",
   "principios.titulo": "What Rumbo never does",
   "principios.p1.t": "Hold your money.",
-  "principios.p1.c": "It goes straight to the organizer.",
   "principios.p1.p": "It goes straight to the organizer or, once protected payments arrive, sits in the contract.",
   "principios.p2.t": "Convert currencies itself.",
-  "principios.p2.c": "Licensed partners do it.",
   "principios.p2.p": "Bolivianos are converted by partners who hold the license.",
   "principios.p3.t": "Put personal data on chain.",
-  "principios.p3.c": "No names, no emails.",
   "principios.p3.p": "Names and emails stay off the chain: they live only in Rumbo's database, for the pass, the door and the dashboard. Booth contacts are shared only with consent, at that booth.",
   "principios.p4.t": "Charge for free events.",
   "principios.p4.p": "The fee applies when money changes hands.",
   "principios.p5.t": "Show technical jargon at the door.",
-  "principios.p5.c": "The technical part stays folded.",
   "principios.p5.p": "Nobody at the door needs to know what is underneath. The technical part is folded away, for whoever wants to read it.",
   "principios.p6.t": "Close what it opened.",
   "principios.p6.p": "The redemption contract, the scanner and the event template are open source under MIT. The hosted service is what Rumbo will charge for.",
 
-  "equipo.ante": "The people",
-  "equipo.titulo": "The team",
-  "equipo.bajada": "Rumbo is made in Santa Cruz de la Sierra, Bolivia, by two founders who organize and live these events.",
-  "equipo.n1.rol": "Product and smart contracts",
-  "equipo.n2.rol": "Full-stack development",
-  "equipo.cta": "If you code, questions and ideas go in",
-  "equipo.issue": "a GitHub issue.",
+  "final.titulo": "Your next event, <em>in one QR&nbsp;code</em>.",
+  "final.linea": "Signing up is free. Set up in two minutes.",
+  "final.entrar": "Already have an event?",
+  "final.entrarLink": "Sign in as an organizer",
 
-  "pie.hecho": "Made in Santa Cruz de la Sierra, Bolivia.",
+  "pie.hecho": "From Bolivia. Open source, under the MIT license.",
+  "pie.stellar": "Why Stellar",
+  "pie.ruta": "Roadmap",
   "pie.codigo": "Code",
+  "pie.ideas": "Ideas and questions",
   "pie.licencia": "License",
   "pie.idioma": "Español",
 };
 
 const ES = {};
 const ES_ARIA = {};
+const APP = "https://rumbo-eventos-app.vercel.app";
 
 function guardarCastellano() {
   for (const el of document.querySelectorAll("[data-i18n]")) ES[el.getAttribute("data-i18n")] = el.innerHTML;
@@ -343,10 +384,19 @@ function aplicarIdioma(lang) {
   document.title = lang === "en" ? "Rumbo: your whole event in one QR code" : "Rumbo: tu evento entero en un QR";
   const desc = document.querySelector('meta[name="description"]');
   if (desc) desc.setAttribute("content", lang === "en"
-    ? "Community events on Stellar. Register for free or sell tickets from anywhere and run the whole event from one QR code."
-    : "Eventos de comunidad sobre Stellar. Inscribí gratis o cobrá entradas desde cualquier país y operá todo tu evento desde un QR.");
+    ? "Register people for free or bring your guest list. The QR pass, the door, redemptions and the report, sorted. Built on Stellar."
+    : "Inscribí gratis o traé tu lista de inscriptos. La credencial con QR, la puerta, los canjes y el informe, resueltos. Hecho con Stellar.");
 
-  ajustarDemo(lang);
+  // Quien llega a la app desde la landing en inglés, la ve en inglés.
+  for (const a of document.querySelectorAll(`a[href^="${APP}"]`)) {
+    try {
+      const u = new URL(a.href);
+      u.searchParams.set("lang", lang);
+      a.href = u.toString();
+    } catch { /* enlace raro: queda como está */ }
+  }
+
+  ajustarVideos(lang);
 
   const boton = document.getElementById("idioma");
   if (boton) {
@@ -358,44 +408,63 @@ function aplicarIdioma(lang) {
   try { localStorage.setItem("rumbo.lang", lang); } catch { /* sin almacenamiento */ }
 }
 
-// La animación: horizontal en pantallas grandes; en el celular, la vertical si existe,
-// y si no, un cartel con botón que abre el video.
 const esCelular = () => matchMedia("(max-width: 560px)").matches;
-const verticales = {};
-async function hayVertical(lang) {
-  if (verticales[lang] === undefined) {
-    try {
-      const r = await fetch(`assets/flujo-${lang}-vertical.mp4`, { method: "HEAD" });
-      verticales[lang] = r.ok;
-    } catch {
-      verticales[lang] = false;
+const reducirMovimiento = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Pone en un video el archivo y el cartel que tocan, sin recargarlo si ya los tiene.
+function ponerFuente(video, archivo, cartel) {
+  const fuente = video.querySelector("source");
+  if (cartel && video.getAttribute("poster") !== cartel) video.setAttribute("poster", cartel);
+  if (!fuente || fuente.getAttribute("src") === archivo) return false;
+  fuente.setAttribute("src", archivo);
+  // Si todavía no arrancó, no se baja nada: se carga recién al reproducirlo (ver reproducir).
+  if (video.readyState > 0 || !video.paused) video.load();
+  else video.dataset.pendiente = "1";
+  return true;
+}
+
+// Reproduce un video y, si cambió de archivo mientras estaba quieto, primero lo carga.
+function reproducir(video) {
+  if (video.dataset.pendiente) {
+    delete video.dataset.pendiente;
+    video.load();
+  }
+  return video.play().catch(() => { /* sin autoplay: queda el cartel */ });
+}
+
+// Los videos siguen al idioma y al ancho: en el celular, las versiones verticales.
+// La animación de la idea carga recién cuando se abre su pestaña.
+function ajustarVideos(lang) {
+  const v = esCelular() ? "-vertical" : "";
+  const corte = document.getElementById("corte-video");
+  if (corte && !corte.dataset.completo) {
+    const cambio = ponerFuente(corte, `assets/mvp-corte-${lang}${v}.mp4`, `assets/mvp-corte-${lang}${v}.jpg`);
+    corte.classList.toggle("vertical", !!v);
+    if (cambio) document.dispatchEvent(new Event("rumbo:corte"));
+  } else if (corte) {
+    ponerFuente(corte, `assets/mvp-${lang}.mp4`, `assets/mvp-${lang}.jpg`);
+  }
+  const idea = document.getElementById("demo-video");
+  if (idea) {
+    idea.classList.toggle("vertical", !!v);
+    if (idea.dataset.activo) {
+      const cambio = ponerFuente(idea, `assets/flujo-${lang}${v}.mp4`, `assets/flujo-${lang}${v}.jpg`);
+      if (cambio && !reducirMovimiento) reproducir(idea);
     }
   }
-  return verticales[lang];
-}
-async function ajustarDemo(lang) {
-  const video = document.getElementById("demo-video");
-  const abrir = document.getElementById("demo-abrir");
-  const poster = document.getElementById("demo-poster");
-  if (!video || !abrir) return;
-  const vertical = esCelular() && (await hayVertical(lang));
-  if (document.documentElement.lang !== lang) return;
-  const sufijo = vertical ? "-vertical" : "";
-  const archivo = `assets/flujo-${lang}${sufijo}.mp4`;
-  const cartel = `assets/flujo-${lang}${sufijo}.jpg`;
-  video.classList.toggle("vertical", vertical);
-  abrir.hidden = vertical;
-  abrir.setAttribute("href", `assets/flujo-${lang}.mp4`);
-  if (poster) poster.setAttribute("src", `assets/flujo-${lang}.jpg`);
-  const fuente = video.querySelector("source");
-  if (fuente && !fuente.getAttribute("src").endsWith(archivo)) {
-    fuente.setAttribute("src", archivo);
-    video.setAttribute("poster", cartel);
-    video.load();
-    if (!reducirMovimiento) video.play().catch(() => { /* sin autoplay */ });
+  for (const c of document.querySelectorAll("video[data-clip]")) {
+    const nombre = c.dataset.clip;
+    c.setAttribute("poster", `assets/clip-${nombre}-${lang}.jpg`);
+    if (c.dataset.cargado) {
+      const archivo = `assets/clip-${nombre}-${lang}.mp4`;
+      if (c.getAttribute("src") !== archivo) {
+        c.setAttribute("src", archivo);
+        if (c.dataset.enPantalla && !reducirMovimiento) c.play().catch(() => { /* sin autoplay */ });
+      }
+    }
   }
 }
-matchMedia("(max-width: 560px)").addEventListener("change", () => ajustarDemo(document.documentElement.lang));
+matchMedia("(max-width: 560px)").addEventListener("change", () => ajustarVideos(document.documentElement.lang));
 
 function aplicarTema(tema) {
   document.documentElement.setAttribute("data-theme", tema);
@@ -409,8 +478,6 @@ function leer(nombre, guardado, porDefecto) {
   return porDefecto();
 }
 
-const reducirMovimiento = matchMedia("(prefers-reduced-motion: reduce)").matches;
-
 guardarCastellano();
 
 const temaInicial = leer("theme", "rumbo.theme", () => (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
@@ -418,14 +485,6 @@ aplicarTema(temaInicial === "dark" ? "dark" : "light");
 
 const idiomaInicial = leer("lang", "rumbo.lang", () => ((navigator.language || "es").toLowerCase().startsWith("es") ? "es" : "en"));
 aplicarIdioma(idiomaInicial === "en" ? "en" : "es");
-
-// Con movimiento reducido, el video no arranca solo y se puede controlar.
-const demo = document.getElementById("demo-video");
-if (demo && reducirMovimiento) {
-  demo.removeAttribute("autoplay");
-  demo.pause();
-  demo.controls = true;
-}
 
 document.getElementById("idioma")?.addEventListener("click", () => {
   aplicarIdioma(document.documentElement.lang === "en" ? "es" : "en");
@@ -441,17 +500,23 @@ document.getElementById("tema")?.addEventListener("click", () => {
 // El movimiento de la página: cada animación cuenta algo del producto o guía la lectura.
 // Con movimiento reducido no se oculta nada y la credencial queda en su estado final.
 function animar() {
-  try {
-    window.rumboAnimo = true; // le avisa a la cabecera que el script corre
-    const quieto = matchMedia("(prefers-reduced-motion: reduce)");
-    entradaPortada(quieto.matches);
-    revelarAlRecorrer();
-    credencialViva(quieto);
-    arquitecturaViva(quieto);
-    pasosDelDemo();
-    cabeceraCompacta();
-  } catch {
-    document.documentElement.classList.remove("js"); // si algo falla, se ve todo quieto
+  window.rumboAnimo = true; // le avisa a la cabecera que el script corre
+  const quieto = matchMedia("(prefers-reduced-motion: reduce)");
+  for (const f of [
+    () => entradaPortada(quieto.matches),
+    revelarAlRecorrer,
+    () => credencialViva(quieto),
+    () => arquitecturaViva(quieto),
+    pestanasDelVideo,
+    () => corteVivo(quieto),
+    () => pasosDe(document.getElementById("demo-video"), document.querySelector(".idea-pasos"), PASOS_DEMO, FIN_DEMO),
+    () => pasosDe(document.getElementById("corte-video"), document.querySelector(".corte-pasos"), PASOS_CORTE, Infinity),
+    () => clipsVivos(quieto),
+    () => informeVivo(quieto),
+    barraMovil,
+    cabeceraCompacta,
+  ]) {
+    try { f(); } catch { document.documentElement.classList.remove("js"); } // si algo falla, se ve todo quieto
   }
 }
 
@@ -510,8 +575,9 @@ function partirPalabras(h1) {
 
 // Los bloques entran al recorrer la página, una sola vez y de a uno dentro de cada tanda.
 // La lista es la misma que en styles.css.
+const REVELAR = ".encabezado, .tarjeta, .herramienta, .remate, .arquitectura-lista li, .demo, .sumar-flujo, .informe-vivo, .franja-final .contenedor";
 function revelarAlRecorrer() {
-  const bloques = document.querySelectorAll(".encabezado, .tarjeta, .herramienta, .remate, .principios li, .arquitectura-lista li, .demo");
+  const bloques = document.querySelectorAll(REVELAR);
   const ver = (el, i) => {
     el.style.animationDelay = Math.min(i, 6) * 70 + "ms";
     el.classList.add("visto");
@@ -615,20 +681,17 @@ function credencialViva(quieto) {
   document.addEventListener("visibilitychange", seguir);
 }
 
-// El diagrama de cómo está hecho: las piezas aparecen de izquierda a derecha, las flechas
-// se dibujan y un punto lleva el pago de la persona al organizador, pasando por la app y
-// el contrato; otro, más tenue, sale del contrato hacia quien auspicia.
+// El diagrama de cómo está hecho (plegado en "Hecho con Stellar"): las piezas aparecen de
+// izquierda a derecha, las flechas se dibujan y un punto lleva el pago de la persona al
+// organizador, pasando por la app y el contrato; otro, más tenue, sale hacia quien auspicia.
 function arquitecturaViva(quieto) {
   const svg = document.querySelector(".arquitectura-svg");
   if (!svg) return;
   const nodos = svg.querySelectorAll(".arq-nodo");
   const flechas = [...svg.querySelectorAll(".arq-flechas path")];
   const usdc = svg.querySelector(".arq-etiquetas text");
-  // Persona, app, contrato, organizador, auspiciante y escáner, en el orden del HTML.
   [0, 90, 180, 330, 390, 260].forEach((ms, i) => nodos[i] && (nodos[i].style.animationDelay = ms + "ms"));
-  // Cuándo empieza cada flecha: a la app, al contrato, al organizador, al auspiciante, del escáner.
   const DIBUJO = [160, 310, 520, 560, 420];
-  // El recorrido, en un ciclo de 4,4 s: [flecha, desde, hasta], en milisegundos.
   const CICLO = 4400;
   const PAGO = [[0, 0, 700], [1, 1050, 1750], [2, 2100, 2800]];
   const AVISO = [3, 2100, 2800];
@@ -641,7 +704,7 @@ function arquitecturaViva(quieto) {
   const ubicar = (punto, tr, t, alfa) => {
     if (!tr) return punto.setAttribute("opacity", 0);
     const u = (t - tr[1]) / (tr[2] - tr[1]);
-    const e = u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u); // sale y llega suave
+    const e = u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u);
     const p = flechas[tr[0]].getPointAtLength(largos[tr[0]] * e);
     punto.setAttribute("transform", `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`);
     punto.setAttribute("opacity", (alfa * Math.min(1, u * 5, (1 - u) * 5)).toFixed(2));
@@ -650,7 +713,6 @@ function arquitecturaViva(quieto) {
     const t = (((performance.now() - inicio) % CICLO) + CICLO) % CICLO;
     ubicar(puntos[0], PAGO.find((tr) => tramo(tr, t)), t, 1);
     ubicar(puntos[1], tramo(AVISO, t), t, 0.5);
-    // La etiqueta USDC late cuando el pago pasa por debajo.
     const k = tramo(PAGO[1], t) ? Math.sin((Math.PI * (t - PAGO[1][1])) / (PAGO[1][2] - PAGO[1][1])) : 0;
     if (usdc) usdc.style.transform = k > 0 ? `scale(${(1 + 0.06 * k).toFixed(3)})` : "";
     raf = requestAnimationFrame(cuadro);
@@ -669,8 +731,9 @@ function arquitecturaViva(quieto) {
   const ver = () => {
     if (puntos.length) return;
     largos = flechas.map((f) => f.getTotalLength());
+    if (!largos[0]) return; // todavía plegado: sin medidas
     flechas.forEach((f, i) => f.style.setProperty("--largo", largos[i]));
-    svg.getBoundingClientRect(); // el largo queda puesto antes de empezar a dibujar
+    svg.getBoundingClientRect();
     flechas.forEach((f, i) => {
       f.style.transitionDelay = DIBUJO[i] + "ms";
       setTimeout(() => f.classList.add("llego"), DIBUJO[i] + 450);
@@ -685,7 +748,7 @@ function arquitecturaViva(quieto) {
       return g.appendChild(c);
     });
     svg.querySelector(".arq-etiquetas").before(g);
-    inicio = performance.now() + 1300; // arranca cuando las flechas ya están dibujadas
+    inicio = performance.now() + 1300;
   };
   observar(svg, (si) => {
     enPantalla = si;
@@ -696,25 +759,176 @@ function arquitecturaViva(quieto) {
   quieto.addEventListener("change", correr);
 }
 
-// "Así se ve": debajo del video se resalta el paso que se está mostrando.
-function pasosDelDemo() {
-  const video = document.getElementById("demo-video");
-  const lista = document.querySelector(".demo-pasos");
+// Las dos pestañas del reproductor: el producto real (por defecto) y la idea en 30 segundos.
+// Se manejan con las flechas del teclado, como pide el patrón de pestañas.
+function pestanasDelVideo() {
+  const tabs = [...document.querySelectorAll('.pestanas [role="tab"]')];
+  if (!tabs.length) return;
+  const idea = document.getElementById("demo-video");
+  const corte = document.getElementById("corte-video");
+  const elegir = (tab, foco) => {
+    for (const t of tabs) {
+      const si = t === tab;
+      t.setAttribute("aria-selected", String(si));
+      t.tabIndex = si ? 0 : -1;
+      document.getElementById(t.getAttribute("aria-controls")).hidden = !si;
+    }
+    if (foco) tab.focus();
+    const esIdea = tab.id === "pestana-idea";
+    if (esIdea && idea && !idea.dataset.activo) {
+      idea.dataset.activo = "1";
+      ajustarVideos(document.documentElement.lang);
+    }
+    if (esIdea) {
+      corte?.pause();
+      if (idea && !reducirMovimiento) reproducir(idea);
+    } else {
+      idea?.pause();
+      document.dispatchEvent(new Event("rumbo:corte"));
+    }
+  };
+  tabs.forEach((t, i) => {
+    t.addEventListener("click", () => elegir(t, false));
+    t.addEventListener("keydown", (e) => {
+      const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+      if (d) { e.preventDefault(); elegir(tabs[(i + d + tabs.length) % tabs.length], true); }
+    });
+  });
+  if (idea && reducirMovimiento) idea.controls = true;
+}
+
+// El corte del producto real: mudo y en bucle mientras se ve; se pausa fuera de pantalla.
+// "Ver el video completo" pone en el mismo lugar el minuto entero, con sonido y controles
+// (en el celular, a pantalla completa) y, al terminar, vuelve al corte.
+function corteVivo(quieto) {
+  const video = document.getElementById("corte-video");
+  const boton = document.getElementById("corte-completo");
+  if (!video) return;
+  let enPantalla = false;
+  if (quieto.matches) video.controls = true;
+  const seguir = () => {
+    const panel = video.closest("[role=tabpanel]");
+    const anda = enPantalla && !document.hidden && !(panel && panel.hidden) && (!quieto.matches || video.dataset.completo);
+    if (anda && video.paused && !video.dataset.pausaMano) reproducir(video);
+    if (!anda && !video.paused) video.pause();
+  };
+  observar(video, (si) => { enPantalla = si; seguir(); }, 0.35);
+  document.addEventListener("visibilitychange", seguir);
+  document.addEventListener("rumbo:corte", seguir);
+  video.addEventListener("pause", () => { if (video.dataset.completo && enPantalla && !document.hidden) video.dataset.pausaMano = "1"; });
+  video.addEventListener("play", () => { delete video.dataset.pausaMano; });
+  const volver = () => {
+    delete video.dataset.completo;
+    delete video.dataset.pausaMano;
+    video.loop = true;
+    video.muted = true;
+    video.controls = quieto.matches;
+    if (document.fullscreenElement === video) document.exitFullscreen?.().catch(() => {});
+    boton.hidden = false;
+    ajustarVideos(document.documentElement.lang);
+    seguir();
+  };
+  video.addEventListener("ended", () => { if (video.dataset.completo) volver(); });
+  boton?.addEventListener("click", () => {
+    const lang = document.documentElement.lang === "en" ? "en" : "es";
+    video.dataset.completo = "1";
+    video.loop = false;
+    video.muted = false;
+    video.controls = true;
+    video.classList.remove("vertical");
+    ponerFuente(video, `assets/mvp-${lang}.mp4`, `assets/mvp-${lang}.jpg`);
+    boton.hidden = true;
+    reproducir(video);
+    if (esCelular()) {
+      if (video.requestFullscreen) video.requestFullscreen().catch(() => {});
+      else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
+    }
+  });
+}
+
+// Debajo de cada video se resalta el paso que se está mostrando.
+function pasosDe(video, lista, pasos, fin) {
   if (!video || !lista) return;
-  const pasos = [...lista.children];
+  const items = [...lista.children];
   let actual = null;
   const marcar = () => {
-    // Solo si el video se ve y ya arrancó: en el celular sin la versión vertical queda oculto.
-    const sigue = video.getClientRects().length > 0 && video.played.length > 0;
+    const sigue = !video.dataset.completo && video.getClientRects().length > 0 && video.played.length > 0;
     const t = video.currentTime;
     let n = -1;
-    if (sigue && t < FIN_DEMO) PASOS_DEMO.forEach((desde, i) => { if (t >= desde) n = i; });
+    if (sigue && t < fin) pasos.forEach((desde, i) => { if (t >= desde) n = i; });
     lista.classList.toggle("sincronizado", sigue);
     if (n === actual) return;
     actual = n;
-    pasos.forEach((p, i) => p.classList.toggle("activo", i === n));
+    items.forEach((p, i) => p.classList.toggle("activo", i === n));
   };
   for (const ev of ["timeupdate", "playing", "seeked", "emptied"]) video.addEventListener(ev, marcar);
+}
+
+// Los clips de "Qué hace": cargan recién cuando la tarjeta entra en pantalla y se pausan al salir.
+// Con movimiento reducido se queda el cartel quieto.
+function clipsVivos(quieto) {
+  for (const c of document.querySelectorAll("video[data-clip]")) {
+    observar(c, (si) => {
+      if (si) c.dataset.enPantalla = "1"; else delete c.dataset.enPantalla;
+      if (quieto.matches) return;
+      if (si && !c.dataset.cargado) {
+        c.dataset.cargado = "1";
+        c.setAttribute("src", `assets/clip-${c.dataset.clip}-${document.documentElement.lang === "en" ? "en" : "es"}.mp4`);
+      }
+      if (si) c.play().catch(() => { /* sin autoplay */ });
+      else if (!c.paused) c.pause();
+    }, 0.4);
+  }
+}
+
+// El informe de ejemplo se arma cuando entra en pantalla: las filas, los números que suben,
+// las barras y los sellos. Una sola vez; con movimiento reducido ya está armado.
+function informeVivo(quieto) {
+  const fig = document.querySelector(".informe-vivo");
+  if (!fig || quieto.matches) return;
+  const numeros = [...fig.querySelectorAll("[data-hasta]")];
+  fig.classList.add("espera");
+  let hecho = false;
+  observar(fig, (si) => {
+    if (!si || hecho) return;
+    hecho = true;
+    fig.classList.remove("espera");
+    fig.classList.add("arma");
+    numeros.forEach((b, i) => {
+      const hasta = +b.dataset.hasta;
+      const t0 = performance.now() + 250 + i * 220;
+      const paso = (t) => {
+        const u = Math.min(1, Math.max(0, (t - t0) / 900));
+        b.textContent = String(Math.round(hasta * (1 - Math.pow(1 - u, 3))));
+        if (u < 1) requestAnimationFrame(paso);
+      };
+      b.textContent = "0";
+      requestAnimationFrame(paso);
+    });
+  }, 0.45);
+}
+
+// En el celular, una barra fija con "Creá tu evento" aparece después de la portada y se esconde
+// cuando se ve la franja final.
+function barraMovil() {
+  const barra = document.getElementById("barra-movil");
+  const portada = document.querySelector(".portada .cta");
+  const final = document.getElementById("empezar");
+  if (!barra || !portada || !final || !("IntersectionObserver" in window)) return;
+  let pasoPortada = false;
+  let veFinal = false;
+  const enlace = barra.querySelector("a");
+  const poner = () => {
+    const si = pasoPortada && !veFinal;
+    barra.classList.toggle("visible", si);
+    barra.setAttribute("aria-hidden", String(!si));
+    enlace.tabIndex = si ? 0 : -1;
+  };
+  new IntersectionObserver(([e]) => {
+    pasoPortada = !e.isIntersecting && e.boundingClientRect.top < 0;
+    poner();
+  }).observe(portada);
+  new IntersectionObserver(([e]) => { veFinal = e.isIntersecting; poner(); }).observe(final);
 }
 
 // La cabecera se compacta y toma una sombra fina cuando la página bajó más de 40 px.
@@ -734,23 +948,3 @@ function cabeceraCompacta() {
   }, { passive: true });
   mirar();
 }
-
-// El video de "Así se ve" arranca desde el principio cuando entra en pantalla y se pausa al salir,
-// así quien llega desde el botón de la portada ve la historia desde el paso 1.
-function vigilarVideo() {
-  const video = document.getElementById("demo-video");
-  if (!video || !("IntersectionObserver" in window)) return;
-  const quieto = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  new IntersectionObserver((entradas) => {
-    const e = entradas[entradas.length - 1];
-    if (e.isIntersecting) {
-      if (video.getClientRects().length === 0) return;
-      try { if (video.currentTime > 1) video.currentTime = 0; } catch (err) { /* sin rangos */ }
-      if (!quieto) video.play().catch(() => { /* sin autoplay */ });
-    } else if (!video.paused) {
-      video.pause();
-    }
-  }, { threshold: 0.35 }).observe(video);
-}
-if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", vigilarVideo);
-else setTimeout(vigilarVideo);
