@@ -136,7 +136,8 @@ test("sin la clave de la casa no se crea nada; con la clave queda el borrador, s
   assert.equal(error, false);
   assert.equal(datos.event.slug, "build-with-ai-de-prueba");
   assert.deepEqual([datos.event.published, datos.event.capacity, datos.event.place, datos.event.timezone], [false, 150, "Santa Cruz de la Sierra", "America/La_Paz"]);
-  assert.equal(datos.event.startsAt, "2026-11-28T09:00:00-04:00");
+  // El mismo instante en los dos motores: SQLite devuelve el texto guardado y Postgres lo da en UTC.
+  assert.equal(Date.parse(datos.event.startsAt), Date.parse("2026-11-28T09:00:00-04:00"));
   assert.match(datos.organizer_key, /^[A-Z2-7]{24}$/);
   assert.equal(datos.links.review, `http://localhost:3999/admin/build-with-ai-de-prueba/armar?k=${datos.organizer_key}`);
   assert.equal(datos.links.page, "http://localhost:3999/e/build-with-ai-de-prueba");
