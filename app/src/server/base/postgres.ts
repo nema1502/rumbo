@@ -2,14 +2,15 @@
 // con el driver postgres (porsager). Ese pooler le da a cada transacción una conexión cualquiera del servidor:
 // no sostiene sentencias preparadas con nombre (prepare: false) ni nada que viva en la sesión, así que acá no
 // hay SET, ni LISTEN, ni candados de sesión. El paquete se carga recién cuando hace falta: con SQLite no se toca.
+import fs from "node:fs";
 import type { Sql, TransactionSql } from "postgres";
 import { getEnv } from "../env.ts";
 import type { SecretCodec } from "./cifrado.ts";
-import { normalizePgRow, toDollarParams, type Db, type Row, type SqlValue } from "./comun.ts";
+import { normalizePgRow, toDollarParams, withoutNul, type Db, type Row, type SqlValue } from "./comun.ts";
 
 type Runner = Sql | TransactionSql;
 
-const toPg = (params: readonly SqlValue[]): unknown[] => params.map((v) => (v instanceof Uint8Array && !Buffer.isBuffer(v) ? Buffer.from(v) : v));
+const toPg = (params: readonly SqlValue[]): unknown[] => withoutNul(params).map((v) => (v instanceof Uint8Array && !Buffer.isBuffer(v) ? Buffer.from(v) : v));
 
 /** Las sentencias sobre una conexión: la del pool, o la de una transacción. */
 class PgRunner implements Db {

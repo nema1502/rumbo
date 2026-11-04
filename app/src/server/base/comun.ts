@@ -29,6 +29,15 @@ export interface Db {
   close(): Promise<void>;
 }
 
+/**
+ * Los parámetros de texto sin el carácter NUL: Postgres no lo acepta dentro de un texto ("invalid byte
+ * sequence for encoding UTF8: 0x00"), SQLite sí, y en ningún dato de Rumbo significa nada. Sin esto, un NUL
+ * en un nombre o en un clientId cortaba una importación a la mitad o dejaba un registro reintentando para siempre.
+ */
+export function withoutNul(params: readonly SqlValue[]): SqlValue[] {
+  return params.map((v) => (typeof v === "string" && v.includes("\u0000") ? v.replace(/\u0000/g, "") : v));
+}
+
 /** "?" pasa a "$1", "$2"... para Postgres. Lo que está entre comillas simples no se toca. */
 export function toDollarParams(sql: string): string {
   let out = "";

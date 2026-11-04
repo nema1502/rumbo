@@ -7,7 +7,7 @@ import fs from "node:fs";
 import type { PGlite, Transaction } from "@electric-sql/pglite";
 import { appDir } from "../env.ts";
 import type { SecretCodec } from "./cifrado.ts";
-import { migrationsDir, normalizePgRow, toDollarParams, type Db, type Row, type SqlValue } from "./comun.ts";
+import { migrationsDir, normalizePgRow, toDollarParams, withoutNul, type Db, type Row, type SqlValue } from "./comun.ts";
 import { migratePostgres } from "./migrar.ts";
 
 type Runner = PGlite | Transaction;
@@ -30,7 +30,7 @@ class PgliteDb implements Db {
   }
 
   async all(sql: string, params: readonly SqlValue[] = []): Promise<Row[]> {
-    const result = await (await this.runner()).query<Row>(toDollarParams(sql), [...params]);
+    const result = await (await this.runner()).query<Row>(toDollarParams(sql), withoutNul(params));
     return result.rows.map(normalizePgRow);
   }
 
@@ -39,7 +39,7 @@ class PgliteDb implements Db {
   }
 
   async run(sql: string, params: readonly SqlValue[] = []): Promise<number> {
-    return (await (await this.runner()).query(toDollarParams(sql), [...params])).affectedRows ?? 0;
+    return (await (await this.runner()).query(toDollarParams(sql), withoutNul(params))).affectedRows ?? 0;
   }
 
   async exec(script: string): Promise<void> {
