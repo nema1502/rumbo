@@ -17,7 +17,7 @@ const { stationCodeAttempts, registrationAttempts } = await import("../src/serve
 const { doorSearchAttempts } = await import("../src/server/puerta.ts");
 const { SCAN_SESSION_TTL_MS, issueScanSession, readScanSession } = await import("../src/server/sesion-escaner.ts");
 const { regenerateStandCode, createStand } = await import("../src/server/stands.ts");
-const { agruparParaSincronizar, nuevaEntrada } = await import("../src/lib/cola.ts");
+const { abrirCola, agruparParaSincronizar, nuevaEntrada } = await import("../src/lib/cola.ts");
 const { formatStationCode } = await import("../src/lib/station-code.ts");
 const rutas = {
   open: (await import("../src/app/api/scan/open/route.ts")).POST,
@@ -160,7 +160,7 @@ test("una ficha con la forma correcta de un evento que no existe contesta 401 en
   }
 });
 
-test("la cola agrupa lo pendiente por puesto con la ficha de cada uno: la de la sesión para el puesto abierto, la última guardada para los otros, y el código si no hay", () => {
+test("la cola agrupa lo pendiente por puesto con la ficha de cada uno: la de la sesión para el puesto abierto, la última guardada para los otros, y el código si no hay", async () => {
   const entrada = (code, token, passId, extra = {}) => nuevaEntrada({ eventId: "ev", stationId: code === "PUERTAPUERTA" ? "gate" : "almuerzo", code, token, action: "checkin", passId, benefitId: null, scannerId: "celu", ...extra });
   const vieja = entrada("MESAMESAMESA", undefined, "AAAAAAAA");
   const mesa1 = entrada("MESAMESAMESA", "ficha-vieja", "BBBBBBBB");
@@ -191,6 +191,16 @@ test("la cola agrupa lo pendiente por puesto con la ficha de cada uno: la de la 
       ["MESAMESAMESA", false, "ficha-vieja", ["BBBBBBBB"]],
       ["AJENOAJENOAJ", false, "ficha-ajena", ["FFFFFFFF"]],
     ],
+  );
+  // Si el servidor pidió reintentar, el escáner vuelve a anotar el registro con el código y la ficha con que viajó
+  // (la cola admite el cambio): desde otro puesto abierto después sigue saliendo con los nuevos, no con el viejo muerto.
+  const cola = await abrirCola();
+  await cola.add(conElViejo);
+  await cola.update(conElViejo.clientId, { attempts: 1, lastError: "en curso", code: "NUEVONUEVONU", token: "ficha-nueva-de-la-puerta" });
+  const desdeOtro = agruparParaSincronizar(await cola.listPendingAll(), { code: "MESAMESAMESA", token: "ficha-de-la-mesa", eventId: "ev", stationId: "almuerzo" });
+  assert.deepEqual(
+    desdeOtro.map((g) => [g.code, g.actual, g.token, g.entries.map((e) => [e.passId, e.attempts])]),
+    [["NUEVONUEVONU", false, "ficha-nueva-de-la-puerta", [["EEEEEEEE", 1]]]],
   );
 });
 

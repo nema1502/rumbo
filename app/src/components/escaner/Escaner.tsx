@@ -240,7 +240,9 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
           hechos.add(result.clientId);
           if (result.status === "retry") {
             const entry = lote.find((e) => e.clientId === result.clientId);
-            await c.update(result.clientId, { attempts: (entry?.attempts ?? 0) + 1, lastError: result.error });
+            // Queda anotado con el código y la ficha con que acaba de viajar: si son los nuevos de su puesto (quien
+            // organiza cambió el código), el próximo intento sale con ellos aunque este celular abra otro puesto antes.
+            await c.update(result.clientId, { attempts: (entry?.attempts ?? 0) + 1, lastError: result.error, code: grupo.code, ...(grupo.token ? { token: grupo.token } : {}) });
           } else {
             await c.update(result.clientId, { status: result.status, txHash: result.txHash, lastError: result.error });
           }

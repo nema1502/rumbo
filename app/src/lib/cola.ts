@@ -15,7 +15,9 @@ export interface QueueEntry extends ScanItem {
   /**
    * El código del puesto en que se registró. Viaja con el registro al sincronizar, así llega aunque el
    * voluntario haya cerrado ese puesto y abierto otro (el servidor solo acepta de cada código lo de su
-   * puesto). Los registros de una versión anterior no lo tienen.
+   * puesto). Si quien organiza cambió el código y el registro ya viajó con el nuevo (desde el mismo puesto,
+   * vuelto a abrir), queda anotado con el nuevo cuando el servidor pide reintentar. Los registros de una
+   * versión anterior no lo tienen.
    */
   code?: string;
   /** La ficha de sesión con que estaba abierto ese puesto: con ella viaja, sin pasar por el freno de códigos. */
@@ -28,7 +30,7 @@ export interface QueueEntry extends ScanItem {
   updatedAt: string;
 }
 
-export type QueuePatch = Partial<Pick<QueueEntry, "status" | "attempts" | "lastError" | "txHash">>;
+export type QueuePatch = Partial<Pick<QueueEntry, "status" | "attempts" | "lastError" | "txHash" | "code" | "token">>;
 
 export interface QueueCounts {
   pending: number;
