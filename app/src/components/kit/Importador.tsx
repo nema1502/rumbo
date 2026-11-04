@@ -1,18 +1,22 @@
 "use client";
 // Importar la lista de Luma o de Bevy, en cuatro momentos y una sola acción principal por vez:
 // elegir el archivo, revisar lo que se leyó y a quiénes entran, mandar las credenciales de a poco (con su
-// barra) y el resumen final. El archivo se lee en el servidor; acá solo se elige y se muestra.
+// barra) y el resumen final. El archivo se lee en el servidor; acá solo se elige y se muestra. La importación
+// en curso se recuerda en este navegador (sessionStorage): si la pestaña se cierra a mitad de las tandas, al
+// volver se ofrece retomarla en vez de dejar a esa gente sin credencial.
 import Link from "next/link";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Aviso, Boton, BotonEnlace, Campo, Tarjeta } from "@/components/ui.tsx";
 import { useT } from "@/i18n/client.tsx";
 import type { CredentialKind } from "@/lib/credential-kinds.ts";
 import type { GuestPreview, GuestStatus, ImportSummary, StatusBucket } from "@/server/kit/importar.ts";
 
 type Fase =
+  | { fase: "cargando" }
   | { fase: "elegir" }
   | { fase: "leyendo" }
   | { fase: "vista"; preview: GuestPreview }
+  | { fase: "retomar"; runId: string; summary: ImportSummary; faltan: number }
   | { fase: "enviando"; runId: string; summary: ImportSummary; hechas: number; total: number }
   | { fase: "listo"; runId: string; summary: ImportSummary; faltan: number };
 
@@ -29,10 +33,33 @@ const ERRORES: Record<string, string> = {
   no_text: "kit.importar.error.noTexto",
   no_email: "kit.importar.error.sinCorreo",
   too_big: "kit.importar.error.grande",
+  cell_too_long: "kit.importar.error.celdaLarga",
+  too_many_columns: "kit.importar.error.columnas",
+  too_many_rows: "kit.importar.error.filas",
   draft: "kit.importar.error.borrador",
 };
 
 const dormir = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Dónde se recuerda la importación en curso de este evento, en este navegador. */
+const claveRecuerdo = (slug: string) => `rumbo.importar.${slug}`;
+
+function recordar(slug: string, runId: string | null): void {
+  try {
+    if (runId) sessionStorage.setItem(claveRecuerdo(slug), runId);
+    else sessionStorage.removeItem(claveRecuerdo(slug));
+  } catch {
+    /* sin almacenamiento (una ventana privada): no se recuerda, nada más */
+  }
+}
+
+function recordada(slug: string): string | null {
+  try {
+    return sessionStorage.getItem(claveRecuerdo(slug));
+  } catch {
+    return null;
+  }
+}
 
 async function pedir(slug: string, form: FormData): Promise<Record<string, unknown>> {
   const res = await fetch(`/api/admin/${slug}/importar`, { method: "POST", body: form });
@@ -54,7 +81,7 @@ function columnasLeidas(t: ReturnType<typeof useT>, preview: GuestPreview): stri
 
 export function Importador({ slug, volverA }: { slug: string; volverA: string }) {
   const t = useT();
-  const [estado, setEstado] = useState<Fase>({ fase: "elegir" });
+  const [estado, setEstado] = useState<Fase>({ fase: "cargando" });
   const [archivo, setArchivo] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [elegidos, setElegidos] = useState<Set<GuestStatus>>(new Set());
@@ -62,6 +89,38 @@ export function Importador({ slug, volverA }: { slug: string; volverA: string })
   const enCurso = useRef(false);
 
   const mensajeDe = useCallback((e: unknown) => t(ERRORES[e instanceof Error ? e.message : ""] ?? "kit.importar.error.servidor"), [t]);
+
+  // Al abrir: si una importación de este evento quedó a medias en este navegador, se ofrece retomarla.
+  useEffect(() => {
+    let activo = true;
+    const runId = recordada(slug);
+    if (!runId) {
+      setEstado({ fase: "elegir" });
+      return;
+    }
+    void (async () => {
+      try {
+        const form = new FormData();
+        form.set("accion", "estado");
+        form.set("importacion", runId);
+        const cuerpo = await pedir(slug, form);
+        const faltan = Number(cuerpo.remaining ?? 0);
+        if (!activo) return;
+        if (faltan > 0 && cuerpo.summary) setEstado({ fase: "retomar", runId, summary: cuerpo.summary as ImportSummary, faltan });
+        else {
+          recordar(slug, null);
+          setEstado({ fase: "elegir" });
+        }
+      } catch {
+        if (!activo) return;
+        recordar(slug, null);
+        setEstado({ fase: "elegir" });
+      }
+    })();
+    return () => {
+      activo = false;
+    };
+  }, [slug]);
 
   async function revisar() {
     if (!archivo) return;
@@ -90,6 +149,7 @@ export function Importador({ slug, volverA }: { slug: string; volverA: string })
     let sinAvance = 0;
     let faltan = pendientes;
     let ultimo = summary;
+    recordar(slug, runId);
     try {
       setEstado({ fase: "enviando", runId, summary, hechas: total - faltan, total });
       while (faltan > 0) {
@@ -116,6 +176,8 @@ export function Importador({ slug, volverA }: { slug: string; volverA: string })
       setEstado({ fase: "listo", runId, summary: ultimo, faltan });
     } finally {
       enCurso.current = false;
+      // Terminada, no hay nada que retomar; a medias, se recuerda para la próxima vez.
+      if (faltan === 0) recordar(slug, null);
     }
   }
 
@@ -135,6 +197,47 @@ export function Importador({ slug, volverA }: { slug: string; volverA: string })
     } catch (e) {
       setError(mensajeDe(e));
     }
+  }
+
+  if (estado.fase === "cargando") {
+    return (
+      <section className="pantalla importar">
+        <header className="pantalla-cabecera">
+          <h1>{t("kit.importar.titulo")}</h1>
+          <p className="apagado">{t("estado.cargando")}</p>
+        </header>
+      </section>
+    );
+  }
+
+  if (estado.fase === "retomar") {
+    const { runId, summary, faltan } = estado;
+    return (
+      <section className="pantalla importar">
+        <header className="pantalla-cabecera">
+          <h1>{t("kit.importar.titulo")}</h1>
+          <p className="bajada">{t("kit.importar.retomarAviso", { n: faltan })}</p>
+        </header>
+        <div className="pantalla-cuerpo">{error && <Aviso tono="alerta">{error}</Aviso>}</div>
+        <div className="pantalla-accion">
+          <Boton grande onClick={() => void mandar(runId, summary, summary.created, faltan)}>
+            {t("kit.importar.reintentar", { n: faltan })}
+          </Boton>
+          <p className="nota">
+            <button
+              type="button"
+              className="enlace"
+              onClick={() => {
+                recordar(slug, null);
+                setEstado({ fase: "elegir" });
+              }}
+            >
+              {t("kit.importar.retomarOtro")}
+            </button>
+          </p>
+        </div>
+      </section>
+    );
   }
 
   if (estado.fase === "elegir" || estado.fase === "leyendo") {
@@ -212,7 +315,9 @@ export function Importador({ slug, volverA }: { slug: string; volverA: string })
     );
   }
 
-  const { summary, faltan } = estado;
+  const { summary, faltan, runId } = estado;
+  const sinCorreo = summary.linkOnly ?? 0;
+  const enlacesCsv = `/api/admin/${slug}/importar?importacion=${encodeURIComponent(runId)}&formato=csv`;
   return (
     <section className="pantalla importar">
       <header className="pantalla-cabecera">
@@ -224,14 +329,23 @@ export function Importador({ slug, volverA }: { slug: string; volverA: string })
       <div className="pantalla-cuerpo">
         {error && <Aviso tono="alerta">{error}</Aviso>}
         {summary.notSelected > 0 && <Aviso>{t("kit.importar.sinImportar", { n: summary.notSelected })}</Aviso>}
-        <Aviso tono="listo">{t("kit.importar.correos", { n: summary.emailsSent })}</Aviso>
+        {(summary.resumed ?? 0) > 0 && <Aviso>{t("kit.importar.retomadas", { n: summary.resumed })}</Aviso>}
+        {summary.emailsSent > 0 && <Aviso tono="listo">{t("kit.importar.correos", { n: summary.emailsSent })}</Aviso>}
+        {sinCorreo > 0 && <Aviso tono="alerta">{t("kit.importar.sinCorreo", { n: sinCorreo })}</Aviso>}
         {summary.emailsFailed > 0 && <Aviso>{t("kit.importar.correosFallaron", { n: summary.emailsFailed })}</Aviso>}
         {faltan > 0 && <Aviso tono="alerta">{t("kit.importar.faltan", { n: faltan })}</Aviso>}
+        {summary.activated > 0 && (
+          <p>
+            <a className="boton boton-secundario boton-chico" href={enlacesCsv} download>
+              {t("kit.importar.descargarEnlaces")}
+            </a>
+          </p>
+        )}
       </div>
       <div className="pantalla-accion">
         {faltan > 0 ? (
           <>
-            <Boton grande onClick={() => void mandar(estado.runId, summary, summary.created, faltan)}>
+            <Boton grande onClick={() => void mandar(runId, summary, summary.created, faltan)}>
               {t("kit.importar.reintentar", { n: faltan })}
             </Boton>
             <p className="nota">
@@ -276,6 +390,7 @@ function Vista({
   const invalidos = suma("invalidEmail");
   const repetidasArchivo = suma("duplicatesInFile");
   const yaTienen = suma("alreadyHere");
+  const retoman = suma("resumable");
   const conEntradas = useMemo(() => preview.tickets.some((e) => e.label), [preview.tickets]);
 
   const alternar = (estado: GuestStatus) => {
@@ -296,6 +411,18 @@ function Vista({
       </header>
       <div className="pantalla-cuerpo">
         {error && <Aviso tono="alerta">{error}</Aviso>}
+        {(preview.sample ?? []).length > 0 && (
+          <Tarjeta className="importar-bloque">
+            <h2>{t("kit.importar.muestra")}</h2>
+            <ul className="importar-muestra">
+              {preview.sample.map((fila, i) => (
+                <li key={i}>
+                  <span>{fila.name}</span> <span className="apagado chico">{fila.email}</span>
+                </li>
+              ))}
+            </ul>
+          </Tarjeta>
+        )}
         <Tarjeta className="importar-bloque">
           <h2>{t("kit.importar.quienes")}</h2>
           <ul className="importar-estados">
@@ -343,6 +470,7 @@ function Vista({
         {invalidos > 0 && <Aviso>{t("kit.importar.avisoInvalidos", { n: invalidos })}</Aviso>}
         {repetidasArchivo > 0 && <Aviso>{t("kit.importar.avisoRepetidasArchivo", { n: repetidasArchivo })}</Aviso>}
         {yaTienen > 0 && <Aviso>{t("kit.importar.avisoYaTienen", { n: yaTienen })}</Aviso>}
+        {retoman > 0 && <Aviso>{t("kit.importar.avisoRetomar", { n: retoman })}</Aviso>}
       </div>
       <div className="pantalla-accion">
         <Boton grande disabled={entran === 0 || !preview.defaultTypeId} onClick={onImportar}>

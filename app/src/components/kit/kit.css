@@ -67,6 +67,8 @@
 .importar-tipos .campo select { min-height: 44px; padding: 6px 10px; }
 .campo-sin-etiqueta .campo-etiqueta { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .importar-tipos .etiqueta { overflow-wrap: anywhere; font-weight: 600; }
+.importar-muestra { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.importar-muestra li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; overflow-wrap: anywhere; }
 .importar-barra { height: 12px; border-radius: 999px; background: var(--linea); overflow: hidden; }
 .importar-barra > span { display: block; height: 100%; border-radius: 999px; background: var(--verde); transition: width 0.4s var(--suave); }
 .importar-resumen { font-family: var(--display); font-weight: 800; font-size: clamp(1.3rem, 3vw, 1.7rem); line-height: 1.2; text-wrap: balance; }

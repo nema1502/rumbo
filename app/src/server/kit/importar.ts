@@ -4,13 +4,15 @@
 //
 //   1. prepareImport: lee, filtra por estado, salta repetidas y correos inválidos, y deja una credencial pendiente
 //      por persona. Es rápido y da el resumen ("importadas 142, salteadas 6 duplicadas, 3 con correo inválido").
+//      Si una importación anterior se cortó, sus credenciales pendientes pasan a esta y se retoman.
 //   2. activateBatch: de a una tanda, crea la cuenta de cada persona (igual que la inscripción), la anota en el
 //      contrato, le da sus canjes y le manda el correo con su enlace. La pantalla pide tandas hasta que no queda
-//      ninguna pendiente; si se corta, las pendientes siguen ahí y se retoman.
+//      ninguna pendiente; si se corta, las pendientes siguen ahí y se retoman (la pantalla recuerda la importación).
+//      Si este servidor no tiene con qué mandar correos, la credencial queda igual y el enlace se baja en CSV.
 //
 // Nunca va nada personal a la cadena: a la cadena va la cuenta, como en la inscripción. Lo que la lista trae de
 // más (teléfonos, campañas, respuestas) se ignora, salvo una restricción de dieta si la hay.
-import type { Lang } from "../../i18n/index.ts";
+import { translate, type Lang } from "../../i18n/index.ts";
 import { isPublicKind, type CredentialKind } from "../../lib/credential-kinds.ts";
 import { getAccountProvider, type AccountProvider } from "../accounts.ts";
 import { EMAIL_MAX, EMAIL_RE, NAME_MAX, passUrl } from "../evento/inscripcion.ts";
@@ -18,10 +20,11 @@ import { BUSY, tryExclusive } from "../compartido.ts";
 import { getOrCreateAccessKey } from "../evento/acceso.ts";
 import { describeForLog } from "../log.ts";
 import { getMailer, type Mailer } from "../mailer.ts";
-import { normalizeEmail, type EventRecord, type ImportRun, type Pass, type Repo, type TicketType } from "../repo.ts";
+import { csvCell } from "../panel.ts";
+import { emailKey, normalizeEmail, type EventRecord, type ImportRun, type Pass, type Person, type Repo, type TicketType } from "../repo.ts";
 import { isContractError, rumboPass } from "../stellar.ts";
 import { buildImportedEmail } from "./correo.ts";
-import { cell, decodeText, detectSource, emailColumn, findColumn, fixCase, nameKey, parseTable, statusColumn, type Table } from "./csv.ts";
+import { CsvLimitError, cell, decodeText, detectSource, emailColumn, findColumn, fixCase, nameKey, parseTable, statusColumn, type Table } from "./csv.ts";
 
 // ---------- Leer la lista ----------
 
@@ -72,7 +75,7 @@ export interface ParsedGuests {
   skippedLines: number[];
 }
 
-export type ImportFormatCode = "empty" | "no_text" | "no_email";
+export type ImportFormatCode = "empty" | "no_text" | "no_email" | "cell_too_long" | "too_many_columns" | "too_many_rows";
 
 export class ImportFormatError extends Error {
   readonly code: ImportFormatCode;
@@ -90,20 +93,26 @@ const TICKET_HINTS = ["ticket_name", "ticket name", "ticket type", "ticket_type"
 /** Una pregunta de la inscripción sobre comida: "¿Tenés alguna restricción alimentaria?", "Dietary restrictions". */
 const DIET_HEADER = /(diet|dieta|aliment|allerg|alerg|vegetar|vegan|restricci[oó]n(es)? de comida|food)/i;
 
+/** Más largo que esto no es un correo, y la expresión no se prueba (sobre un texto enorme tardaría de más). */
+const EMAIL_SHAPE_MAX = 254;
 const EMAIL_SHAPE = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
+const looksLikeEmail = (v: string): boolean => v.length <= EMAIL_SHAPE_MAX && EMAIL_SHAPE.test(v);
 
 /** Sin cabecera, la columna donde casi todo son correos. */
 function guessEmailColumn(table: Table): number {
   for (let c = 0; c < table.columns.length; c++) {
     const values = table.rows.map((r) => cell(r, c)).filter(Boolean);
-    if (values.length > 0 && values.filter((v) => EMAIL_SHAPE.test(v)).length / values.length >= 0.8) return c;
+    if (values.length > 0 && values.filter(looksLikeEmail).length / values.length >= 0.8) return c;
   }
   return -1;
 }
 
-/** Un nombre como se escribe en una credencial: sin espacios de más, con mayúsculas si llegó todo igual, y no más largo que el tope. */
+/** Los caracteres de control (el NUL que Postgres rechaza entre ellos) no son parte de un nombre. */
+const CONTROL_CHARS = /[\u0000-\u001f\u007f]/g;
+
+/** Un nombre como se escribe en una credencial: sin controles ni espacios de más, con mayúsculas si llegó todo igual, y no más largo que el tope. */
 export function tidyName(raw: string): string {
-  return fixCase(raw.replace(/\s+/g, " ").trim()).slice(0, NAME_MAX).trim();
+  return fixCase(raw.replace(CONTROL_CHARS, " ").replace(/\s+/g, " ").trim()).slice(0, NAME_MAX).trim();
 }
 
 /** "ana.quiroga@example.com" → "Ana Quiroga": para quien no trae nombre en la lista. */
@@ -111,9 +120,15 @@ function nameFromEmail(email: string): string {
   return tidyName((email.split("@")[0] ?? "").replace(/[._\-+]+/g, " ").replace(/\d+/g, " "));
 }
 
-/** Lee el texto de una lista. Lanza ImportFormatError si está vacía o no tiene dónde estén los correos. */
+/** Lee el texto de una lista. Lanza ImportFormatError si está vacía, no tiene dónde estén los correos o se pasa de los topes. */
 export function parseGuests(text: string): ParsedGuests {
-  const table = parseTable(text);
+  let table: Table | null;
+  try {
+    table = parseTable(text);
+  } catch (error) {
+    if (error instanceof CsvLimitError) throw new ImportFormatError(error.code);
+    throw error;
+  }
   if (!table || table.rows.length === 0) throw new ImportFormatError("empty");
 
   let emailCol = emailColumn(table);
@@ -140,12 +155,12 @@ export function parseGuests(text: string): ParsedGuests {
   const header = (c: number): string | null => (c >= 0 && table.headerDetected ? (table.columns[c] ?? null) : null);
 
   const rows: GuestRow[] = table.rows.map((row) => {
-    const email = cell(row, emailCol);
+    const email = cell(row, emailCol).replace(CONTROL_CHARS, "");
     const full = fullCol >= 0 ? cell(row, fullCol) : "";
     const joined = [firstCol >= 0 ? cell(row, firstCol) : "", lastCol >= 0 ? cell(row, lastCol) : ""].filter(Boolean).join(" ");
     const name = tidyName(full || joined) || nameFromEmail(email);
-    const ticket = ticketCol >= 0 ? cell(row, ticketCol) : "";
-    const diet = dietCol >= 0 ? cell(row, dietCol).replace(/\s+/g, " ").slice(0, 120) : "";
+    const ticket = ticketCol >= 0 ? cell(row, ticketCol).replace(CONTROL_CHARS, " ").trim() : "";
+    const diet = dietCol >= 0 ? cell(row, dietCol).replace(CONTROL_CHARS, " ").replace(/\s+/g, " ").trim().slice(0, 120) : "";
     return {
       name,
       email,
@@ -214,14 +229,37 @@ export function suggestType(label: string | null | undefined, types: TicketType[
   return free.find((t) => isPublicKind(t.credentialKind)) ?? free[0] ?? null;
 }
 
+// ---------- Quién ya está ----------
+
+/** Lo que la base sabe de las personas de la lista, en dos consultas: su persona (si existe) y su pase en este evento (si tiene). */
+interface Known {
+  personOf: Map<string, Person>;
+  passOf: Map<string, Pass>;
+}
+
+async function lookupKnown(repo: Repo, event: EventRecord, parsed: ParsedGuests): Promise<Known> {
+  const personOf = new Map<string, Person>();
+  for (const person of await repo.listPersonsByEmails(parsed.rows.map((r) => r.email).filter((e) => e.length <= EMAIL_MAX))) {
+    personOf.set(emailKey(person.email), person);
+  }
+  const passOf = new Map<string, Pass>();
+  for (const { pass } of await repo.listPassesWithPerson(event.id)) passOf.set(pass.personId, pass);
+  return { personOf, passOf };
+}
+
+/** Un pase pendiente que dejó una importación que se cortó: nadie lo va a activar salvo que otra importación lo retome. */
+const isResumable = (pass: Pass | undefined): pass is Pass => pass !== undefined && pass.status === "pending" && pass.importRunId !== null;
+
 // ---------- La vista previa ----------
 
 export interface StatusBucket {
-  /** Con correo válido, sin repetir y sin credencial en este evento. */
+  /** Con correo válido, sin repetir y con lugar en este evento (incluye las que se retoman). */
   valid: number;
   invalidEmail: number;
   duplicatesInFile: number;
   alreadyHere: number;
+  /** De las válidas, las que quedaron pendientes de una importación anterior que se cortó: se retoman. */
+  resumable: number;
 }
 
 export interface GuestPreview {
@@ -230,6 +268,8 @@ export interface GuestPreview {
   ignored: number;
   total: number;
   skippedLines: number[];
+  /** Las primeras filas, como se leyeron: para que se note un archivo con las tildes rotas o las columnas corridas. */
+  sample: Array<{ name: string; email: string }>;
   /** Por estado, solo los que aparecen en la lista. */
   buckets: Partial<Record<GuestStatus, StatusBucket>>;
   /** Cada tipo de entrada que trae la lista, cuántas personas, y el tipo de acá que le corresponde. */
@@ -240,6 +280,8 @@ export interface GuestPreview {
   defaultTypeId: string | null;
 }
 
+export const PREVIEW_SAMPLE = 3;
+
 function isValidEmail(email: string): boolean {
   return email.length <= EMAIL_MAX && EMAIL_RE.test(email);
 }
@@ -247,31 +289,35 @@ function isValidEmail(email: string): boolean {
 /** Qué pasaría con cada fila: sin crear nada. Es lo que se muestra antes de importar. */
 export async function previewGuests(repo: Repo, event: EventRecord, parsed: ParsedGuests): Promise<GuestPreview> {
   const types = await repo.listTicketTypes(event.id);
+  const known = await lookupKnown(repo, event, parsed);
   const buckets: GuestPreview["buckets"] = {};
   const seen = new Set<string>();
   const tickets = new Map<string, { label: string; count: number }>();
   for (const row of parsed.rows) {
-    const bucket = (buckets[row.status] ??= { valid: 0, invalidEmail: 0, duplicatesInFile: 0, alreadyHere: 0 });
+    const bucket = (buckets[row.status] ??= { valid: 0, invalidEmail: 0, duplicatesInFile: 0, alreadyHere: 0, resumable: 0 });
     const email = normalizeEmail(row.email);
     if (!isValidEmail(email)) {
       bucket.invalidEmail++;
       continue;
     }
-    if (seen.has(email)) {
+    const key = emailKey(email);
+    if (seen.has(key)) {
       bucket.duplicatesInFile++;
       continue;
     }
-    seen.add(email);
-    const person = await repo.getPersonByEmail(email);
-    if (person && (await repo.findPass(event.id, person.id))) {
+    seen.add(key);
+    const person = known.personOf.get(key);
+    const pass = person ? known.passOf.get(person.id) : undefined;
+    if (pass && !isResumable(pass)) {
       bucket.alreadyHere++;
       continue;
     }
     bucket.valid++;
-    const key = labelKey(row.ticketLabel);
-    const entry = tickets.get(key) ?? { label: row.ticketLabel ?? "", count: 0 };
+    if (pass) bucket.resumable++;
+    const label = labelKey(row.ticketLabel);
+    const entry = tickets.get(label) ?? { label: row.ticketLabel ?? "", count: 0 };
     entry.count++;
-    tickets.set(key, entry);
+    tickets.set(label, entry);
   }
   const free = importableTypes(types);
   return {
@@ -280,6 +326,7 @@ export async function previewGuests(repo: Repo, event: EventRecord, parsed: Pars
     ignored: parsed.ignored,
     total: parsed.rows.length,
     skippedLines: parsed.skippedLines,
+    sample: parsed.rows.slice(0, PREVIEW_SAMPLE).map((r) => ({ name: r.name, email: r.email })),
     buckets,
     tickets: [...tickets].map(([key, { label, count }]) => ({ key, label, count, suggestedTypeId: suggestType(label, types)?.id ?? null })),
     types: free.map((t) => ({ id: t.id, name: t.name, kind: t.credentialKind })),
@@ -321,14 +368,18 @@ export interface ImportSummary {
   alreadyHere: number;
   /** Salteadas por repetidas: en el archivo o ya inscriptas. */
   duplicates: number;
-  /** Credenciales creadas (pendientes hasta que se mandan). */
+  /** Credenciales de esta importación (pendientes hasta que se mandan), con las retomadas. */
   created: number;
+  /** De las creadas, las que quedaron pendientes de una importación anterior y esta retoma. */
+  resumed: number;
   /** Cuántas se importaron por cada tipo de credencial. */
   byType: Record<string, number>;
   // Lo que van sumando las tandas:
   activated: number;
   emailsSent: number;
   emailsFailed: number;
+  /** Con credencial y enlace, pero sin correo: este servidor no tiene con qué mandarlo. El enlace se baja en CSV. */
+  linkOnly: number;
   /** Intentos que no pudieron preparar la credencial (se reintentan). */
   failed: number;
 }
@@ -342,10 +393,12 @@ const emptySummary = (source: string, read: number): ImportSummary => ({
   alreadyHere: 0,
   duplicates: 0,
   created: 0,
+  resumed: 0,
   byType: {},
   activated: 0,
   emailsSent: 0,
   emailsFailed: 0,
+  linkOnly: 0,
   failed: 0,
 });
 
@@ -356,7 +409,8 @@ export interface Prepared {
 
 /**
  * Deja una credencial pendiente por cada persona que entra. Las que ya tenían credencial en el evento no se
- * tocan: ni su entrada, ni sus canjes, ni su tipo. Dos veces el mismo archivo no crea dos credenciales.
+ * tocan: ni su entrada, ni sus canjes, ni su tipo. Dos veces el mismo archivo no crea dos credenciales. Lo que
+ * otra importación dejó pendiente (se cerró la pestaña, se cayó el servidor) pasa a esta y se retoma.
  */
 export async function prepareImport(repo: Repo, event: EventRecord, parsed: ParsedGuests, options: ImportOptions): Promise<Prepared> {
   if (!event.published) throw new ImportOptionsError("draft");
@@ -372,9 +426,14 @@ export async function prepareImport(repo: Repo, event: EventRecord, parsed: Pars
   const fallback = resolve(options.defaultTypeId);
   const selected = new Set(options.statuses);
 
+  const known = await lookupKnown(repo, event, parsed);
   const run = await repo.createImportRun({ eventId: event.id, source: parsed.source, summary: {} });
   const summary = emptySummary(parsed.source, parsed.rows.length);
   const seen = new Set<string>();
+  const count = (type: TicketType) => {
+    summary.created++;
+    summary.byType[type.id] = (summary.byType[type.id] ?? 0) + 1;
+  };
   for (const row of parsed.rows) {
     if (!selected.has(row.status)) {
       summary.notSelected++;
@@ -385,20 +444,29 @@ export async function prepareImport(repo: Repo, event: EventRecord, parsed: Pars
       summary.invalidEmail++;
       continue;
     }
-    if (seen.has(email)) {
+    const key = emailKey(email);
+    if (seen.has(key)) {
       summary.duplicatesInFile++;
       continue;
     }
-    seen.add(email);
+    seen.add(key);
+    const mapped = options.mapping[labelKey(row.ticketLabel)];
+    const type = mapped ? resolve(mapped) : fallback;
     // Quien ya está en el evento queda como estaba. Quien ya existe como persona (de otro evento) conserva su nombre.
-    const known = await repo.getPersonByEmail(email);
-    if (known && (await repo.findPass(event.id, known.id))) {
+    const knownPerson = known.personOf.get(key);
+    const existing = knownPerson ? known.passOf.get(knownPerson.id) : undefined;
+    if (existing && !isResumable(existing)) {
       summary.alreadyHere++;
       continue;
     }
-    const person = known ?? (await repo.upsertPerson({ name: row.name, email }));
-    const mapped = options.mapping[labelKey(row.ticketLabel)];
-    const type = mapped ? resolve(mapped) : fallback;
+    if (existing) {
+      // Quedó pendiente de una importación que se cortó: pasa a esta, con la entrada y la dieta de esta lista.
+      await repo.updatePass(existing.id, { importRunId: run.id, ticketTypeId: type.id, ...(row.diet ? { diet: row.diet } : {}) });
+      summary.resumed++;
+      count(type);
+      continue;
+    }
+    const person = knownPerson ?? (await repo.upsertPerson({ name: row.name, email }));
     try {
       await repo.createPass({ eventId: event.id, personId: person.id, ticketTypeId: type.id, status: "pending", diet: row.diet, importRunId: run.id });
     } catch (error) {
@@ -409,8 +477,7 @@ export async function prepareImport(repo: Repo, event: EventRecord, parsed: Pars
       }
       throw error;
     }
-    summary.created++;
-    summary.byType[type.id] = (summary.byType[type.id] ?? 0) + 1;
+    count(type);
   }
   summary.duplicates = summary.duplicatesInFile + summary.alreadyHere;
   return { run: await repo.updateImportRun(run.id, { ...summary }), summary };
@@ -429,12 +496,13 @@ export interface ImportDeps {
 }
 
 declare global {
-  /** Un contrato de mentira para las capturas y las pruebas con un servidor adentro (scripts/capturas-kit.mjs). Como __rumboAccounts y __rumboMailer. */
+  /** Un contrato de mentira para las capturas y las pruebas con un servidor adentro (scripts/capturas-kit.mjs). Como __rumboAccounts y __rumboMailer. En producción se ignora. */
   var __rumboKitChain: ImportDeps["chain"] | undefined;
 }
 
 export function defaultImportDeps(lang: Lang, origin?: string | null, repo?: Repo): ImportDeps {
-  return { accounts: getAccountProvider(repo), chain: globalThis.__rumboKitChain ?? rumboPass, mailer: getMailer(), lang, origin };
+  const chain = process.env.NODE_ENV === "production" ? rumboPass : (globalThis.__rumboKitChain ?? rumboPass);
+  return { accounts: getAccountProvider(repo), chain, mailer: getMailer(), lang, origin };
 }
 
 export interface BatchResult {
@@ -443,6 +511,8 @@ export interface BatchResult {
   activated: number;
   emailsSent: number;
   emailsFailed: number;
+  /** Con credencial y enlace, pero sin correo: no hay servicio de correo en este servidor. */
+  linkOnly: number;
   failed: number;
   /** Cuántas siguen pendientes. */
   remaining: number;
@@ -462,7 +532,7 @@ export const MAX_BATCH_SIZE = 20;
 export async function activateBatch(repo: Repo, event: EventRecord, runId: string, size: number, deps: ImportDeps): Promise<BatchResult> {
   const pendingOf = async (): Promise<Pass[]> => (await repo.listPassesByImportRun(runId)).filter((p) => p.status === "pending");
   const outcome = await tryExclusive(`import:${runId}`, () => runBatch(repo, event, runId, size, deps, pendingOf));
-  if (outcome === BUSY) return { processed: 0, activated: 0, emailsSent: 0, emailsFailed: 0, failed: 0, remaining: (await pendingOf()).length, busy: true };
+  if (outcome === BUSY) return { processed: 0, activated: 0, emailsSent: 0, emailsFailed: 0, linkOnly: 0, failed: 0, remaining: (await pendingOf()).length, busy: true };
   return outcome;
 }
 
@@ -470,13 +540,14 @@ async function runBatch(repo: Repo, event: EventRecord, runId: string, size: num
   const run = await repo.getImportRun(runId);
   if (!run || run.eventId !== event.id) throw new Error(`No existe la importación ${runId} en este evento`);
   const batch = (await pendingOf()).slice(0, Math.max(1, Math.min(size, MAX_BATCH_SIZE)));
-  const result: BatchResult = { processed: batch.length, activated: 0, emailsSent: 0, emailsFailed: 0, failed: 0, remaining: 0, busy: false };
+  const result: BatchResult = { processed: batch.length, activated: 0, emailsSent: 0, emailsFailed: 0, linkOnly: 0, failed: 0, remaining: 0, busy: false };
   for (const pass of batch) {
     const outcome = await activateOne(repo, event, pass, deps);
     if (outcome === "failed") result.failed++;
     else {
       result.activated++;
       if (outcome === "emailed") result.emailsSent++;
+      else if (outcome === "link_only") result.linkOnly++;
       else result.emailsFailed++;
     }
   }
@@ -487,13 +558,14 @@ async function runBatch(repo: Repo, event: EventRecord, runId: string, size: num
     activated: (summary.activated ?? 0) + result.activated,
     emailsSent: (summary.emailsSent ?? 0) + result.emailsSent,
     emailsFailed: (summary.emailsFailed ?? 0) + result.emailsFailed,
+    linkOnly: (summary.linkOnly ?? 0) + result.linkOnly,
     // Lo que falló y sigue pendiente es lo que falló en la última tanda: se vuelve a intentar.
     failed: result.failed,
   });
   return result;
 }
 
-type Outcome = "emailed" | "email_failed" | "failed";
+type Outcome = "emailed" | "link_only" | "email_failed" | "failed";
 
 async function activateOne(repo: Repo, event: EventRecord, pass: Pass, deps: ImportDeps): Promise<Outcome> {
   const [person, ticketType] = await Promise.all([repo.getPersonById(pass.personId), repo.getTicketType(pass.ticketTypeId)]);
@@ -524,8 +596,9 @@ async function activateOne(repo: Repo, event: EventRecord, pass: Pass, deps: Imp
   await repo.grantTicketBenefits(pass.id);
   const url = passUrl(pass.id, await getOrCreateAccessKey(pass.id), deps.lang, deps.origin);
   try {
-    await deps.mailer.send(buildImportedEmail({ event, person, ticketType, url, lang: deps.lang }));
-    return "emailed";
+    const sent = await deps.mailer.send(buildImportedEmail({ event, person, ticketType, url, lang: deps.lang }));
+    // Un correo de mentira de las pruebas puede no decir qué pasó: si no dice que no salió, salió.
+    return sent?.outcome === "not_configured" ? "link_only" : "emailed";
   } catch (error) {
     console.warn(`[importar] No se pudo mandar el correo de la persona ${person.id} (pase ${pass.id}): ${describeForLog(error)}`);
     return "email_failed";
@@ -538,4 +611,28 @@ export async function importStatus(repo: Repo, runId: string): Promise<{ summary
   if (!run) return null;
   const remaining = (await repo.listPassesByImportRun(runId)).filter((p) => p.status === "pending").length;
   return { summary: run.summary as unknown as ImportSummary, remaining };
+}
+
+// ---------- Los enlaces, para quien organiza ----------
+
+/**
+ * El CSV con el enlace personal de cada credencial que esta importación ya preparó (nombre, correo, enlace),
+ * para que quien organiza los mande por su cuenta cuando este servidor no tiene con qué mandar correos. Lleva
+ * las claves de acceso: se trata como el CSV de pases del panel, y nunca va al JSON del panel. Las celdas pasan
+ * por csvCell, como los otros CSV, así un nombre que empieza con "=" no se ejecuta en la planilla.
+ */
+export async function buildImportLinksCsv(repo: Repo, event: EventRecord, runId: string, lang: Lang, origin?: string | null): Promise<string | null> {
+  const run = await repo.getImportRun(runId);
+  if (!run || run.eventId !== event.id) return null;
+  const personOf = new Map((await repo.listPassesWithPerson(event.id)).map(({ pass, person }) => [pass.id, person] as const));
+  const t = (key: string) => translate(lang, key);
+  const header = [t("panel.csv.nombre"), t("panel.csv.correo"), t("kit.importar.csv.enlace")];
+  const rows: string[][] = [];
+  for (const pass of await repo.listPassesByImportRun(runId)) {
+    if (pass.status === "pending") continue;
+    const person = personOf.get(pass.id);
+    if (!person) continue;
+    rows.push([person.name, person.email, passUrl(pass.id, await getOrCreateAccessKey(pass.id), lang, origin)]);
+  }
+  return `﻿${[header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n")}\r\n`;
 }

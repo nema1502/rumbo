@@ -201,7 +201,7 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
                   {b.stock !== null && b.remaining !== null && (
                     <span className="panel-franja-stock">
                       <Chip estado={b.remaining === 0 ? "alerta" : b.remaining <= Math.ceil(b.stock / 10) ? "pendiente" : "neutro"}>
-                        {b.remaining === 0 ? t("kit.panel.agotado") : t("kit.panel.quedan", { n: b.remaining, total: b.stock })}
+                        {b.exceeded > 0 ? t("kit.panel.pasadas", { n: b.exceeded }) : b.remaining === 0 ? t("kit.panel.agotado") : t("kit.panel.quedan", { n: b.remaining, total: b.stock })}
                       </Chip>
                     </span>
                   )}

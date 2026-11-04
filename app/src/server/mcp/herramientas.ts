@@ -287,6 +287,7 @@ const PUBLISH_MESSAGES: Record<PublishFailure, string> = {
   no_free_attendee: "The draft needs a free attendee registration (paid tickets are optional).",
   no_capacity: `The event needs a capacity between 1 and ${MAX_CAPACITY}.`,
   deploy_failed: "Deploying a contract on the test network failed",
+  busy: "Someone else is publishing this event right now; try again in a moment.",
 };
 
 async function contractsOf(ctx: McpContext, event: EventRecord) {
@@ -375,6 +376,9 @@ const FORMAT_MESSAGES: Record<ImportFormatCode, string> = {
   empty: "The list is empty.",
   no_text: "The list is not text (an .xlsx has to be exported as CSV).",
   no_email: "The list has no column with emails.",
+  cell_too_long: "A cell in the list is longer than 1,000 characters.",
+  too_many_columns: "The list has more than 100 columns.",
+  too_many_rows: "The list has more than 5,000 rows: split it.",
 };
 
 const OPTIONS_MESSAGES: Record<ImportOptionsCode, string> = {

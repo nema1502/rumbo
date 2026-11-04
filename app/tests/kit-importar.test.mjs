@@ -171,9 +171,11 @@ test("la vista previa cuenta, por estado, quiénes entrarían, y propone el tipo
   const vista = await imp.previewGuests(repo, evento.event, LUMA());
   assert.equal(vista.source, "luma");
   assert.equal(vista.total, 16);
-  assert.deepEqual(vista.buckets.approved, { valid: 9, invalidEmail: 3, duplicatesInFile: 1, alreadyHere: 0 });
-  assert.deepEqual(vista.buckets.pending, { valid: 2, invalidEmail: 0, duplicatesInFile: 0, alreadyHere: 0 });
-  assert.deepEqual(vista.buckets.declined, { valid: 1, invalidEmail: 0, duplicatesInFile: 0, alreadyHere: 0 });
+  assert.deepEqual(vista.buckets.approved, { valid: 9, invalidEmail: 3, duplicatesInFile: 1, alreadyHere: 0, resumable: 0 });
+  assert.deepEqual(vista.buckets.pending, { valid: 2, invalidEmail: 0, duplicatesInFile: 0, alreadyHere: 0, resumable: 0 });
+  assert.deepEqual(vista.buckets.declined, { valid: 1, invalidEmail: 0, duplicatesInFile: 0, alreadyHere: 0, resumable: 0 });
+  assert.deepEqual(vista.sample.length, 3, "las tres primeras filas, para ver cómo se leyeron");
+  assert.ok(vista.sample.every((f) => f.name && f.email));
   const entradas = Object.fromEntries(vista.tickets.map((e) => [e.label, e]));
   assert.equal(entradas.General.count, 8);
   assert.equal(entradas.General.suggestedTypeId, evento.porKind.attendee.id);
@@ -326,15 +328,18 @@ test("importar de nuevo no pisa la entrada ni los canjes ya hechos, ni el tipo d
 
 test("quien ya existe como persona (de otro evento) conserva su nombre, y quien ya se inscribió por la página no se duplica", async () => {
   const evento = await eventoPublicado("Personas conocidas");
-  await repo.upsertPerson({ name: "Valeria C.", email: "valeria.choque@example.com" });
+  // Una persona que ya existe con otro correo que el de las demás pruebas (las personas son de toda la plataforma).
+  const lista = LUMA();
+  lista.rows.find((r) => r.email.toLowerCase() === "valeria.choque@example.com").email = "Valeria.Conocida@Example.com";
+  await repo.upsertPerson({ name: "Valeria C.", email: "valeria.conocida@example.com" });
   const inscripta = await repo.upsertPerson({ name: "Ana Quiroga", email: "ana.quiroga@example.com" });
   const suya = await repo.createPass({ eventId: evento.event.id, personId: inscripta.id, ticketTypeId: evento.porKind.attendee.id, status: "active", account: "GANA" });
 
-  const { summary } = await imp.prepareImport(repo, evento.event, LUMA(), opciones(evento, { mapping: mapaDeLuma(evento) }));
+  const { summary } = await imp.prepareImport(repo, evento.event, lista, opciones(evento, { mapping: mapaDeLuma(evento) }));
   assert.equal(summary.alreadyHere, 1, "Ana ya estaba inscripta");
   assert.equal(summary.created, 8);
-  assert.equal((await repo.getPersonByEmail("valeria.choque@example.com")).name, "Valeria C.", "no se le cambia el nombre");
-  assert.ok(await repo.findPass(evento.event.id, (await repo.getPersonByEmail("valeria.choque@example.com")).id), "pero sí recibe su credencial");
+  assert.equal((await repo.getPersonByEmail("valeria.conocida@example.com")).name, "Valeria C.", "no se le cambia el nombre");
+  assert.ok(await repo.findPass(evento.event.id, (await repo.getPersonByEmail("valeria.conocida@example.com")).id), "pero sí recibe su credencial");
   assert.equal((await repo.getPass(suya.id)).account, "GANA");
 });
 
@@ -354,10 +359,15 @@ test("importar Bevy: aprobados y confirmados, con los tipos de su plataforma", a
   assert.equal((await repo.getTicketType(elena.ticketTypeId)).credentialKind, "volunteer");
   assert.equal(await repo.getPersonByEmail("luis.choque@example.org"), null, "la cancelada no entra");
 
-  // Si quien organiza también quiere a la lista de espera, entra.
+  // Si quien organiza también quiere a la lista de espera, entra. Las ocho de antes seguían pendientes (nadie mandó
+  // sus tandas), así que esta importación las retoma: nadie queda colgado de una importación que no terminó.
+  const antes = (await repo.listPasses(evento.event.id)).length;
   const mas = await imp.prepareImport(repo, evento.event, bevy, opciones(evento, { mapping, statuses: ["approved", "waitlist"] }));
-  assert.equal(mas.summary.created, 1);
+  assert.deepEqual([mas.summary.created, mas.summary.resumed], [9, 8]);
+  assert.equal((await repo.listPasses(evento.event.id)).length, antes + 1, "una credencial nueva: la de la lista de espera");
   assert.ok(await repo.getPersonByEmail("marta.perez@example.org"));
+  assert.equal((await repo.listPassesByImportRun(run.id)).length, 0, "las pendientes ya son de la importación nueva");
+  assert.equal((await repo.listPassesByImportRun(mas.run.id)).length, 9);
 });
 
 // ---------- Cuando algo falla ----------

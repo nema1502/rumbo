@@ -194,8 +194,14 @@ export interface NewPass {
 
 export interface PassPatch {
   diet?: string | null;
-  /** Para retomar una inscripción que quedó pendiente con otra entrada. Solo se cambia en pases pendientes. */
+  /**
+   * Para retomar una inscripción que quedó pendiente con otra entrada. Solo se cambia en pases pendientes, y si
+   * el pase vino de una importación solo lo cambia otra importación (la que viene con `importRunId`): la página
+   * pública no convierte a una oradora importada en asistente.
+   */
   ticketTypeId?: string;
+  /** La importación que retoma un pase pendiente de una importación anterior que se cortó. */
+  importRunId?: string | null;
   account?: string | null;
   status?: PassStatus;
   txHash?: string | null;
@@ -350,6 +356,8 @@ export interface Repo {
   getTicketType(id: string): Promise<TicketType | null>;
   createTicketType(input: NewTicketType): Promise<TicketType>;
   updateTicketType(id: string, patch: TicketTypePatch): Promise<TicketType>;
+  /** Le pone el contrato a una entrada que todavía no tiene. Devuelve false si otro ya se lo puso: ese no se pisa. */
+  setTicketTypeContractIfEmpty(id: string, contractId: string): Promise<boolean>;
   /** Borra un tipo de entrada sin credenciales (el borrador de un evento). Con credenciales falla. */
   deleteTicketType(id: string): Promise<void>;
 
@@ -369,7 +377,12 @@ export interface Repo {
   // Personas
   getPersonById(id: string): Promise<Person | null>;
   getPersonByEmail(email: string): Promise<Person | null>;
-  /** Crea la persona o, si el correo ya existe, actualiza el nombre. */
+  /** Las personas de esos correos (equivalentes según emailKey), de a tandas: una consulta por cada quinientos. */
+  listPersonsByEmails(emails: readonly string[]): Promise<Person[]>;
+  /**
+   * Crea la persona, o devuelve la que ya tiene ese correo. A quien ya existe no se le cambia el nombre: si no,
+   * cualquiera que escriba el correo de otra persona la renombraría en todos sus eventos.
+   */
   upsertPerson(input: { name: string; email: string }): Promise<Person>;
 
   // Pases
@@ -379,10 +392,14 @@ export interface Repo {
   findPass(eventId: string, personId: string): Promise<Pass | null>;
   findPassByAccount(eventId: string, account: string): Promise<Pass | null>;
   listPasses(eventId: string): Promise<Pass[]>;
+  /** Los pases del evento con su persona, en una sola consulta (el escáner, la puerta, el panel y los CSV). */
+  listPassesWithPerson(eventId: string): Promise<Array<{ pass: Pass; person: Person }>>;
   updatePass(id: string, patch: PassPatch): Promise<Pass>;
 
   // Beneficios de cada pase
   listPassBenefits(passId: string): Promise<PassBenefit[]>;
+  /** Los beneficios de todos los pases del evento, por id de pase, en una sola consulta. */
+  listPassBenefitsByEvent(eventId: string): Promise<Map<string, PassBenefit[]>>;
   grantBenefit(passId: string, benefitId: string, source: GrantSource): Promise<void>;
   /** Otorga lo que trae la entrada del pase. */
   grantTicketBenefits(passId: string): Promise<PassBenefit[]>;
@@ -400,6 +417,8 @@ export interface Repo {
   listRedemptions(eventId: string): Promise<Redemption[]>;
   listRedemptionsForPass(passId: string): Promise<Redemption[]>;
   markRedemption(id: string, mark: SyncMark): Promise<Redemption>;
+  /** Cuántas personas canjearon ese beneficio según el espejo (sin contar los dobles): para el tope de stock. */
+  countRedeemed(benefitId: string): Promise<number>;
 
   // Cuentas de desarrollo (solo red de prueba)
   getDevAccount(personId: string): Promise<DevAccount | null>;
@@ -564,9 +583,31 @@ function rowToRedemption(row: Row): Redemption {
 /** El contexto con el que se cifra la llave de una cuenta de prueba: solo se descifra en la fila de esa persona. */
 const devSecretContext = (personId: string) => `dev_accounts.secret_key:${personId}`;
 
+/**
+ * El correo como se guarda: en minúsculas, sin espacios de los bordes, en forma NFKC (una "ａ" de ancho completo
+ * es una "a") y sin los caracteres de formato invisibles (un espacio de ancho cero pegado al correo).
+ */
 export function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
+  return email.normalize("NFKC").replace(/\p{Cf}/gu, "").trim().toLowerCase();
 }
+
+/**
+ * La clave con la que dos correos cuentan como la misma persona. Es el correo normalizado, salvo en Gmail
+ * (gmail.com y googlemail.com), donde los puntos del local y lo que sigue a un "+" no cambian el buzón: el local
+ * "a.na+rumbo" en googlemail.com y el local "ana" en gmail.com son la misma persona. El correo se guarda como lo escribió.
+ */
+export function emailKey(email: string): string {
+  const clean = normalizeEmail(email);
+  const at = clean.lastIndexOf("@");
+  if (at < 0) return clean;
+  const domain = clean.slice(at + 1);
+  if (domain !== "gmail.com" && domain !== "googlemail.com") return clean;
+  const local = (clean.slice(0, at).split("+")[0] ?? "").replace(/\./g, "");
+  return `${local}@gmail.com`;
+}
+
+/** De a cuántos valores va una consulta con IN (...): lejos del tope de parámetros de los dos motores. */
+const IN_CHUNK = 500;
 
 // ---------- La implementación ----------
 
@@ -690,6 +731,10 @@ export class SqlRepo implements Repo {
     return ticketType;
   }
 
+  async setTicketTypeContractIfEmpty(id: string, contractId: string): Promise<boolean> {
+    return (await this.db.run("UPDATE ticket_types SET contract_id = ? WHERE id = ? AND contract_id IS NULL", [contractId, id])) === 1;
+  }
+
   async deleteTicketType(id: string): Promise<void> {
     // passes.ticket_type_id no se borra en cascada: con credenciales, la base se niega y el error sube.
     await this.db.run("DELETE FROM ticket_types WHERE id = ?", [id]);
@@ -760,9 +805,29 @@ export class SqlRepo implements Repo {
     return row ? rowToPerson(row) : null;
   }
 
+  // Se busca por la clave (emailKey) y también por el correo tal cual: las personas de antes de la migración 013
+  // tienen como clave su correo, que en Gmail puede no ser la clave que se calcula hoy.
   async getPersonByEmail(email: string): Promise<Person | null> {
-    const row = await this.db.one("SELECT * FROM persons WHERE email = ?", [normalizeEmail(email)]);
+    const row = await this.db.one("SELECT * FROM persons WHERE email_key = ? OR email = ? ORDER BY created_at LIMIT 1", [emailKey(email), normalizeEmail(email)]);
     return row ? rowToPerson(row) : null;
+  }
+
+  async listPersonsByEmails(emails: readonly string[]): Promise<Person[]> {
+    const keys = [...new Set(emails.map(emailKey))];
+    const plain = [...new Set(emails.map(normalizeEmail))];
+    const found = new Map<string, Person>();
+    for (let i = 0; i < Math.max(keys.length, plain.length); i += IN_CHUNK) {
+      const k = keys.slice(i, i + IN_CHUNK);
+      const p = plain.slice(i, i + IN_CHUNK);
+      const marks = (n: number) => Array.from({ length: n }, () => "?").join(", ");
+      const where = [k.length ? `email_key IN (${marks(k.length)})` : "", p.length ? `email IN (${marks(p.length)})` : ""].filter(Boolean).join(" OR ");
+      if (!where) continue;
+      for (const row of await this.db.all(`SELECT * FROM persons WHERE ${where} ORDER BY created_at`, [...k, ...p])) {
+        const person = rowToPerson(row);
+        if (!found.has(person.id)) found.set(person.id, person);
+      }
+    }
+    return [...found.values()];
   }
 
   async upsertPerson(input: { name: string; email: string }): Promise<Person> {
@@ -770,33 +835,41 @@ export class SqlRepo implements Repo {
     const name = input.name.trim();
     const existing = await this.getPersonByEmail(email);
     if (existing) {
-      if (name && name !== existing.name) await this.db.run("UPDATE persons SET name = ? WHERE id = ?", [name, existing.id]);
+      // El nombre nuevo se descarta: quien ya existe conserva el suyo. Solo se completa si estaba vacío.
+      if (name && !existing.name.trim()) await this.db.run("UPDATE persons SET name = ? WHERE id = ?", [name, existing.id]);
       return (await this.getPersonById(existing.id))!;
     }
-    const inserted = await this.db.one("INSERT INTO persons (id, name, email, created_at) VALUES (?, ?, ?, ?) ON CONFLICT (email) DO NOTHING RETURNING *", [
+    // Sin nombrar el índice del conflicto: puede chocar la clave o el correo tal cual (una persona de antes).
+    const inserted = await this.db.one("INSERT INTO persons (id, name, email, email_key, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING RETURNING *", [
       randomUUID(),
       name,
       email,
+      emailKey(email),
       now(),
     ]);
     if (inserted) return rowToPerson(inserted);
     // Otro pedido creó a la misma persona entre la lectura y la escritura: ahora existe, y se sigue con ella.
-    return this.upsertPerson(input);
+    const again = await this.getPersonByEmail(email);
+    if (!again) throw new Error("No se pudo guardar a la persona: el correo choca con otra fila que no se encuentra");
+    return again;
   }
 
   // Pases
 
   async createPass(input: NewPass): Promise<Pass> {
-    // Un id nuevo hasta que no choque: con 40 bits de azar casi nunca pasa, pero cuesta nada mirar.
-    let id = newPassId();
-    while (await this.db.one("SELECT 1 AS yes FROM passes WHERE id = ?", [id])) id = newPassId();
     const status = input.status ?? "pending";
     const at = now();
-    await this.db.run(
-      "INSERT INTO passes (id, event_id, person_id, ticket_type_id, account, status, created_at, activated_at, diet, import_run_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [id, input.eventId, input.personId, input.ticketTypeId, input.account ?? null, status, at, status === "pending" ? null : at, input.diet ?? null, input.importRunId ?? null],
-    );
-    return (await this.getPass(id))!;
+    // Una sola sentencia por pase (una importación crea cientos). Si el id de ocho letras choca con uno que ya
+    // existe (40 bits de azar: casi nunca), el ON CONFLICT (id) no inserta nada y se prueba con otro; chocar en
+    // (event_id, person_id) sigue siendo el error de siempre, que quien llama sabe tratar.
+    for (;;) {
+      const inserted = await this.db.one(
+        `INSERT INTO passes (id, event_id, person_id, ticket_type_id, account, status, created_at, activated_at, diet, import_run_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING RETURNING *`,
+        [newPassId(), input.eventId, input.personId, input.ticketTypeId, input.account ?? null, status, at, status === "pending" ? null : at, input.diet ?? null, input.importRunId ?? null],
+      );
+      if (inserted) return rowToPass(inserted);
+    }
   }
 
   async getPass(id: string): Promise<Pass | null> {
@@ -831,12 +904,28 @@ export class SqlRepo implements Repo {
     return (await this.db.all("SELECT * FROM passes WHERE event_id = ? ORDER BY created_at", [eventId])).map(rowToPass);
   }
 
+  async listPassesWithPerson(eventId: string): Promise<Array<{ pass: Pass; person: Person }>> {
+    const rows = await this.db.all(
+      `SELECT p.*, per.id AS person_id, per.name AS person_name, per.email AS person_email, per.created_at AS person_created_at
+       FROM passes p JOIN persons per ON per.id = p.person_id WHERE p.event_id = ? ORDER BY p.created_at`,
+      [eventId],
+    );
+    return rows.map((row) => ({
+      pass: rowToPass(row),
+      person: { id: str(row.person_id), name: str(row.person_name), email: str(row.person_email), createdAt: str(row.person_created_at) },
+    }));
+  }
+
   async updatePass(id: string, patch: PassPatch): Promise<Pass> {
     if (patch.ticketTypeId !== undefined) {
       // La entrada solo cambia mientras el pase está pendiente: una vez activo, el contrato ya es el de su entrada.
-      await this.db.run("UPDATE passes SET ticket_type_id = ? WHERE id = ? AND status = 'pending'", [patch.ticketTypeId, id]);
+      // Y si el pase salió de una importación, solo lo cambia otra importación (viene con importRunId): la página
+      // pública no le cambia el tipo a quien se importó como oradora o jurado.
+      const onlyOwn = patch.importRunId === undefined ? " AND import_run_id IS NULL" : "";
+      await this.db.run(`UPDATE passes SET ticket_type_id = ? WHERE id = ? AND status = 'pending'${onlyOwn}`, [patch.ticketTypeId, id]);
     }
     const columns: Record<string, SqlValue> = {};
+    if (patch.importRunId !== undefined) columns.import_run_id = patch.importRunId;
     if (patch.account !== undefined) columns.account = patch.account;
     if (patch.diet !== undefined) columns.diet = patch.diet;
     if (patch.status !== undefined) {
@@ -876,6 +965,25 @@ export class SqlRepo implements Repo {
       grantedAt: str(row.granted_at),
       chainIndex: numOrNull(row.chain_index),
     }));
+  }
+
+  async listPassBenefitsByEvent(eventId: string): Promise<Map<string, PassBenefit[]>> {
+    const rows = await this.db.all(
+      `SELECT b.*, pb.pass_id, pb.source, pb.granted_at, ttb.chain_index
+       FROM pass_benefits pb
+       JOIN benefits b ON b.id = pb.benefit_id
+       JOIN passes p ON p.id = pb.pass_id
+       LEFT JOIN ticket_type_benefits ttb ON ttb.benefit_id = b.id AND ttb.ticket_type_id = p.ticket_type_id
+       WHERE p.event_id = ? ORDER BY b.sort_order, b.name`,
+      [eventId],
+    );
+    const byPass = new Map<string, PassBenefit[]>();
+    for (const row of rows) {
+      const list = byPass.get(str(row.pass_id)) ?? [];
+      list.push({ ...rowToBenefit(row), source: str(row.source) as GrantSource, grantedAt: str(row.granted_at), chainIndex: numOrNull(row.chain_index) });
+      byPass.set(str(row.pass_id), list);
+    }
+    return byPass;
   }
 
   async grantBenefit(passId: string, benefitId: string, source: GrantSource): Promise<void> {
@@ -960,6 +1068,11 @@ export class SqlRepo implements Repo {
     const row = await this.db.one("SELECT * FROM redemptions WHERE id = ?", [id]);
     if (!row) throw new Error(`No existe el canje ${id}`);
     return rowToRedemption(row);
+  }
+
+  async countRedeemed(benefitId: string): Promise<number> {
+    const row = await this.db.one("SELECT COUNT(DISTINCT pass_id) AS n FROM redemptions WHERE benefit_id = ? AND duplicate = FALSE", [benefitId]);
+    return num(row?.n ?? 0);
   }
 
   // Cuentas de desarrollo

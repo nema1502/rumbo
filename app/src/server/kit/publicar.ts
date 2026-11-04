@@ -7,6 +7,7 @@
 // borrador queda como estaba.
 import { Address, Operation, TransactionBuilder, BASE_FEE, nativeToScVal } from "@stellar/stellar-sdk";
 import { isPublicKind } from "../../lib/credential-kinds.ts";
+import { BUSY, tryExclusive } from "../compartido.ts";
 import type { EventRecord, Repo } from "../repo.ts";
 import { NETWORK_PASSPHRASE, TX_TIMEOUT_SECONDS, getRpc, getSponsor, getTestAsset, readDeployInfo, submitSponsored, toStroops, withSponsorLock } from "../stellar.ts";
 
@@ -26,7 +27,7 @@ export interface ContractProvisioner {
   deploy(spec: ContractSpec): Promise<string>;
 }
 
-export type PublishFailure = "no_attendee" | "no_free_attendee" | "no_capacity" | "deploy_failed";
+export type PublishFailure = "no_attendee" | "no_free_attendee" | "no_capacity" | "deploy_failed" | "busy";
 
 export type PublishResult =
   | { ok: true; deployed: number }
@@ -35,8 +36,19 @@ export type PublishResult =
 /**
  * Publica el evento: crea el contrato de cada tipo de entrada que todavía no lo tiene y marca el evento como
  * publicado. Si un contrato falla, los que ya se crearon quedan guardados y el siguiente intento sigue desde ahí.
+ * Un solo "Publicar" por evento a la vez: dos pestañas (o un doble clic) desplegaban el doble de contratos y el
+ * segundo pisaba el contrato de una entrada que ya tenía inscriptos. Mientras uno publica, el otro recibe "busy".
  */
 export async function publishEvent(repo: Repo, event: EventRecord, provisioner: ContractProvisioner = networkProvisioner): Promise<PublishResult> {
+  if (event.published) return { ok: true, deployed: 0 };
+  const outcome = await tryExclusive(`publish:${event.id}`, () => publishOnce(repo, event.id, provisioner));
+  return outcome === BUSY ? { ok: false, reason: "busy", detail: null } : outcome;
+}
+
+async function publishOnce(repo: Repo, eventId: string, provisioner: ContractProvisioner): Promise<PublishResult> {
+  // Se vuelve a leer con el turno tomado: lo que quien llama leyó puede ser de antes de que otro publicara.
+  const event = await repo.getEventById(eventId);
+  if (!event) return { ok: false, reason: "deploy_failed", detail: "el evento ya no existe" };
   if (event.published) return { ok: true, deployed: 0 };
   const types = await repo.listTicketTypes(event.id);
   const attendees = types.filter((t) => isPublicKind(t.credentialKind));
@@ -51,8 +63,9 @@ export async function publishEvent(repo: Repo, event: EventRecord, provisioner: 
     const benefits = (await repo.listTicketTypeBenefits(type.id)).length;
     try {
       const contractId = await provisioner.deploy({ price: type.priceUsdc, capacity, benefits, organizerAccount: event.organizerAccount });
-      await repo.updateTicketType(type.id, { contractId });
-      deployed++;
+      // Solo si la entrada sigue sin contrato: el que ya tiene (con inscriptos, quizás) no se pisa nunca.
+      if (await repo.setTicketTypeContractIfEmpty(type.id, contractId)) deployed++;
+      else console.warn(`[publicar] La entrada ${type.id} ya tenía contrato: el recién creado (${contractId}) queda sin usar`);
     } catch (error) {
       return { ok: false, reason: "deploy_failed", detail: error instanceof Error ? error.message : String(error) };
     }

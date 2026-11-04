@@ -4,12 +4,13 @@
 // sincronización de la cola: cada entrada y cada canje al contrato, firmados por la cuenta de
 // puerta, con su espejo en la base. Lo usan las rutas de /api/scan.
 import type { ScanEvent, ScanItem, ScanItemResult, ScanItemStatus, ScanPassInfo, ScanSnapshot, ScanStation } from "../lib/escaner-api.ts";
-import { GATE_STATION } from "../lib/escaner-api.ts";
+import { GATE_STATION, STOCK_EXCEEDED } from "../lib/escaner-api.ts";
 import { isValidPassId } from "../lib/qr-codec.ts";
-import { BUSY, tryExclusive } from "./compartido.ts";
+import { BUSY, LeaseLost, tryExclusive } from "./compartido.ts";
 import { clientKey, stationCodeAttempts } from "./limites.ts";
+import { describeForLog } from "./log.ts";
 import { resolveStationCode, type StationAccess } from "./panel.ts";
-import { ClientIdTaken, type CheckIn, type EventRecord, type PassView, type Repo, type SyncMark } from "./repo.ts";
+import { ClientIdTaken, type CheckIn, type EventRecord, type PassBenefit, type PassView, type Repo, type SyncMark } from "./repo.ts";
 import { claimRoutePrize, isRoutePrize, recordVisit, StandsError, standScanVisits } from "./stands.ts";
 import {
   PERMANENT_CONTRACT_ERRORS,
@@ -71,9 +72,11 @@ function toScanEvent(event: EventRecord, stations: ScanStation[]): ScanEvent {
 export async function buildSnapshot(repo: Repo, access: StationAccess): Promise<ScanSnapshot> {
   const event = access.event;
   if (access.kind === "stand" && access.stand) return await buildStandSnapshot(access);
-  const [stations, passes, checkIns, redemptions] = await Promise.all([
+  // Todo por lote: con trescientos pases son las mismas ocho consultas que con diez.
+  const [stations, passes, benefitsOf, checkIns, redemptions] = await Promise.all([
     scanStations(repo, event.id),
-    repo.listPasses(event.id),
+    repo.listPassesWithPerson(event.id),
+    repo.listPassBenefitsByEvent(event.id),
     repo.listCheckIns(event.id),
     repo.listRedemptions(event.id),
   ]);
@@ -97,13 +100,12 @@ export async function buildSnapshot(repo: Repo, access: StationAccess): Promise<
   const teamOf = new Map(teams.map((t) => [t.passId, t.team.name] as const));
 
   const infos: ScanPassInfo[] = [];
-  for (const pass of passes) {
+  for (const { pass, person } of passes) {
     if (pass.status === "pending") continue;
-    const [person, benefits] = await Promise.all([repo.getPersonById(pass.personId), repo.listPassBenefits(pass.id)]);
     infos.push({
       id: pass.id,
-      name: person?.name ?? "",
-      benefits: benefits.map((b) => b.id),
+      name: person.name,
+      benefits: (benefitsOf.get(pass.id) ?? []).map((b) => b.id),
       checkedInAt: pass.checkedInAt ?? checkedIn.get(pass.id) ?? null,
       redeemed: redeemed.get(pass.id) ?? {},
       credential: kindOfType.get(pass.ticketTypeId) ?? "attendee",
@@ -113,11 +115,12 @@ export async function buildSnapshot(repo: Repo, access: StationAccess): Promise<
     });
   }
 
-  // Si el beneficio del puesto tiene tope (150 poleras): cuántas quedan, según lo que algún escáner ya subió.
+  // Si el beneficio del puesto tiene tope (150 poleras): cuántas quedan, según lo que algún escáner ya subió, y
+  // por cuántas se pasó si dos mesas sin red entregaron de más (el tope no se recorta a cero en silencio).
   let stock: ScanSnapshot["stock"] = null;
   if (station.kind === "benefit" && access.benefit?.stock != null) {
     const used = new Set(redemptions.filter((r) => r.benefitId === station.id && !r.duplicate).map((r) => r.passId));
-    stock = { total: access.benefit.stock, left: Math.max(0, access.benefit.stock - used.size) };
+    stock = { total: access.benefit.stock, left: Math.max(0, access.benefit.stock - used.size), over: Math.max(0, used.size - access.benefit.stock) };
   }
 
   return { event: toScanEvent(event, stations), station, publicKey: access.publicKey, passes: infos, generatedAt: new Date().toISOString(), stock };
@@ -155,8 +158,15 @@ async function buildStandSnapshot(access: StationAccess): Promise<ScanSnapshot> 
 /** Los errores del contrato con los que no tiene sentido volver a intentar (el panel los cuenta como rechazados, no como pendientes). */
 const PERMANENT_ERRORS: ReadonlySet<string> = PERMANENT_CONTRACT_ERRORS;
 
+/**
+ * Lo que se guarda en el espejo y se le dice al escáner de un error: el del contrato tal cual (es parte de la
+ * interfaz), y de cualquier otro (la base, el servidor) un texto genérico. El detalle va al registro del
+ * servidor: el texto de la base no es para la pantalla de un voluntario ni para quedar en una fila.
+ */
 function describe(error: unknown): string {
-  return (error instanceof Error ? error.message : String(error)).slice(0, 200);
+  if (isContractError(error)) return error.message.slice(0, 200);
+  console.error(`[escaner] No se pudo sincronizar un registro: ${describeForLog(error)}`);
+  return "no se pudo registrar en el servidor, se reintenta";
 }
 
 /**
@@ -226,6 +236,16 @@ function belongsToStation(station: ScanStation, item: ScanItem): boolean {
   return item.action === "redeem" && item.benefitId === station.id;
 }
 
+/** Cuánto puede estar atrasada o adelantada la hora de una lectura respecto del servidor: lo que un escáner sin red guardó hace días vale; una fecha de otro año, no. */
+export const SCANNED_AT_PAST_MS = 366 * 24 * 60 * 60 * 1000;
+export const SCANNED_AT_FUTURE_MS = 60 * 60 * 1000;
+
+/** Si la hora de la lectura cae dentro de lo posible: de un año atrás a una hora adelante del reloj del servidor. */
+export function isScannedAtInRange(scannedAt: string, now: number = Date.now()): boolean {
+  const at = Date.parse(scannedAt);
+  return Number.isFinite(at) && at >= now - SCANNED_AT_PAST_MS && at <= now + SCANNED_AT_FUTURE_MS;
+}
+
 async function processOne(repo: Repo, event: EventRecord, station: ScanStation, item: ScanItem, chain: ScanChain): Promise<ScanItemResult> {
   const result = (status: ScanItemStatus, txHash: string | null = null, error: string | null = null): ScanItemResult => ({
     clientId: item.clientId,
@@ -234,10 +254,17 @@ async function processOne(repo: Repo, event: EventRecord, station: ScanStation, 
     error,
   });
   if (!belongsToStation(station, item)) return result("rejected", null, "fuera del puesto");
+  // Una hora imposible (el reloj de un celular en otro año) no entra al espejo: con Postgres quedaría reintentando para siempre.
+  if (!isScannedAtInRange(item.scannedAt)) return result("rejected", null, "hora de la lectura fuera de rango");
   // El mismo clientId no va dos veces a la vez al contrato: si otro pedido (de esta instancia o de otra) lo está
-  // mandando, este vuelve a la cola del escáner y se reintenta.
-  const outcome = await tryExclusive(`scan:${item.clientId}`, () => syncItem(repo, event, station, item, chain));
-  return outcome === BUSY ? result("retry", null, "en curso") : outcome;
+  // mandando, este vuelve a la cola del escáner y se reintenta. Lo mismo si el turno se perdió a mitad de camino.
+  try {
+    const outcome = await tryExclusive(`scan:${item.clientId}`, () => syncItem(repo, event, station, item, chain));
+    return outcome === BUSY ? result("retry", null, "en curso") : outcome;
+  } catch (error) {
+    if (error instanceof LeaseLost) return result("retry", null, "en curso");
+    throw error;
+  }
 }
 
 async function syncItem(repo: Repo, event: EventRecord, station: ScanStation, item: ScanItem, chain: ScanChain): Promise<ScanItemResult> {
@@ -353,8 +380,9 @@ async function syncCheckIn(repo: Repo, event: EventRecord, item: ScanItem, view:
       await repo.markCheckIn(row.id, { error: error.errorName });
       return { clientId: item.clientId, status: "rejected", txHash: null, error: error.errorName };
     }
-    await repo.markCheckIn(row.id, { error: describe(error) });
-    return { clientId: item.clientId, status: "retry", txHash: null, error: describe(error) };
+    const text = describe(error);
+    await repo.markCheckIn(row.id, { error: text });
+    return { clientId: item.clientId, status: "retry", txHash: null, error: text };
   }
 }
 
@@ -372,12 +400,12 @@ async function syncRedeem(repo: Repo, event: EventRecord, item: ScanItem, view: 
     scannerId: item.scannerId,
     scannedAt: item.scannedAt,
   });
-  if (row.synced) return { clientId: item.clientId, status: "synced", txHash: row.txHash, error: null };
+  if (row.synced) return withStockCheck(repo, benefit, { clientId: item.clientId, status: "synced", txHash: row.txHash, error: null });
   if (row.duplicate) return { clientId: item.clientId, status: "duplicate", txHash: row.txHash, error: row.error };
 
   const done = async (hash: string): Promise<ScanItemResult> => {
     await repo.markRedemption(row.id, { synced: true, txHash: hash, error: null });
-    return { clientId: item.clientId, status: "synced", txHash: hash, error: null };
+    return withStockCheck(repo, benefit, { clientId: item.clientId, status: "synced", txHash: hash, error: null });
   };
   const previous = row.txHash;
   const before = await previousAttempt(row, chain);
@@ -403,9 +431,21 @@ async function syncRedeem(repo: Repo, event: EventRecord, item: ScanItem, view: 
       await repo.markRedemption(row.id, { error: error.errorName });
       return { clientId: item.clientId, status: "rejected", txHash: null, error: error.errorName };
     }
-    await repo.markRedemption(row.id, { error: describe(error) });
-    return { clientId: item.clientId, status: "retry", txHash: null, error: describe(error) };
+    const text = describe(error);
+    await repo.markRedemption(row.id, { error: text });
+    return { clientId: item.clientId, status: "retry", txHash: null, error: text };
   }
+}
+
+/**
+ * El tope de un beneficio no se puede hacer cumplir desde el servidor: cada mesa decide sin red y la polera ya se
+ * entregó. Lo que sí se puede es detectarlo: si con este canje los no dobles superan el tope, el canje queda
+ * sincronizado (pasó) pero con el aviso STOCK_EXCEEDED, que el escáner muestra y el panel cuenta.
+ */
+async function withStockCheck(repo: Repo, benefit: PassBenefit, result: ScanItemResult): Promise<ScanItemResult> {
+  if (benefit.stock === null || result.status !== "synced") return result;
+  const redeemed = await repo.countRedeemed(benefit.id);
+  return redeemed > benefit.stock ? { ...result, error: STOCK_EXCEEDED } : result;
 }
 
 // ---------- Los pedidos de /api/scan ----------
@@ -446,7 +486,25 @@ export async function authorizeScanRequest(repo: Repo, request: Request): Promis
 }
 
 const ACTIONS = new Set(["checkin", "redeem", "visit"]);
-const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+const ISO_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|([+-])(\d{2}):(\d{2}))$/;
+
+/**
+ * Si el texto es una fecha ISO 8601 que existe de verdad: la forma, y además el mes, el día (según el mes y el
+ * año), la hora y el desfase. Date.parse acepta un 30 de febrero y lo corre a marzo; Postgres lo rechaza, y
+ * un registro con esa fecha quedaba reintentando para siempre.
+ */
+export function isRealIsoDate(text: string): boolean {
+  const m = ISO_RE.exec(text);
+  if (!m) return false;
+  const [year, month, day, hour, minute, second] = [m[1], m[2], m[3], m[4], m[5], m[6]].map(Number) as [number, number, number, number, number, number];
+  if (year < 1970 || year > 9999 || month < 1 || month > 12 || hour > 23 || minute > 59 || second > 59) return false;
+  if (day < 1 || day > new Date(Date.UTC(year, month, 0)).getUTCDate()) return false;
+  if (m[8] !== "Z" && (Number(m[10]) > 14 || Number(m[11]) > 59)) return false;
+  return Number.isFinite(Date.parse(text));
+}
+
+/** Sin NUL ni otros controles: Postgres no los guarda, y en un id o un nombre de escáner no significan nada. */
+const clean = (text: string): string => text.replace(/[\u0000-\u001f\u007f]/g, "");
 
 /** Los registros del pedido, con su forma comprobada. Devuelve null si alguno no tiene la forma esperada. */
 export function parseScanItems(raw: unknown): ScanItem[] | null {
@@ -455,13 +513,13 @@ export function parseScanItems(raw: unknown): ScanItem[] | null {
   for (const value of raw) {
     if (!value || typeof value !== "object") return null;
     const v = value as Record<string, unknown>;
-    const clientId = typeof v.clientId === "string" ? v.clientId : "";
+    const clientId = typeof v.clientId === "string" ? clean(v.clientId) : "";
     const action = typeof v.action === "string" ? v.action : "";
     const passId = typeof v.passId === "string" ? v.passId.toUpperCase() : "";
-    const benefitId = typeof v.benefitId === "string" ? v.benefitId : null;
+    const benefitId = typeof v.benefitId === "string" ? clean(v.benefitId) : null;
     const scannedAt = typeof v.scannedAt === "string" ? v.scannedAt : "";
-    const scannerId = typeof v.scannerId === "string" ? v.scannerId.slice(0, 64) : "";
-    if (!clientId || clientId.length > 64 || !ACTIONS.has(action) || !isValidPassId(passId) || !ISO_RE.test(scannedAt)) return null;
+    const scannerId = typeof v.scannerId === "string" ? clean(v.scannerId).slice(0, 64) : "";
+    if (!clientId || clientId.length > 64 || !ACTIONS.has(action) || !isValidPassId(passId) || !isRealIsoDate(scannedAt)) return null;
     if (benefitId !== null && benefitId.length > 64) return null;
     items.push({ clientId, action: action as ScanItem["action"], passId, benefitId, scannedAt, scannerId });
   }

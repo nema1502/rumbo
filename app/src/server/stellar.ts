@@ -514,7 +514,18 @@ export async function sendAndWait(
   }
 
   const hash = sent.hash || Buffer.from(built.hash()).toString("hex");
-  const final = await server.pollTransaction(hash, { attempts: 40 });
+  let final = await server.pollTransaction(hash, { attempts: 40 });
+  if (final.status === rpc.Api.GetTransactionStatus.NOT_FOUND) {
+    // Cuarenta sondeos son unos cuarenta segundos, y la transacción vale sesenta: si la red todavía no sabe de
+    // ella, se espera a que venza antes de darla por perdida (y de soltar el turno de la patrocinadora). Si no,
+    // la siguiente transacción saldría con el mismo número de secuencia mientras esta todavía puede entrar.
+    const expiresMs = Number(built.timeBounds?.maxTime ?? 0) * 1000;
+    const wait = Math.min(Math.max(0, expiresMs - Date.now()) + 2_000, (TX_TIMEOUT_SECONDS + 5) * 1000);
+    if (expiresMs > 0) {
+      await sleep(wait);
+      final = await server.pollTransaction(hash, { attempts: 1 });
+    }
+  }
   if (final.status === rpc.Api.GetTransactionStatus.SUCCESS) {
     return { hash, ledger: final.ledger, returnValue: final.returnValue ? scValToNative(final.returnValue) : undefined };
   }

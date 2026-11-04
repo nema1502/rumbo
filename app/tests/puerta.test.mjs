@@ -211,14 +211,16 @@ test("la entrada marcada a mano va por el mismo camino que una lectura y queda c
   assert.equal(scannerId, "manual:puerta:abc12345");
   assert.ok(isManualScannerId(scannerId));
   assert.ok(!isManualScannerId("abc12345"));
-  const item = { clientId: "manual-1", action: "checkin", passId: anita.pass.id, benefitId: null, scannedAt: "2026-11-22T09:20:00-04:00", scannerId };
+  // Una lectura de hace veinte minutos (el servidor solo acepta horas de hasta un año atrás y una hora adelante).
+  const hace = new Date(Date.now() - 20 * 60 * 1000).toISOString();
+  const item = { clientId: "manual-1", action: "checkin", passId: anita.pass.id, benefitId: null, scannedAt: hace, scannerId };
   const [resultado] = await processScanItems(repo, datos.event, GATE_STATION, [item], cadena);
   assert.equal(resultado.status, "synced");
   assert.deepEqual(llamadas, [anita.pass.account]);
 
   const [fila] = await repo.listCheckInsForPass(anita.pass.id);
   assert.equal(fila.scannerId, "manual:puerta:abc12345", "queda con su puesto");
-  assert.equal(Date.parse(fila.scannedAt), Date.parse("2026-11-22T09:20:00-04:00"), "y con su hora");
+  assert.equal(Date.parse(fila.scannedAt), Date.parse(hace), "y con su hora");
   assert.ok(fila.synced);
   assert.equal((await repo.getPass(anita.pass.id)).status, "checked_in");
   assert.equal((await searchDoor(repo, datos.event, "anita"))[0].checkedInAt !== null, true, "y el buscador ya la muestra como que entró");

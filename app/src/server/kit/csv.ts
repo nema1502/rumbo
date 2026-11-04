@@ -36,6 +36,33 @@ export interface Table {
 /** Separadores que usan las herramientas más comunes, en orden de probabilidad. */
 const DELIMITERS = [",", ";", "\t"] as const;
 
+/**
+ * Los topes de una tabla que se lee de un archivo ajeno. Una lista de invitados tiene decenas de columnas y
+ * algunos miles de filas; más que esto es un archivo roto o uno armado para hacer trabajar de más al servidor
+ * (una celda de cuarenta mil puntos contra la expresión del correo, cinco mil columnas que se rellenan en cada
+ * fila). Pasado un tope, se avisa con CsvLimitError y no se lee más.
+ */
+export interface TableLimits {
+  /** Letras por celda. */
+  maxCell: number;
+  maxColumns: number;
+  /** Filas de datos, sin la cabecera. */
+  maxRows: number;
+}
+
+export const TABLE_LIMITS: TableLimits = { maxCell: 1000, maxColumns: 100, maxRows: 5000 };
+
+export type CsvLimitCode = "cell_too_long" | "too_many_columns" | "too_many_rows";
+
+export class CsvLimitError extends Error {
+  readonly code: CsvLimitCode;
+  constructor(code: CsvLimitCode) {
+    super(`La tabla se pasa del tope: ${code}`);
+    this.name = "CsvLimitError";
+    this.code = code;
+  }
+}
+
 /** Cabeceras que suelen contener el nombre de la persona, en varios idiomas. */
 const NAME_HINTS = [
   "name", "full name", "attendee name", "guest name", "display name",
@@ -92,33 +119,49 @@ export function looksTabular(text: string): boolean {
  * celdas vacías, que es lo que hace cualquier planilla, y una larga se arregla
  * si hay una sola forma segura de hacerlo. Si no, se salta y queda anotada.
  */
-export function parseTable(text: string): Table | null {
+export function parseTable(text: string, limits: TableLimits = TABLE_LIMITS): Table | null {
   const clean = text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
   if (!clean.trim()) return null;
 
-  const delimiter = pickDelimiter(clean);
-  const grid = parseRows(clean, delimiter).filter(filled);
+  const { delimiter, rows: parsed } = pickDelimiter(clean, limits);
+  const grid = parsed.filter(filled);
+  if (!grid[0]) return null;
+  // Un encabezado con una coma final ("Name,Email,Status,") no tiene una columna de más.
+  const headerCells = withoutTrailingEmpty(grid[0].cells);
+  if (headerCells.length > 1 && headerCells.some(isHeaderCell)) grid[0] = { ...grid[0], cells: headerCells };
   const first = grid[0];
-  if (!first) return null;
 
   const width = expectedWidth(grid);
+  // Los topes se miran antes de rellenar o arreglar nada: era al rellenar donde un archivo hostil costaba gigas.
+  if (width > limits.maxColumns) throw new CsvLimitError("too_many_columns");
+  if (grid.length - 1 > limits.maxRows) throw new CsvLimitError("too_many_rows");
+  for (const r of grid) for (const c of r.cells) if (c.length > limits.maxCell) throw new CsvLimitError("cell_too_long");
+
   const headerDetected = first.cells.length === width && looksLikeHeader(first.cells, grid.slice(1).map((r) => r.cells));
   const data = headerDetected ? grid.slice(1) : grid;
   const kinds = columnKinds(data, width, headerDetected ? nameHintColumn(first.cells) : -1);
+  const pad = (cells: readonly string[]): string[] => [...cells, ...new Array<string>(Math.max(0, width - cells.length)).fill("")];
+  const fitsAll = (row: readonly string[]): boolean => row.every((v, i) => fits(kinds[i] ?? "free", v));
 
   const rows: string[][] = [];
   const skipped: number[] = [];
   for (const r of data) {
     if (r.cells.length === width) rows.push(r.cells);
     // La que no escribió las celdas vacías del final.
-    else if (r.cells.length < width) rows.push([...r.cells, ...new Array<string>(width - r.cells.length).fill("")]);
+    else if (r.cells.length < width) rows.push(pad(r.cells));
     else {
-      const mended = mend(r.cells, width, kinds, delimiter);
+      // Una coma final en los datos ("Ana,ana@example.com,approved,") deja una celda vacía de más: sin ella la fila
+      // encaja, y se toma así si cada columna queda con lo que suele tener. Si no, es una coma sin comillas adentro
+      // de un campo, y se intenta arreglar (primero sin la celda vacía del final, después con todo).
+      const cut = withoutTrailingEmpty(r.cells);
+      const mended =
+        cut.length <= width && fitsAll(pad(cut))
+          ? pad(cut)
+          : ((cut.length > width ? mend(cut, width, kinds, delimiter) : null) ?? (cut.length < r.cells.length ? mend(r.cells, width, kinds, delimiter) : null));
       if (mended) rows.push(mended);
       else skipped.push(r.line);
     }
   }
-
   const columns = Array.from({ length: width }, (_, i) =>
     (headerDetected ? first.cells[i]?.trim() : "") || `Columna ${i + 1}`);
   return { columns, rows, headerDetected, suggested: suggestColumn(columns, rows, headerDetected), skipped };
@@ -226,10 +269,14 @@ const BINARY = [
  * "CSV UTF-8", y leerlo como UTF-8 dejaba "Mar�a" en vez de "María" (QA, 16
  * de octubre de 2026). Con la marca del principio (BOM) no hay que adivinar:
  * UTF-8, o UTF-16, que es lo que guarda Excel como "Texto Unicode". Sin marca,
- * UTF-16 se reconoce por los ceros. Si no, es UTF-8 solo si es UTF-8 válido,
- * y si no, Windows-1252, que para el castellano tiene las mismas tildes y
- * eñes que Latin-1. Los finales de línea quedan en `\n`: Excel en Mac
- * separaba las filas con un retorno de carro solo.
+ * UTF-16 se reconoce por los ceros. Si no, es UTF-8 si es UTF-8 válido, o si
+ * la mayoría de lo que no es ASCII son secuencias UTF-8 bien formadas (un
+ * archivo UTF-8 con un solo byte suelto pegado de otra parte no se lee entero
+ * como Windows-1252: solo ese byte queda como "�"); y si no, Windows-1252, que
+ * para el castellano tiene las mismas tildes y eñes que Latin-1. Los finales
+ * de línea quedan en `\n`: Excel en Mac separaba las filas con un retorno de
+ * carro solo. Un NUL dentro del texto se descarta: no es parte de ningún
+ * nombre, y Postgres no lo acepta.
  *
  * Devuelve `null` si no es texto: una planilla de Excel o un PDF soltados
  * sobre la sección llenaban la lista de basura.
@@ -251,11 +298,36 @@ export function decodeText(bytes: Uint8Array): string | null {
       try {
         text = new TextDecoder("utf-8", { fatal: true }).decode(b);
       } catch {
-        text = windows1252(b);
+        text = mostlyUtf8(b) ? decode("utf-8") : windows1252(b);
       }
     }
   }
-  return text.replace(/\r\n?/g, "\n");
+  return text.replace(/\r\n?/g, "\n").replace(/\u0000/g, "");
+}
+
+/**
+ * Si lo que no es ASCII son, en su mayoría, secuencias UTF-8 bien formadas. Un archivo en Windows-1252 casi
+ * no tiene ninguna ("María" es 4D 61 72 ED 61: el ED no abre una secuencia válida); un archivo UTF-8 con un
+ * byte suelto las tiene casi todas.
+ */
+function mostlyUtf8(b: Uint8Array): boolean {
+  let valid = 0;
+  let stray = 0;
+  for (let i = 0; i < b.length; i++) {
+    const x = b[i] as number;
+    if (x < 0x80) continue;
+    const need = x >= 0xf0 && x <= 0xf4 ? 3 : x >= 0xe0 ? 2 : x >= 0xc2 && x <= 0xdf ? 1 : -1;
+    let ok = need > 0 && i + need < b.length;
+    for (let k = 1; ok && k <= need; k++) {
+      const y = b[i + k];
+      if (y === undefined || (y & 0xc0) !== 0x80) ok = false;
+    }
+    if (ok) {
+      valid++;
+      i += need;
+    } else stray++;
+  }
+  return valid > stray;
 }
 
 /**
@@ -298,16 +370,26 @@ function utf16Order(b: Uint8Array): "utf-16le" | "utf-16be" | null {
  * otro ancho ya no lo descarta. Sin separador que dé más de una columna,
  * sigue siendo una lista de nombres, y la coma es tan buena como cualquiera.
  */
-function pickDelimiter(text: string): string {
-  let best: { d: string; width: number; fit: number } | null = null;
+function pickDelimiter(text: string, limits: TableLimits): { delimiter: string; rows: Row[] } {
+  let best: { d: string; width: number; fit: number; rows: Row[] } | null = null;
+  let comma: Row[] | null = null;
   for (const d of DELIMITERS) {
-    const rows = parseRows(text, d).filter(filled);
+    const all = parseRows(text, d, limits);
+    if (d === ",") comma = all;
+    const rows = all.filter(filled);
     const width = expectedWidth(rows);
     if (width < 2) continue;
     const fit = rows.filter((r) => r.cells.length === width).length / rows.length;
-    if (!best || fit > best.fit || (fit === best.fit && width > best.width)) best = { d, width, fit };
+    if (!best || fit > best.fit || (fit === best.fit && width > best.width)) best = { d, width, fit, rows: all };
   }
-  return best?.d ?? ",";
+  return best ? { delimiter: best.d, rows: best.rows } : { delimiter: ",", rows: comma ?? parseRows(text, ",", limits) };
+}
+
+/** Las celdas sin las vacías del final: la coma final que deja alguna planilla en cada fila. */
+function withoutTrailingEmpty(cells: readonly string[]): string[] {
+  let end = cells.length;
+  while (end > 1 && (cells[end - 1] as string).trim() === "") end--;
+  return cells.slice(0, end);
 }
 
 /** Una fila del archivo, con la línea donde empieza (desde 1) para poder decir cuál falló. */
@@ -323,9 +405,11 @@ const filled = (r: Row): boolean => r.cells.some((c) => c.trim() !== "");
  * separador adentro, y `""` es una comilla literal.
  *
  * Una comilla que abre y nunca cierra se tragaba el resto del archivo en una
- * sola celda: se vuelve a leer tomándola como una comilla suelta.
+ * sola celda: se vuelve a leer tomándola como una comilla suelta. Las líneas
+ * vacías no son filas (dos megas de saltos de línea no son un millón de
+ * filas).
  */
-function parseRows(text: string, delimiter: string): Row[] {
+function parseRows(text: string, delimiter: string, limits: TableLimits = TABLE_LIMITS): Row[] {
   const rows: Row[] = [];
   let cells: string[] = [];
   let field = "";
@@ -333,6 +417,17 @@ function parseRows(text: string, delimiter: string): Row[] {
   let quoteAt = -1;
   let line = 1;
   let start = 1;
+
+  const endRow = () => {
+    cells.push(field);
+    if (cells.length > 1 || (cells[0] as string).trim() !== "") {
+      rows.push({ cells, line: start });
+      // Más filas que el tope: no se sigue leyendo (las filas no dependen del separador: da lo mismo con cuál se cuente).
+      if (rows.length > limits.maxRows + 1) throw new CsvLimitError("too_many_rows");
+    }
+    cells = [];
+    field = "";
+  };
 
   for (let i = 0; i < text.length; i++) {
     const c = text[i] as string;
@@ -358,18 +453,14 @@ function parseRows(text: string, delimiter: string): Row[] {
       cells.push(field);
       field = "";
     } else if (c === "\n") {
-      cells.push(field);
-      rows.push({ cells, line: start });
-      cells = [];
-      field = "";
+      endRow();
       start = line;
     } else if (c !== "\r") {
       field += c;
     }
   }
-  if (quoted) return parseRows(text.slice(0, quoteAt) + text.slice(quoteAt + 1), delimiter);
-  cells.push(field);
-  rows.push({ cells, line: start });
+  if (quoted) return parseRows(text.slice(0, quoteAt) + text.slice(quoteAt + 1), delimiter, limits);
+  endRow();
   return rows;
 }
 
@@ -399,14 +490,18 @@ function expectedWidth(rows: readonly Row[]): number {
  * palabras sueltas sin espacios (códigos, fechas, estados) o texto libre.
  */
 type Kind = "empty" | "email" | "token" | "free";
+/** Más largo que esto no es un correo ni un código: la expresión del correo, sobre un texto enorme, tardaba segundos. */
+const SHORT_MAX = 254;
 const EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
 const TOKEN = /^[^\s,;]+$/;
+const isEmail = (v: string): boolean => v.length <= SHORT_MAX && EMAIL.test(v);
+const isToken = (v: string): boolean => v.length <= SHORT_MAX && TOKEN.test(v);
 
 function kindOf(values: readonly string[]): Kind {
   const vals = values.map((v) => v.trim()).filter(Boolean);
   if (vals.length === 0) return "empty";
-  if (vals.every((v) => EMAIL.test(v))) return "email";
-  if (vals.every((v) => TOKEN.test(v))) return "token";
+  if (vals.every(isEmail)) return "email";
+  if (vals.every(isToken)) return "token";
   return "free";
 }
 
@@ -415,7 +510,7 @@ function fits(kind: Kind, value: string): boolean {
   const v = value.trim();
   if (kind === "free" || v === "") return true;
   if (kind === "empty") return false;
-  return (kind === "email" ? EMAIL : TOKEN).test(v);
+  return kind === "email" ? isEmail(v) : isToken(v);
 }
 
 /**
@@ -424,8 +519,10 @@ function fits(kind: Kind, value: string): boolean {
  * es justo donde suele estar la coma sin comillas ("Salvatierra, Rodrigo").
  */
 function columnKinds(rows: readonly Row[], width: number, names: number): Kind[] {
-  const sane = rows.filter((r) => r.cells.length === width);
-  return Array.from({ length: width }, (_, c) => (c === names ? "free" : kindOf(sane.map((r) => r.cells[c] ?? ""))));
+  // Si ninguna fila tiene el ancho justo (todas traen la coma final), valen las que lo tienen sin sus celdas vacías del final.
+  const strict = rows.filter((r) => r.cells.length === width).map((r) => r.cells);
+  const sane = strict.length > 0 ? strict : rows.map((r) => withoutTrailingEmpty(r.cells)).filter((cells) => cells.length === width);
+  return Array.from({ length: width }, (_, c) => (c === names ? "free" : kindOf(sane.map((cells) => cells[c] ?? ""))));
 }
 
 /** La columna que el encabezado llama nombre, sin adivinar por forma. -1 si ninguna. */
