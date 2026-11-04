@@ -45,6 +45,8 @@ Los emite el panel de quien organiza (`src/server/panel.ts`, tabla `station_code
 
 Contra quien prueba códigos a la fuerza (`src/server/limites.ts`): los equivocados se cuentan por la IP que pone la plataforma (en Vercel `x-real-ip`; detrás de otro proxy, el encabezado de `RUMBO_TRUSTED_IP_HEADER`), nunca por lo que diga `x-forwarded-for` en el pedido. Sin plataforma ni proxy configurado, todos los pedidos cuentan como uno solo. Ocho equivocados en diez minutos frenan esa IP diez minutos, y cada freno siguiente dura el doble, hasta un día. Cincuenta equivocados en total en diez minutos (alguien prueba desde muchas IP) encienden una alarma: mientras dura, cada IP que ya falló una vez queda frenada, y quien escribe bien su código sigue entrando. La respuesta frenada es un 429 con `Retry-After`.
 
+Ese freno es solo para abrir el puesto. Al abrirlo, el escáner recibe con la foto una **ficha de sesión** (`session.token`, `src/server/sesion-escaner.ts`): la firma el servidor con una clave derivada de la raíz secreta del evento, dice el evento, el código, el id del celular y hasta cuándo vale (treinta y seis horas), y desde ahí sincronizar, buscar y agregar viajan con ella en vez del código, sin pasar por el freno. Así el wifi del evento, donde todos los celulares salen con la misma IP, no se frena entero porque un colega se equivocó ocho veces o un celular quedó con un código muerto. La ficha va atada al código: si quien organiza lo cambia, el servidor contesta 401 `wrong_code`; si venció, 401 `session_expired`; y ante cualquiera de los dos el escáner deja de reintentar solo, avisa ("este código ya no vale: volvé a abrir el puesto") y guarda lo pendiente en el celular, que sale la próxima vez que se abra ese puesto con su código. Una sesión guardada sin ficha (de una versión anterior) se descarta y se vuelve a pedir el código; la cola de una versión anterior, que viaja con el código, sigue entrando por el camino de antes, con el freno.
+
 ## Sin red, de verdad
 
 `public/sw.js` es el service worker, registrado solo desde `/scan` y con ese alcance. Va a la red primero y guarda lo que pasa (el HTML, los scripts, los estilos, las fuentes); sin red sirve lo guardado. Al cargar, la página le pasa la lista de todo lo que ya usó (la lista de recursos del navegador), para que la primera visita también quede guardada. Lo de `/api` no pasa por él: de eso se encarga la cola. `public/scan/manifest.webmanifest` hace la página instalable.
@@ -53,10 +55,10 @@ Contra quien prueba códigos a la fuerza (`src/server/limites.ts`): los equivoca
 
 | Ruta | Qué recibe | Qué devuelve |
 |---|---|---|
-| `POST /api/scan/open` | `{ code }` | La foto del evento (`ScanSnapshot`, con el puesto), o 401 si el código no es de ningún puesto |
-| `POST /api/scan/sync` | `{ code, items: ScanItem[] }` (hasta 20) | `{ results: ScanItemResult[], snapshot }` |
-| `POST /api/scan/buscar` | `{ code, query }`, solo con el código de la Puerta | `{ matches: DoorMatch[] }` (hasta 8), o 403 |
-| `POST /api/scan/agregar` | `{ code, name, email }`, solo con el código de la Puerta | `{ kind: "added" \| "existing", match }`, o `{ kind: "error", error }` |
+| `POST /api/scan/open` | `{ code, scannerId? }` (o `{ token }`, para la foto fresca) | La foto del evento (`ScanSnapshot`, con el puesto) y la ficha de sesión (`session.token`), o 401 si el código no es de ningún puesto |
+| `POST /api/scan/sync` | `{ token, items: ScanItem[] }` (hasta 20; `code` en vez de `token`, con el freno) | `{ results: ScanItemResult[], snapshot }` |
+| `POST /api/scan/buscar` | `{ token, query }`, solo con la sesión (o el código) de la Puerta | `{ matches: DoorMatch[] }` (hasta 8), o 403 |
+| `POST /api/scan/agregar` | `{ token, name, email }`, solo con la sesión (o el código) de la Puerta | `{ kind: "added" \| "existing", match }`, o `{ kind: "error", error }` |
 
 Las formas están en `src/lib/escaner-api.ts`.
 

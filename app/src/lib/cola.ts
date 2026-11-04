@@ -18,6 +18,8 @@ export interface QueueEntry extends ScanItem {
    * puesto). Los registros de una versión anterior no lo tienen.
    */
   code?: string;
+  /** La ficha de sesión con que estaba abierto ese puesto: con ella viaja, sin pasar por el freno de códigos. */
+  token?: string;
   status: QueueStatus;
   /** Cuántas veces se intentó llevar al servidor sin lograrlo. */
   attempts: number;
@@ -37,8 +39,13 @@ export interface QueueCounts {
 
 /** El puesto abierto en este celular. Una sola sesión por vez. */
 export interface ScanSession {
-  /** El código del puesto con que se abrió: hace falta para volver a sincronizar. */
+  /** El código del puesto con que se abrió (el enlace al panel del stand lo lleva). */
   code: string;
+  /**
+   * La ficha de sesión que dio el servidor al abrir: con ella se sincroniza, se busca y se agrega, sin mandar el
+   * código. Una sesión guardada sin ficha (de una versión anterior) se descarta y se vuelve a pedir el código.
+   */
+  token?: string;
   /** Un id de este celular, para que el panel sepa qué puesto registró cada cosa. */
   scannerId: string;
   snapshot: ScanSnapshot;
@@ -249,6 +256,7 @@ export function nuevaEntrada(input: {
   eventId: string;
   stationId: string;
   code: string;
+  token?: string;
   action: ScanAction;
   passId: string;
   benefitId: string | null;
@@ -263,6 +271,7 @@ export function nuevaEntrada(input: {
     eventId: input.eventId,
     stationId: input.stationId,
     code: input.code,
+    ...(input.token ? { token: input.token } : {}),
     action: input.action,
     passId: input.passId,
     benefitId: input.benefitId,
@@ -296,9 +305,14 @@ export function listoParaReintentar(entry: QueueEntry, at = Date.now()): boolean
   return at - new Date(entry.updatedAt).getTime() >= wait;
 }
 
-/** Lo pendiente de un puesto, que va junto al servidor con el código de ese puesto. */
+/** Lo pendiente de un puesto, que va junto al servidor con la ficha de sesión de ese puesto (o su código). */
 export interface GrupoParaSincronizar {
   code: string;
+  /**
+   * Con qué viaja: la ficha de la sesión abierta si es el puesto abierto; si no, la última ficha con que se
+   * registró algo del grupo; y si ninguna (registros de una versión anterior), el código.
+   */
+  token: string | null;
   /** Si es el puesto abierto ahora: su respuesta trae la foto fresca que usa la pantalla. */
   actual: boolean;
   entries: QueueEntry[];
@@ -309,16 +323,18 @@ export interface GrupoParaSincronizar {
  * código, porque el servidor solo acepta de un código de puerta entradas y de uno de mesa canjes de su
  * beneficio. Mandar lo de un puesto con el código de otro haría que se rechace para siempre. Un registro
  * sin código (de una versión anterior) va con el de la sesión si es de su mismo evento y puesto; si no,
- * espera a que se vuelva a abrir ese puesto. El grupo del puesto abierto va primero.
+ * espera a que se vuelva a abrir ese puesto. El grupo del puesto abierto va primero, con la ficha de la sesión.
  */
-export function agruparParaSincronizar(pendientes: QueueEntry[], sesion: { code: string; eventId: string; stationId: string }): GrupoParaSincronizar[] {
+export function agruparParaSincronizar(pendientes: QueueEntry[], sesion: { code: string; token?: string | null; eventId: string; stationId: string }): GrupoParaSincronizar[] {
   const grupos = new Map<string, GrupoParaSincronizar>();
   const codigoSesion = normalizeStationCode(sesion.code);
   for (const entry of pendientes) {
     const esDeLaSesion = entry.eventId === sesion.eventId && entry.stationId === sesion.stationId;
     const code = entry.code ? normalizeStationCode(entry.code) : esDeLaSesion ? codigoSesion : null;
     if (!code) continue;
-    const grupo = grupos.get(code) ?? { code, actual: code === codigoSesion, entries: [] };
+    const actual = code === codigoSesion;
+    const grupo = grupos.get(code) ?? { code, token: actual ? (sesion.token ?? null) : null, actual, entries: [] };
+    if (!actual && entry.token) grupo.token = entry.token;
     grupo.entries.push(entry);
     grupos.set(code, grupo);
   }

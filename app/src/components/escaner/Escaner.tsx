@@ -15,6 +15,7 @@ import {
   nuevaEntrada,
   nuevoId,
   type ColaLocal,
+  type GrupoParaSincronizar,
   type QueueCounts,
   type QueueEntry,
   type ScanSession,
@@ -114,7 +115,8 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
   const [online, setOnline] = useState(true);
   const [simularOffline, setSimularOffline] = useState(false);
   const [fallaRed, setFallaRed] = useState(false);
-  const [sesionInvalida, setSesionInvalida] = useState(false);
+  /** El servidor ya no acepta la sesión: el código se cambió o no existe ("cerrado"), o la ficha venció ("vencida"). */
+  const [sesionInvalida, setSesionInvalida] = useState<"cerrado" | "vencida" | null>(null);
   const [sincronizando, setSincronizando] = useState(false);
   const [modoTexto, setModoTexto] = useState(false);
   const [textoCredencial, setTextoCredencial] = useState("");
@@ -132,6 +134,8 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
   const procesandoRef = useRef(false);
   const ultimaLecturaRef = useRef<{ texto: string; at: number } | null>(null);
   const ultimoRefreshRef = useRef(0);
+  /** Tras un "ya no vale" del servidor no se vuelve a intentar solo: reintentar cada cinco segundos con una sesión muerta no sirve de nada. */
+  const detenidoRef = useRef(false);
 
   const puedeSincronizar = online && !simularOffline;
   enLineaRef.current = puedeSincronizar;
@@ -144,9 +148,10 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
     setConteo(await c.counts(s.snapshot.event.id));
   }, []);
 
-  /** false si la sesión no sirve: una guardada por la versión anterior no trae la clave pública del evento. */
+  /** false si la sesión no sirve: una guardada por una versión anterior no trae la clave pública del evento, o no trae la ficha de sesión. */
   const adoptarSesion = useCallback(
     async (nueva: ScanSession): Promise<boolean> => {
+      if (!nueva.token) return false;
       let clave: Uint8Array;
       try {
         clave = importEventKey(nueva.snapshot.publicKey);
@@ -165,8 +170,10 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
   const actualizarSnapshot = useCallback(async (snapshot: ScanSnapshot) => {
     const s = sesionRef.current;
     if (!s) return;
-    // La foto acaba de llegar del servidor: su hora sirve para corregir un reloj desfasado.
-    const nueva: ScanSession = { ...s, snapshot, savedAt: new Date().toISOString(), clockOffsetMs: clockOffset(Date.parse(snapshot.generatedAt), Date.now()) };
+    // La foto acaba de llegar del servidor: su hora sirve para corregir un reloj desfasado. Si vino de abrir el
+    // puesto, trae una ficha de sesión nueva (vale otras treinta y seis horas); si no, queda la de antes.
+    const { session, ...foto } = snapshot;
+    const nueva: ScanSession = { ...s, snapshot: foto, token: session?.token ?? s.token, savedAt: new Date().toISOString(), clockOffsetMs: clockOffset(Date.parse(snapshot.generatedAt), Date.now()) };
     sesionRef.current = nueva;
     setSesion(nueva);
     await colaRef.current?.saveSession(nueva);
@@ -184,8 +191,8 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
     async (forzarRefresh = false) => {
       const c = colaRef.current;
       const s = sesionRef.current;
-      if (!c || !s || sincronizandoRef.current || !enLineaRef.current) return;
-      const sesionActual = { code: s.code, eventId: s.snapshot.event.id, stationId: s.snapshot.station.id };
+      if (!c || !s || sincronizandoRef.current || !enLineaRef.current || detenidoRef.current) return;
+      const sesionActual = { code: s.code, token: s.token ?? null, eventId: s.snapshot.event.id, stationId: s.snapshot.station.id };
       const hechos = new Set<string>();
       const listos = async () =>
         agruparParaSincronizar(
@@ -200,17 +207,22 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
       sincronizandoRef.current = true;
       setSincronizando(true);
 
-      /** Manda un lote con su código, y pide la foto si `conFoto`. "cerrado": el código ya no es de ningún puesto. */
-      const enviar = async (code: string, lote: QueueEntry[], conFoto: boolean): Promise<"ok" | "cerrado"> => {
-        const { status, data } = await postJson<SyncResponse>(
+      /**
+       * Manda un lote con la ficha de sesión de su puesto (o con su código, si es de una versión anterior), y pide la
+       * foto si `conFoto`. "cerrado": ese código ya no es de ningún puesto (se cambió, o no existe). "vencida": la
+       * ficha venció y hay que volver a abrir ese puesto con su código; lo suyo espera.
+       */
+      const enviar = async (grupo: Pick<GrupoParaSincronizar, "code" | "token">, lote: QueueEntry[], conFoto: boolean): Promise<"ok" | "cerrado" | "vencida"> => {
+        const { status, data } = await postJson<SyncResponse & { error?: string }>(
           "/api/scan/sync",
           {
-            code,
+            ...(grupo.token ? { token: grupo.token } : { code: grupo.code }),
             snapshot: conFoto,
             items: lote.map(({ clientId, action, passId, benefitId, scannedAt, scannerId, qr, via }) => ({ clientId, action, passId, benefitId, scannedAt, scannerId, ...(qr ? { qr } : {}), ...(via ? { via } : {}) })),
           },
           SYNC_TIMEOUT_MS,
         );
+        if (status === 401 && data?.error === "session_expired") return "vencida";
         if (status === 401 || status === 404) return "cerrado";
         if (!data || status !== 200) throw new Error(`HTTP ${status}`);
         for (const result of data.results) {
@@ -235,25 +247,32 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
         let lote = grupos.find((g) => g.actual)?.entries ?? [];
         let conFoto = necesitaRefresh || esStand;
         do {
-          if ((await enviar(s.code, lote.slice(0, SYNC_BATCH_SIZE), conFoto)) === "cerrado") {
-            setSesionInvalida(true);
+          const estado = await enviar(sesionActual, lote.slice(0, SYNC_BATCH_SIZE), conFoto);
+          if (estado !== "ok") {
+            // Este puesto ya no se puede sincronizar: se avisa y no se insiste solo. Lo pendiente queda en este
+            // celular y sale la próxima vez que se abra el puesto con su código.
+            setSesionInvalida(estado);
+            detenidoRef.current = true;
             break;
           }
           conFoto = esStand;
-          setSesionInvalida(false);
+          setSesionInvalida(null);
           await refrescarLocal();
           lote = (await listos()).find((g) => g.actual)?.entries ?? [];
         } while (lote.length > 0 && enLineaRef.current);
 
-        // Lo que quedó de otros puestos, cada cosa con el código del suyo.
+        // Lo que quedó de otros puestos, cada cosa con la ficha (o el código) del suyo.
         for (const grupo of (await listos()).filter((g) => !g.actual)) {
           let pendientes = grupo.entries;
           while (pendientes.length > 0 && enLineaRef.current) {
-            if ((await enviar(grupo.code, pendientes.slice(0, SYNC_BATCH_SIZE), false)) === "cerrado") {
+            const estado = await enviar(grupo, pendientes.slice(0, SYNC_BATCH_SIZE), false);
+            if (estado === "cerrado") {
               // Ese puesto ya no existe: lo suyo no va a entrar nunca, y queda a la vista para revisar.
               for (const e of grupo.entries) await c.update(e.clientId, { status: "rejected", lastError: "puesto cerrado" });
               break;
             }
+            // La ficha de ese puesto venció: lo suyo espera a que se vuelva a abrir ese puesto.
+            if (estado === "vencida") break;
             pendientes = (await listos()).find((g) => g.code === grupo.code)?.entries ?? [];
           }
         }
@@ -317,21 +336,25 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
     setErrorAbrir(null);
     try {
       const code = normalizeStationCode(codigo);
-      const { status, data } = await postJson<ScanSnapshot>("/api/scan/open", { code }, OPEN_TIMEOUT_MS);
-      if (status === 401) return setErrorAbrir(t("escaner.codigoMal"));
+      const scannerId = deviceId();
+      const { status, data } = await postJson<ScanSnapshot & { error?: string }>("/api/scan/open", { code, scannerId }, OPEN_TIMEOUT_MS);
+      if (status === 401) return setErrorAbrir(t(data?.error === "expired" ? "escaner.codigoVencido" : "escaner.codigoMal"));
       if (status === 429) return setErrorAbrir(t("escaner.demasiadosIntentos"));
-      if (!data || status !== 200) return setErrorAbrir(t("escaner.errorRed"));
+      if (!data || status !== 200 || !data.session?.token) return setErrorAbrir(t("escaner.errorRed"));
+      const { session, ...foto } = data;
       const nueva: ScanSession = {
         code,
-        scannerId: deviceId(),
-        snapshot: data,
+        token: session.token,
+        scannerId,
+        snapshot: foto,
         savedAt: new Date().toISOString(),
         clockOffsetMs: clockOffset(Date.parse(data.generatedAt), Date.now()),
       };
       await colaRef.current?.saveSession(nueva);
       if (!(await adoptarSesion(nueva))) return setErrorAbrir(t("escaner.errorRed"));
       ultimoRefreshRef.current = Date.now();
-      setSesionInvalida(false);
+      detenidoRef.current = false;
+      setSesionInvalida(null);
       setFase("escanear");
     } catch {
       setErrorAbrir(t("escaner.errorRed"));
@@ -349,11 +372,12 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
     await colaRef.current?.clearSession();
     sesionRef.current = null;
     claveRef.current = null;
+    detenidoRef.current = false;
     setSesion(null);
     setConteo(EMPTY_COUNTS);
     setVeredicto(null);
     setPuertaManual(false);
-    setSesionInvalida(false);
+    setSesionInvalida(null);
     setTopePasado(false);
     setCodigo("");
     setFase("elegir");
@@ -390,7 +414,7 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
           // Un pase que no estaba al abrir el puesto: con red, se pide la foto fresca una vez, con poco
           // tiempo de espera. Si no llega, se decide con lo que hay (en la puerta alcanza la firma).
           try {
-            const { status, data } = await postJson<ScanSnapshot>("/api/scan/open", { code: s.code }, READ_REFRESH_TIMEOUT_MS);
+            const { status, data } = await postJson<ScanSnapshot>("/api/scan/open", { token: s.token, scannerId: s.scannerId }, READ_REFRESH_TIMEOUT_MS);
             if (status === 200 && data) {
               await actualizarSnapshot(data);
               ultimoRefreshRef.current = Date.now();
@@ -422,6 +446,7 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
               eventId: snapshot.event.id,
               stationId: station.id,
               code: s.code,
+              token: s.token,
               action: resultado.action,
               passId: resultado.passId,
               benefitId: station.kind === "benefit" ? station.id : null,
@@ -480,6 +505,7 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
           eventId: snapshot.event.id,
           stationId: snapshot.station.id,
           code: s.code,
+          token: s.token,
           action: "checkin",
           passId: match.passId,
           benefitId: null,
@@ -576,16 +602,16 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
       <div className={`pantalla-cuerpo esc-cuerpo${puesto.kind === "stand" ? " esc-cuerpo-stand" : ""}`}>
         {sesionInvalida && (
           <Aviso tono="alerta">
-            {t("escaner.puestoCerrado")}{" "}
+            {t(sesionInvalida === "vencida" ? "escaner.sesionVencida" : "escaner.puestoCerrado")}{" "}
             <button type="button" className="enlace" onClick={() => void cerrarPuesto()}>
-              {t("escaner.salir")}
+              {t("escaner.volverAAbrir")}
             </button>
           </Aviso>
         )}
         {sobreTope && <Aviso tono="alerta">{t("kit.escaner.topePasado", { beneficio: puesto.name })}</Aviso>}
         {puertaManual && puesto.kind === "gate" ? (
           <Manual
-            code={sesion.code}
+            token={sesion.token ?? ""}
             enLinea={puedeSincronizar && !fallaRed}
             snapshot={snapshot}
             local={usoLocal}

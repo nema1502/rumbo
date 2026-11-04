@@ -91,6 +91,11 @@ export interface ScanSnapshot {
    * dos mesas sin red entregaron de más, por cuántas se pasó (`over`; una foto vieja no lo trae).
    */
   stock?: { total: number; left: number; over?: number } | null;
+  /**
+   * Solo al abrir el puesto: la ficha de sesión firmada por el servidor, atada al código y a este celular, que el
+   * escáner manda desde ahí en vez del código (sync, buscar, agregar), y hasta cuándo vale (treinta y seis horas).
+   */
+  session?: { token: string; expiresAt: string };
 }
 
 export type ScanAction = "checkin" | "redeem" | "visit";
@@ -145,9 +150,16 @@ export interface ScanItemResult {
   error: string | null;
 }
 
+/**
+ * Con qué llega cada pedido del escáner: la ficha de sesión que dio open (lo normal), o el código del puesto, como
+ * lo escribió el voluntario ("ABCD-EFGH-JKLM", con o sin guiones). Con el código pasa por el freno de códigos
+ * equivocados; con la ficha, no. Si vienen los dos, manda la ficha.
+ */
 export interface OpenRequest {
-  /** El código del puesto, como lo escribió el voluntario ("ABCD-EFGH-JKLM", con o sin guiones). */
-  code: string;
+  code?: string;
+  token?: string;
+  /** Al abrir: el id de este celular, que queda en la ficha. */
+  scannerId?: string;
 }
 
 export interface SyncRequest extends OpenRequest {

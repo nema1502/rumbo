@@ -15,7 +15,10 @@ export const escaner = {
     "escaner.sinRedParaAbrir": "Para abrir un puesto hace falta conexión la primera vez. Después, el escáner sigue solo.",
     "escaner.errorRed": "No se pudo hablar con el servidor. Probá de nuevo.",
     "escaner.demasiadosIntentos": "Demasiados intentos. Esperá unos minutos y probá de nuevo.",
-    "escaner.puestoCerrado": "Este puesto ya no se puede sincronizar. Cerralo y abrilo de nuevo.",
+    "escaner.codigoVencido": "Este código venció: el evento terminó hace más de un día.",
+    "escaner.puestoCerrado": "Este código ya no vale: volvé a abrir el puesto. Lo que registraste queda guardado acá.",
+    "escaner.sesionVencida": "La sesión de este puesto venció: volvé a abrirlo con su código. Lo que registraste queda guardado acá.",
+    "escaner.volverAAbrir": "Volver a abrir el puesto",
 
     "escaner.apunta": "Apuntá la cámara al QR de la credencial",
     "escaner.camaraNo": "Acá no hay cámara. Tocá Copiar el código en la credencial y pegalo acá.",
@@ -99,7 +102,10 @@ export const escaner = {
     "escaner.sinRedParaAbrir": "Opening a station needs a connection the first time. After that, the scanner works on its own.",
     "escaner.errorRed": "Could not reach the server. Try again.",
     "escaner.demasiadosIntentos": "Too many attempts. Wait a few minutes and try again.",
-    "escaner.puestoCerrado": "This station can no longer sync. Close it and open it again.",
+    "escaner.codigoVencido": "This code has expired: the event ended more than a day ago.",
+    "escaner.puestoCerrado": "This code is no longer valid: open the station again. What you recorded stays saved here.",
+    "escaner.sesionVencida": "This station's session has expired: open it again with its code. What you recorded stays saved here.",
+    "escaner.volverAAbrir": "Open the station again",
 
     "escaner.apunta": "Point the camera at the QR code on the pass",
     "escaner.camaraNo": "There is no camera here. Tap Copy the code on the pass and paste it here.",

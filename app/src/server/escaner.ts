@@ -14,6 +14,8 @@ import { clientKey, stationCodeAttempts } from "./limites.ts";
 import { describeForLog } from "./log.ts";
 import { resolveStationCode, type StationAccess } from "./panel.ts";
 import { getEventPublicKey } from "./qr-keys.ts";
+import { issueScanSession, readScanSession, sessionFingerprint, type ScanSessionClaims } from "./sesion-escaner.ts";
+import { normalizeStationCode } from "../lib/station-code.ts";
 import { ClientIdTaken, InvalidScannedAt, type CheckIn, type EventRecord, type PassBenefit, type PassView, type Repo, type SyncMark } from "./repo.ts";
 import { claimRoutePrize, isRoutePrize, recordVisit, StandsError, standScanVisits } from "./stands.ts";
 import {
@@ -512,14 +514,48 @@ async function withStockCheck(repo: Repo, benefit: PassBenefit, result: ScanItem
 
 const MAX_ITEMS_PER_SYNC = 20;
 
-export type ScanAuth = { ok: true; access: StationAccess; body: Record<string, unknown> } | { ok: false; response: Response };
+export type ScanAuth =
+  | {
+      ok: true;
+      access: StationAccess;
+      body: Record<string, unknown>;
+      /** La sesión con que vino el pedido, o null si vino con el código. */
+      session: ScanSessionClaims | null;
+      /** Una huella de la sesión o del código, para contar por sesión (el freno de la búsqueda de la puerta). */
+      principal: string;
+    }
+  | { ok: false; response: Response };
+
+const badRequest = (): ScanAuth => ({ ok: false, response: Response.json({ error: "bad_request" }, { status: 400 }) });
+const unauthorized = (error: string): ScanAuth => ({ ok: false, response: Response.json({ error }, { status: 401 }) });
 
 /**
- * Lee el cuerpo del pedido y resuelve el código del puesto: a qué evento y a qué puesto abre. Los códigos
- * equivocados se cuentan por la IP que pone la plataforma (no la que dice x-forwarded-for) y en total, con
- * una espera que crece: ver stationCodeAttempts en limites.ts.
+ * Lee el cuerpo del pedido y resuelve a qué evento y a qué puesto abre. Con la ficha de sesión que dio open
+ * (`token`, src/server/sesion-escaner.ts) no pasa por ningún freno: la ficha la firmó el servidor y va atada
+ * al código, así que si el código se cambió la ficha deja de valer. Con el código (`code`, lo que manda open,
+ * y la cola de una versión anterior) los equivocados se cuentan por la IP que pone la plataforma (no la que
+ * dice x-forwarded-for) y en total, con una espera que crece: ver stationCodeAttempts en limites.ts.
  */
 export async function authorizeScanRequest(repo: Repo, request: Request): Promise<ScanAuth> {
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return badRequest();
+  }
+  // Un cuerpo que es JSON pero no es un objeto ("null", una lista) tampoco sirve.
+  if (!body || typeof body !== "object" || Array.isArray(body)) return badRequest();
+
+  const token = typeof body.token === "string" ? body.token : "";
+  if (token) {
+    const session = await readScanSession(token);
+    if (!session) return unauthorized("session_expired");
+    const access = await resolveStationCode(session.code, repo);
+    // El código se cambió desde el panel: la sesión que lo llevaba se cierra con él.
+    if (!access || access.event.id !== session.eventId) return unauthorized("wrong_code");
+    return { ok: true, access, body, session, principal: sessionFingerprint(token) };
+  }
+
   const attempts = stationCodeAttempts();
   const key = clientKey(request.headers);
   const wait = await attempts.blockedFor(key);
@@ -529,20 +565,20 @@ export async function authorizeScanRequest(repo: Repo, request: Request): Promis
       response: Response.json({ error: "too_many_attempts" }, { status: 429, headers: { "Retry-After": String(Math.ceil(wait / 1000)) } }),
     };
   }
-  let body: Record<string, unknown>;
-  try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
-    return { ok: false, response: Response.json({ error: "bad_request" }, { status: 400 }) };
-  }
   const code = typeof body.code === "string" ? body.code : "";
-  if (!code) return { ok: false, response: Response.json({ error: "bad_request" }, { status: 400 }) };
+  if (!code) return badRequest();
   const access = await resolveStationCode(code, repo);
   if (!access) {
     await attempts.note(key);
-    return { ok: false, response: Response.json({ error: "wrong_code" }, { status: 401 }) };
+    return unauthorized("wrong_code");
   }
-  return { ok: true, access, body };
+  return { ok: true, access, body, session: null, principal: sessionFingerprint(normalizeStationCode(code)) };
+}
+
+/** La ficha de sesión para la foto que se devuelve al abrir un puesto: el escáner la manda en vez del código desde ahí. */
+export async function openScanSession(auth: Extract<ScanAuth, { ok: true }>): Promise<{ token: string; expiresAt: string }> {
+  const scannerId = typeof auth.body.scannerId === "string" ? clean(auth.body.scannerId).slice(0, 64) : (auth.session?.scannerId ?? "");
+  return issueScanSession({ eventId: auth.access.event.id, code: auth.session?.code ?? normalizeStationCode(String(auth.body.code ?? "")), scannerId });
 }
 
 const ACTIONS = new Set(["checkin", "redeem", "visit"]);
