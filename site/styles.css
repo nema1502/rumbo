@@ -928,3 +928,8 @@ a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px soli
   .informe-texto .plegable { order: 4; margin-top: -10px; }
 }
 @media (max-width: 860px) { .sumar-flujo { justify-self: center; width: 100%; } }
+@media (max-height: 420px) {
+  .nav { display: none; }
+  .sello-portada { margin-bottom: 8px; }
+  .portada h1 { margin-bottom: 10px; }
+}
