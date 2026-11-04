@@ -655,6 +655,19 @@ export async function getBalance(publicKey: string, asset: Asset): Promise<strin
 export const NEW_ACCOUNT_XLM = "2";
 
 /**
+ * Después de una operación clásica que falló, mira cada cinco segundos, hasta treinta, si igual pasó lo que se
+ * buscaba. Horizon a veces se corta esperando ("Your transaction submission request has timed out") y la
+ * transacción entra igual unos segundos después; o lo hizo otro (Pollar creó la cuenta entre la pregunta y el pedido).
+ */
+async function settledAnyway(check: () => Promise<boolean>, attempts = 6, everyMs = 5000): Promise<boolean> {
+  for (let i = 0; i < attempts; i++) {
+    if (await check().catch(() => false)) return true;
+    await sleepMs(everyMs);
+  }
+  return false;
+}
+
+/**
  * Lo que necesita una cuenta propia (la de Pollar) antes de inscribirse. Es un objeto para que las pruebas sin
  * red lo reemplacen, como rumboPass.
  */
@@ -669,8 +682,7 @@ export const walletChain = {
       await submitClassic([Operation.createAccount({ destination: address, startingBalance: NEW_ACCOUNT_XLM })]);
       return true;
     } catch (error) {
-      // Pollar la creó entre la pregunta y el pedido: está, que es lo que importa.
-      if (await accountExists(address)) return false;
+      if (await settledAnyway(() => accountExists(address))) return false;
       throw error;
     }
   },
@@ -694,7 +706,12 @@ export const walletChain = {
       return;
     }
     const amount = Math.max(Number(getEnv("RUMBO_INITIAL_TEST_USDC", "100")), minimum - balance);
-    await submitClassic([Operation.payment({ destination: address, asset: test.asset, amount: amount.toFixed(ASSET_DECIMALS), source: issuer.publicKey() })], [issuer]);
+    try {
+      await submitClassic([Operation.payment({ destination: address, asset: test.asset, amount: amount.toFixed(ASSET_DECIMALS), source: issuer.publicKey() })], [issuer]);
+    } catch (error) {
+      if (await settledAnyway(async () => Number((await getBalance(address, test.asset)) ?? 0) >= minimum)) return;
+      throw error;
+    }
   },
 };
 
