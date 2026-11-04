@@ -1,6 +1,7 @@
 // El certificado de asistencia en PDF: de una persona que entró (su nombre, su pase, su código de
 // verificación) a datos.tex para app/informes/certificado.tex, con el QR dibujado en TikZ.
 import qrcode from "qrcode-generator";
+import { fallbackFontLine } from "./fuentes.mjs";
 import { TexData, compileTemplate } from "./latex.mjs";
 import { formatos, textos } from "./informe-pdf.mjs";
 
@@ -41,13 +42,22 @@ function duracion(t, lang, startsAt, endsAt) {
 
 /**
  * datos.tex de un certificado. `event` tiene la forma de EventReportData.event; `attendee` trae passId,
- * code, name, role (o null) y checkedInAt. `url` es la dirección de verificación.
+ * code, name, role (o null) y checkedInAt. `url` es la dirección de verificación. `nameFont` es la fuente de
+ * respaldo del sistema (scripts/lib/fuentes.mjs) para un nombre con letras que Bricolage Grotesque no tiene;
+ * sin ella, el nombre va en Bricolage como siempre.
  */
-export function buildCertificadoTex({ event, attendee, url, lang, example = false, generatedAt = new Date().toISOString() }) {
+export function buildCertificadoTex({ event, attendee, url, lang, example = false, generatedAt = new Date().toISOString(), nameFont = null }) {
   const t = textos(lang);
   const f = formatos(lang, event.timezone || "America/La_Paz");
   const d = new TexData();
   d.text("babel", lang === "en" ? "english" : "spanish");
+  if (nameFont) {
+    d.preamble(fallbackFontLine(nameFont));
+    // La negrita solo si la fuente la trae (o se declaró por nombre y el sistema la busca): si no, fontspec avisaría.
+    d.raw("cert.fuenteNombre", nameFont.file && !nameFont.bold ? "\\rumboNombreRespaldo" : "\\rumboNombreRespaldo\\bfseries");
+  } else {
+    d.raw("cert.fuenteNombre", "\\rumboCifra");
+  }
   if (example) {
     d.flag("ejemplo");
     d.text("t.ejemplo.franja", t("ejemplo.franja"));
