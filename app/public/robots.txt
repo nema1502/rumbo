@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /p
+Disallow: /v
+Disallow: /stand
+Disallow: /vivo
+Disallow: /admin
+Disallow: /api
+Disallow: /scan
