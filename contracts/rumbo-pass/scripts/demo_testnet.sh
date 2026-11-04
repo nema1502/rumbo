@@ -57,7 +57,9 @@ WASM="../../target/wasm32v1-none/release/rumbo_pass.wasm"
 # de comisión, cupo de 50, dos beneficios (0 el almuerzo, 1 la polera).
 PRECIO=100000000
 COMISION_BPS=250
-CUPO=50
+# El cupo de los dos eventos de muestra. Las pruebas de la app (e2e, escáner, capturas) inscriben gente en estos
+# mismos contratos y el 3-nov-2026 agotaron los 50 de la entrada gratis: desde entonces van con el tope del contrato.
+CUPO="${CUPO:-1000}"
 BENEFICIOS=2
 # Lo que recibe cada persona para la corrida: 100 USDC de prueba.
 SALDO_INICIAL=1000000000
@@ -95,6 +97,24 @@ puerta() {
 # Una lectura, sin transacción.
 leer() {
   correr contract invoke --id "$ID" --source rb-sponsor --network "$RED" --send=no -- "$@"
+}
+
+# Un despliegue. Con la red cargada el envío a veces agota el tiempo ("transaction submission timeout") y el
+# alias queda apuntando al contrato anterior (pasó el 4-nov-2026 con el evento gratis, que estaba agotado):
+# se reintenta hasta tres veces y se comprueba que el alias cambió antes de seguir.
+desplegar() {
+  local alias="$1"; shift
+  local antes ahora intento
+  antes=$("$ST" contract alias show "$alias" --network "$RED" 2>/dev/null || true)
+  for intento in 1 2 3; do
+    correr contract deploy --wasm-hash "$HASH" --source rb-sponsor --network "$RED" --alias "$alias" -- "$@" || true
+    ahora=$("$ST" contract alias show "$alias" --network "$RED" 2>/dev/null || true)
+    if [ -n "$ahora" ] && [ "$ahora" != "$antes" ]; then return 0; fi
+    printf 'El despliegue de %s no llegó (intento %s de 3): se reintenta\n' "$alias" "$intento" | tee -a "$LOG"
+    sleep 10
+  done
+  printf 'No se pudo desplegar %s después de tres intentos\n' "$alias" | tee -a "$LOG" >&2
+  exit 1
 }
 
 # El saldo de una cuenta en el activo, como número.
@@ -151,9 +171,8 @@ for n in rb-organizer rb-treasury; do
   printf '%-13s %s\n' "$n" "$(saldo "$n")" | tee -a "$LOG"
 done
 
-nota "Evento pago: 10 USDC de prueba el pase, 2,5 por ciento para Rumbo, cupo de 50, dos beneficios"
-correr contract deploy --wasm-hash "$HASH" --source rb-sponsor --network "$RED" \
-  --alias rumbo-pass-pago -- \
+nota "Evento pago: 10 USDC de prueba el pase, 2,5 por ciento para Rumbo, cupo de $CUPO, dos beneficios"
+desplegar rumbo-pass-pago \
   --organizer rb-organizer --treasury rb-treasury --gate rb-gate --asset "$SAC" \
   --price "$PRECIO" --fee_bps "$COMISION_BPS" --capacity "$CUPO" --benefits "$BENEFICIOS"
 ID=$("$ST" contract alias show rumbo-pass-pago --network "$RED")
@@ -212,9 +231,8 @@ nota "Antes del evento se mantiene vivo el contrato y los pases (extend_ttl, sin
 correr contract invoke --id "$ID" --source rb-sponsor --network "$RED" --send=yes -- \
   extend_ttl --holders "[\"$(direccion rb-ana)\",\"$(direccion rb-beto)\",\"$(direccion rb-caro)\",\"$(direccion rb-dani)\"]"
 
-nota "Evento gratis: precio 0, cupo de 50, un beneficio"
-correr contract deploy --wasm-hash "$HASH" --source rb-sponsor --network "$RED" \
-  --alias rumbo-pass-gratis -- \
+nota "Evento gratis: precio 0, cupo de $CUPO, un beneficio"
+desplegar rumbo-pass-gratis \
   --organizer rb-organizer --treasury rb-treasury --gate rb-gate --asset "$SAC" \
   --price 0 --fee_bps "$COMISION_BPS" --capacity "$CUPO" --benefits 1
 ID=$("$ST" contract alias show rumbo-pass-gratis --network "$RED")

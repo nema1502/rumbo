@@ -1,5 +1,5 @@
 
-# Corrida del 2026-11-03 en la red de prueba de Stellar
+# Corrida del 2026-11-04 en la red de prueba de Stellar
 
 # Las cuentas. Si alguna no existe, se crea y friendbot la fondea
 rb-issuer     GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL
@@ -21,266 +21,251 @@ SAC     CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ
 # Quien recibe el activo necesita su línea de confianza: quien organiza, Rumbo y quienes compran
 
 $ stellar tx new change-trust --source rb-organizer --line USDC:GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL --network testnet
-ℹ️  Signing transaction: 7edb83c338d8beb224b331c728890637e5810f2cbd32687c60440a21602e0cac
+ℹ️  Signing transaction: fedb1b246dc515a9d6919bbe15ed67ed28088174d20c312133827f484d5e6f2d
 
 $ stellar tx new change-trust --source rb-treasury --line USDC:GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL --network testnet
-ℹ️  Signing transaction: 7042b28f9bd5e58e63f51307a290d3183e4f9f3d3f645c0bcf3487603c23a55f
+ℹ️  Signing transaction: a8bcd6978ac0b44cc2ece150c7078069d2a22e7aff859f9ef39714d50ddd71d9
 
 $ stellar tx new change-trust --source rb-ana --line USDC:GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL --network testnet
-ℹ️  Signing transaction: 350524b9588d7462a1e3c2b817d4fa0ef0a183f9fb1b330b9a71196c04aafbab
+ℹ️  Signing transaction: b06d8fd25414a2f224ac6e750b192bd297f2b5d9b108a10deb1ee5cba28f7032
 
 $ stellar tx new change-trust --source rb-beto --line USDC:GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL --network testnet
-ℹ️  Signing transaction: 2513598a95ebc2d833646dbfd737b6911a02c4ba1301a3fdbbb423e362f1e643
+ℹ️  Signing transaction: 45ed64dea2dbcb48957afa3de59806d8f8cef620728dec233bce61c587234c26
 
 $ stellar tx new change-trust --source rb-caro --line USDC:GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL --network testnet
-ℹ️  Signing transaction: eadd489a1ff3b21bcbfa26aa367a871cfdfd9dd2c22db064a5971f2fbb2c3027
+ℹ️  Signing transaction: e24dbf474798c0c40a6443ed7ce23765f7d69015ae7037916afd443c0af8967b
 
 # Quienes van a comprar reciben 100 USDC de prueba
 
 $ stellar tx new payment --source rb-issuer --destination GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C --asset USDC:GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL --amount 1000000000 --network testnet
-ℹ️  Signing transaction: de0106d09f82e8b8a2c606b082aa3f66180faa10b1b00f9c8c34c6df3225a24a
+ℹ️  Signing transaction: ba26cfa33bb5da7e379753361a80e94cb19129479b49d9d1566110230eafedef
 
 $ stellar tx new payment --source rb-issuer --destination GD7JJ7DCBPXTBBCGJLZ2SHFBX2G5AUDEM76UWX7RVSKTJMJTCFGU77HI --asset USDC:GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL --amount 1000000000 --network testnet
-ℹ️  Signing transaction: 13e6a0d3b843c88d1d547d183baa9af4d1710fbb0c1d04096bfbc7f27a323d63
+ℹ️  Signing transaction: 00a85f7c432c07ed228f01f3d94e7d302625b3b9dc6e0fd0281d928c41ad6608
 
 $ stellar tx new payment --source rb-issuer --destination GABLDV7L7Q7LLIMU2QY7BABHNYV6F34MZFQG7OSLAD5GN3SUKELF762Y --asset USDC:GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL --amount 1000000000 --network testnet
-ℹ️  Signing transaction: e1b98fdb4419f0d9e7e0bf8b004f2389fd9aa1a7dd3c07e94f9fed20eafebeeb
+ℹ️  Signing transaction: cc4813071e5fd63d6ca536848cf5bd1a1ae8e04fd4aac5210a41af4a21de97c1
 
 # El WASM del contrato sube una sola vez; cada evento se despliega desde su hash
 
 $ stellar contract upload --wasm ../../target/wasm32v1-none/release/rumbo_pass.wasm --source rb-sponsor --network testnet
 ℹ️  Simulating transaction…
-ℹ️  Signing transaction: f47c911e68a24660f4e6ef09b79249a863de6ba5b2239847fc9f5928b9e85279
+ℹ️  Signing transaction: 4b2afbddf832948ad46c23b688ae0b9828b6db6e6bd9d0768765a2fc1b16233e
 🌎 Sending transaction…
 ✅ Transaction submitted successfully!
-🔗 https://stellar.expert/explorer/testnet/tx/f47c911e68a24660f4e6ef09b79249a863de6ba5b2239847fc9f5928b9e85279
-f0c0cd2d3461374b1395aad069a357e4f5fade55b9bcd3d913699abf2a3266e3
-WASM HASH  f0c0cd2d3461374b1395aad069a357e4f5fade55b9bcd3d913699abf2a3266e3
+🔗 https://stellar.expert/explorer/testnet/tx/4b2afbddf832948ad46c23b688ae0b9828b6db6e6bd9d0768765a2fc1b16233e
+c942ce0e118545a9bbd5aa25ca8a9c7482715124cc7c7a28470dfaf66dd4fa65
+WASM HASH  c942ce0e118545a9bbd5aa25ca8a9c7482715124cc7c7a28470dfaf66dd4fa65
 
 # Los saldos en USDC de prueba antes del evento: quien organiza y Rumbo
-rb-organizer  1852500000
-rb-treasury   47500000
+rb-organizer  3997500000
+rb-treasury   102500000
 
 # Evento pago: 10 USDC de prueba el pase, 2,5 por ciento para Rumbo, cupo de 50, dos beneficios
 
-$ stellar contract deploy --wasm-hash f0c0cd2d3461374b1395aad069a357e4f5fade55b9bcd3d913699abf2a3266e3 --source rb-sponsor --network testnet --alias rumbo-pass-pago -- --organizer rb-organizer --treasury rb-treasury --gate rb-gate --asset CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ --price 100000000 --fee_bps 250 --capacity 50 --benefits 2
-ℹ️  Deploying contract using wasm hash f0c0cd2d3461374b1395aad069a357e4f5fade55b9bcd3d913699abf2a3266e3
+$ stellar contract deploy --wasm-hash c942ce0e118545a9bbd5aa25ca8a9c7482715124cc7c7a28470dfaf66dd4fa65 --source rb-sponsor --network testnet --alias rumbo-pass-pago -- --organizer rb-organizer --treasury rb-treasury --gate rb-gate --asset CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ --price 100000000 --fee_bps 250 --capacity 1000 --benefits 2
+ℹ️  Deploying contract using wasm hash c942ce0e118545a9bbd5aa25ca8a9c7482715124cc7c7a28470dfaf66dd4fa65
 ℹ️  Simulating transaction…
-ℹ️  Signing transaction: a2088ddeb1976f10397f7573b919b58711cec279f9e0d3effbc15de82a2be734
+ℹ️  Signing transaction: be3a403718a823f95d4cc830255ff31902c15757ccd66798d8cb71cf5874f0cf
 🌎 Sending transaction…
 ✅ Transaction submitted successfully!
-🔗 https://stellar.expert/explorer/testnet/tx/a2088ddeb1976f10397f7573b919b58711cec279f9e0d3effbc15de82a2be734
-🔗 https://lab.stellar.org/r/testnet/contract/CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA
+🔗 https://stellar.expert/explorer/testnet/tx/be3a403718a823f95d4cc830255ff31902c15757ccd66798d8cb71cf5874f0cf
+🔗 https://lab.stellar.org/r/testnet/contract/CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH
 ✅ Deployed!
-⚠️  Overwriting existing alias 'rumbo-pass-pago' that currently links to contract ID: CCO44LIYFNPI7ABI53JNJKNV5ADEWTK32R4S2NMYYCV6I6YSPZVABLDN
-CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA
-CONTRATO  CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA
+⚠️  Overwriting existing alias 'rumbo-pass-pago' that currently links to contract ID: CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA
+CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH
+CONTRATO  CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH
 
 # Tres personas compran su pase. En cada compra, 9,75 van a quien organiza y 0,25 a Rumbo, en la misma operación
 
-$ stellar contract invoke --id CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA --source rb-sponsor --auto-sign --network testnet -- buy --buyer rb-ana
+$ stellar contract invoke --id CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH --source rb-sponsor --auto-sign --network testnet -- buy --buyer rb-ana
 ℹ️  Simulating transaction…
-ℹ️  Signing transaction: 92454f5d9a89b21f5863a2f00922b4174cbd1d038f0f7b19d724a81be9b860a4
+ℹ️  Signing transaction: 6baefc8bac56497072885b17c347afab1926e6042bf24759a34a1bdad6d714a8
 🌎 Sending transaction…
-✅ Transaction submitted successfully!
-🔗 https://stellar.expert/explorer/testnet/tx/92454f5d9a89b21f5863a2f00922b4174cbd1d038f0f7b19d724a81be9b860a4
-📅 CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ - Success - Event: [{"symbol":"transfer"},{"address":"GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C"},{"address":"GC32MATIHQFVVX2RJPO7VAGNRCSKJZKUQ4LFDZWFNWFZAZATPOLVEWHZ"},{"string":"USDC:GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL"}] = {"i128":"97500000"}
-📅 CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ - Success - Event: [{"symbol":"transfer"},{"address":"GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C"},{"address":"GDQEUBLERFBS62BVUZSUSBUR3JRLWSQVRYT62G4OYM5QGXMICCBS3DOI"},{"string":"USDC:GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL"}] = {"i128":"2500000"}
-📅 CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA - Success - Event: PassIssued (pass_issued), attendee: "GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C", number: 1, paid: "100000000", fee: "2500000"
-1
+❌ error: transaction submission timeout
 
-$ stellar contract invoke --id CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA --source rb-sponsor --auto-sign --network testnet -- buy --buyer rb-beto
+$ stellar contract invoke --id CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH --source rb-sponsor --auto-sign --network testnet -- buy --buyer rb-beto
 ℹ️  Simulating transaction…
-ℹ️  Signing transaction: 39efaaefe51fcebf3f0f5e8f7b814caf7d8082209b9535907a03ec5c5e4f1c7a
+ℹ️  Signing transaction: a82d0e7ac30e85d70be342f0de98f42ca366d819ddffc0d7627421d860da38a8
 🌎 Sending transaction…
 ✅ Transaction submitted successfully!
-🔗 https://stellar.expert/explorer/testnet/tx/39efaaefe51fcebf3f0f5e8f7b814caf7d8082209b9535907a03ec5c5e4f1c7a
+🔗 https://stellar.expert/explorer/testnet/tx/a82d0e7ac30e85d70be342f0de98f42ca366d819ddffc0d7627421d860da38a8
 📅 CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ - Success - Event: [{"symbol":"transfer"},{"address":"GD7JJ7DCBPXTBBCGJLZ2SHFBX2G5AUDEM76UWX7RVSKTJMJTCFGU77HI"},{"address":"GC32MATIHQFVVX2RJPO7VAGNRCSKJZKUQ4LFDZWFNWFZAZATPOLVEWHZ"},{"string":"USDC:GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL"}] = {"i128":"97500000"}
 📅 CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ - Success - Event: [{"symbol":"transfer"},{"address":"GD7JJ7DCBPXTBBCGJLZ2SHFBX2G5AUDEM76UWX7RVSKTJMJTCFGU77HI"},{"address":"GDQEUBLERFBS62BVUZSUSBUR3JRLWSQVRYT62G4OYM5QGXMICCBS3DOI"},{"string":"USDC:GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL"}] = {"i128":"2500000"}
-📅 CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA - Success - Event: PassIssued (pass_issued), attendee: "GD7JJ7DCBPXTBBCGJLZ2SHFBX2G5AUDEM76UWX7RVSKTJMJTCFGU77HI", number: 2, paid: "100000000", fee: "2500000"
-2
+📅 CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH - Success - Event: PassIssued (pass_issued), attendee: "GD7JJ7DCBPXTBBCGJLZ2SHFBX2G5AUDEM76UWX7RVSKTJMJTCFGU77HI", number: 1, paid: "100000000", fee: "2500000"
+1
 
-$ stellar contract invoke --id CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA --source rb-sponsor --auto-sign --network testnet -- buy --buyer rb-caro
+$ stellar contract invoke --id CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH --source rb-sponsor --auto-sign --network testnet -- buy --buyer rb-caro
 ℹ️  Simulating transaction…
-ℹ️  Signing transaction: d096ee631d6f82870b8b25a038bf8f3146638f1620e365db21f34f20dc6a9be1
+ℹ️  Signing transaction: cdbfbeff20ef147a6a006fe89d0ad8004d78036a8f0a0d44a0df328f468d4d0f
 🌎 Sending transaction…
-✅ Transaction submitted successfully!
-🔗 https://stellar.expert/explorer/testnet/tx/d096ee631d6f82870b8b25a038bf8f3146638f1620e365db21f34f20dc6a9be1
-📅 CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ - Success - Event: [{"symbol":"transfer"},{"address":"GABLDV7L7Q7LLIMU2QY7BABHNYV6F34MZFQG7OSLAD5GN3SUKELF762Y"},{"address":"GC32MATIHQFVVX2RJPO7VAGNRCSKJZKUQ4LFDZWFNWFZAZATPOLVEWHZ"},{"string":"USDC:GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL"}] = {"i128":"97500000"}
-📅 CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ - Success - Event: [{"symbol":"transfer"},{"address":"GABLDV7L7Q7LLIMU2QY7BABHNYV6F34MZFQG7OSLAD5GN3SUKELF762Y"},{"address":"GDQEUBLERFBS62BVUZSUSBUR3JRLWSQVRYT62G4OYM5QGXMICCBS3DOI"},{"string":"USDC:GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL"}] = {"i128":"2500000"}
-📅 CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA - Success - Event: PassIssued (pass_issued), attendee: "GABLDV7L7Q7LLIMU2QY7BABHNYV6F34MZFQG7OSLAD5GN3SUKELF762Y", number: 3, paid: "100000000", fee: "2500000"
-3
+❌ error: transaction submission timeout
 
 # Ana intenta comprar otro: es un pase por cuenta (AlreadyHasPass, #2)
 
-$ stellar contract invoke --id CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA --source rb-sponsor --auto-sign --network testnet -- buy --buyer rb-ana
-❌ error: transaction simulation failed: HostError: Error(Contract, #2)
-
-Event log (newest first):
-   0: [Diagnostic Event] contract:CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA, topics:[error, Error(Contract, #2)], data:"escalating Ok(ScErrorType::Contract) frame-exit to Err"
-   1: [Diagnostic Event] topics:[fn_call, CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA, buy], data:GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C
-
+$ stellar contract invoke --id CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH --source rb-sponsor --auto-sign --network testnet -- buy --buyer rb-ana
+ℹ️  Simulating transaction…
+ℹ️  Signing transaction: 8318e79bd030e696e69ec80a2cb9629239612f52837f8f541f3b9fc2b5f291bb
+🌎 Sending transaction…
+✅ Transaction submitted successfully!
+🔗 https://stellar.expert/explorer/testnet/tx/8318e79bd030e696e69ec80a2cb9629239612f52837f8f541f3b9fc2b5f291bb
+📅 CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ - Success - Event: [{"symbol":"transfer"},{"address":"GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C"},{"address":"GC32MATIHQFVVX2RJPO7VAGNRCSKJZKUQ4LFDZWFNWFZAZATPOLVEWHZ"},{"string":"USDC:GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL"}] = {"i128":"97500000"}
+📅 CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ - Success - Event: [{"symbol":"transfer"},{"address":"GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C"},{"address":"GDQEUBLERFBS62BVUZSUSBUR3JRLWSQVRYT62G4OYM5QGXMICCBS3DOI"},{"string":"USDC:GCJU3JEKQOU5A3S7ILVXXVBKZBIOPBXW4ZO2LDSGYCZT3WDRTPEOKYOL"}] = {"i128":"2500000"}
+📅 CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH - Success - Event: PassIssued (pass_issued), attendee: "GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C", number: 2, paid: "100000000", fee: "2500000"
+2
+ESTO NO TENDRIA QUE HABER PASADO: la red lo aceptó
 
 # Ana entra por la puerta (firma la cuenta de puerta). Caro compró pero no vino
 
-$ stellar contract invoke --id CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA --source rb-sponsor --auto-sign --network testnet -- check_in --attendee rb-ana --by rb-gate
+$ stellar contract invoke --id CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH --source rb-sponsor --auto-sign --network testnet -- check_in --attendee rb-ana --by rb-gate
 ℹ️  Simulating transaction…
-ℹ️  Signing transaction: 26bb53e07dc42fa4dd62d43a81f4789ec3634b125601e41d419f82a654df03de
+ℹ️  Signing transaction: 047cdb2b33ace62581b46c46f761c2a7bee7de55193eeec085f46d16c142e73f
 🌎 Sending transaction…
 ✅ Transaction submitted successfully!
-🔗 https://stellar.expert/explorer/testnet/tx/26bb53e07dc42fa4dd62d43a81f4789ec3634b125601e41d419f82a654df03de
-📅 CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA - Success - Event: CheckedIn (checked_in), attendee: "GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C", arrival: 1
+🔗 https://stellar.expert/explorer/testnet/tx/047cdb2b33ace62581b46c46f761c2a7bee7de55193eeec085f46d16c142e73f
+📅 CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH - Success - Event: CheckedIn (checked_in), attendee: "GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C", arrival: 1
 1
 
 # Beto intenta marcar su propia entrada desde su casa: la marca solo la pone la puerta (NotAuthorized, #8)
 
-$ stellar contract invoke --id CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA --source rb-sponsor --auto-sign --network testnet -- check_in --attendee rb-beto --by rb-beto
+$ stellar contract invoke --id CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH --source rb-sponsor --auto-sign --network testnet -- check_in --attendee rb-beto --by rb-beto
 ❌ error: transaction simulation failed: HostError: Error(Contract, #8)
 
 Event log (newest first):
-   0: [Diagnostic Event] contract:CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA, topics:[error, Error(Contract, #8)], data:"escalating Ok(ScErrorType::Contract) frame-exit to Err"
-   1: [Diagnostic Event] topics:[fn_call, CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA, check_in], data:[GD7JJ7DCBPXTBBCGJLZ2SHFBX2G5AUDEM76UWX7RVSKTJMJTCFGU77HI, GD7JJ7DCBPXTBBCGJLZ2SHFBX2G5AUDEM76UWX7RVSKTJMJTCFGU77HI]
+   0: [Diagnostic Event] contract:CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH, topics:[error, Error(Contract, #8)], data:"escalating Ok(ScErrorType::Contract) frame-exit to Err"
+   1: [Diagnostic Event] topics:[fn_call, CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH, check_in], data:[GD7JJ7DCBPXTBBCGJLZ2SHFBX2G5AUDEM76UWX7RVSKTJMJTCFGU77HI, GD7JJ7DCBPXTBBCGJLZ2SHFBX2G5AUDEM76UWX7RVSKTJMJTCFGU77HI]
 
 
 # Beto llega y entra por la puerta
 
-$ stellar contract invoke --id CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA --source rb-sponsor --auto-sign --network testnet -- check_in --attendee rb-beto --by rb-gate
+$ stellar contract invoke --id CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH --source rb-sponsor --auto-sign --network testnet -- check_in --attendee rb-beto --by rb-gate
 ℹ️  Simulating transaction…
-ℹ️  Signing transaction: 71e9ff609d41b6c7660fafd1b48959d8aa1377bc99f9dddc4810ea65d8e80f28
+ℹ️  Signing transaction: b86a71531e9e58f393b46fe42a6b915a5c044ac5bbe4aa2985bf3a589f9a28ee
 🌎 Sending transaction…
 ✅ Transaction submitted successfully!
-🔗 https://stellar.expert/explorer/testnet/tx/71e9ff609d41b6c7660fafd1b48959d8aa1377bc99f9dddc4810ea65d8e80f28
-📅 CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA - Success - Event: CheckedIn (checked_in), attendee: "GD7JJ7DCBPXTBBCGJLZ2SHFBX2G5AUDEM76UWX7RVSKTJMJTCFGU77HI", arrival: 2
+🔗 https://stellar.expert/explorer/testnet/tx/b86a71531e9e58f393b46fe42a6b915a5c044ac5bbe4aa2985bf3a589f9a28ee
+📅 CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH - Success - Event: CheckedIn (checked_in), attendee: "GD7JJ7DCBPXTBBCGJLZ2SHFBX2G5AUDEM76UWX7RVSKTJMJTCFGU77HI", arrival: 2
 2
 
 # Ana intenta entrar otra vez: se entra una sola vez (AlreadyCheckedIn, #4)
 
-$ stellar contract invoke --id CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA --source rb-sponsor --auto-sign --network testnet -- check_in --attendee rb-ana --by rb-gate
+$ stellar contract invoke --id CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH --source rb-sponsor --auto-sign --network testnet -- check_in --attendee rb-ana --by rb-gate
 ❌ error: transaction simulation failed: HostError: Error(Contract, #4)
 
 Event log (newest first):
-   0: [Diagnostic Event] contract:CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA, topics:[error, Error(Contract, #4)], data:"escalating Ok(ScErrorType::Contract) frame-exit to Err"
-   1: [Diagnostic Event] topics:[fn_call, CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA, check_in], data:[GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C, GDKRKXO2EBEERICZPPBQUDYUCS3S5MXGFV7YDXKWTU4HPOPZD6ZLOLII]
+   0: [Diagnostic Event] contract:CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH, topics:[error, Error(Contract, #4)], data:"escalating Ok(ScErrorType::Contract) frame-exit to Err"
+   1: [Diagnostic Event] topics:[fn_call, CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH, check_in], data:[GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C, GDKRKXO2EBEERICZPPBQUDYUCS3S5MXGFV7YDXKWTU4HPOPZD6ZLOLII]
 
 
 # En la mesa del almuerzo, la puerta canjea el beneficio 0 de Ana
 
-$ stellar contract invoke --id CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA --source rb-gate --network testnet -- redeem --attendee rb-ana --benefit 0
+$ stellar contract invoke --id CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH --source rb-gate --network testnet -- redeem --attendee rb-ana --benefit 0
 ℹ️  Simulating transaction…
-ℹ️  Signing transaction: b371ffb887473bb9ce5d6c0a0a79d5b2f0edcc79bd32990a8badaa484c843af7
+ℹ️  Signing transaction: 6194695525c02323d4387bcc1e647265bfb45019e3b4d7d762e580238175d3b1
 🌎 Sending transaction…
 ✅ Transaction submitted successfully!
-🔗 https://stellar.expert/explorer/testnet/tx/b371ffb887473bb9ce5d6c0a0a79d5b2f0edcc79bd32990a8badaa484c843af7
-📅 CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA - Success - Event: Redeemed (redeemed), attendee: "GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C", benefit: 0
+🔗 https://stellar.expert/explorer/testnet/tx/6194695525c02323d4387bcc1e647265bfb45019e3b4d7d762e580238175d3b1
+📅 CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH - Success - Event: Redeemed (redeemed), attendee: "GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C", benefit: 0
 null
 
 # El segundo almuerzo de Ana: cada beneficio se canjea una sola vez (AlreadyRedeemed, #6)
 
-$ stellar contract invoke --id CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA --source rb-gate --network testnet -- redeem --attendee rb-ana --benefit 0
+$ stellar contract invoke --id CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH --source rb-gate --network testnet -- redeem --attendee rb-ana --benefit 0
 ❌ error: transaction simulation failed: HostError: Error(Contract, #6)
 
 Event log (newest first):
-   0: [Diagnostic Event] contract:CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA, topics:[error, Error(Contract, #6)], data:"escalating Ok(ScErrorType::Contract) frame-exit to Err"
-   1: [Diagnostic Event] topics:[fn_call, CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA, redeem], data:[GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C, 0]
+   0: [Diagnostic Event] contract:CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH, topics:[error, Error(Contract, #6)], data:"escalating Ok(ScErrorType::Contract) frame-exit to Err"
+   1: [Diagnostic Event] topics:[fn_call, CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH, redeem], data:[GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C, 0]
 
 
 # Caro no entró, así que no canjea (NotCheckedIn, #5)
 
-$ stellar contract invoke --id CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA --source rb-gate --network testnet -- redeem --attendee rb-caro --benefit 0
-❌ error: transaction simulation failed: HostError: Error(Contract, #5)
+$ stellar contract invoke --id CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH --source rb-gate --network testnet -- redeem --attendee rb-caro --benefit 0
+❌ error: transaction simulation failed: HostError: Error(Contract, #1)
 
 Event log (newest first):
-   0: [Diagnostic Event] contract:CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA, topics:[error, Error(Contract, #5)], data:"escalating Ok(ScErrorType::Contract) frame-exit to Err"
-   1: [Diagnostic Event] topics:[fn_call, CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA, redeem], data:[GABLDV7L7Q7LLIMU2QY7BABHNYV6F34MZFQG7OSLAD5GN3SUKELF762Y, 0]
+   0: [Diagnostic Event] contract:CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH, topics:[error, Error(Contract, #1)], data:"escalating Ok(ScErrorType::Contract) frame-exit to Err"
+   1: [Diagnostic Event] topics:[fn_call, CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH, redeem], data:[GABLDV7L7Q7LLIMU2QY7BABHNYV6F34MZFQG7OSLAD5GN3SUKELF762Y, 0]
 
 
 # El beneficio 2 no existe en este evento (NoSuchBenefit, #7)
 
-$ stellar contract invoke --id CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA --source rb-gate --network testnet -- redeem --attendee rb-ana --benefit 2
+$ stellar contract invoke --id CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH --source rb-gate --network testnet -- redeem --attendee rb-ana --benefit 2
 ❌ error: transaction simulation failed: HostError: Error(Contract, #7)
 
 Event log (newest first):
-   0: [Diagnostic Event] contract:CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA, topics:[error, Error(Contract, #7)], data:"escalating Ok(ScErrorType::Contract) frame-exit to Err"
-   1: [Diagnostic Event] topics:[fn_call, CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA, redeem], data:[GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C, 2]
+   0: [Diagnostic Event] contract:CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH, topics:[error, Error(Contract, #7)], data:"escalating Ok(ScErrorType::Contract) frame-exit to Err"
+   1: [Diagnostic Event] topics:[fn_call, CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH, redeem], data:[GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C, 2]
 
 
 # El estado, leído del contrato
 
-$ stellar contract invoke --id CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA --source rb-sponsor --network testnet --send=no -- status --who rb-ana
-{"checked_in":true,"has_pass":true,"number":1,"redeemed":[0]}
+$ stellar contract invoke --id CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH --source rb-sponsor --network testnet --send=no -- status --who rb-ana
+{"checked_in":true,"has_pass":true,"number":2,"redeemed":[0]}
 
-$ stellar contract invoke --id CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA --source rb-sponsor --network testnet --send=no -- status --who rb-beto
-{"checked_in":true,"has_pass":true,"number":2,"redeemed":[]}
+$ stellar contract invoke --id CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH --source rb-sponsor --network testnet --send=no -- status --who rb-beto
+{"checked_in":true,"has_pass":true,"number":1,"redeemed":[]}
 
-$ stellar contract invoke --id CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA --source rb-sponsor --network testnet --send=no -- status --who rb-caro
-{"checked_in":false,"has_pass":true,"number":3,"redeemed":[]}
+$ stellar contract invoke --id CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH --source rb-sponsor --network testnet --send=no -- status --who rb-caro
+{"checked_in":false,"has_pass":false,"number":0,"redeemed":[]}
 
-$ stellar contract invoke --id CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA --source rb-sponsor --network testnet --send=no -- info
-{"asset":"CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ","benefits":2,"capacity":50,"checked_in":2,"fee_bps":250,"gate":"GDKRKXO2EBEERICZPPBQUDYUCS3S5MXGFV7YDXKWTU4HPOPZD6ZLOLII","issued":3,"organizer":"GC32MATIHQFVVX2RJPO7VAGNRCSKJZKUQ4LFDZWFNWFZAZATPOLVEWHZ","price":"100000000","treasury":"GDQEUBLERFBS62BVUZSUSBUR3JRLWSQVRYT62G4OYM5QGXMICCBS3DOI"}
+$ stellar contract invoke --id CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH --source rb-sponsor --network testnet --send=no -- info
+{"asset":"CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ","benefits":2,"capacity":1000,"checked_in":2,"fee_bps":250,"gate":"GDKRKXO2EBEERICZPPBQUDYUCS3S5MXGFV7YDXKWTU4HPOPZD6ZLOLII","issued":2,"organizer":"GC32MATIHQFVVX2RJPO7VAGNRCSKJZKUQ4LFDZWFNWFZAZATPOLVEWHZ","price":"100000000","treasury":"GDQEUBLERFBS62BVUZSUSBUR3JRLWSQVRYT62G4OYM5QGXMICCBS3DOI"}
 
 # Los saldos después: con tres pases, quien organiza subió 29,25 y Rumbo 0,75. El contrato no retiene nada
 
 $ stellar contract invoke --id CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ --source rb-sponsor --network testnet --send=no -- balance --id rb-organizer
-"2145000000"
+"4290000000"
 
 $ stellar contract invoke --id CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ --source rb-sponsor --network testnet --send=no -- balance --id rb-treasury
-"55000000"
+"110000000"
 
-$ stellar contract invoke --id CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ --source rb-sponsor --network testnet --send=no -- balance --id CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA
+$ stellar contract invoke --id CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ --source rb-sponsor --network testnet --send=no -- balance --id CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH
 "0"
 
 # La lista de quienes entraron, en orden de llegada: la lista del sorteo
 
-$ stellar contract invoke --id CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA --source rb-sponsor --network testnet --send=no -- attendees
+$ stellar contract invoke --id CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH --source rb-sponsor --network testnet --send=no -- attendees
 ["GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C","GD7JJ7DCBPXTBBCGJLZ2SHFBX2G5AUDEM76UWX7RVSKTJMJTCFGU77HI"]
 
 # Antes del evento se mantiene vivo el contrato y los pases (extend_ttl, sin firma: la manda y la paga la patrocinadora). Devuelve cuántos pases extendió; Dani no tiene pase en este evento
 
-$ stellar contract invoke --id CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA --source rb-sponsor --network testnet --send=yes -- extend_ttl --holders ["GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C","GD7JJ7DCBPXTBBCGJLZ2SHFBX2G5AUDEM76UWX7RVSKTJMJTCFGU77HI","GABLDV7L7Q7LLIMU2QY7BABHNYV6F34MZFQG7OSLAD5GN3SUKELF762Y","GBOIIQCVI4QJTTXZNGKCIPICUBFG4K3YVYW6P434U6CE6JGFU5SXGOXN"]
+$ stellar contract invoke --id CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH --source rb-sponsor --network testnet --send=yes -- extend_ttl --holders ["GCTRI4TQY4OMSA4VVPCTIXWMM5Z3FREZCHUSMABJFMYCCOTRDKZHOE3C","GD7JJ7DCBPXTBBCGJLZ2SHFBX2G5AUDEM76UWX7RVSKTJMJTCFGU77HI","GABLDV7L7Q7LLIMU2QY7BABHNYV6F34MZFQG7OSLAD5GN3SUKELF762Y","GBOIIQCVI4QJTTXZNGKCIPICUBFG4K3YVYW6P434U6CE6JGFU5SXGOXN"]
 ℹ️  Simulating transaction…
-ℹ️  Signing transaction: d7bae496c2ce1346fca95556d19c8ae60621f97ba14793955062e52c2ffe14d8
+ℹ️  Signing transaction: bfcde24cbec0b1930fe843dee7671ae72bac5600fefed10cc21812921611f88b
 🌎 Sending transaction…
-✅ Transaction submitted successfully!
-🔗 https://stellar.expert/explorer/testnet/tx/d7bae496c2ce1346fca95556d19c8ae60621f97ba14793955062e52c2ffe14d8
-3
+❌ error: transaction submission failed: TxBadSeq
 
 # Evento gratis: precio 0, cupo de 50, un beneficio
 
-$ stellar contract deploy --wasm-hash f0c0cd2d3461374b1395aad069a357e4f5fade55b9bcd3d913699abf2a3266e3 --source rb-sponsor --network testnet --alias rumbo-pass-gratis -- --organizer rb-organizer --treasury rb-treasury --gate rb-gate --asset CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ --price 0 --fee_bps 250 --capacity 50 --benefits 1
-ℹ️  Deploying contract using wasm hash f0c0cd2d3461374b1395aad069a357e4f5fade55b9bcd3d913699abf2a3266e3
+$ stellar contract deploy --wasm-hash c942ce0e118545a9bbd5aa25ca8a9c7482715124cc7c7a28470dfaf66dd4fa65 --source rb-sponsor --network testnet --alias rumbo-pass-gratis -- --organizer rb-organizer --treasury rb-treasury --gate rb-gate --asset CAIOVRPPUFGPHOHBIEFCUJEW6773TH7NXRYSLYSHPJYC33LR4T2JHRGZ --price 0 --fee_bps 250 --capacity 1000 --benefits 1
+ℹ️  Deploying contract using wasm hash c942ce0e118545a9bbd5aa25ca8a9c7482715124cc7c7a28470dfaf66dd4fa65
 ℹ️  Simulating transaction…
-ℹ️  Signing transaction: c1a1a38590f90c7a0da91484557f0fa0920b6bde9597431ab9086bc8a7d612b3
+ℹ️  Signing transaction: 4ad90f8efb4471d700ef844f850f4a04ab0cd5d12946cf88d05d70cc83572324
 🌎 Sending transaction…
-✅ Transaction submitted successfully!
-🔗 https://stellar.expert/explorer/testnet/tx/c1a1a38590f90c7a0da91484557f0fa0920b6bde9597431ab9086bc8a7d612b3
-🔗 https://lab.stellar.org/r/testnet/contract/CCNYNDTANYGYGKSAI5JYI7N7WYX32554DQD72OFO5T4WAKVRMDTDWHJ6
-✅ Deployed!
-⚠️  Overwriting existing alias 'rumbo-pass-gratis' that currently links to contract ID: CCTZXEYBU2PDMF4RRJPQJ3ORJROXF2G47RKJMCHX76DQA3S2AX4YAN7Y
-CCNYNDTANYGYGKSAI5JYI7N7WYX32554DQD72OFO5T4WAKVRMDTDWHJ6
+❌ error: transaction submission timeout
 CONTRATO  CCNYNDTANYGYGKSAI5JYI7N7WYX32554DQD72OFO5T4WAKVRMDTDWHJ6
 
 # Dani se inscribe gratis y entra por la puerta
 
 $ stellar contract invoke --id CCNYNDTANYGYGKSAI5JYI7N7WYX32554DQD72OFO5T4WAKVRMDTDWHJ6 --source rb-sponsor --auto-sign --network testnet -- register --attendee rb-dani
-ℹ️  Simulating transaction…
-ℹ️  Signing transaction: 1ae91c277eba36bcd43c243c96d0e4f23bafa76c6a1eb045a1bbecab733a256e
-🌎 Sending transaction…
-✅ Transaction submitted successfully!
-🔗 https://stellar.expert/explorer/testnet/tx/1ae91c277eba36bcd43c243c96d0e4f23bafa76c6a1eb045a1bbecab733a256e
-📅 CCNYNDTANYGYGKSAI5JYI7N7WYX32554DQD72OFO5T4WAKVRMDTDWHJ6 - Success - Event: PassIssued (pass_issued), attendee: "GBOIIQCVI4QJTTXZNGKCIPICUBFG4K3YVYW6P434U6CE6JGFU5SXGOXN", number: 1, paid: "0", fee: "0"
-1
+❌ error: transaction simulation failed: HostError: Error(Contract, #2)
+
+Event log (newest first):
+   0: [Diagnostic Event] contract:CCNYNDTANYGYGKSAI5JYI7N7WYX32554DQD72OFO5T4WAKVRMDTDWHJ6, topics:[error, Error(Contract, #2)], data:"escalating Ok(ScErrorType::Contract) frame-exit to Err"
+   1: [Diagnostic Event] topics:[fn_call, CCNYNDTANYGYGKSAI5JYI7N7WYX32554DQD72OFO5T4WAKVRMDTDWHJ6, register], data:GBOIIQCVI4QJTTXZNGKCIPICUBFG4K3YVYW6P434U6CE6JGFU5SXGOXN
+
 
 $ stellar contract invoke --id CCNYNDTANYGYGKSAI5JYI7N7WYX32554DQD72OFO5T4WAKVRMDTDWHJ6 --source rb-sponsor --auto-sign --network testnet -- check_in --attendee rb-dani --by rb-gate
-ℹ️  Simulating transaction…
-ℹ️  Signing transaction: 552684422f4b9fe5157c115d42e5e99bb334200e355df6717c89a5b0ade972b6
-🌎 Sending transaction…
-✅ Transaction submitted successfully!
-🔗 https://stellar.expert/explorer/testnet/tx/552684422f4b9fe5157c115d42e5e99bb334200e355df6717c89a5b0ade972b6
-📅 CCNYNDTANYGYGKSAI5JYI7N7WYX32554DQD72OFO5T4WAKVRMDTDWHJ6 - Success - Event: CheckedIn (checked_in), attendee: "GBOIIQCVI4QJTTXZNGKCIPICUBFG4K3YVYW6P434U6CE6JGFU5SXGOXN", arrival: 1
-1
+❌ error: transaction simulation failed: HostError: Error(Contract, #4)
+
+Event log (newest first):
+   0: [Diagnostic Event] contract:CCNYNDTANYGYGKSAI5JYI7N7WYX32554DQD72OFO5T4WAKVRMDTDWHJ6, topics:[error, Error(Contract, #4)], data:"escalating Ok(ScErrorType::Contract) frame-exit to Err"
+   1: [Diagnostic Event] topics:[fn_call, CCNYNDTANYGYGKSAI5JYI7N7WYX32554DQD72OFO5T4WAKVRMDTDWHJ6, check_in], data:[GBOIIQCVI4QJTTXZNGKCIPICUBFG4K3YVYW6P434U6CE6JGFU5SXGOXN, GDKRKXO2EBEERICZPPBQUDYUCS3S5MXGFV7YDXKWTU4HPOPZD6ZLOLII]
+
 
 $ stellar contract invoke --id CCNYNDTANYGYGKSAI5JYI7N7WYX32554DQD72OFO5T4WAKVRMDTDWHJ6 --source rb-sponsor --network testnet --send=no -- attendees
-["GBOIIQCVI4QJTTXZNGKCIPICUBFG4K3YVYW6P434U6CE6JGFU5SXGOXN"]
+["GBOIIQCVI4QJTTXZNGKCIPICUBFG4K3YVYW6P434U6CE6JGFU5SXGOXN","GBVY6YCOQAXNZRKDJQNIOUVKQNQIGMAAGKYUMLCEE3YDZBOYSXVEEGXG","GCKERK3LQNXKXHEUXJWE3WTK6GOOXBEYJ3BC2XRW3C2J42XJJRCCAXGE","GDOAIHMLTX4BCPO6GPWTAB4ZGOMF5626ODO644FXIXTPAM4BNJJLTLLB","GBQ7MSRN7JWWGUBPOMW4UBP5XKOIHRGJTU5JML3RQNPITXLJ63JVQWOM","GDTRCA4JG3NVBQSR3V3ICWKN5JQYXF2CEWLSEUQVLYUYKYMCFQ67PJL5","GAMXF4TKJL3ZWFSSGUKAR5NE7FB26KEK4HZG2D4RZUX6FIQEODVKQQYM","GD2KYN6INWBSVSGY22QARGI37ZJF2RNJSPKIRNMG75AMDVWWUTSEKVKJ","GDAYMV5PSVRAIZFFDXVMRNN2UL34J5WUASEXWPOU5TXVI6GPB75MVZZK","GC4A7IKAN6M5DS5HLPGSLQEQUVR7XNAW2Q2CPSFYF32UJYMUATHDFSBL","GB7TX6KGBIN2DTJ7CJBW3AYDTHX7UNGVJHWKKD6SVZD65AUKU5R5CO5E","GDMY6ZEM5YDIDMPH2WTROISM25O4XP7ROL4MPZGU2ZTVJZ4SV6LI7TC4","GDPKWKL4CE3S3IOMTPJFXXIVTMRCMGDUXNIVD5OULECKVWF27MSS5HNC","GAMU2B6R52UQHFA6ZXBX255DVSPOH7WY7VV4LB44AKNPE3FNFDP5DX2I","GDI2IMZ5U3IGTVMFW4C5Z2XYJHHKMZCAU4NBJ2RGPC5RQU75UFZDLWTV","GBXS6HICRIDMRKQXES2AIDLOL4YA6R5FNTPBUE3F3CEGGJCUAKVVJP3X","GCQ4RJ26W6FALR6K7IC7D75RUOWCGERCYNHXDMQ3R6Q7WDLEJCLYQHWW","GB5VIPS4SWQFWLNER6OLSC233L7ONY6Y6MXGNJ5B7OA3UCU5NP5MA4JN","GBPIDYOSHKQDEHW363A72UXSSIMOZMJVX4YNG4SW3DNXP2WBSBF46HUQ","GBDRHKPVEBVXQGI4TKDSUNLJJNAESIMLQJLMFROBAK6ALQEEAHKEKPPD","GARPTXJUTRUOB47GAI6UULYJK7CTMON7N5LP6Q7U2NWWYRIKRCAYNDA4","GB7YV2URP3QLZPM2DINVDMUZV7GQU26DHPLYM2TS5PUY2AHCG6B2RS6I","GCJSL5TY5AXSNFXCGL43HK67XT3UUZK2QBQSAJ6BXGQABX5LKEADVMYZ","GDP4KOKVBA2CNYM2X7U3FWEYWKZ5KP5W3Z5WFDBURBIJ34ZBH2HABTBP","GBKISNOT2OQAFRX4CCUR2RKCJKV6PQTCVLJPTOFQ3ZCAN3L2GEWGTJZC","GCOMDFOOXJI6RONKZFB5FIN52RY5ETOY7G4YXTLELW6QI3AMYITQ47FT","GCSYKHZUI7WJ4GUNCOHPGRWTMN26UHPPTPQLFGBRNSOXPK4453YSBYMO","GBR3NQDDXBERSQ3AQM6TD4Z3CFHBV45U5BSUXBDBBTLYR3ZFAKE3HVTY","GBXRWXXDWYSEZA3BI7WVZTZQ5R43FLRJYTT53CKJ5B74B65R3SBIKF34","GARQX3LKZBXYMTAYPFUKWNCY24SCQGVO45C4NRHKTGNTRO2JNGE5CHMD","GDROKEAFKBFMMQSEMHKK3NWP3WEK2CZA37SELHOJXPHD7GX5HIDUCSJH","GAIK5CVXAABB7QXU7NAFAT7B2CD2FA7SUCVMHLJFH2E25HGDCNZ2EPEB","GB6VZCRENDLQRHN3DTMMZ2C5664SINS66MRKVQAIWSRPXT5LKTXJLFRO","GATQEE6NJ6DD4JS5K3DQSXWPYGIDLWHY7OILMMQ5EFSINSR6X6ZLTTSP","GAPW26AFQO4F4SKS5MVU3KKEWAKYSE2CEKD2I4I454T4RIWB7TUD3CXE","GCRPUE4ZPE2QMQWISAGR627K6LS3GHGWRLGXJICE5MITI4KUDXHYMCQA","GDYBPSOZ2CJSK7LL6MG7GTDLFXLBOL5KPBX6DO56SACAU3GMORTPTARI","GDYBBG5NEJQKYVYUMBJT5LHPC55WHZZXR5BI2DSSKOD3Z6E6B2Z4QRKP","GCH3SW5EQ3RUKP3OKR3SXRP4EY6BFII2YABAAYYRITBTK7JBULORAQFK","GCA6LF6ONLVCOKVTL5GFCXJIJLJ6MMO4HGECRERSTYGLXLVL5ZX3OWJJ","GCJEDJEERCNEWO6JOI6YNIKA5DZTAZTBDU6IZGDATE7LVJBACWYE6PVM","GCFQY47JTDVUBRDL7ILUUFENRTGXKI4G2TW2QN5ATM5Y7VCRN62TJKFQ","GB3BOSJGGS3YRPB25AIV4RWIM7MEH3MSOCS56NH5R3OWFXI72UJCVDWI","GDHNI63CKZK2HRIHDKLHJ4SECUC6GS2SHO6JT5GUYTZKPTSLMEE2AMNE","GB6RJEA5ENGTHTEMXKI5UQXA7WW3B7DP3VXINFQIDDVKO2WITFV7OMIA","GCY67AZQVRPQSUHP3POMKDCAUZ73NMWF3MXYQBXXTZE4RRSUPGO7GH5R","GBSGFJSAC6FOOCUSTVQNRGZE2RFHLEJKPYHC6EUTMPHPSHHAZGKWQIUA","GCB5GOT5EZWSKJCQB4NHJ4QASDZRCG7IBXQMLDTVL4JTQLNJZD7RRWVK"]
 
 # En un evento gratis no se compra (NotPaid, #10)
 
@@ -294,13 +279,16 @@ Event log (newest first):
 
 # Y en el evento pago no se inscribe gratis (NotFree, #9)
 
-$ stellar contract invoke --id CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA --source rb-sponsor --auto-sign --network testnet -- register --attendee rb-dani
+$ stellar contract invoke --id CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH --source rb-sponsor --auto-sign --network testnet -- register --attendee rb-dani
 ❌ error: transaction simulation failed: HostError: Error(Contract, #9)
 
 Event log (newest first):
-   0: [Diagnostic Event] contract:CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA, topics:[error, Error(Contract, #9)], data:"escalating Ok(ScErrorType::Contract) frame-exit to Err"
-   1: [Diagnostic Event] topics:[fn_call, CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA, register], data:GBOIIQCVI4QJTTXZNGKCIPICUBFG4K3YVYW6P434U6CE6JGFU5SXGOXN
+   0: [Diagnostic Event] contract:CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH, topics:[error, Error(Contract, #9)], data:"escalating Ok(ScErrorType::Contract) frame-exit to Err"
+   1: [Diagnostic Event] topics:[fn_call, CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH, register], data:GBOIIQCVI4QJTTXZNGKCIPICUBFG4K3YVYW6P434U6CE6JGFU5SXGOXN
 
 
-Explorador, evento pago:   https://stellar.expert/explorer/testnet/contract/CBDYAZRXJCCDTKMJ5D3IG6M2YD6PFR2KOL5ETZOIU2CY4DJDDVARZWKA
+Explorador, evento pago:   https://stellar.expert/explorer/testnet/contract/CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH
 Explorador, evento gratis: https://stellar.expert/explorer/testnet/contract/CCNYNDTANYGYGKSAI5JYI7N7WYX32554DQD72OFO5T4WAKVRMDTDWHJ6
+
+# Nota del 4-nov-2026, después de la corrida: el despliegue del evento gratis agotó el tiempo de envío y el alias siguió apuntando al contrato anterior (agotado, 50 de 50). Se repitió a mano el mismo despliegue y quedó CDKAPFK7NM4MCITFNAOTOBRTCFALZVL3MU7V7N3PTY7LURHSMNTMU2E5, con cupo 1000; deploy/testnet.json lo refleja. El script reintenta desde entonces.
+Explorador, evento gratis (el bueno): https://stellar.expert/explorer/testnet/contract/CDKAPFK7NM4MCITFNAOTOBRTCFALZVL3MU7V7N3PTY7LURHSMNTMU2E5
