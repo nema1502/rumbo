@@ -58,7 +58,8 @@ export class DevMailer implements Mailer {
       const file = path.join(dir, `${stamp}-${to}.txt`);
       const body = [`Para: ${mail.to}`, `Asunto: ${mail.subject}`, "", mail.text, ...(mail.html ? ["", "--- html ---", mail.html] : [])].join("\n");
       fs.writeFileSync(file, body, "utf8");
-      console.log(`[correo] Un correo a ${domainOf(mail.to)}, "${mail.subject}": guardado en ${file}`);
+      // Al registro va el dominio y la carpeta: el nombre del archivo lleva el correo, y el texto el enlace.
+      console.log(`[correo] Un correo a ${domainOf(mail.to)}, "${mail.subject}": guardado en ${dir}`);
       return { id: path.basename(file), outcome: "sent" };
     } catch (error) {
       console.warn(`[correo] No se pudo guardar el correo de desarrollo: ${describeForLog(error)}`);
