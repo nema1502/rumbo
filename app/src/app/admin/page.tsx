@@ -93,10 +93,10 @@ export default async function OrganizerHomePage({ searchParams }: { searchParams
           {t("panel.cuenta.crear")}
         </BotonEnlace>
         <form className="panel-salir" method="post" action="/api/organizador/salir">
-          <span className="apagado chico">{t("panel.cuenta.salirAyuda")}</span>
           <button type="submit" className="enlace">
             {t("panel.cuenta.salir")}
           </button>
+          <span className="apagado chico">{t("panel.cuenta.salirAyuda")}</span>
         </form>
       </div>
     </section>

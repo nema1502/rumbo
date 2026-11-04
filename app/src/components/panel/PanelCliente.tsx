@@ -348,10 +348,10 @@ export function PanelCliente({ slug, initial, publicado = false, via = "key" }: 
 
       {/* Con la clave se sale de este panel; con la cuenta se cierra la sesión en este navegador (Mis eventos queda arriba). */}
       <form className="panel-salir" method="post" action={via === "organizer" ? "/api/organizador/salir" : `/api/admin/${slug}/salir`}>
-        {via === "organizer" && <span className="apagado chico">{t("panel.cuenta.salirAyuda")}</span>}
         <button type="submit" className="enlace">
           {via === "organizer" ? t("panel.cuenta.salir") : t("panel.acceso.salir")}
         </button>
+        {via === "organizer" && <span className="apagado chico">{t("panel.cuenta.salirAyuda")}</span>}
       </form>
 
       <div className="panel-accion">
