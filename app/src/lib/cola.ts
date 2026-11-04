@@ -239,7 +239,10 @@ export async function abrirCola(): Promise<ColaLocal> {
   }
 }
 
-/** Una entrada nueva para la cola, lista para registrar, con el código del puesto en que se hizo. */
+/**
+ * Una entrada nueva para la cola, lista para registrar, con el código del puesto en que se hizo. `qr` es el
+ * texto leído: en un stand viaja con la visita, para que el servidor vuelva a comprobar la firma.
+ */
 export function nuevaEntrada(input: {
   eventId: string;
   stationId: string;
@@ -248,6 +251,7 @@ export function nuevaEntrada(input: {
   passId: string;
   benefitId: string | null;
   scannerId: string;
+  qr?: string;
 }): QueueEntry {
   const at = now();
   return {
@@ -260,6 +264,7 @@ export function nuevaEntrada(input: {
     benefitId: input.benefitId,
     scannedAt: at,
     scannerId: input.scannerId,
+    ...(input.qr ? { qr: input.qr } : {}),
     status: "pending",
     attempts: 0,
     lastError: null,

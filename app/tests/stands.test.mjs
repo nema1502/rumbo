@@ -13,8 +13,13 @@ const { ensureStationCodes, resolveStationCode } = await import("../src/server/p
 const { buildSnapshot, processScanItems, stationOf } = await import("../src/server/escaner.ts");
 const { getLiveState, buildRaffleList, raffleListCsv } = await import("../src/server/vivo.ts");
 const { decideVerdict } = await import("../src/lib/escaner-api.ts");
+const { getEventQrKeys } = await import("../src/server/qr-keys.ts");
+const { buildPrintedPayload } = await import("../src/server/qr.ts");
 
 const repo = getRepo();
+
+/** El QR impreso de un pase: una visita a un stand viaja con el QR leído, y el servidor lo vuelve a comprobar. */
+const qrImpreso = async (eventId, passId) => buildPrintedPayload(passId, await getEventQrKeys(eventId));
 
 /** La red de mentira: un stand y el premio de la ruta nunca deberían tocarla. */
 const noHayRed = {
@@ -286,7 +291,8 @@ test("el escáner del stand: su código abre su stand, no recibe la lista de asi
   assert.deepEqual(foto.passes, []);
   assert.deepEqual(foto.stand.visits, []);
 
-  const item = (clientId, pass, action = "visit") => ({ clientId, action, passId: pass.id, benefitId: null, scannedAt: ahora(), scannerId: "stand-1" });
+  const qr = { [a.pass.id]: await qrImpreso(d.event.id, a.pass.id), [b.pass.id]: await qrImpreso(d.event.id, b.pass.id) };
+  const item = (clientId, pass, action = "visit") => ({ clientId, action, passId: pass.id, benefitId: null, scannedAt: ahora(), scannerId: "stand-1", qr: qr[pass.id] });
   const resultados = await processScanItems(repo, d.event, puesto, [item("s-1", a.pass), item("s-2", b.pass), item("s-1", a.pass), item("s-3", a.pass, "checkin")], noHayRed);
   assert.deepEqual(
     resultados.filter((r) => r.clientId !== "s-3").map((r) => r.status),

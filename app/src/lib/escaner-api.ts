@@ -102,6 +102,13 @@ export interface ScanItem {
   benefitId: string | null;
   scannedAt: string;
   scannerId: string;
+  /**
+   * El texto del QR que se leyó (el del celular o el impreso). Una visita a un stand lo lleva siempre: el
+   * servidor vuelve a comprobar la firma con la clave del evento antes de contarla, así con el código de un
+   * stand no se suman visitas de credenciales que nunca pasaron por ahí. La ventana de tiempo no se exige,
+   * porque la cola puede subir mucho después de la lectura.
+   */
+  qr?: string;
 }
 
 /**

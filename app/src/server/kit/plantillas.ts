@@ -5,7 +5,7 @@
 // Los eventos son gratis por defecto; lo pago (entrada con polera, kit del taller) es opcional y viene apagado.
 import { translate, type Lang } from "../../i18n/index.ts";
 import type { CredentialKind } from "../../lib/credential-kinds.ts";
-import type { BenefitKind, EventRecord, Repo } from "../repo.ts";
+import type { Benefit, BenefitKind, EventRecord, Repo } from "../repo.ts";
 import { defaultDraft, saveDraft } from "./borrador.ts";
 
 export const TEMPLATE_IDS = ["devfest", "build-with-ai", "iwd", "hackaton", "meetup", "taller"] as const;
@@ -90,10 +90,27 @@ const FIXED_BENEFITS: Record<string, FixedBenefit> = {
   prize: { kind: "prize", nameKey: "kit.beneficio.premio", placeKey: "kit.puesto.premios" },
 };
 
+const MEAL_KEY_RE = /^(breakfast|lunch|snack|dinner)(?:-(\d+))?$/;
+
 /** "lunch" o "lunch-2": la comida y, si el evento dura varios días, el día. */
 function parseMeal(key: string): { base: MealBase; day: number | null } | null {
-  const match = /^(breakfast|lunch|snack|dinner)(?:-(\d+))?$/.exec(key);
+  const match = MEAL_KEY_RE.exec(key);
   return match ? { base: match[1] as MealBase, day: match[2] ? Number(match[2]) : null } : null;
+}
+
+/** Si una clave de plantilla es una comida: desayuno, almuerzo, refrigerio o cena, de cualquier día. */
+export function isMealKey(key: string | null | undefined): boolean {
+  return Boolean(key && MEAL_KEY_RE.test(key));
+}
+
+/**
+ * Si un beneficio es comida. Ahí, y solo ahí, el escáner de su mesa recibe la dieta de cada persona. Lo dice el
+ * tipo "lunch" o la clave de comida que le puso la plantilla: el desayuno, el refrigerio y la cena son de tipo
+ * "other", igual que el café del auspiciante o una taza, que no son comida y no tienen por qué saber la dieta.
+ */
+export function isFoodBenefit(benefit: Pick<Benefit, "kind" | "templateKey"> | null | undefined): boolean {
+  if (!benefit) return false;
+  return benefit.kind === "lunch" || isMealKey(benefit.templateKey);
 }
 
 /** El beneficio de esa clave, con su nombre y su puesto en el idioma pedido. Null si la clave no existe. */
