@@ -8,7 +8,7 @@ Cada evento tiene una clave de organizador, al azar, guardada en la base. Se ent
 
 El enlace con la clave lo imprime `node scripts/panel-clave.mjs [slug]`, junto con los códigos de puesto.
 
-Con Pollar prendido hay además la cuenta de organizador: en `/admin` se entra con Google o con el correo, y el panel de cada evento creado con esa cuenta entra con la sesión (`src/server/organizador.ts`; `panelAccess` en `panel-sesion.ts` acepta la clave o la sesión). La clave del evento sigue valiendo, para compartirla con quien coorganiza y para el servidor MCP. Está contado en [la guía de la app](../../../README.md), "La cuenta de organizador".
+Con Pollar prendido hay además la cuenta de organizador: en `/admin` se entra con Google o con el correo, y el panel de cada evento creado con esa cuenta entra con la sesión (`src/server/organizador.ts`; `panelAccess` en `panel-sesion.ts` acepta la clave o la sesión). La clave del evento sigue valiendo, para quien coorganiza (quien entró con la cuenta la pide en "Compartir el panel", que la arma recién ahí) y para el servidor MCP. Con Pollar, la puerta con llave ofrece primero "Entrar como organizador", que después de entrar vuelve al panel, y la clave queda plegada. Está contado en [la guía de la app](../../../README.md), "La cuenta de organizador".
 
 ## Qué muestra
 
