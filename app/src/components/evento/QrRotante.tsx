@@ -1,33 +1,22 @@
 "use client";
 // El QR de la credencial en el celular: se arma solo cada 20 segundos, sin red, con la clave que el servidor
 // entregó al abrir la credencial (src/lib/qr-live.ts). Una captura de pantalla vale lo que dura su ventana
-// y la siguiente. Si el reloj del celular está desfasado, se corrige con la hora del servidor al abrir con red.
+// y la siguiente. Si el reloj del celular está desfasado, se corrige con la hora del servidor (src/lib/reloj.ts):
+// al abrir, cada minuto mientras la pantalla está a la vista, al volver a ella y apenas se nota que el reloj
+// saltó (el monotónico no salta: si los dos avanzaron distinto, el de pared se movió).
 // Debajo, "Copiar el código" copia el texto del QR vigente: con eso un escáner sin cámara (una laptop, un
 // celular por http) lo pega en "Escribir el código".
 import { useEffect, useRef, useState } from "react";
 import { BotonCopiar } from "@/components/panel/BotonCopiar.tsx";
 import { useT } from "@/i18n/client.tsx";
 import { WINDOW_SECONDS, msUntilNextWindow, windowOf } from "@/lib/qr-codec.ts";
-import { buildLivePayload, clockOffset, type LiveGrant } from "@/lib/qr-live.ts";
+import { buildLivePayload, type LiveGrant } from "@/lib/qr-live.ts";
 import { renderQrSvg } from "@/lib/qr-svg.ts";
+import { CLOCK_REMEASURE_MS, clockJumpSince, clockMark, measureClockOffset } from "@/lib/reloj.ts";
 
 const CHECK_EVERY_MS = 500;
 /** Cuánto dura la marca de "Copiado". */
 const COPIED_MS = 2000;
-
-/** La hora del servidor menos la de este celular, medida con el viaje de ida y vuelta. 0 si no hay red. */
-async function medirReloj(): Promise<number> {
-  try {
-    const before = Date.now();
-    const response = await fetch("/api/hora", { cache: "no-store", signal: AbortSignal.timeout(4000) });
-    const after = Date.now();
-    if (!response.ok) return 0;
-    const { now } = (await response.json()) as { now?: number };
-    return typeof now === "number" ? clockOffset(now + (after - before) / 2, after) : 0;
-  } catch {
-    return 0;
-  }
-}
 
 export function QrRotante({ grant }: { grant: LiveGrant }) {
   const t = useT();
@@ -42,9 +31,25 @@ export function QrRotante({ grant }: { grant: LiveGrant }) {
 
   useEffect(() => {
     let vivo = true;
+    let midiendo = false;
     actual.current = -1;
+    let marca = clockMark();
+
+    async function medir() {
+      if (midiendo) return;
+      midiendo = true;
+      const medida = await measureClockOffset();
+      midiendo = false;
+      // Sin medida (sin red) se conserva la última que sí se midió. Un 0 medido también se aplica: el reloj se
+      // sincronizó solo y volvió a estar bien, y con la corrección de antes el QR saldría de una ventana vieja.
+      if (vivo && medida !== null) desfase.current = medida;
+    }
 
     async function armar() {
+      // Si el reloj de pared saltó desde la última mirada, lo que se midió ya no vale: se vuelve a medir.
+      const ahoraMarca = clockMark();
+      if (clockJumpSince(marca, ahoraMarca) !== 0) void medir();
+      marca = ahoraMarca;
       const ahora = Date.now() + desfase.current;
       const numero = windowOf(ahora);
       if (numero === actual.current) return;
@@ -63,17 +68,22 @@ export function QrRotante({ grant }: { grant: LiveGrant }) {
 
     void armar();
     const id = setInterval(() => void armar(), CHECK_EVERY_MS);
+    const cadaMinuto = setInterval(() => {
+      if (document.visibilityState === "visible") void medir();
+    }, CLOCK_REMEASURE_MS);
     const alVolver = () => {
-      if (document.visibilityState === "visible") void armar();
+      if (document.visibilityState === "visible") {
+        void medir();
+        void armar();
+      }
     };
     document.addEventListener("visibilitychange", alVolver);
     // Con red, se corrige el reloj; si cambia la ventana, el próximo chequeo arma el QR que corresponde.
-    void medirReloj().then((medida) => {
-      if (vivo) desfase.current = medida;
-    });
+    void medir();
     return () => {
       vivo = false;
       clearInterval(id);
+      clearInterval(cadaMinuto);
       document.removeEventListener("visibilitychange", alVolver);
     };
   }, [grant]);

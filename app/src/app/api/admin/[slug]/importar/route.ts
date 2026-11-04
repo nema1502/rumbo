@@ -28,6 +28,8 @@ import {
 } from "@/server/kit/importar.ts";
 
 export const dynamic = "force-dynamic";
+// Una tanda crea cuentas y las inscribe en el contrato, de a cinco: tarda. Con Fluid en Vercel el tope por omisión alcanza; se declara igual.
+export const maxDuration = 300;
 
 type Context = { params: Promise<{ slug: string }> };
 

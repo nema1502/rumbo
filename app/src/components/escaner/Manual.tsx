@@ -12,7 +12,8 @@ import type { DoorAddError, DoorAddResponse, DoorMatch, DoorSearchResponse, Loca
 import { OPEN_TIMEOUT_MS, SYNC_TIMEOUT_MS, postJson } from "@/lib/http.ts";
 
 interface Props {
-  code: string;
+  /** La ficha de sesión del puesto abierto: con ella se busca y se agrega, sin mandar el código. */
+  token: string;
   enLinea: boolean;
   snapshot: ScanSnapshot;
   /** Lo que este celular ya registró y todavía no llegó al servidor. */
@@ -23,7 +24,7 @@ interface Props {
 
 const DEBOUNCE_MS = 300;
 
-export function Manual({ code, enLinea, snapshot, local, onMarcar, onVolver }: Props) {
+export function Manual({ token, enLinea, snapshot, local, onMarcar, onVolver }: Props) {
   const t = useT();
   const lang = useLang();
   const [consulta, setConsulta] = useState("");
@@ -65,7 +66,7 @@ export function Manual({ code, enLinea, snapshot, local, onMarcar, onVolver }: P
       }
       setBuscando(true);
       try {
-        const { status, data } = await postJson<DoorSearchResponse>("/api/scan/buscar", { code, query: consulta }, OPEN_TIMEOUT_MS);
+        const { status, data } = await postJson<DoorSearchResponse>("/api/scan/buscar", { token, query: consulta }, OPEN_TIMEOUT_MS);
         if (mia !== secuencia.current) return;
         if (status === 429) setErrorBusqueda(tRef.current("escaner.buscar.demasiadas"));
         else if (status !== 200 || !data) setErrorBusqueda(tRef.current("escaner.buscar.error"));
@@ -83,7 +84,7 @@ export function Manual({ code, enLinea, snapshot, local, onMarcar, onVolver }: P
       }
     }, DEBOUNCE_MS);
     return () => clearTimeout(id);
-  }, [consulta, enLinea, code]);
+  }, [consulta, enLinea, token]);
 
   async function agregar(event: FormEvent) {
     event.preventDefault();
@@ -91,7 +92,7 @@ export function Manual({ code, enLinea, snapshot, local, onMarcar, onVolver }: P
     setEnviando(true);
     setErrorAgregar(null);
     try {
-      const { status, data } = await postJson<DoorAddResponse>("/api/scan/agregar", { code, name: nombre, email: correo, lang }, SYNC_TIMEOUT_MS);
+      const { status, data } = await postJson<DoorAddResponse>("/api/scan/agregar", { token, name: nombre, email: correo, lang }, SYNC_TIMEOUT_MS);
       if (data && data.kind !== "error" && data.match) {
         // Quien ya estaba inscripta vuelve igual, para marcarle la entrada.
         onMarcar(data.match);

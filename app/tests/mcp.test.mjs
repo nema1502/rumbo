@@ -21,6 +21,7 @@ const { NextRequest } = await import("next/server");
 const { getRepo } = await import("../src/server/repo.ts");
 const { createRumboMcpServer, MCP_SERVER_NAME } = await import("../src/server/mcp/servidor.ts");
 const { createStand } = await import("../src/server/stands.ts");
+const { freezeRaffleList, thawRaffleList } = await import("../src/server/vivo.ts");
 const { POST: mcpHttp, GET: mcpGet } = await import("../src/app/api/mcp/route.ts");
 
 const repo = getRepo();
@@ -345,9 +346,22 @@ test("event_status, sponsor_report, draw_list y el resumen para el capítulo: n�
     .slice(0, 2)
     .map((p) => p.id)
     .sort();
-  assert.deepEqual([sorteo.datos.total, sorteo.datos.participants], [2, codigos]);
+  assert.deepEqual([sorteo.datos.total, sorteo.datos.participants, sorteo.datos.frozenAt, sorteo.datos.scope], [2, codigos, null, "attendees"]);
   assert.equal(sorteo.datos.sha256, createHash("sha256").update(codigos.join("\n"), "utf8").digest("hex"));
+  assert.match(sorteo.datos.note, /only attendee credentials/);
   sinPersonas(sorteo.texto, "draw_list");
+  // Quien organiza congela la lista desde la pantalla en vivo y después entra alguien más: la herramienta da la
+  // congelada (la que se sortea), igual que la pantalla, y no la viva.
+  const congelada = await freezeRaffleList(event);
+  await repo.updatePass(pases[2].id, { status: "checked_in", checkedInAt: new Date().toISOString() });
+  const sorteoCongelado = await llamar("draw_list", { event: slug, all: true });
+  assert.deepEqual([sorteoCongelado.datos.total, sorteoCongelado.datos.frozenAt, sorteoCongelado.datos.sha256], [2, congelada.frozenAt, congelada.sha256]);
+  assert.match(sorteoCongelado.datos.note, /froze/);
+  await thawRaffleList(event);
+  const sorteoVivo = await llamar("draw_list", { event: slug, all: true });
+  assert.deepEqual([sorteoVivo.datos.total, sorteoVivo.datos.scope, sorteoVivo.datos.frozenAt], [3, "all", null]);
+  // La tercera persona vuelve a "con credencial": lo que sigue cuenta con dos entradas.
+  await repo.updatePass(pases[2].id, { status: "active", checkedInAt: null });
 
   const capitulo = await llamar("chapter_package_summary", { event: slug, stellar_minutes: 30, food_spend_usd: 100 });
   assert.equal(capitulo.error, false, capitulo.texto);

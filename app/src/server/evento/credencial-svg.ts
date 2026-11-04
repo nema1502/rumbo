@@ -188,7 +188,7 @@ export function renderCredentialSvg(view: CredentialView, lang: Lang): string {
   <rect x="${MARGIN}" y="${MARGIN}" width="${W - MARGIN * 2}" height="${BAND_H}" fill="${bandColor}" clip-path="url(#band)"/>
   ${compass(left, MARGIN + 18, 26, COLOR.papel)}
   ${text(left + 34, MARGIN + 38, "Rumbo", `font-family="${FONT_DISPLAY}" font-weight="800" font-size="19" letter-spacing="-0.4" fill="${COLOR.papel}"`)}
-  ${text(right, MARGIN + 37, t("evento.credencial.numero", { n: view.number, total: view.total }), `font-family="${FONT_TEXT}" font-weight="600" font-size="11.5" text-anchor="end" fill="${COLOR.papel}" opacity="0.9"`)}
+  ${text(right, MARGIN + 37, view.number !== null ? t("evento.credencial.numero", { n: view.number, total: view.total }) : t("evento.credencial.sinNumero"), `font-family="${FONT_TEXT}" font-weight="600" font-size="11.5" text-anchor="end" fill="${COLOR.papel}" opacity="0.9"`)}
   ${eventText}
   ${text(left, MARGIN + BAND_H + 26, `${when.date}, ${when.time}`, `font-family="${FONT_TEXT}" font-weight="600" font-size="12" fill="${COLOR.tinta2}"`)}
   ${text(left, MARGIN + BAND_H + 44, where, `font-family="${FONT_TEXT}" font-weight="500" font-size="12" fill="${COLOR.tinta2}"`)}

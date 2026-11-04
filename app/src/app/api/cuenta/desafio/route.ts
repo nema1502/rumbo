@@ -17,6 +17,8 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
+  // Un cuerpo que es JSON pero no es un objeto ("null", una lista) tampoco sirve: 400, nunca 500.
+  if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   const publicKey = typeof body.publicKey === "string" ? body.publicKey.trim() : "";
   if (!isAccountKey(publicKey)) return NextResponse.json({ error: "invalid_account" }, { status: 400 });
 

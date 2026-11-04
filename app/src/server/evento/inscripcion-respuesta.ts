@@ -16,6 +16,7 @@ export const FAILURE_STATUS: Record<FailureReason, number> = {
   wallet_mismatch: 409,
   signature_invalid: 400,
   signature_expired: 410,
+  ticket_mismatch: 409,
 };
 
 export function registrationResponse(result: RegistrationResult): NextResponse {

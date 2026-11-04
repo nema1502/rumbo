@@ -48,6 +48,7 @@ export const evento = {
     "evento.error.correoOtraCuenta": "Ese correo ya está inscripto con otra cuenta. Entrá con la misma de la vez anterior.",
     "evento.error.autorizacion": "No pudimos confirmar la autorización de tu cuenta. Probá de nuevo.",
     "evento.error.autorizacionVencida": "Pasó demasiado tiempo para autorizar. Probá de nuevo.",
+    "evento.error.entradaPropia": "Ya tenés una credencial reservada para este evento con una entrada paga. Volvé a la página del evento y elegí esa entrada.",
 
     // Entrar con la cuenta propia (Google o el correo, con Pollar)
     "evento.cuenta.bajadaGratis": "Inscribirte es gratis. Entrá con Google o con tu correo y tu credencial queda en tu propia cuenta de Stellar.",
@@ -100,6 +101,7 @@ export const evento = {
     // La credencial
     "evento.credencial.titulo": "Tu credencial",
     "evento.credencial.numero": "Credencial {n} de {total}",
+    "evento.credencial.sinNumero": "Credencial",
     "evento.credencial.inscripta": "Inscripción lista",
     "evento.credencial.paga": "Entrada paga",
     "evento.credencial.mostra": "Mostrá el QR en la puerta y en cada canje.",
@@ -182,6 +184,7 @@ export const evento = {
     "evento.error.correoOtraCuenta": "That email is already registered with another account. Sign in with the same one as last time.",
     "evento.error.autorizacion": "We could not confirm your account's approval. Try again.",
     "evento.error.autorizacionVencida": "Too much time passed to approve. Try again.",
+    "evento.error.entradaPropia": "You already have a pass reserved for this event with a paid ticket. Go back to the event page and choose that ticket.",
 
     "evento.cuenta.bajadaGratis": "Registering is free. Sign in with Google or with your email and your pass stays in your own Stellar account.",
     "evento.cuenta.bajadaPago": "Sign in with Google or with your email: you pay from your own Stellar account and your pass stays there.",
@@ -230,6 +233,7 @@ export const evento = {
 
     "evento.credencial.titulo": "Your pass",
     "evento.credencial.numero": "Pass {n} of {total}",
+    "evento.credencial.sinNumero": "Pass",
     "evento.credencial.inscripta": "Registered",
     "evento.credencial.paga": "Ticket paid",
     "evento.credencial.mostra": "Show the QR code at the door and at every redemption.",

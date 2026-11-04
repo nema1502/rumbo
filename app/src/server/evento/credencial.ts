@@ -32,8 +32,11 @@ export interface CredentialView {
   kind: CredentialKind;
   /** El equipo, si el evento se inscribe por equipos. */
   team: string | null;
-  /** "Credencial 3 de 200": el lugar entre las credenciales del evento y el cupo. */
-  number: number;
+  /**
+   * "Credencial 3 de 200": el número que dio el contrato al emitir la credencial (el que se puede comprobar en la
+   * cadena, y no cambia nunca) y el cupo. Null mientras el contrato no lo confirmó: la credencial dice "Credencial", sin número.
+   */
+  number: number | null;
   total: number;
   paid: boolean;
   checkedIn: boolean;
@@ -68,16 +71,17 @@ export function benefitState(benefit: Pick<PassBenefit, "kind" | "source">, rede
 }
 
 /**
- * El lugar del pase entre los activos del evento, por orden de activación, y el cupo: el de la base, o el del
- * contrato de la entrada si es menor (se recuerda un minuto). Sin cupo fijado, las credenciales que hay.
+ * El número de la credencial y el cupo. El número es el que dio el contrato al emitirla (chainNumber: el que se
+ * puede comprobar en la cadena, y no cambia nunca); hasta que el contrato lo confirme, null. Antes se calculaba
+ * como el lugar entre las credenciales activas por orden de activación, y cambiaba delante de la persona. El cupo
+ * es el de la base, o el del contrato de la entrada si es menor (se recuerda un minuto); sin cupo fijado, las
+ * credenciales emitidas (o el número, si es mayor).
  */
-async function passNumber(repo: Repo, pass: Pass, event: EventRecord, contractId: string | null): Promise<{ number: number; total: number }> {
+async function passNumber(repo: Repo, pass: Pass, event: EventRecord, contractId: string | null): Promise<{ number: number | null; total: number }> {
   const [all, cupo] = await Promise.all([repo.listPasses(pass.eventId), readContractCapacity(contractId)]);
-  const key = (p: Pass) => `${p.activatedAt ?? p.createdAt}|${p.createdAt}`;
-  const activated = all.filter((p) => p.status !== "pending").sort((a, b) => key(a).localeCompare(key(b)));
-  const index = activated.findIndex((p) => p.id === pass.id);
-  const number = index >= 0 ? index + 1 : activated.length + 1;
-  return { number, total: smallestCapacity(event.capacity, cupo) ?? Math.max(activated.length, number) };
+  const issued = all.filter((p) => p.status !== "pending").length;
+  const number = pass.chainNumber !== null && pass.chainNumber > 0 ? pass.chainNumber : null;
+  return { number, total: smallestCapacity(event.capacity, cupo) ?? Math.max(issued, number ?? 0, 1) };
 }
 
 /** La credencial, si la clave de acceso es la del pase. Si no, null: no se dice si el pase existe. */

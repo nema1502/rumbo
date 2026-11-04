@@ -58,7 +58,7 @@ import { ensureStationCodes, getOrCreateOrganizerKey, getPanelState, getSponsorR
 import type { EventRecord, Repo } from "../repo.ts";
 import { getEventStandsReport, getStand, getStandReport } from "../stands.ts";
 import { readDeployInfo } from "../stellar.ts";
-import { buildRaffleList } from "../vivo.ts";
+import { getRaffleList } from "../vivo.ts";
 
 // ---------- El contexto y los errores ----------
 
@@ -588,12 +588,15 @@ export async function sponsorReport(ctx: McpContext, args: EventArgs & { stand_i
 
 // ---------- draw_list ----------
 
-export async function drawList(ctx: McpContext, args: EventArgs) {
+export async function drawList(ctx: McpContext, args: EventArgs & { all?: boolean }) {
   const { event } = await resolveEvent(ctx, args.event, args.organizer_key);
-  const list = await buildRaffleList(event);
+  // La misma lista que la pantalla en vivo: la congelada si quien organiza la congeló (esa es la que se sortea), si no la viva.
+  const list = await getRaffleList(event, args.all === true ? "all" : "attendees");
   return {
     ...list,
-    note: "Credential codes of everyone who checked in, sorted, with the SHA-256 of the codes joined by newlines in this order. Publish the hash before the draw; anyone can recompute it afterwards. This tool does not draw: the draw happens elsewhere, with verifiable randomness, and the winner's name is looked up by code in the panel.",
+    note: list.frozenAt
+      ? "The list the organizer froze from the live screen: this is the one being drawn, even if more people checked in since. Credential codes only, sorted, with the SHA-256 of the codes joined by newlines in this order. Publish the hash before the draw; anyone can recompute it afterwards. This tool does not draw: the draw happens elsewhere, with verifiable randomness, and the winner's name is looked up by code in the panel."
+      : "The live list right now, the same the live screen shows: only attendee credentials that checked in (pass all: true to include speakers, staff and sponsors), sorted, with the SHA-256 of the codes joined by newlines in this order. Freeze it from the live screen before drawing, publish the hash, and anyone can recompute it afterwards. This tool does not draw: the draw happens elsewhere, with verifiable randomness, and the winner's name is looked up by code in the panel.",
   };
 }
 

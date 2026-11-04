@@ -4,7 +4,7 @@
 // genérico y no el mensaje de la base. Sin red: la cadena es de mentira.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { capturarConsola, entornoDePrueba, eventoDePrueba, paseDePrueba } from "./lib/entorno.mjs";
+import { capturarConsola, entornoDePrueba, eventoDePrueba, paseDePrueba, qrImpreso } from "./lib/entorno.mjs";
 
 entornoDePrueba();
 const { getRepo } = await import("../src/server/repo.ts");
@@ -26,6 +26,8 @@ const red = {
 };
 const ahora = () => new Date().toISOString();
 const item = (extra) => ({ clientId: `c-${Math.random().toString(36).slice(2, 8)}`, action: "checkin", benefitId: null, scannedAt: ahora(), scannerId: "p1", ...extra });
+/** Lo mismo, con el QR del pase: así la lectura llega hasta el espejo. */
+const lectura = async (pass, extra) => item({ passId: pass.id, qr: await qrImpreso(pass.eventId, pass.id), ...extra });
 
 test("dos mesas sin red que entregan de más: el servidor lo detecta, el escáner lo ve y el panel dice por cuántas se pasó", async () => {
   const d = await eventoDePrueba(repo, { beneficio: false });
@@ -38,9 +40,9 @@ test("dos mesas sin red que entregan de más: el servidor lo detecta, el escáne
   const station = stationOf(access);
   // Dos celulares abren la mesa con red: los dos ven "quedan 3", y cada uno entrega sus tres sin red.
   assert.deepEqual((await buildSnapshot(repo, access)).stock, { total: 3, left: 3, over: 0 });
-  const mesa = (letra, gente) => gente.map((p, i) => ({ clientId: `${letra}-${i}`, action: "redeem", passId: p.id, benefitId: polera.id, scannedAt: ahora(), scannerId: `mesa-${letra}` }));
-  const rA = await processScanItems(repo, d.event, station, mesa("A", pases.slice(0, 3)), red);
-  const rB = await processScanItems(repo, d.event, station, mesa("B", pases.slice(3, 6)), red);
+  const mesa = (letra, gente) => Promise.all(gente.map(async (p, i) => ({ clientId: `${letra}-${i}`, action: "redeem", passId: p.id, benefitId: polera.id, scannedAt: ahora(), scannerId: `mesa-${letra}`, qr: await qrImpreso(d.event.id, p.id) })));
+  const rA = await processScanItems(repo, d.event, station, await mesa("A", pases.slice(0, 3)), red);
+  const rB = await processScanItems(repo, d.event, station, await mesa("B", pases.slice(3, 6)), red);
   assert.deepEqual(rA.map((r) => [r.status, r.error]), [["synced", null], ["synced", null], ["synced", null]]);
   // Las de B también entraron (la polera ya se dio), pero cada una avisa que con ella se pasó el tope.
   assert.deepEqual(rB.map((r) => [r.status, r.error]), [["synced", STOCK_EXCEEDED], ["synced", STOCK_EXCEEDED], ["synced", STOCK_EXCEEDED]]);
@@ -48,7 +50,7 @@ test("dos mesas sin red que entregan de más: el servidor lo detecta, el escáne
   assert.deepEqual([fila.redeemed, fila.remaining, fila.exceeded, fila.duplicates], [6, 0, 3, 0]);
   assert.deepEqual((await buildSnapshot(repo, access)).stock, { total: 3, left: 0, over: 3 });
   // Repetir una lectura ya subida no cambia la cuenta.
-  const otraVez = await processScanItems(repo, d.event, station, mesa("A", pases.slice(0, 1)), red);
+  const otraVez = await processScanItems(repo, d.event, station, await mesa("A", pases.slice(0, 1)), red);
   assert.equal(otraVez[0].status, "synced");
   assert.equal((await getPanelState(d.event, repo)).benefits.find((b) => b.id === polera.id).exceeded, 3);
 });
@@ -62,16 +64,16 @@ test("una hora de lectura imposible no entra: la forma se rechaza al leer el ped
   const d = await eventoDePrueba(repo);
   const { pass } = await paseDePrueba(repo, d);
   assert.equal(parseScanItems([item({ passId: pass.id, scannedAt: "2026-02-30T10:00:00Z" })]), null, "un 30 de febrero no tiene forma de fecha");
-  const leidos = parseScanItems([item({ passId: pass.id, scannedAt: new Date(Date.now() - 2 * 366 * 24 * 3600 * 1000).toISOString() }), item({ passId: pass.id, scannedAt: new Date(Date.now() + 2 * 3600 * 1000).toISOString() })]);
+  const leidos = parseScanItems([item({ passId: pass.id, scannedAt: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString() }), item({ passId: pass.id, scannedAt: new Date(Date.now() + 2 * 3600 * 1000).toISOString() })]);
   assert.equal(leidos.length, 2, "la forma está bien");
   const [viejo, futuro] = await processScanItems(repo, d.event, GATE_STATION, leidos, red);
   assert.deepEqual([viejo.status, viejo.error], ["rejected", "hora de la lectura fuera de rango"]);
   assert.deepEqual([futuro.status, futuro.error], ["rejected", "hora de la lectura fuera de rango"]);
   assert.equal((await repo.listCheckInsForPass(pass.id)).length, 0, "nada en el espejo");
-  // Lo que un escáner sin red guardó hace días, o con el reloj un poco adelantado, vale.
-  assert.equal(isScannedAtInRange(new Date(Date.now() - 10 * 24 * 3600 * 1000).toISOString()), true);
-  assert.equal(isScannedAtInRange(new Date(Date.now() + SCANNED_AT_FUTURE_MS - 1000).toISOString()), true);
-  const [ayer] = await processScanItems(repo, d.event, GATE_STATION, [item({ passId: pass.id, scannedAt: new Date(Date.now() - 24 * 3600 * 1000).toISOString() })], red);
+  // Lo que un escáner sin red guardó desde la víspera, o con el reloj un poco adelantado, vale.
+  assert.equal(isScannedAtInRange(new Date(Date.now() - 23 * 3600 * 1000).toISOString(), d.event), true);
+  assert.equal(isScannedAtInRange(new Date(Date.now() + SCANNED_AT_FUTURE_MS - 1000).toISOString(), d.event), true);
+  const [ayer] = await processScanItems(repo, d.event, GATE_STATION, [await lectura(pass, { scannedAt: new Date(Date.now() - 23 * 3600 * 1000).toISOString() })], red);
   assert.equal(ayer.status, "synced");
 });
 
@@ -89,7 +91,8 @@ test("si la base falla a mitad de un registro, el escáner recibe un texto gené
   roto.recordCheckIn = async () => {
     throw new Error("invalid byte sequence for encoding UTF8: 0x00");
   };
-  const { resultado, lineas } = await capturarConsola(() => processScanItems(roto, d.event, GATE_STATION, [item({ passId: pass.id })], red));
+  const lecturaDeAna = await lectura(pass);
+  const { resultado, lineas } = await capturarConsola(() => processScanItems(roto, d.event, GATE_STATION, [lecturaDeAna], red));
   const [r] = resultado;
   assert.deepEqual([r.status, r.error], ["retry", "no se pudo registrar en el servidor, se reintenta"]);
   assert.ok(lineas.some((l) => l.includes("invalid byte sequence")), "el detalle va al registro del servidor");

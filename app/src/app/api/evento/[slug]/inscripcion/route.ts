@@ -18,6 +18,8 @@ import { RegistrationNotFound, hasErrors, registerForEvent, validateFields, type
 import { registrationResponse } from "@/server/evento/inscripcion-respuesta.ts";
 
 export const dynamic = "force-dynamic";
+// Inscribir crea la cuenta en la red de prueba y manda una transacción: tarda. Con Fluid en Vercel el tope por omisión alcanza; se declara igual.
+export const maxDuration = 300;
 
 type Params = Promise<{ slug: string }>;
 
@@ -29,6 +31,8 @@ export async function POST(request: NextRequest, { params }: { params: Params })
   } catch {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
+  // Un cuerpo que es JSON pero no es un objeto ("null", una lista) tampoco sirve.
+  if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   const text = (value: unknown) => (typeof value === "string" ? value.trim() : "");
   const ticketTypeId = text(body.ticketTypeId);
   const fields = { name: text(body.name), email: text(body.email) };

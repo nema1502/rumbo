@@ -91,9 +91,20 @@ export interface ScanSnapshot {
    * dos mesas sin red entregaron de más, por cuántas se pasó (`over`; una foto vieja no lo trae).
    */
   stock?: { total: number; left: number; over?: number } | null;
+  /**
+   * Solo al abrir el puesto: la ficha de sesión firmada por el servidor, atada al código y a este celular, que el
+   * escáner manda desde ahí en vez del código (sync, buscar, agregar), y hasta cuándo vale (treinta y seis horas).
+   */
+  session?: { token: string; expiresAt: string };
 }
 
 export type ScanAction = "checkin" | "redeem" | "visit";
+
+/**
+ * Cómo se leyó la credencial, según lo comprobó el servidor: el QR del celular ("live"), el QR fijo de la
+ * credencial impresa ("printed") o marcada a mano en la puerta ("manual", sin QR). Queda en el espejo.
+ */
+export type ScanVia = "live" | "printed" | "manual";
 
 /** Lo que el escáner registró y manda a sincronizar. */
 export interface ScanItem {
@@ -106,12 +117,18 @@ export interface ScanItem {
   scannedAt: string;
   scannerId: string;
   /**
-   * El texto del QR que se leyó (el del celular o el impreso). Una visita a un stand lo lleva siempre: el
-   * servidor vuelve a comprobar la firma con la clave del evento antes de contarla, así con el código de un
-   * stand no se suman visitas de credenciales que nunca pasaron por ahí. La ventana de tiempo no se exige,
-   * porque la cola puede subir mucho después de la lectura.
+   * El texto del QR que se leyó (el del celular o el impreso). Toda lectura lo lleva: el servidor vuelve a
+   * comprobar la firma con la clave del evento y que sea de este mismo pase antes de registrarla, así con un
+   * código de puesto no se registran entradas, canjes ni visitas de credenciales que nunca pasaron por ahí.
+   * La ventana de tiempo no se exige, porque la cola puede subir mucho después de la lectura. Solo falta en
+   * una entrada marcada a mano en la puerta (`via: "manual"`).
    */
   qr?: string;
+  /**
+   * "manual": la entrada la marcó a mano el voluntario de la puerta, desde el buscador, sin QR. Solo vale con
+   * el código (o la sesión) de la Puerta. El id de escáner lo marca el servidor ("manual:puerta:<celular>").
+   */
+  via?: "manual";
 }
 
 /**
@@ -133,9 +150,16 @@ export interface ScanItemResult {
   error: string | null;
 }
 
+/**
+ * Con qué llega cada pedido del escáner: la ficha de sesión que dio open (lo normal), o el código del puesto, como
+ * lo escribió el voluntario ("ABCD-EFGH-JKLM", con o sin guiones). Con el código pasa por el freno de códigos
+ * equivocados; con la ficha, no. Si vienen los dos, manda la ficha.
+ */
 export interface OpenRequest {
-  /** El código del puesto, como lo escribió el voluntario ("ABCD-EFGH-JKLM", con o sin guiones). */
-  code: string;
+  code?: string;
+  token?: string;
+  /** Al abrir: el id de este celular, que queda en la ficha. */
+  scannerId?: string;
 }
 
 export interface SyncRequest extends OpenRequest {
@@ -275,10 +299,11 @@ export function decideVerdict(
   }
 
   // En un stand, quien auspicia ve el nombre (si la persona aceptó) y nada más: ni su credencial ni su equipo.
+  // Sí ve que la credencial es la impresa, como en la puerta y en las mesas: una impresa se puede copiar.
   if (station.kind === "stand") {
     const visitedAt = pass?.visited?.[station.id] ?? local?.visited?.[station.id] ?? null;
-    if (visitedAt) return { kind: "already", action: "visit", passId, name, at: visitedAt, ...NOBODY };
-    return { kind: "ok", action: "visit", passId, name, ...NOBODY };
+    if (visitedAt) return { kind: "already", action: "visit", passId, name, at: visitedAt, ...via, ...NOBODY };
+    return { kind: "ok", action: "visit", passId, name, ...via, ...NOBODY };
   }
 
   if (!pass) return { kind: "no", reason: "unknown", passId, name: null, ...NOBODY };

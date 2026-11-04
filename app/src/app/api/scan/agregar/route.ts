@@ -9,6 +9,8 @@ import { addAtDoor, requireGate } from "@/server/puerta.ts";
 import { getRepo } from "@/server/repo.ts";
 
 export const dynamic = "force-dynamic";
+// Agregar en la puerta crea la cuenta y la inscribe en el contrato: tarda. Con Fluid en Vercel el tope por omisión alcanza; se declara igual.
+export const maxDuration = 300;
 
 const FAILURE: Record<string, { error: DoorAddError; status: number }> = {
   sold_out: { error: "sold_out", status: 409 },

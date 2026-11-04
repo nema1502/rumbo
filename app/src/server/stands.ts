@@ -13,13 +13,14 @@
 // Las tablas viven en la base de siempre (src/server/base): SQLite en desarrollo, Postgres en producción.
 import { randomUUID } from "node:crypto";
 import { translate, type Lang } from "../i18n/index.ts";
-import type { ConsentState, ScanStandVisit } from "../lib/escaner-api.ts";
+import type { ConsentState, ScanStandVisit, ScanVia } from "../lib/escaner-api.ts";
 import { isLocalLogoPath, localLogoOrNull } from "../lib/logo.ts";
 import { getDb, type Row, type SqlValue } from "./base/index.ts";
 import { isFoodBenefit } from "./kit/plantillas.ts";
 import { clientKey, stationCodeAttempts } from "./limites.ts";
 import { csvCell, ensureStationCodes, resolveStationCode, type StationAccess, type StationStand } from "./panel.ts";
-import { ClientIdTaken, getRepo, type EventRecord, type Repo } from "./repo.ts";
+import { ClientIdTaken, checkedScannedAt, getRepo, type EventRecord, type Repo } from "./repo.ts";
+import { isReadableDate } from "../lib/fecha-iso.ts";
 
 // ---------- La base ----------
 
@@ -95,8 +96,10 @@ export function firstName(name: string): string | null {
   const clean = cleanLine(name, 120);
   const comma = clean.indexOf(",");
   const given = comma > 0 ? clean.slice(comma + 1).trim() : clean;
-  const first = [...(given.split(" ")[0] ?? "")].slice(0, ALIAS_MAX).join("");
-  return first && !NOT_A_NAME.test(first) ? first : null;
+  // La palabra entera se mira antes de recortarla: un correo largo recortado a veinte letras parecía un nombre.
+  const word = given.split(" ")[0] ?? "";
+  if (!word || NOT_A_NAME.test(word)) return null;
+  return [...word].slice(0, ALIAS_MAX).join("");
 }
 
 /** Lo que se muestra en la pantalla del evento: el alias si lo hay, si no el nombre de pila; null si la persona pidió no aparecer. */
@@ -332,6 +335,10 @@ export interface StandVisit {
   passId: string;
   scannerId: string | null;
   scannedAt: string;
+  /** Cuándo llegó al servidor (la pone el servidor). */
+  receivedAt: string;
+  /** Cómo se leyó la credencial: el QR del celular o el impreso. Null en las visitas de antes. */
+  via: ScanVia | null;
   consent: ConsentState;
   consentAt: string | null;
   rating: number | null;
@@ -344,7 +351,10 @@ const rowToVisit = (r: Row): StandVisit => ({
   eventId: str(r.event_id),
   passId: str(r.pass_id),
   scannerId: strOrNull(r.scanner_id),
-  scannedAt: str(r.scanned_at),
+  // Una fila con una hora que no se puede leer (de antes de validarla) no tumba la credencial: vale la de llegada.
+  scannedAt: isReadableDate(r.scanned_at) ? r.scanned_at : str(r.created_at),
+  receivedAt: isReadableDate(r.received_at) ? r.received_at : str(r.created_at),
+  via: r.via === "live" || r.via === "printed" || r.via === "manual" ? r.via : null,
   consent: str(r.consent) as ConsentState,
   consentAt: strOrNull(r.consent_at),
   rating: r.rating === null || r.rating === undefined ? null : num(r.rating),
@@ -370,9 +380,10 @@ export interface VisitResult {
  * pasa a la credencial en el mismo acto. El permiso para compartir el contacto empieza sin responder.
  */
 export async function recordVisit(
-  input: { standId: string; passId: string; clientId?: string | null; scannerId?: string | null; scannedAt?: string },
+  input: { standId: string; passId: string; clientId?: string | null; scannerId?: string | null; scannedAt?: string; via?: ScanVia | null },
   repo: Repo = getRepo(),
 ): Promise<VisitResult> {
+  const scannedAt = checkedScannedAt(input.scannedAt);
   const stand = await getStand(input.standId);
   if (!stand) throw new StandsError("not_found");
   const pass = await repo.getPass(input.passId);
@@ -383,17 +394,20 @@ export async function recordVisit(
     if (prior && (str(prior.stand_id) !== stand.id || str(prior.pass_id) !== pass.id)) throw new ClientIdTaken(input.clientId);
   }
   const before = await visitCount(pass.id);
+  const at = now();
   await run(
-    `INSERT INTO stand_visits (id, client_id, stand_id, event_id, pass_id, scanner_id, scanned_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
+    `INSERT INTO stand_visits (id, client_id, stand_id, event_id, pass_id, scanner_id, scanned_at, received_at, via, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
     randomUUID(),
     input.clientId ?? null,
     stand.id,
     stand.eventId,
     pass.id,
     input.scannerId ?? null,
-    input.scannedAt ?? now(),
-    now(),
+    scannedAt,
+    at,
+    input.via ?? null,
+    at,
   );
   const visit = rowToVisit((await one("SELECT * FROM stand_visits WHERE stand_id = ? AND pass_id = ?", stand.id, pass.id)) as Row);
   const visited = await visitCount(pass.id);
@@ -534,14 +548,14 @@ export async function hideFromScreen(event: EventRecord, passId: string, repo: R
 export async function standScanVisits(standId: string): Promise<ScanStandVisit[]> {
   return (
     await all(
-    `SELECT v.pass_id, v.scanned_at, v.consent, per.name
+    `SELECT v.pass_id, v.scanned_at, v.created_at, v.consent, per.name
      FROM stand_visits v JOIN passes p ON p.id = v.pass_id JOIN persons per ON per.id = p.person_id
      WHERE v.stand_id = ? ORDER BY v.scanned_at DESC`,
       standId,
     )
   ).map((r) => ({
     passId: str(r.pass_id),
-    at: str(r.scanned_at),
+    at: isReadableDate(r.scanned_at) ? r.scanned_at : str(r.created_at),
     consent: str(r.consent) as ConsentState,
     name: str(r.consent) === "granted" ? str(r.name) : null,
   }));
@@ -572,7 +586,7 @@ export interface StandNumbers {
 
 export interface StandPanel {
   stand: Stand;
-  event: { name: string; slug: string; startsAt: string; timezone: string; place: string; venue: string | null };
+  event: { name: string; slug: string; startsAt: string; endsAt: string | null; timezone: string; place: string; venue: string | null };
   numbers: StandNumbers;
   /** El beneficio del auspiciante con sus canjes, si el stand tiene uno. */
   benefit: { id: string; name: string; granted: number; redeemed: number } | null;
@@ -595,7 +609,7 @@ export async function getStandPanel(standId: string, repo: Repo = getRepo()): Pr
   if (!event) throw new StandsError("not_found");
   const contacts = (
     await all(
-    `SELECT v.pass_id, v.scanned_at, v.consent_at, v.rating, v.note, per.name, per.email
+    `SELECT v.pass_id, v.scanned_at, v.created_at, v.consent_at, v.rating, v.note, per.name, per.email
      FROM stand_visits v JOIN passes p ON p.id = v.pass_id JOIN persons per ON per.id = p.person_id
      WHERE v.stand_id = ? AND v.consent = 'granted' ORDER BY v.scanned_at DESC`,
       standId,
@@ -605,7 +619,7 @@ export async function getStandPanel(standId: string, repo: Repo = getRepo()): Pr
       passId: str(r.pass_id),
       name: str(r.name),
       email: str(r.email),
-      visitedAt: str(r.scanned_at),
+      visitedAt: isReadableDate(r.scanned_at) ? r.scanned_at : str(r.created_at),
       consentAt: strOrNull(r.consent_at),
       rating: r.rating === null || r.rating === undefined ? null : num(r.rating),
       note: strOrNull(r.note) ?? "",
@@ -613,7 +627,7 @@ export async function getStandPanel(standId: string, repo: Repo = getRepo()): Pr
   );
   return {
     stand,
-    event: { name: event.name, slug: event.slug, startsAt: event.startsAt, timezone: event.timezone, place: event.place, venue: event.venue },
+    event: { name: event.name, slug: event.slug, startsAt: event.startsAt, endsAt: event.endsAt, timezone: event.timezone, place: event.place, venue: event.venue },
     numbers: await standNumbers(standId),
     benefit: (await getStandReport(standId, repo))?.benefit ?? null,
     contacts,

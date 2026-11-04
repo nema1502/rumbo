@@ -31,5 +31,7 @@ const CLOCK_TOLERANCE_MS = 3000;
  */
 export function clockOffset(serverMs: number, localMs: number): number {
   const diff = serverMs - localMs;
+  // Una medida que no es un número (una respuesta rota, un reloj en infinito) no corrige nada.
+  if (!Number.isFinite(diff)) return 0;
   return Math.abs(diff) > CLOCK_TOLERANCE_MS ? diff : 0;
 }

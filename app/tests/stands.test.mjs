@@ -107,7 +107,8 @@ test("la meta de la ruta: al llegar, el premio pasa a la credencial y se canjea 
 
   // en el puesto de Premios (sin pasar por el contrato)
   const puesto = { id: premio, kind: "benefit", name: "Premio de la ruta", place: "Premios" };
-  const canje = (clientId) => ({ clientId, action: "redeem", passId: pass.id, benefitId: premio, scannedAt: ahora(), scannerId: "premios-1" });
+  const qr = await qrImpreso(d.event.id, pass.id);
+  const canje = (clientId) => ({ clientId, action: "redeem", passId: pass.id, benefitId: premio, scannedAt: ahora(), scannerId: "premios-1", qr });
   const [primero] = await processScanItems(repo, d.event, puesto, [canje("p-1")], noHayRed);
   assert.equal(primero.status, "synced");
   const [segundo] = await processScanItems(repo, d.event, puesto, [canje("p-2")], noHayRed);
@@ -123,7 +124,7 @@ test("el premio de la ruta no se canjea sin haberlo ganado", async () => {
   await visita(d.stands[0], pass);
   const premio = (await stands.getRouteGoal(d.event.id)).prizeBenefitId;
   const puesto = { id: premio, kind: "benefit", name: "Premio de la ruta", place: "Premios" };
-  const [r] = await processScanItems(repo, d.event, puesto, [{ clientId: "sin-premio", action: "redeem", passId: pass.id, benefitId: premio, scannedAt: ahora(), scannerId: "x" }], noHayRed);
+  const [r] = await processScanItems(repo, d.event, puesto, [{ clientId: "sin-premio", action: "redeem", passId: pass.id, benefitId: premio, scannedAt: ahora(), scannerId: "x", qr: await qrImpreso(d.event.id, pass.id) }], noHayRed);
   assert.deepEqual([r.status, r.error], ["rejected", "la credencial todavía no ganó este premio"]);
   assert.equal((await repo.listRedemptionsForPass(pass.id)).length, 0, "no queda ningún canje");
 });
@@ -155,6 +156,8 @@ test("el consentimiento: sin aceptar no aparece el contacto; aceptar lo muestra 
   let panel = await stands.getStandPanel(d.stands[0].id, repo);
   assert.deepEqual(panel.numbers, { visits: 1, accepted: 0, waiting: 1, declined: 0 });
   assert.deepEqual(panel.contacts, []);
+  // La fecha del evento viaja entera (inicio y final): el panel la escribe como todas las pantallas.
+  assert.deepEqual([panel.event.startsAt, panel.event.endsAt], [d.event.startsAt, d.event.endsAt]);
   assert.ok(!JSON.stringify(panel).includes("ana.quiroga@example.com"));
   assert.ok(!JSON.stringify(panel).includes("Quiroga"));
   assert.equal(await stands.buildContactsCsv(d.stands[0].id, "es", repo), "\ufeffnombre,correo,calificación,nota,visita\r\n");
@@ -354,6 +357,7 @@ test("la pantalla en vivo: cuenta lo que pasó, y el ranking usa nombre de pila 
 
   const vivo = await getLiveState(d.event);
   assert.deepEqual([vivo.issued, vivo.entered, vivo.raffle.eligible], [4, 3, 3]);
+  assert.deepEqual([vivo.event.startsAt, vivo.event.endsAt], [d.event.startsAt, d.event.endsAt], "la pantalla recibe inicio y final, para escribir la fecha como todas");
   assert.deepEqual(vivo.lunch, { delivered: 2, granted: 4 });
   assert.deepEqual(vivo.merch, { delivered: 0, granted: 0 });
   assert.deepEqual([vivo.route.enabled, vivo.route.target, vivo.route.standCount, vivo.route.completed], [true, 2, 3, 1]);

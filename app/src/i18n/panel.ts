@@ -48,6 +48,12 @@ export const panel = {
     "panel.puestos.copiado": "Copiado",
     "panel.puestos.copiarAria": "Copiar las instrucciones para {puesto}",
     "panel.puestos.mensaje": "{puesto}, {evento}: abrí {url} y escribí el código {codigo}",
+    "panel.puestos.cambiar": "Cambiar",
+    "panel.puestos.cambiarAria": "Cambiar el código de {puesto}",
+    "panel.puestos.cambiando": "Cambiando",
+    "panel.puestos.confirmarCambiar": "¿Cambiar el código de {puesto}? El de ahora deja de abrir el escáner en el acto: los celulares que lo tengan abierto van a pedir el nuevo. Si alguno tiene lecturas sin sincronizar, pedile que sincronice antes: con el nuevo solo salen si vuelve a abrir este mismo puesto.",
+    "panel.puestos.errorCambiar": "No se pudo cambiar el código. Probá de nuevo.",
+    "panel.puestos.vencidos": "Los códigos ya vencieron: el evento terminó hace más de un día y el escáner no los acepta.",
 
     "panel.pases.titulo": "Credenciales",
     "panel.pases.buscar": "Buscar por nombre",
@@ -69,6 +75,8 @@ export const panel = {
     "panel.dobles.puesto": "en {puesto}",
     "panel.dobles.aMano": "marcada a mano en la puerta",
     "panel.dobles.otroEscaner": "en otro escáner",
+    "panel.dobles.via.live": "con el QR del celular",
+    "panel.dobles.via.printed": "con la credencial impresa",
 
     "panel.acceso.titulo": "Esta puerta tiene llave",
     "panel.acceso.bajada": "El panel de {evento} es para quien organiza. Entrá con tu clave.",
@@ -155,6 +163,12 @@ export const panel = {
     "panel.puestos.copiado": "Copied",
     "panel.puestos.copiarAria": "Copy the instructions for {puesto}",
     "panel.puestos.mensaje": "{puesto}, {evento}: open {url} and type the code {codigo}",
+    "panel.puestos.cambiar": "Change",
+    "panel.puestos.cambiarAria": "Change the code for {puesto}",
+    "panel.puestos.cambiando": "Changing",
+    "panel.puestos.confirmarCambiar": "Change the code for {puesto}? The current one stops opening the scanner right away: phones that have it open will ask for the new one. If any of them has readings not yet synced, ask them to sync first: with the new code those only go out if they open this same station again.",
+    "panel.puestos.errorCambiar": "Could not change the code. Try again.",
+    "panel.puestos.vencidos": "The codes have expired: the event ended more than a day ago and the scanner no longer accepts them.",
 
     "panel.pases.titulo": "Passes",
     "panel.pases.buscar": "Search by name",
@@ -176,6 +190,8 @@ export const panel = {
     "panel.dobles.puesto": "at {puesto}",
     "panel.dobles.aMano": "marked by hand at the gate",
     "panel.dobles.otroEscaner": "at another scanner",
+    "panel.dobles.via.live": "with the QR code on the phone",
+    "panel.dobles.via.printed": "with the printed pass",
 
     "panel.acceso.titulo": "This door has a key",
     "panel.acceso.bajada": "The panel for {evento} is for the organizer. Enter with your key.",

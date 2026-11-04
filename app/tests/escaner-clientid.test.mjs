@@ -2,7 +2,7 @@
 // registro no recibe "synced" ni "duplicate" ajenos, y lo que pidió no queda como si se hubiera hecho.
 import assert from "node:assert/strict";
 import { beforeEach, test } from "node:test";
-import { entornoDePrueba, eventoDePrueba, paseDePrueba } from "./lib/entorno.mjs";
+import { entornoDePrueba, eventoDePrueba, paseDePrueba, qrImpreso } from "./lib/entorno.mjs";
 
 entornoDePrueba();
 const { getRepo } = await import("../src/server/repo.ts");
@@ -26,17 +26,18 @@ beforeEach(() => {
 });
 
 const ahora = () => new Date().toISOString();
-const entrada = (clientId, passId) => ({ clientId, action: "checkin", passId, benefitId: null, scannedAt: ahora(), scannerId: "prueba" });
-const canje = (clientId, passId, benefitId) => ({ clientId, action: "redeem", passId, benefitId, scannedAt: ahora(), scannerId: "prueba" });
+// Cada lectura viaja con el QR de su pase: el servidor lo vuelve a comprobar antes de registrar nada.
+const entrada = async (clientId, pass) => ({ clientId, action: "checkin", passId: pass.id, benefitId: null, scannedAt: ahora(), scannerId: "prueba", qr: await qrImpreso(pass.eventId, pass.id) });
+const canje = async (clientId, pass, benefitId) => ({ clientId, action: "redeem", passId: pass.id, benefitId, scannedAt: ahora(), scannerId: "prueba", qr: await qrImpreso(pass.eventId, pass.id) });
 
 test("una entrada con el clientId de otro pase se rechaza y no le da el registro ajeno", async () => {
   const datos = await eventoDePrueba(repo);
   const ana = await paseDePrueba(repo, datos, { name: "Ana" });
   const beto = await paseDePrueba(repo, datos, { name: "Beto" });
-  const [primera] = await processScanItems(repo, datos.event, GATE_STATION, [entrada("id-1", ana.pass.id)]);
+  const [primera] = await processScanItems(repo, datos.event, GATE_STATION, [await entrada("id-1", ana.pass)]);
   assert.equal(primera.status, "synced");
 
-  const [ajena] = await processScanItems(repo, datos.event, GATE_STATION, [entrada("id-1", beto.pass.id)]);
+  const [ajena] = await processScanItems(repo, datos.event, GATE_STATION, [await entrada("id-1", beto.pass)]);
   assert.equal(ajena.status, "rejected");
   assert.equal(ajena.txHash, null);
   assert.equal(llamadas.length, 1, "no se manda nada al contrato por el pedido ajeno");
@@ -50,8 +51,8 @@ test("una entrada con el clientId de otro pase se rechaza y no le da el registro
 test("el mismo clientId con el mismo pase sigue siendo un reintento que no duplica", async () => {
   const datos = await eventoDePrueba(repo);
   const ana = await paseDePrueba(repo, datos);
-  const [primera] = await processScanItems(repo, datos.event, GATE_STATION, [entrada("id-2", ana.pass.id)]);
-  const [otra] = await processScanItems(repo, datos.event, GATE_STATION, [entrada("id-2", ana.pass.id)]);
+  const [primera] = await processScanItems(repo, datos.event, GATE_STATION, [await entrada("id-2", ana.pass)]);
+  const [otra] = await processScanItems(repo, datos.event, GATE_STATION, [await entrada("id-2", ana.pass)]);
   assert.equal(otra.status, "synced");
   assert.equal(otra.txHash, primera.txHash);
   assert.equal(llamadas.length, 1);
@@ -62,8 +63,8 @@ test("un clientId usado en otro evento se rechaza", async () => {
   const dos = await eventoDePrueba(repo);
   const ana = await paseDePrueba(repo, uno);
   const caro = await paseDePrueba(repo, dos);
-  await processScanItems(repo, uno.event, GATE_STATION, [entrada("id-3", ana.pass.id)]);
-  const [ajena] = await processScanItems(repo, dos.event, GATE_STATION, [entrada("id-3", caro.pass.id)]);
+  await processScanItems(repo, uno.event, GATE_STATION, [await entrada("id-3", ana.pass)]);
+  const [ajena] = await processScanItems(repo, dos.event, GATE_STATION, [await entrada("id-3", caro.pass)]);
   assert.equal(ajena.status, "rejected");
   assert.equal(llamadas.length, 1);
   assert.equal((await repo.listCheckIns(dos.event.id)).length, 0);
@@ -77,13 +78,13 @@ test("un canje con el clientId de otro pase o de otro beneficio se rechaza", asy
   const beto = await paseDePrueba(repo, datos, { name: "Beto" });
   const mesa = { id: datos.lunch.id, kind: "benefit", name: "Almuerzo", place: null };
   const stand = { id: polera.id, kind: "benefit", name: "Polera", place: null };
-  await processScanItems(repo, datos.event, GATE_STATION, [entrada("e-ana", ana.pass.id), entrada("e-beto", beto.pass.id)]);
+  await processScanItems(repo, datos.event, GATE_STATION, [await entrada("e-ana", ana.pass), await entrada("e-beto", beto.pass)]);
 
-  const [almuerzo] = await processScanItems(repo, datos.event, mesa, [canje("c-1", ana.pass.id, datos.lunch.id)]);
+  const [almuerzo] = await processScanItems(repo, datos.event, mesa, [await canje("c-1", ana.pass, datos.lunch.id)]);
   assert.equal(almuerzo.status, "synced");
-  const [otroPase] = await processScanItems(repo, datos.event, mesa, [canje("c-1", beto.pass.id, datos.lunch.id)]);
+  const [otroPase] = await processScanItems(repo, datos.event, mesa, [await canje("c-1", beto.pass, datos.lunch.id)]);
   assert.equal(otroPase.status, "rejected");
-  const [otroBeneficio] = await processScanItems(repo, datos.event, stand, [canje("c-1", ana.pass.id, polera.id)]);
+  const [otroBeneficio] = await processScanItems(repo, datos.event, stand, [await canje("c-1", ana.pass, polera.id)]);
   assert.equal(otroBeneficio.status, "rejected");
   assert.equal(llamadas.filter((l) => l[0] === "redeem").length, 1);
   assert.equal((await repo.listRedemptionsForPass(beto.pass.id)).length, 0);

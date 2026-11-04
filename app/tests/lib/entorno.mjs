@@ -79,6 +79,16 @@ export async function eventoDePrueba(repo, { slug = `prueba-${Date.now().toStrin
   return { event, ticket, lunch };
 }
 
+/**
+ * El QR de la credencial impresa de un pase, como lo lee un escáner: cada lectura viaja con su QR y el servidor
+ * vuelve a comprobar la firma antes de registrarla. Firma con las llaves del evento (que las pruebas sí tienen).
+ */
+export async function qrImpreso(eventId, passId) {
+  const { buildPrintedPayload } = await import("../../src/server/qr.ts");
+  const { getEventQrKeys } = await import("../../src/server/qr-keys.ts");
+  return buildPrintedPayload(passId, await getEventQrKeys(eventId));
+}
+
 /** Una persona con su pase activo (como si el contrato ya la hubiera inscripto) y los beneficios de su entrada. */
 export async function paseDePrueba(repo, { event, ticket }, { name = "Ana Prueba", email, account } = {}) {
   const person = await repo.upsertPerson({ name, email: email ?? `${Math.random().toString(36).slice(2)}@example.com` });

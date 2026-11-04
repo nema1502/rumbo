@@ -64,6 +64,12 @@ export interface Limiter {
   blockedFor(key: string): number | Promise<number>;
   /** Cuenta un intento de la clave (un código equivocado, una inscripción). */
   note(key: string): void | Promise<void>;
+  /**
+   * Mirar y contar de un solo golpe, para lo que cuenta cada pedido (la búsqueda de la puerta): si la clave está
+   * frenada devuelve cuánto le falta y no cuenta nada; si no, cuenta este intento y devuelve 0. Entre mirar y
+   * contar por separado se colaba una ráfaga entera: cuatrocientos pedidos a la vez pasaban todos.
+   */
+  take(key: string): number | Promise<number>;
   /** Para las pruebas. */
   clear(): void | Promise<void>;
 }
@@ -130,6 +136,14 @@ export class AttemptLimiter implements Limiter {
     this.keys.set(key, next.state);
   }
 
+  // Sin nada asíncrono en el medio: en un proceso, mirar y contar seguidos ya es de un solo golpe.
+  take(key: string): number {
+    const wait = this.blockedFor(key);
+    if (wait > 0) return wait;
+    this.note(key);
+    return 0;
+  }
+
   clear(): void {
     this.keys.clear();
     this.total = { count: 0, windowStart: 0 };
@@ -189,9 +203,22 @@ export class DbAttemptLimiter implements Limiter {
   }
 
   async note(key: string): Promise<void> {
+    await this.count(key, false);
+  }
+
+  async take(key: string): Promise<number> {
+    return this.count(key, true);
+  }
+
+  /**
+   * Cuenta un intento dentro de una transacción que toma primero la fila del total (FOR UPDATE): dos instancias
+   * que cuentan a la vez van en fila. Con `onlyIfFree`, antes de contar mira si la clave está frenada y, si lo
+   * está, devuelve cuánto le falta sin contar nada (es el `take`); si no, devuelve 0.
+   */
+  private async count(key: string, onlyIfFree: boolean): Promise<number> {
     const at = this.now();
     const k = this.keyOf(key);
-    await this.db().transaction(async (tx) => {
+    return this.db().transaction(async (tx) => {
       // El total nace como en la memoria (cero intentos desde el principio de los tiempos) y se toma primero.
       await tx.run(
         "INSERT INTO attempt_limits (limiter, key, count, window_start, locked_until, lockouts, last_at) VALUES (?, ?, 0, ?, ?, 0, ?) ON CONFLICT DO NOTHING",
@@ -199,7 +226,12 @@ export class DbAttemptLimiter implements Limiter {
       );
       const totalRow = await tx.one("SELECT * FROM attempt_limits WHERE limiter = ? AND key = ? FOR UPDATE", [this.name, TOTAL_KEY]);
       const own = await tx.one("SELECT * FROM attempt_limits WHERE limiter = ? AND key = ?", [this.name, k]);
-      const next = noteState(own ? rowToState(own) : undefined, totalRow ? rowToState(totalRow) : { count: 0, windowStart: 0 }, at, this.limits);
+      const total = totalRow ? rowToState(totalRow) : { count: 0, windowStart: 0 };
+      if (onlyIfFree) {
+        const wait = blockedForState(own ? rowToState(own) : undefined, total, at, this.limits);
+        if (wait > 0) return wait;
+      }
+      const next = noteState(own ? rowToState(own) : undefined, total, at, this.limits);
       const s = next.state;
       await tx.run(
         `INSERT INTO attempt_limits (limiter, key, count, window_start, locked_until, lockouts, last_at) VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -212,6 +244,7 @@ export class DbAttemptLimiter implements Limiter {
       if (next.fresh) {
         await tx.run("DELETE FROM attempt_limits WHERE limiter = ? AND key <> ? AND last_at < ? AND locked_until <= ?", [this.name, TOTAL_KEY, iso(at - this.limits.forgetMs), iso(at)]);
       }
+      return 0;
     });
   }
 

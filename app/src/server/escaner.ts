@@ -3,8 +3,9 @@
 // (la clave pública del evento, su puesto y los pases con lo que traen y lo que ya usaron) y la
 // sincronización de la cola: cada entrada y cada canje al contrato, firmados por la cuenta de
 // puerta, con su espejo en la base. Lo usan las rutas de /api/scan.
-import type { ScanEvent, ScanItem, ScanItemResult, ScanItemStatus, ScanPassInfo, ScanSnapshot, ScanStation } from "../lib/escaner-api.ts";
-import { GATE_STATION, STOCK_EXCEEDED } from "../lib/escaner-api.ts";
+import type { ScanEvent, ScanItem, ScanItemResult, ScanItemStatus, ScanPassInfo, ScanSnapshot, ScanStation, ScanVia } from "../lib/escaner-api.ts";
+import { GATE_STATION, MANUAL_SCANNER_PREFIX, STOCK_EXCEEDED, manualScannerId } from "../lib/escaner-api.ts";
+import { earliestIso, isRealIsoDate } from "../lib/fecha-iso.ts";
 import { isValidPassId } from "../lib/qr-codec.ts";
 import { verifyQrSignature } from "../lib/qr-verify.ts";
 import { BUSY, LeaseLost, tryExclusive } from "./compartido.ts";
@@ -13,7 +14,9 @@ import { clientKey, stationCodeAttempts } from "./limites.ts";
 import { describeForLog } from "./log.ts";
 import { resolveStationCode, type StationAccess } from "./panel.ts";
 import { getEventPublicKey } from "./qr-keys.ts";
-import { ClientIdTaken, type CheckIn, type EventRecord, type PassBenefit, type PassView, type Repo, type SyncMark } from "./repo.ts";
+import { issueScanSession, readScanSession, sessionFingerprint, type ScanSessionClaims } from "./sesion-escaner.ts";
+import { normalizeStationCode, stationCodesExpired } from "../lib/station-code.ts";
+import { ClientIdTaken, InvalidScannedAt, type CheckIn, type EventRecord, type PassBenefit, type PassView, type Repo, type SyncMark } from "./repo.ts";
 import { claimRoutePrize, isRoutePrize, recordVisit, StandsError, standScanVisits } from "./stands.ts";
 import {
   PERMANENT_CONTRACT_ERRORS,
@@ -27,12 +30,18 @@ import {
 
 // ---------- El puesto y lo que baja el escáner ----------
 
-/** El puesto que abre un código: la puerta, la mesa de su beneficio o el stand de quien auspicia. */
+/**
+ * El puesto que abre un código: la puerta, la mesa de su beneficio o el stand de quien auspicia. Un código de mesa
+ * o de stand cuyo beneficio o stand no está no cae a la puerta: falla cerrado (resolveStationCode ya lo da por
+ * inexistente; esto es la última puerta, por si llega igual).
+ */
 export function stationOf(access: StationAccess): ScanStation {
-  if (access.kind === "stand" && access.stand) {
+  if (access.kind === "stand") {
+    if (!access.stand) throw new Error("El código es de un stand que ya no existe");
     return { id: access.stand.id, kind: "stand", name: access.stand.name, place: null };
   }
-  if (access.kind === "benefit" && access.benefit) {
+  if (access.kind === "benefit") {
+    if (!access.benefit) throw new Error("El código es de una mesa cuyo beneficio ya no existe");
     return { id: access.benefit.id, kind: "benefit", name: access.benefit.name, place: access.benefit.station, food: isFoodBenefit(access.benefit) };
   }
   return GATE_STATION;
@@ -69,8 +78,8 @@ function toScanEvent(event: EventRecord, stations: ScanStation[]): ScanEvent {
 
 /**
  * Todo lo que el escáner necesita para decidir sin red: la clave pública del evento, su puesto y cada pase
- * activo con su nombre, sus beneficios, si ya entró y qué ya canjeó (según el espejo: lo que algún
- * escáner ya subió, aunque todavía no haya llegado al contrato).
+ * activo con su nombre, si ya entró y, en una mesa, si trae el beneficio de esa mesa y si ya lo canjeó (según el
+ * espejo: lo que algún escáner ya subió, aunque todavía no haya llegado al contrato).
  */
 export async function buildSnapshot(repo: Repo, access: StationAccess): Promise<ScanSnapshot> {
   const event = access.event;
@@ -102,19 +111,27 @@ export async function buildSnapshot(repo: Repo, access: StationAccess): Promise<
   const kindOfType = new Map(types.map((t) => [t.id, t.credentialKind] as const));
   const teamOf = new Map(teams.map((t) => [t.passId, t.team.name] as const));
 
+  // Cada puesto baja de cada pase solo lo que necesita para decidir: la puerta, si entró; una mesa, si trae su
+  // beneficio y si ya lo canjeó. Ni los demás beneficios (quién ganó un sorteo), ni los demás canjes con su hora,
+  // ni la dieta de quien no come en esa mesa viajan a un celular que no los necesita.
+  const mesa = station.kind === "benefit" ? station.id : null;
   const infos: ScanPassInfo[] = [];
   for (const { pass, person } of passes) {
     if (pass.status === "pending") continue;
+    const granted = (benefitsOf.get(pass.id) ?? []).map((b) => b.id);
+    const benefits = mesa ? granted.filter((id) => id === mesa) : [];
+    const redeemedAll = redeemed.get(pass.id) ?? {};
+    const redeemedHere = mesa && redeemedAll[mesa] ? { [mesa]: redeemedAll[mesa] } : {};
     infos.push({
       id: pass.id,
       name: person.name,
-      benefits: (benefitsOf.get(pass.id) ?? []).map((b) => b.id),
+      benefits,
       checkedInAt: pass.checkedInAt ?? checkedIn.get(pass.id) ?? null,
-      redeemed: redeemed.get(pass.id) ?? {},
+      redeemed: redeemedHere,
       credential: kindOfType.get(pass.ticketTypeId) ?? "attendee",
       team: teamOf.get(pass.id) ?? null,
-      // La dieta solo baja a los puestos de comida: la puerta y las demás mesas no la necesitan.
-      diet: station.kind === "benefit" && station.food ? pass.diet : null,
+      // La dieta solo baja a un puesto de comida, y solo de quien come en esa mesa.
+      diet: mesa && station.food && benefits.length > 0 ? pass.diet : null,
     });
   }
 
@@ -161,15 +178,18 @@ async function buildStandSnapshot(access: StationAccess): Promise<ScanSnapshot> 
 /** Los errores del contrato con los que no tiene sentido volver a intentar (el panel los cuenta como rechazados, no como pendientes). */
 const PERMANENT_ERRORS: ReadonlySet<string> = PERMANENT_CONTRACT_ERRORS;
 
+const URL_RE = /\bhttps?:\/\/\S+/gi;
+
 /**
- * Lo que se guarda en el espejo y se le dice al escáner de un error: el del contrato tal cual (es parte de la
- * interfaz), y de cualquier otro (la base, el servidor) un texto genérico. El detalle va al registro del
- * servidor: el texto de la base no es para la pantalla de un voluntario ni para quedar en una fila.
+ * Lo que se guarda en el espejo y se le dice al escáner de un error: el nombre del error del contrato, si lo tiene
+ * (es parte de la interfaz: el escáner lo cuenta y el panel lo reconoce), y de cualquier otro (la red, la base, el
+ * servidor) un texto genérico. El detalle va al registro del servidor, sin correos ni enlaces: el texto crudo del
+ * nodo o de la base no es para la pantalla de un voluntario ni para quedar en una fila.
  */
 function describe(error: unknown): string {
-  if (isContractError(error)) return error.message.slice(0, 200);
-  console.error(`[escaner] No se pudo sincronizar un registro: ${describeForLog(error)}`);
-  return "no se pudo registrar en el servidor, se reintenta";
+  if (isContractError(error) && error.errorName) return error.errorName;
+  console.error(`[escaner] No se pudo sincronizar un registro: ${describeForLog(error).replace(URL_RE, "[enlace]").slice(0, 500)}`);
+  return isContractError(error) ? "la red no confirmó el registro, se reintenta" : "no se pudo registrar en el servidor, se reintenta";
 }
 
 /**
@@ -239,14 +259,21 @@ function belongsToStation(station: ScanStation, item: ScanItem): boolean {
   return item.action === "redeem" && item.benefitId === station.id;
 }
 
-/** Cuánto puede estar atrasada o adelantada la hora de una lectura respecto del servidor: lo que un escáner sin red guardó hace días vale; una fecha de otro año, no. */
-export const SCANNED_AT_PAST_MS = 366 * 24 * 60 * 60 * 1000;
-export const SCANNED_AT_FUTURE_MS = 60 * 60 * 1000;
+/**
+ * Cuánto puede estar atrasada la hora de una lectura: hasta un día antes del inicio del evento (o de ahora, si
+ * el evento todavía no empezó: la prueba del escáner la víspera vale). Más atrás es una constancia inventada,
+ * no una cola que subió tarde. Y adelantada, diez minutos: el escáner marca la hora con el reloj corregido por
+ * el servidor, así que más que eso es un reloj roto o un dato inventado.
+ */
+export const SCANNED_AT_PAST_MS = 24 * 60 * 60 * 1000;
+export const SCANNED_AT_FUTURE_MS = 10 * 60 * 1000;
 
-/** Si la hora de la lectura cae dentro de lo posible: de un año atrás a una hora adelante del reloj del servidor. */
-export function isScannedAtInRange(scannedAt: string, now: number = Date.now()): boolean {
+/** Si la hora de la lectura cae dentro de lo posible para ese evento, según el reloj del servidor. */
+export function isScannedAtInRange(scannedAt: string, event: Pick<EventRecord, "startsAt">, now: number = Date.now()): boolean {
   const at = Date.parse(scannedAt);
-  return Number.isFinite(at) && at >= now - SCANNED_AT_PAST_MS && at <= now + SCANNED_AT_FUTURE_MS;
+  const starts = Date.parse(event.startsAt);
+  const floor = (Number.isFinite(starts) ? Math.min(starts, now) : now) - SCANNED_AT_PAST_MS;
+  return Number.isFinite(at) && at >= floor && at <= now + SCANNED_AT_FUTURE_MS;
 }
 
 async function processOne(repo: Repo, event: EventRecord, station: ScanStation, item: ScanItem, chain: ScanChain): Promise<ScanItemResult> {
@@ -257,8 +284,8 @@ async function processOne(repo: Repo, event: EventRecord, station: ScanStation, 
     error,
   });
   if (!belongsToStation(station, item)) return result("rejected", null, "fuera del puesto");
-  // Una hora imposible (el reloj de un celular en otro año) no entra al espejo: con Postgres quedaría reintentando para siempre.
-  if (!isScannedAtInRange(item.scannedAt)) return result("rejected", null, "hora de la lectura fuera de rango");
+  // Una hora imposible (el reloj de un celular en otro año, una constancia de antes del evento) no entra al espejo.
+  if (!isScannedAtInRange(item.scannedAt, event)) return result("rejected", null, "hora de la lectura fuera de rango");
   // El mismo clientId no va dos veces a la vez al contrato: si otro pedido (de esta instancia o de otra) lo está
   // mandando, este vuelve a la cola del escáner y se reintenta. Lo mismo si el turno se perdió a mitad de camino.
   try {
@@ -278,49 +305,80 @@ async function syncItem(repo: Repo, event: EventRecord, station: ScanStation, it
     error,
   });
   try {
-    // La visita a un stand se comprueba por su QR, antes de mirar nada del pase: así la respuesta no cuenta qué
-    // ids de pase existen. Los stands viven en la base, no en el contrato: no piden cuenta ni contrato.
-    if (item.action === "visit") return await syncVisit(repo, event, item, station);
+    // Primero la lectura misma, antes de mirar nada del pase: el QR que leyó el escáner tiene que ser auténtico y
+    // de ese pase (o la entrada venir marcada a mano en la puerta). Así la respuesta no cuenta qué ids de pase
+    // existen, y con un código de puesto no se registra nada de una credencial que nunca pasó por ahí.
+    const read = await verifiedRead(event, station, item);
+    if (!read) return result("rejected", null, UNVERIFIED_READ);
+    // Los stands viven en la base, no en el contrato: no piden cuenta ni contrato.
+    if (item.action === "visit") return await syncVisit(repo, item, station, read);
     const view = await repo.getPassView(item.passId);
     // Un mismo mensaje para un pase que no existe, uno de otro evento y uno sin activar: la respuesta no distingue.
     if (!view || view.event.id !== event.id || view.pass.status === "pending") return result("rejected", null, UNKNOWN_PASS);
     // El premio de la ruta también vive en la base.
-    if (item.action === "redeem" && item.benefitId && (await isRoutePrize(event.id, item.benefitId))) return await syncRoutePrize(repo, event, item, view);
+    if (item.action === "redeem" && item.benefitId && (await isRoutePrize(event.id, item.benefitId))) return await syncRoutePrize(repo, event, item, view, read);
     if (!view.pass.account) return result("rejected", null, UNKNOWN_PASS);
     if (!view.contractId) return result("rejected", null, "evento sin contrato");
     return item.action === "checkin"
-      ? await syncCheckIn(repo, event, item, view, view.contractId, chain)
-      : await syncRedeem(repo, event, item, view, view.contractId, chain);
+      ? await syncCheckIn(repo, event, item, view, view.contractId, chain, read)
+      : await syncRedeem(repo, event, item, view, view.contractId, chain, read);
   } catch (error) {
     // Un clientId de otro registro no se reintenta: con el mismo id el servidor no daría nunca otra cosa.
     if (error instanceof ClientIdTaken) return result("rejected", null, "clientId de otro registro");
+    // La capa de datos vuelve a mirar la hora antes de escribir: una que no existe tampoco se reintenta.
+    if (error instanceof InvalidScannedAt) return result("rejected", null, "hora de la lectura fuera de rango");
     return result("retry", null, describe(error));
   }
 }
 
 /** Lo que se contesta por un pase que no existe, es de otro evento o todavía no se activó: lo mismo en los tres casos. */
 export const UNKNOWN_PASS = "pase desconocido o sin activar";
-/** Lo que se contesta por una visita sin su QR, con un QR que no cierra o con el QR de otro pase: lo mismo en los tres casos. */
-export const UNVERIFIED_VISIT = "visita sin credencial verificada";
+/** Lo que se contesta por una lectura sin su QR, con un QR que no cierra o con el QR de otro pase: lo mismo en los tres casos. */
+export const UNVERIFIED_READ = "lectura sin credencial verificada";
+
+/** Lo que el servidor comprobó de una lectura: cómo se leyó la credencial y con qué id de escáner queda en el espejo. */
+interface VerifiedRead {
+  via: ScanVia;
+  scannerId: string;
+}
+
+/** El prefijo "manual:puerta:" del id de escáner lo pone el servidor: lo que venga del cliente se saca. */
+function plainScannerId(scannerId: string): string {
+  let id = scannerId;
+  while (id.startsWith(MANUAL_SCANNER_PREFIX)) id = id.slice(MANUAL_SCANNER_PREFIX.length);
+  return id;
+}
 
 /**
- * La visita a un stand: un sello por persona y stand, solo en la base. Antes de contarla, el servidor vuelve a
- * comprobar el QR que leyó el escáner (el del celular o el impreso) con la clave pública del evento: tiene que ser
- * auténtico y de ese mismo pase. Sin eso, con el código de un stand bastaría un id de pase (ocho letras, por ejemplo
- * de la lista del sorteo) para sumar visitas, subir el ranking y hasta ganar el premio de la ruta sin haber pasado.
- * La ventana de tiempo no se exige: la cola puede subir la lectura mucho después. Repetir la visita (otro escáner
- * del mismo stand, o la misma lectura que se reintenta) deja el mismo sello, así que siempre queda "sincronizada":
- * una visita repetida no es un doble que haya que revisar. El permiso para compartir el contacto arranca sin responder.
+ * Vuelve a comprobar el QR que leyó el escáner (el del celular o el impreso) con la clave pública del evento: tiene
+ * que ser auténtico y de ese mismo pase. Sin eso, con el código de un puesto bastaría un id de pase (ocho letras,
+ * por ejemplo de la lista del sorteo) para registrar entradas, canjes o visitas de alguien que nunca pasó, subir el
+ * ranking de la ruta y hasta ganar su premio. La ventana de tiempo no se exige: la cola puede subir la lectura
+ * mucho después. De ahí sale cómo se leyó (el del celular o el impreso). Sin QR solo vale la entrada marcada a mano
+ * en la puerta, con el código (o la sesión) de la Puerta: queda como "manual", con el id de escáner que lo dice.
+ * Null si la lectura no se puede dar por buena.
  */
-async function syncVisit(repo: Repo, event: EventRecord, item: ScanItem, station: ScanStation): Promise<ScanItemResult> {
-  const rejected = (error: string): ScanItemResult => ({ clientId: item.clientId, status: "rejected", txHash: null, error });
-  if (!item.qr) return rejected(UNVERIFIED_VISIT);
-  const signed = await verifyQrSignature(item.qr, await getEventPublicKey(event.id));
-  if (!signed.ok || signed.passId !== item.passId) return rejected(UNVERIFIED_VISIT);
+async function verifiedRead(event: EventRecord, station: ScanStation, item: ScanItem): Promise<VerifiedRead | null> {
+  const scannerId = plainScannerId(item.scannerId);
+  if (item.qr) {
+    const signed = await verifyQrSignature(item.qr, await getEventPublicKey(event.id));
+    if (!signed.ok || signed.passId !== item.passId) return null;
+    return { via: signed.via, scannerId };
+  }
+  if (item.via === "manual" && station.kind === "gate" && item.action === "checkin") return { via: "manual", scannerId: manualScannerId(scannerId) };
+  return null;
+}
+
+/**
+ * La visita a un stand: un sello por persona y stand, solo en la base. Repetir la visita (otro escáner del mismo
+ * stand, o la misma lectura que se reintenta) deja el mismo sello, así que siempre queda "sincronizada": una visita
+ * repetida no es un doble que haya que revisar. El permiso para compartir el contacto arranca sin responder.
+ */
+async function syncVisit(repo: Repo, item: ScanItem, station: ScanStation, read: VerifiedRead): Promise<ScanItemResult> {
   try {
-    await recordVisit({ standId: station.id, passId: item.passId, clientId: item.clientId, scannerId: item.scannerId, scannedAt: item.scannedAt }, repo);
+    await recordVisit({ standId: station.id, passId: item.passId, clientId: item.clientId, scannerId: read.scannerId, scannedAt: item.scannedAt, via: read.via }, repo);
   } catch (error) {
-    if (error instanceof StandsError) return rejected("stand o pase desconocido");
+    if (error instanceof StandsError) return { clientId: item.clientId, status: "rejected", txHash: null, error: "stand o pase desconocido" };
     throw error;
   }
   return { clientId: item.clientId, status: "synced", txHash: null, error: null };
@@ -331,7 +389,7 @@ async function syncVisit(repo: Repo, event: EventRecord, item: ScanItem, station
  * garantiza la base: claimRoutePrize marca el primer canje de esa persona de un solo golpe, y el segundo,
  * aunque llegue de otro escáner, queda como doble para revisar. Hay que haber ganado el premio.
  */
-async function syncRoutePrize(repo: Repo, event: EventRecord, item: ScanItem, view: PassView): Promise<ScanItemResult> {
+async function syncRoutePrize(repo: Repo, event: EventRecord, item: ScanItem, view: PassView, read: VerifiedRead): Promise<ScanItemResult> {
   const benefit = view.benefits.find((b) => b.id === item.benefitId);
   if (!benefit) return { clientId: item.clientId, status: "rejected", txHash: null, error: "la credencial todavía no ganó este premio" };
   const row = await repo.recordRedemption({
@@ -339,8 +397,9 @@ async function syncRoutePrize(repo: Repo, event: EventRecord, item: ScanItem, vi
     eventId: event.id,
     passId: view.pass.id,
     benefitId: benefit.id,
-    scannerId: item.scannerId,
+    scannerId: read.scannerId,
     scannedAt: item.scannedAt,
+    via: read.via,
   });
   if (row.synced) return { clientId: item.clientId, status: "synced", txHash: null, error: null };
   if (row.duplicate) return { clientId: item.clientId, status: "duplicate", txHash: null, error: row.error };
@@ -365,15 +424,16 @@ function rememberSent(mark: (id: string, m: SyncMark) => Promise<unknown>, id: s
   };
 }
 
-async function syncCheckIn(repo: Repo, event: EventRecord, item: ScanItem, view: PassView, contractId: string, chain: ScanChain): Promise<ScanItemResult> {
+async function syncCheckIn(repo: Repo, event: EventRecord, item: ScanItem, view: PassView, contractId: string, chain: ScanChain, read: VerifiedRead): Promise<ScanItemResult> {
   const account = view.pass.account as string;
-  const row = await repo.recordCheckIn({ clientId: item.clientId, eventId: event.id, passId: view.pass.id, scannerId: item.scannerId, scannedAt: item.scannedAt });
+  const row = await repo.recordCheckIn({ clientId: item.clientId, eventId: event.id, passId: view.pass.id, scannerId: read.scannerId, scannedAt: item.scannedAt, via: read.via });
   if (row.synced) return { clientId: item.clientId, status: "synced", txHash: row.txHash, error: null };
   if (row.duplicate) return { clientId: item.clientId, status: "duplicate", txHash: row.txHash, error: row.error };
 
   const done = async (hash: string): Promise<ScanItemResult> => {
     await repo.markCheckIn(row.id, { synced: true, txHash: hash, error: null });
-    if (view.pass.status !== "checked_in") await repo.updatePass(view.pass.id, { status: "checked_in", checkedInAt: item.scannedAt });
+    // La hora de entrada de la credencial: la de la lectura, o la de llegada al servidor si el escáner iba adelantado.
+    if (view.pass.status !== "checked_in") await repo.updatePass(view.pass.id, { status: "checked_in", checkedInAt: earliestIso(row.scannedAt, row.receivedAt) });
     return { clientId: item.clientId, status: "synced", txHash: hash, error: null };
   };
   // Un intento anterior mandó su transacción y no supo cómo terminó: se le pregunta a la red antes de mandar otra.
@@ -404,7 +464,7 @@ async function syncCheckIn(repo: Repo, event: EventRecord, item: ScanItem, view:
   }
 }
 
-async function syncRedeem(repo: Repo, event: EventRecord, item: ScanItem, view: PassView, contractId: string, chain: ScanChain): Promise<ScanItemResult> {
+async function syncRedeem(repo: Repo, event: EventRecord, item: ScanItem, view: PassView, contractId: string, chain: ScanChain, read: VerifiedRead): Promise<ScanItemResult> {
   const account = view.pass.account as string;
   const benefit = item.benefitId ? view.benefits.find((b) => b.id === item.benefitId) : undefined;
   if (!item.benefitId || !benefit) return { clientId: item.clientId, status: "rejected", txHash: null, error: "la entrada no incluye ese beneficio" };
@@ -415,8 +475,9 @@ async function syncRedeem(repo: Repo, event: EventRecord, item: ScanItem, view: 
     eventId: event.id,
     passId: view.pass.id,
     benefitId: benefit.id,
-    scannerId: item.scannerId,
+    scannerId: read.scannerId,
     scannedAt: item.scannedAt,
+    via: read.via,
   });
   if (row.synced) return withStockCheck(repo, benefit, { clientId: item.clientId, status: "synced", txHash: row.txHash, error: null });
   if (row.duplicate) return { clientId: item.clientId, status: "duplicate", txHash: row.txHash, error: row.error };
@@ -470,14 +531,52 @@ async function withStockCheck(repo: Repo, benefit: PassBenefit, result: ScanItem
 
 const MAX_ITEMS_PER_SYNC = 20;
 
-export type ScanAuth = { ok: true; access: StationAccess; body: Record<string, unknown> } | { ok: false; response: Response };
+export type ScanAuth =
+  | {
+      ok: true;
+      access: StationAccess;
+      body: Record<string, unknown>;
+      /** La sesión con que vino el pedido, o null si vino con el código. */
+      session: ScanSessionClaims | null;
+      /**
+       * Una huella del código del puesto (el que lleva la ficha, o el que vino), para contar por puesto (el freno de la
+       * búsqueda de la puerta). Contar por ficha dejaba renovar el cupo pidiendo una ficha nueva, que open da sin contar nada.
+       */
+      principal: string;
+    }
+  | { ok: false; response: Response };
+
+const badRequest = (): ScanAuth => ({ ok: false, response: Response.json({ error: "bad_request" }, { status: 400 }) });
+const unauthorized = (error: string): ScanAuth => ({ ok: false, response: Response.json({ error }, { status: 401 }) });
 
 /**
- * Lee el cuerpo del pedido y resuelve el código del puesto: a qué evento y a qué puesto abre. Los códigos
- * equivocados se cuentan por la IP que pone la plataforma (no la que dice x-forwarded-for) y en total, con
- * una espera que crece: ver stationCodeAttempts en limites.ts.
+ * Lee el cuerpo del pedido y resuelve a qué evento y a qué puesto abre. Con la ficha de sesión que dio open
+ * (`token`, src/server/sesion-escaner.ts) no pasa por ningún freno: la ficha la firmó el servidor y va atada
+ * al código, así que si el código se cambió la ficha deja de valer. Con el código (`code`, lo que manda open,
+ * y la cola de una versión anterior) los equivocados se cuentan por la IP que pone la plataforma (no la que
+ * dice x-forwarded-for) y en total, con una espera que crece: ver stationCodeAttempts en limites.ts.
  */
 export async function authorizeScanRequest(repo: Repo, request: Request): Promise<ScanAuth> {
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return badRequest();
+  }
+  // Un cuerpo que es JSON pero no es un objeto ("null", una lista) tampoco sirve.
+  if (!body || typeof body !== "object" || Array.isArray(body)) return badRequest();
+
+  const token = typeof body.token === "string" ? body.token : "";
+  if (token) {
+    const session = await readScanSession(token);
+    if (!session) return unauthorized("session_expired");
+    const access = await resolveStationCode(session.code, repo);
+    // El código se cambió desde el panel: la sesión que lo llevaba se cierra con él.
+    if (!access || access.event.id !== session.eventId) return unauthorized("wrong_code");
+    if (stationCodesExpired(access.event)) return unauthorized("expired");
+    return { ok: true, access, body, session, principal: sessionFingerprint(session.code) };
+  }
+
   const attempts = stationCodeAttempts();
   const key = clientKey(request.headers);
   const wait = await attempts.blockedFor(key);
@@ -487,45 +586,37 @@ export async function authorizeScanRequest(repo: Repo, request: Request): Promis
       response: Response.json({ error: "too_many_attempts" }, { status: 429, headers: { "Retry-After": String(Math.ceil(wait / 1000)) } }),
     };
   }
-  let body: Record<string, unknown>;
-  try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
-    return { ok: false, response: Response.json({ error: "bad_request" }, { status: 400 }) };
-  }
   const code = typeof body.code === "string" ? body.code : "";
-  if (!code) return { ok: false, response: Response.json({ error: "bad_request" }, { status: 400 }) };
+  if (!code) return badRequest();
   const access = await resolveStationCode(code, repo);
   if (!access) {
     await attempts.note(key);
-    return { ok: false, response: Response.json({ error: "wrong_code" }, { status: 401 }) };
+    return unauthorized("wrong_code");
   }
-  return { ok: true, access, body };
+  // Los códigos vencen un día después del evento: el código es bueno, así que no cuenta como intento, pero no abre.
+  if (stationCodesExpired(access.event)) return unauthorized("expired");
+  return { ok: true, access, body, session: null, principal: sessionFingerprint(normalizeStationCode(code)) };
+}
+
+/** La ficha de sesión para la foto que se devuelve al abrir un puesto: el escáner la manda en vez del código desde ahí. */
+export async function openScanSession(auth: Extract<ScanAuth, { ok: true }>): Promise<{ token: string; expiresAt: string }> {
+  const scannerId = typeof auth.body.scannerId === "string" ? clean(auth.body.scannerId).slice(0, 64) : (auth.session?.scannerId ?? "");
+  return issueScanSession({ eventId: auth.access.event.id, code: auth.session?.code ?? normalizeStationCode(String(auth.body.code ?? "")), scannerId });
 }
 
 const ACTIONS = new Set(["checkin", "redeem", "visit"]);
-const ISO_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|([+-])(\d{2}):(\d{2}))$/;
 
-/**
- * Si el texto es una fecha ISO 8601 que existe de verdad: la forma, y además el mes, el día (según el mes y el
- * año), la hora y el desfase. Date.parse acepta un 30 de febrero y lo corre a marzo; Postgres lo rechaza, y
- * un registro con esa fecha quedaba reintentando para siempre.
- */
-export function isRealIsoDate(text: string): boolean {
-  const m = ISO_RE.exec(text);
-  if (!m) return false;
-  const [year, month, day, hour, minute, second] = [m[1], m[2], m[3], m[4], m[5], m[6]].map(Number) as [number, number, number, number, number, number];
-  if (year < 1970 || year > 9999 || month < 1 || month > 12 || hour > 23 || minute > 59 || second > 59) return false;
-  if (day < 1 || day > new Date(Date.UTC(year, month, 0)).getUTCDate()) return false;
-  if (m[8] !== "Z" && (Number(m[10]) > 14 || Number(m[11]) > 59)) return false;
-  return Number.isFinite(Date.parse(text));
-}
+// La forma de la fecha de cada lectura vive en src/lib/fecha-iso.ts, porque la capa de datos la vuelve a mirar.
+export { isRealIsoDate };
 
 /** Sin NUL ni otros controles: Postgres no los guarda, y en un id o un nombre de escáner no significan nada. */
 const clean = (text: string): string => text.replace(/[\u0000-\u001f\u007f]/g, "");
 
 /** El QR del celular tiene 274 letras y el impreso 112: nada más largo es un QR. */
 const QR_MAX_LENGTH = 320;
+
+/** Los ids que el contraste con la cadena usa para lo que trae del contrato ("chain:<pase>:..."): un escáner no los puede ocupar. */
+const RESERVED_CLIENT_ID = /^chain:/i;
 
 /** Los registros del pedido, con su forma comprobada. Devuelve null si alguno no tiene la forma esperada. */
 export function parseScanItems(raw: unknown): ScanItem[] | null {
@@ -541,10 +632,12 @@ export function parseScanItems(raw: unknown): ScanItem[] | null {
     const scannedAt = typeof v.scannedAt === "string" ? v.scannedAt : "";
     const scannerId = typeof v.scannerId === "string" ? clean(v.scannerId).slice(0, 64) : "";
     const qr = typeof v.qr === "string" ? clean(v.qr).trim().toUpperCase() : "";
-    if (!clientId || clientId.length > 64 || !ACTIONS.has(action) || !isValidPassId(passId) || !isRealIsoDate(scannedAt)) return null;
+    if (!clientId || clientId.length > 64 || RESERVED_CLIENT_ID.test(clientId) || !ACTIONS.has(action) || !isValidPassId(passId) || !isRealIsoDate(scannedAt)) return null;
     if (benefitId !== null && benefitId.length > 64) return null;
     if (qr.length > QR_MAX_LENGTH) return null;
-    items.push({ clientId, action: action as ScanItem["action"], passId, benefitId, scannedAt, scannerId, ...(qr ? { qr } : {}) });
+    // "manual" es lo único que el cliente puede decir de cómo leyó; lo demás lo decide el servidor con el QR.
+    const via = v.via === "manual" ? { via: "manual" as const } : {};
+    items.push({ clientId, action: action as ScanItem["action"], passId, benefitId, scannedAt, scannerId, ...(qr ? { qr } : {}), ...via });
   }
   return items;
 }

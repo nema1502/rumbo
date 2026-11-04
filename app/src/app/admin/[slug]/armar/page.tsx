@@ -16,6 +16,8 @@ import { getRepo } from "@/server/repo.ts";
 import { guardarBorrador } from "./actions.ts";
 
 export const dynamic = "force-dynamic";
+// La acción de publicar despliega un contrato por tipo de credencial en la red de prueba: tarda. Con Fluid en Vercel el tope por omisión alcanza; se declara igual.
+export const maxDuration = 300;
 
 type Params = Promise<{ slug: string }>;
 type Search = Promise<Record<string, string | string[] | undefined>>;

@@ -15,9 +15,13 @@ export interface QueueEntry extends ScanItem {
   /**
    * El código del puesto en que se registró. Viaja con el registro al sincronizar, así llega aunque el
    * voluntario haya cerrado ese puesto y abierto otro (el servidor solo acepta de cada código lo de su
-   * puesto). Los registros de una versión anterior no lo tienen.
+   * puesto). Si quien organiza cambió el código y el registro ya viajó con el nuevo (desde el mismo puesto,
+   * vuelto a abrir), queda anotado con el nuevo cuando el servidor pide reintentar. Los registros de una
+   * versión anterior no lo tienen.
    */
   code?: string;
+  /** La ficha de sesión con que estaba abierto ese puesto: con ella viaja, sin pasar por el freno de códigos. */
+  token?: string;
   status: QueueStatus;
   /** Cuántas veces se intentó llevar al servidor sin lograrlo. */
   attempts: number;
@@ -26,7 +30,7 @@ export interface QueueEntry extends ScanItem {
   updatedAt: string;
 }
 
-export type QueuePatch = Partial<Pick<QueueEntry, "status" | "attempts" | "lastError" | "txHash">>;
+export type QueuePatch = Partial<Pick<QueueEntry, "status" | "attempts" | "lastError" | "txHash" | "code" | "token">>;
 
 export interface QueueCounts {
   pending: number;
@@ -37,8 +41,13 @@ export interface QueueCounts {
 
 /** El puesto abierto en este celular. Una sola sesión por vez. */
 export interface ScanSession {
-  /** El código del puesto con que se abrió: hace falta para volver a sincronizar. */
+  /** El código del puesto con que se abrió (el enlace al panel del stand lo lleva). */
   code: string;
+  /**
+   * La ficha de sesión que dio el servidor al abrir: con ella se sincroniza, se busca y se agrega, sin mandar el
+   * código. Una sesión guardada sin ficha (de una versión anterior) se descarta y se vuelve a pedir el código.
+   */
+  token?: string;
   /** Un id de este celular, para que el panel sepa qué puesto registró cada cosa. */
   scannerId: string;
   snapshot: ScanSnapshot;
@@ -241,35 +250,43 @@ export async function abrirCola(): Promise<ColaLocal> {
 
 /**
  * Una entrada nueva para la cola, lista para registrar, con el código del puesto en que se hizo. `qr` es el
- * texto leído: en un stand viaja con la visita, para que el servidor vuelva a comprobar la firma.
+ * texto leído: viaja con cada lectura, para que el servidor vuelva a comprobar la firma; solo falta en una
+ * entrada marcada a mano en la puerta (`via: "manual"`). `at` es la hora de la lectura: el reloj de este celular
+ * corregido con la hora del servidor, si se la conoce.
  */
 export function nuevaEntrada(input: {
   eventId: string;
   stationId: string;
   code: string;
+  token?: string;
   action: ScanAction;
   passId: string;
   benefitId: string | null;
   scannerId: string;
   qr?: string;
+  via?: "manual";
+  at?: number;
 }): QueueEntry {
-  const at = now();
+  const at = input.at === undefined || !Number.isFinite(input.at) ? now() : new Date(input.at).toISOString();
   return {
     clientId: nuevoId(),
     eventId: input.eventId,
     stationId: input.stationId,
     code: input.code,
+    ...(input.token ? { token: input.token } : {}),
     action: input.action,
     passId: input.passId,
     benefitId: input.benefitId,
     scannedAt: at,
     scannerId: input.scannerId,
     ...(input.qr ? { qr: input.qr } : {}),
+    ...(input.via ? { via: input.via } : {}),
     status: "pending",
     attempts: 0,
     lastError: null,
     txHash: null,
-    updatedAt: at,
+    // Con el reloj de este celular, sin corregir: la espera entre reintentos se mide con ese mismo reloj.
+    updatedAt: now(),
   };
 }
 
@@ -290,9 +307,14 @@ export function listoParaReintentar(entry: QueueEntry, at = Date.now()): boolean
   return at - new Date(entry.updatedAt).getTime() >= wait;
 }
 
-/** Lo pendiente de un puesto, que va junto al servidor con el código de ese puesto. */
+/** Lo pendiente de un puesto, que va junto al servidor con la ficha de sesión de ese puesto (o su código). */
 export interface GrupoParaSincronizar {
   code: string;
+  /**
+   * Con qué viaja: la ficha de la sesión abierta si es el puesto abierto; si no, la última ficha con que se
+   * registró algo del grupo; y si ninguna (registros de una versión anterior), el código.
+   */
+  token: string | null;
   /** Si es el puesto abierto ahora: su respuesta trae la foto fresca que usa la pantalla. */
   actual: boolean;
   entries: QueueEntry[];
@@ -301,18 +323,22 @@ export interface GrupoParaSincronizar {
 /**
  * Agrupa lo pendiente por el código del puesto en que se registró: cada registro viaja con su propio
  * código, porque el servidor solo acepta de un código de puerta entradas y de uno de mesa canjes de su
- * beneficio. Mandar lo de un puesto con el código de otro haría que se rechace para siempre. Un registro
- * sin código (de una versión anterior) va con el de la sesión si es de su mismo evento y puesto; si no,
- * espera a que se vuelva a abrir ese puesto. El grupo del puesto abierto va primero.
+ * beneficio. Mandar lo de un puesto con el código de otro haría que se rechace para siempre. Lo que es del
+ * mismo evento y puesto que la sesión abierta va con ella, con su código y su ficha, aunque se haya registrado
+ * con otro código de ese puesto (quien organiza lo cambió desde el panel: el puesto es el mismo, y el servidor
+ * vuelve a comprobar el QR de cada lectura) o sin código (una versión anterior). Lo de otros puestos espera con
+ * su propio código y la última ficha con que se registró algo. El grupo del puesto abierto va primero.
  */
-export function agruparParaSincronizar(pendientes: QueueEntry[], sesion: { code: string; eventId: string; stationId: string }): GrupoParaSincronizar[] {
+export function agruparParaSincronizar(pendientes: QueueEntry[], sesion: { code: string; token?: string | null; eventId: string; stationId: string }): GrupoParaSincronizar[] {
   const grupos = new Map<string, GrupoParaSincronizar>();
   const codigoSesion = normalizeStationCode(sesion.code);
   for (const entry of pendientes) {
     const esDeLaSesion = entry.eventId === sesion.eventId && entry.stationId === sesion.stationId;
-    const code = entry.code ? normalizeStationCode(entry.code) : esDeLaSesion ? codigoSesion : null;
+    const code = esDeLaSesion ? codigoSesion : entry.code ? normalizeStationCode(entry.code) : null;
     if (!code) continue;
-    const grupo = grupos.get(code) ?? { code, actual: code === codigoSesion, entries: [] };
+    const actual = code === codigoSesion;
+    const grupo = grupos.get(code) ?? { code, token: actual ? (sesion.token ?? null) : null, actual, entries: [] };
+    if (!actual && entry.token) grupo.token = entry.token;
     grupo.entries.push(entry);
     grupos.set(code, grupo);
   }

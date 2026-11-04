@@ -32,7 +32,7 @@ export function Credencial({ view, t, qr }: { view: CredentialView; t: T; qr: Re
     <article className={`tarjeta tarjeta-alzada credencial${staff ? " credencial-staff" : ""}`} data-tipo={view.kind} aria-label={t("evento.credencial.titulo")}>
       <div className="credencial-cabecera">
         <span className="credencial-tipo">{staff ? t(kindLabelKey(view.kind)) : view.ticketType.name}</span>
-        <span>{t("evento.credencial.numero", { n: view.number, total: view.total })}</span>
+        <span>{view.number !== null ? t("evento.credencial.numero", { n: view.number, total: view.total }) : t("evento.credencial.sinNumero")}</span>
       </div>
       <div className="credencial-cuerpo">
         {qr}

@@ -9,7 +9,7 @@ import { useLang, useT } from "@/i18n/client.tsx";
 import type { Lang } from "@/i18n/index.ts";
 import { kindLabelKey } from "@/lib/credential-kinds.ts";
 import { isManualScannerId } from "@/lib/escaner-api.ts";
-import { formatStationCode } from "@/lib/station-code.ts";
+import { formatStationCode, stationCodesExpired } from "@/lib/station-code.ts";
 import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
 import type { ChainSyncSummary, PanelDuplicate, PanelPass, PanelState } from "@/server/panel.ts";
 import { BotonCopiar } from "./BotonCopiar.tsx";
@@ -47,6 +47,9 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
   const [cadena, setCadena] = useState<EstadoCadena>({ busy: false, result: initial.lastChainSync, error: null });
   const [query, setQuery] = useState("");
   const [origin, setOrigin] = useState("");
+  /** El código de puesto que se está cambiando, y si el último cambio falló. */
+  const [cambiando, setCambiando] = useState<string | null>(null);
+  const [errorPuesto, setErrorPuesto] = useState(false);
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -99,6 +102,26 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
     }
   }
 
+  /** Un código de puesto nuevo: el de ahora deja de abrir el escáner en el acto. */
+  async function cambiarCodigo(code: string, puesto: string) {
+    if (!window.confirm(t("panel.puestos.confirmarCambiar", { puesto }))) return;
+    setCambiando(code);
+    setErrorPuesto(false);
+    try {
+      const res = await fetch(`/api/admin/${slug}/puestos`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code }) });
+      if (res.status === 401) {
+        setConexion("vencida");
+        return;
+      }
+      if (!res.ok) throw new Error(String(res.status));
+      setState(((await res.json()) as { state: PanelState }).state);
+    } catch {
+      setErrorPuesto(true);
+    } finally {
+      setCambiando(null);
+    }
+  }
+
   const q = query.trim().toLowerCase();
   const visibles = useMemo(
     () => (q ? state.passes.filter((p) => p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)) : state.passes),
@@ -111,15 +134,13 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
   const lugar = formatEventWhere(event);
 
   // Dónde se registró un doble: el puesto, no el id del celular. Un canje trae la mesa de su beneficio; una
-  // entrada es la puerta, con el escáner o marcada a mano; si no se sabe, "en otro escáner".
-  const dondeDoble = (d: PanelDuplicate) =>
-    isManualScannerId(d.scannerId)
-      ? t("panel.dobles.aMano")
-      : d.kind === "checkin"
-        ? t("panel.dobles.puesto", { puesto: t("panel.puestos.puerta") })
-        : d.station
-          ? t("panel.dobles.puesto", { puesto: d.station })
-          : t("panel.dobles.otroEscaner");
+  // entrada es la puerta, con el escáner o marcada a mano; si no se sabe, "en otro escáner". Y con qué se leyó
+  // la credencial (el QR del celular o el impreso), si el servidor lo comprobó.
+  const dondeDoble = (d: PanelDuplicate) => {
+    if (d.via === "manual" || isManualScannerId(d.scannerId)) return t("panel.dobles.aMano");
+    const donde = d.kind === "checkin" ? t("panel.dobles.puesto", { puesto: t("panel.puestos.puerta") }) : d.station ? t("panel.dobles.puesto", { puesto: d.station }) : t("panel.dobles.otroEscaner");
+    return d.via ? `${donde}, ${t(`panel.dobles.via.${d.via}`)}` : donde;
+  };
 
   return (
     <section className="panel">
@@ -216,6 +237,8 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
         <Tarjeta>
           <h2>{t("panel.puestos.titulo")}</h2>
           <p className="chico">{t("panel.puestos.bajada")}</p>
+          {stationCodesExpired(event) && <Aviso>{t("panel.puestos.vencidos")}</Aviso>}
+          {errorPuesto && <Aviso tono="alerta">{t("panel.puestos.errorCambiar")}</Aviso>}
           <ul className="puestos">
             {state.stations.map((station) => {
               const puesto = station.kind === "gate" ? t("panel.puestos.puerta") : station.kind === "stand" ? t("stands.escaner.titulo", { nombre: station.standName ?? "" }) : (station.benefitName ?? "");
@@ -233,6 +256,9 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
                     listo={t("panel.puestos.copiado")}
                     aria-label={t("panel.puestos.copiarAria", { puesto })}
                   />
+                  <Boton variante="secundario" className="boton-chico" onClick={() => void cambiarCodigo(station.code, puesto)} disabled={cambiando !== null} aria-label={t("panel.puestos.cambiarAria", { puesto })}>
+                    {cambiando === station.code ? t("panel.puestos.cambiando") : t("panel.puestos.cambiar")}
+                  </Boton>
                 </li>
               );
             })}

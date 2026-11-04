@@ -5,6 +5,7 @@
 // no se puede armar una credencial, y sin el código no se puede recorrer los ids de pase para sacar nombres
 // (un id solo tiene cuarenta bits).
 import { createHmac } from "node:crypto";
+import { earliestIso } from "../lib/fecha-iso.ts";
 import { base32Encode, constantTimeEqual, isValidPassId } from "../lib/qr-codec.ts";
 import { baseUrl } from "./env.ts";
 import { getEventQrKeys } from "./qr-keys.ts";
@@ -47,12 +48,16 @@ interface FirstEntry {
   txHash: string | null;
 }
 
-/** La primera entrada válida de un pase (las dobles no cuentan) y su transacción, si llegó al contrato. */
+/**
+ * La primera entrada válida de un pase (las dobles no cuentan) y su transacción, si llegó al contrato. La hora que
+ * se muestra es la menor entre la de la lectura (la puso el escáner) y la de llegada al servidor (la puso el
+ * servidor): un escáner con el reloj adelantado no corre la constancia hacia adelante.
+ */
 async function firstEntry(passId: string, fallbackAt: string | null, repo: Repo): Promise<FirstEntry> {
   const checkIns = (await repo.listCheckInsForPass(passId)).filter((c) => !c.duplicate).sort((a, b) => a.scannedAt.localeCompare(b.scannedAt));
   const first = checkIns[0];
   const synced = checkIns.find((c) => c.synced && c.txHash);
-  return { at: first?.scannedAt ?? fallbackAt, txHash: synced?.txHash ?? null };
+  return { at: first ? earliestIso(first.scannedAt, first.receivedAt) : fallbackAt, txHash: synced?.txHash ?? null };
 }
 
 /**

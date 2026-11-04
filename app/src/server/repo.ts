@@ -3,6 +3,8 @@
 // producción. Nombres y correos viven acá, nunca en la cadena.
 import { randomUUID } from "node:crypto";
 import { CREDENTIAL_KINDS, isCredentialKind, type CredentialKind } from "../lib/credential-kinds.ts";
+import type { ScanVia } from "../lib/escaner-api.ts";
+import { isReadableDate, isRealIsoDate } from "../lib/fecha-iso.ts";
 import { getDb, jsonParam, readJson, type Db, type Row, type SqlValue } from "./base/index.ts";
 import { plainSecrets } from "./base/cifrado.ts";
 import { openSqlite } from "./base/sqlite.ts";
@@ -237,7 +239,12 @@ export interface CheckIn {
   eventId: string;
   passId: string;
   scannerId: string | null;
+  /** La hora de la lectura, como la puso el escáner. */
   scannedAt: string;
+  /** Cuándo llegó al servidor: la pone el servidor, y la constancia de asistencia muestra la menor de las dos. */
+  receivedAt: string;
+  /** Cómo se leyó la credencial, según lo comprobó el servidor. Null en lo que trajo el contraste con la cadena y en lo de antes. */
+  via: ScanVia | null;
   synced: boolean;
   duplicate: boolean;
   /** La transacción que lo llevó al contrato. Sin `synced`, la que se mandó y todavía no se sabe cómo terminó. */
@@ -255,6 +262,7 @@ export interface NewCheckIn {
   passId: string;
   scannerId?: string | null;
   scannedAt?: string;
+  via?: ScanVia | null;
 }
 
 export interface Redemption extends CheckIn {
@@ -275,6 +283,17 @@ export class ClientIdTaken extends Error {
     super(`El clientId ${clientId} ya es de otro registro`);
     this.name = "ClientIdTaken";
     this.clientId = clientId;
+  }
+}
+
+/**
+ * La hora de una lectura no es una fecha que exista, o es de antes del año 2000: no entra al espejo. La forma la
+ * mira primero el escáner (parseScanItems); esto es la última puerta, para cualquier otro camino que escriba.
+ */
+export class InvalidScannedAt extends Error {
+  constructor(value: string) {
+    super(`La hora de la lectura no es una fecha que exista: ${value.slice(0, 40)}`);
+    this.name = "InvalidScannedAt";
   }
 }
 
@@ -469,6 +488,26 @@ const numOrNull = (v: unknown): number | null => (v === null || v === undefined 
 /** SQLite guarda los booleanos como 1 y 0; Postgres los da como true y false. */
 const bool = (v: unknown): boolean => v === true || Number(v) === 1;
 
+/**
+ * La hora de una lectura como se va a guardar: la que vino, si existe; la de ahora, si no vino. Una que no existe
+ * (ver InvalidScannedAt) no se guarda por ningún camino.
+ */
+export function checkedScannedAt(value: string | undefined): string {
+  if (value === undefined) return now();
+  if (!isRealIsoDate(value)) throw new InvalidScannedAt(value);
+  return value;
+}
+
+/**
+ * Una fecha leída de la base, lista para mostrar. Si una fila quedó con una que no se puede leer (guardada antes
+ * de que se validara, o un año que el driver de Postgres no sabe leer), vale la de respaldo: ninguna pantalla
+ * revienta por una fila. scripts/sanear-fechas.mjs las lista y las borra.
+ */
+const readableOr = (value: unknown, fallback: unknown): string => (isReadableDate(value) ? value : str(fallback));
+
+const VIAS: readonly ScanVia[] = ["live", "printed", "manual"];
+const viaOf = (v: unknown): ScanVia | null => (VIAS.includes(v as ScanVia) ? (v as ScanVia) : null);
+
 function rowToEvent(row: Row): EventRecord {
   return {
     id: str(row.id),
@@ -551,7 +590,8 @@ function rowToPass(row: Row): Pass {
     chainNumber: numOrNull(row.chain_number),
     createdAt: str(row.created_at),
     activatedAt: strOrNull(row.activated_at),
-    checkedInAt: strOrNull(row.checked_in_at),
+    // La hora de entrada la pone la lectura de la puerta: si no se puede leer, vale la de activación.
+    checkedInAt: row.checked_in_at === null || row.checked_in_at === undefined ? null : readableOr(row.checked_in_at, row.activated_at ?? row.created_at),
     contactConsent: bool(row.contact_consent),
     contactConsentAt: strOrNull(row.contact_consent_at),
     diet: strOrNull(row.diet),
@@ -566,7 +606,9 @@ function rowToCheckIn(row: Row): CheckIn {
     eventId: str(row.event_id),
     passId: str(row.pass_id),
     scannerId: strOrNull(row.scanner_id),
-    scannedAt: str(row.scanned_at),
+    scannedAt: readableOr(row.scanned_at, row.created_at),
+    receivedAt: readableOr(row.received_at, row.created_at),
+    via: viaOf(row.via),
     synced: bool(row.synced),
     duplicate: bool(row.duplicate),
     txHash: strOrNull(row.tx_hash),
@@ -930,7 +972,6 @@ export class SqlRepo implements Repo {
     if (patch.diet !== undefined) columns.diet = patch.diet;
     if (patch.status !== undefined) {
       columns.status = patch.status;
-      if (patch.status !== "pending" && patch.activatedAt === undefined) columns.activated_at = now();
       if (patch.status === "checked_in" && patch.checkedInAt === undefined) columns.checked_in_at = now();
     }
     if (patch.txHash !== undefined) columns.tx_hash = patch.txHash;
@@ -942,6 +983,11 @@ export class SqlRepo implements Repo {
       columns.contact_consent_at = patch.contactConsent ? now() : null;
     }
     await this.update("passes", id, columns);
+    // La hora de activación se fija una sola vez: al pasar a entrada no se vuelve a escribir, o la credencial
+    // cambiaba de lugar entre las del evento justo delante de la persona.
+    if (patch.status !== undefined && patch.status !== "pending" && patch.activatedAt === undefined) {
+      await this.db.run("UPDATE passes SET activated_at = COALESCE(activated_at, ?) WHERE id = ?", [now(), id]);
+    }
     const pass = await this.getPass(id);
     if (!pass) throw new Error(`No existe el pase ${id}`);
     return pass;
@@ -1006,13 +1052,15 @@ export class SqlRepo implements Repo {
   }
 
   async recordCheckIn(input: NewCheckIn): Promise<CheckIn> {
+    const scannedAt = checkedScannedAt(input.scannedAt);
     if (input.clientId) {
       const existing = await this.db.one("SELECT * FROM checkins WHERE client_id = ?", [input.clientId]);
       if (existing) return this.sameCheckIn(existing, input);
     }
+    const at = now();
     const inserted = await this.db.one(
-      "INSERT INTO checkins (id, client_id, event_id, pass_id, scanner_id, scanned_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (client_id) DO NOTHING RETURNING *",
-      [randomUUID(), input.clientId ?? null, input.eventId, input.passId, input.scannerId ?? null, input.scannedAt ?? now(), now()],
+      "INSERT INTO checkins (id, client_id, event_id, pass_id, scanner_id, scanned_at, received_at, via, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (client_id) DO NOTHING RETURNING *",
+      [randomUUID(), input.clientId ?? null, input.eventId, input.passId, input.scannerId ?? null, scannedAt, at, input.via ?? null, at],
     );
     if (inserted) return rowToCheckIn(inserted);
     // Otro pedido con el mismo clientId llegó entre la lectura y la escritura: se devuelve el suyo.
@@ -1043,13 +1091,15 @@ export class SqlRepo implements Repo {
   }
 
   async recordRedemption(input: NewRedemption): Promise<Redemption> {
+    const scannedAt = checkedScannedAt(input.scannedAt);
     if (input.clientId) {
       const existing = await this.db.one("SELECT * FROM redemptions WHERE client_id = ?", [input.clientId]);
       if (existing) return this.sameRedemption(existing, input);
     }
+    const at = now();
     const inserted = await this.db.one(
-      "INSERT INTO redemptions (id, client_id, event_id, pass_id, benefit_id, scanner_id, scanned_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (client_id) DO NOTHING RETURNING *",
-      [randomUUID(), input.clientId ?? null, input.eventId, input.passId, input.benefitId, input.scannerId ?? null, input.scannedAt ?? now(), now()],
+      "INSERT INTO redemptions (id, client_id, event_id, pass_id, benefit_id, scanner_id, scanned_at, received_at, via, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (client_id) DO NOTHING RETURNING *",
+      [randomUUID(), input.clientId ?? null, input.eventId, input.passId, input.benefitId, input.scannerId ?? null, scannedAt, at, input.via ?? null, at],
     );
     if (inserted) return rowToRedemption(inserted);
     return this.sameRedemption((await this.db.one("SELECT * FROM redemptions WHERE client_id = ?", [input.clientId as string]))!, input);

@@ -68,7 +68,7 @@ const { getAccessKey } = await import("../src/server/evento/acceso.ts");
 const { ensureStationCodes, getOrCreateOrganizerKey } = await import("../src/server/panel.ts");
 const { formatStationCode } = await import("../src/lib/station-code.ts");
 const { decideVerdict } = await import("../src/lib/escaner-api.ts");
-const { verifyQrPayload, base64urlToBytes, bytesToBase64url } = await import("../src/server/qr.ts");
+const { verifyQrPayload, base64urlToBytes, bytesToBase64url, buildPrintedPayload } = await import("../src/server/qr.ts");
 const { getEventQrKeys } = await import("../src/server/qr-keys.ts");
 const { buildLivePayload } = await import("../src/lib/qr-live.ts");
 const { WINDOW_SECONDS } = await import("../src/lib/qr-codec.ts");
@@ -96,6 +96,8 @@ const check = (ok, texto) => {
 };
 /** Las claves de acceso y la del panel no van a la transcripción. */
 const sinClave = (url) => String(url).replace(/([?&]k=)[^&\s]+/g, "$1...");
+/** Un código de puesto o el texto de un QR, tapados: las primeras cuatro letras y nada más (la transcripción es pública). */
+const tapado = (texto) => `${String(texto ?? "").slice(0, 4)}...`;
 const explorer = (hash) => `https://stellar.expert/explorer/testnet/tx/${hash}`;
 const transacciones = [];
 const tx = (que, hash) => {
@@ -328,13 +330,14 @@ try {
   paso("La credencial de cada persona: la página, los datos y el SVG");
   const c1 = await pedir(`/api/pase/${paseGratis.id}?k=${encodeURIComponent(claveGratis)}`);
   check(c1.status === 200 && c1.cuerpo.person?.name === gratis.nombre && c1.cuerpo.paid === false && c1.cuerpo.checkedIn === false, `GET /api/pase/${paseGratis.id}: "${c1.cuerpo.person?.name}", credencial ${c1.cuerpo.number} de ${c1.cuerpo.total}, inscripción lista`);
+  check(c1.cuerpo.number === paseGratis.chainNumber && c1.cuerpo.number > 0, `el número de la credencial es el que dio el contrato (${paseGratis.chainNumber}): el que se puede comprobar, y no cambia`);
   const c2 = await pedir(`/api/pase/${pasePago.id}?k=${encodeURIComponent(clavePago)}`);
   check(c2.status === 200 && c2.cuerpo.paid === true && c2.cuerpo.benefits.some((b) => b.id === lunch.id && b.state === "pendiente"), `GET /api/pase/${pasePago.id}: entrada paga, lo que le toca: ${c2.cuerpo.benefits.map((b) => `${b.name} (${b.state})`).join(", ")}`);
   // Quien se inscribió gratis muestra el QR que rota (lo arma su celular con lo que le dio la credencial); quien pagó, la credencial impresa.
   const qrGratis = () => buildLivePayload(c1.cuerpo.live, Date.now());
   const qrPago = c2.cuerpo.qr;
-  log(`  QR del celular de ${gratis.nombre} (cambia cada ${WINDOW_SECONDS} s): ${await qrGratis()}`);
-  log(`  QR fijo de la credencial impresa de ${almuerzo.nombre}: ${qrPago}`);
+  log(`  QR del celular de ${gratis.nombre} (cambia cada ${WINDOW_SECONDS} s, ${(await qrGratis()).length} letras): ${tapado(await qrGratis())}`);
+  log(`  QR fijo de la credencial impresa de ${almuerzo.nombre} (${qrPago.length} letras): ${tapado(qrPago)}`);
   check(c1.cuerpo.live?.passId === paseGratis.id && !("privateKey" in c1.cuerpo.live), "la credencial entrega la llave de ese pase y nada más");
   const pagina = await pedir(`/p/${paseGratis.id}?k=${encodeURIComponent(claveGratis)}`);
   check(pagina.status === 200 && pagina.cuerpo.includes(gratis.nombre) && pagina.cuerpo.includes("Descargar en SVG"), `la página /p/${paseGratis.id} se ve con el nombre y su única acción`);
@@ -354,14 +357,17 @@ try {
   check(panel0.status === 200 && panel0.cuerpo.counters?.issued >= 2 && panel0.cuerpo.counters?.checkedIn === 0, `con la clave: ${panel0.cuerpo.counters?.issued} credenciales, ${panel0.cuerpo.counters?.checkedIn} entraron, almuerzos ${panel0.cuerpo.counters?.lunch?.redeemed} de ${panel0.cuerpo.counters?.lunch?.granted}`);
   const puertaCode = panel0.cuerpo.stations?.find((s) => s.kind === "gate")?.code;
   const almuerzoCode = panel0.cuerpo.stations?.find((s) => s.kind === "benefit" && s.benefitId === lunch.id)?.code;
-  check(Boolean(puertaCode && almuerzoCode), `códigos de puesto: puerta ${formatStationCode(puertaCode ?? "")}, ${lunch.name} ${formatStationCode(almuerzoCode ?? "")}`);
+  check(Boolean(puertaCode && almuerzoCode), `códigos de puesto: puerta ${tapado(puertaCode)}, ${lunch.name} ${tapado(almuerzoCode)} (doce letras cada uno; acá, tapados)`);
 
   // 5. El escáner en la puerta
   paso("El escáner en la puerta (POST /api/scan/open con el código de la puerta): decide sin red y sincroniza");
   check((await json("/api/scan/open", { code: "ZZZZ-ZZZZ" })).status === 401, "un código que no es de ningún puesto: 401");
-  const puerta = await json("/api/scan/open", { code: formatStationCode(puertaCode).toLowerCase() });
+  const puerta = await json("/api/scan/open", { code: formatStationCode(puertaCode).toLowerCase(), scannerId: "e2e-puerta" });
   check(puerta.status === 200 && puerta.cuerpo.station?.kind === "gate" && puerta.cuerpo.passes.length >= 2, `la puerta abre (en minúsculas y con guion) y baja la llave del evento y ${puerta.cuerpo.passes.length} pases`);
   check(puerta.cuerpo.key === undefined && typeof puerta.cuerpo.publicKey === "string", "el escáner recibe una clave pública, no una llave compartida");
+  // La ficha de sesión: desde acá el escáner sincroniza con ella y no con el código (el freno de códigos es solo de open).
+  const sesionPuerta = puerta.cuerpo.session?.token;
+  check(typeof sesionPuerta === "string" && sesionPuerta.length > 40, `abrir el puesto da una ficha de sesión firmada, que vence el ${puerta.cuerpo.session?.expiresAt}`);
   const clavePublica = base64urlToBytes(puerta.cuerpo.publicKey);
   const llavesDelEvento = await getEventQrKeys(event.id);
   check(clavePublica.length === 32 && bytesToBase64url(llavesDelEvento.publicKey) === puerta.cuerpo.publicKey, "es la clave pública del evento (32 bytes)");
@@ -391,44 +397,50 @@ try {
   check(v1b.kind === "already" && v1b.action === "checkin", `${gratis.nombre} otra vez, antes de sincronizar: amarillo, ya entró (lo sabe la cola local)`);
 
   inicio = Date.now();
+  // Cada lectura viaja con el QR que se leyó: el servidor vuelve a comprobar la firma antes de registrarla.
   const items = [
-    { clientId: `e2e-${stamp}-entrada-1`, action: "checkin", passId: paseGratis.id, benefitId: null, scannedAt: ahora(), scannerId: "e2e-puerta" },
-    { clientId: `e2e-${stamp}-entrada-2`, action: "checkin", passId: pasePago.id, benefitId: null, scannedAt: ahora(), scannerId: "e2e-puerta" },
+    { clientId: `e2e-${stamp}-entrada-1`, action: "checkin", passId: paseGratis.id, benefitId: null, scannedAt: ahora(), scannerId: "e2e-puerta", qr: await qrGratis() },
+    { clientId: `e2e-${stamp}-entrada-2`, action: "checkin", passId: pasePago.id, benefitId: null, scannedAt: ahora(), scannerId: "e2e-puerta", qr: qrPago },
   ];
-  const sync1 = await json("/api/scan/sync", { code: puertaCode, items });
+  const sync1 = await json("/api/scan/sync", { token: sesionPuerta, items });
   const resultados1 = sync1.cuerpo.results ?? [];
-  check(sync1.status === 200 && resultados1.length === 2 && resultados1.every((r) => r.status === "synced" && r.txHash), `la cola se sincronizó: las dos entradas llegaron al contrato en ${((Date.now() - inicio) / 1000).toFixed(0)} s`);
+  check(sync1.status === 200 && resultados1.length === 2 && resultados1.every((r) => r.status === "synced" && r.txHash), `la cola se sincronizó con la ficha de sesión: las dos entradas llegaron al contrato en ${((Date.now() - inicio) / 1000).toFixed(0)} s`);
   for (const r of resultados1) {
     const item = items.find((i) => i.clientId === r.clientId);
     if (r.txHash) tx(`entrada por la puerta de ${item?.passId === paseGratis.id ? gratis.nombre : almuerzo.nombre} (check_in, firma la puerta, paga el servidor)`, r.txHash);
   }
   check(Boolean(paseEn(sync1.cuerpo.snapshot, paseGratis.id)?.checkedInAt), "la foto fresca del evento ya dice que entraron");
-  const repetir = await json("/api/scan/sync", { code: puertaCode, items: [{ ...items[0], clientId: `e2e-${stamp}-entrada-1-otro-puesto` }] });
+  const repetir = await json("/api/scan/sync", { token: sesionPuerta, items: [{ ...items[0], clientId: `e2e-${stamp}-entrada-1-otro-puesto` }] });
   check(repetir.cuerpo.results?.[0]?.status === "duplicate", `la misma entrada desde otro puesto que no lo sabía: el contrato la rechaza (${repetir.cuerpo.results?.[0]?.error}) y queda como "doble, revisar"`);
   const mismo = await json("/api/scan/sync", { code: puertaCode, items: [items[0]] });
-  check(mismo.cuerpo.results?.[0]?.status === "synced" && mismo.cuerpo.results?.[0]?.txHash === resultados1[0].txHash, "reintentar el mismo registro (mismo clientId) no duplica nada");
-  const fuera = await json("/api/scan/sync", { code: puertaCode, items: [{ clientId: `e2e-${stamp}-fuera`, action: "redeem", passId: pasePago.id, benefitId: lunch.id, scannedAt: ahora(), scannerId: "e2e-puerta" }] });
-  check(fuera.cuerpo.results?.[0]?.status === "rejected", "un canje mandado con el código de la puerta se rechaza: cada puesto hace lo suyo");
+  check(mismo.cuerpo.results?.[0]?.status === "synced" && mismo.cuerpo.results?.[0]?.txHash === resultados1[0].txHash, "reintentar el mismo registro (mismo clientId, y esta vez con el código, como la cola de una versión anterior) no duplica nada");
+  const fuera = await json("/api/scan/sync", { token: sesionPuerta, items: [{ clientId: `e2e-${stamp}-fuera`, action: "redeem", passId: pasePago.id, benefitId: lunch.id, scannedAt: ahora(), scannerId: "e2e-puerta", qr: qrPago }] });
+  check(fuera.cuerpo.results?.[0]?.status === "rejected", "un canje mandado con la sesión de la puerta se rechaza: cada puesto hace lo suyo");
+  const sinQr = await json("/api/scan/sync", { token: sesionPuerta, items: [{ clientId: `e2e-${stamp}-sin-qr`, action: "checkin", passId: pasePago.id, benefitId: null, scannedAt: ahora(), scannerId: "e2e-puerta" }] });
+  check(sinQr.cuerpo.results?.[0]?.status === "rejected", `una entrada sin el QR leído se rechaza (${sinQr.cuerpo.results?.[0]?.error}): con el código de un puesto no se registra a quien nunca pasó`);
 
   // 6. La mesa del almuerzo
-  paso(`La mesa del almuerzo (código ${formatStationCode(almuerzoCode)}): canjea una sola vez`);
-  const mesa = await json("/api/scan/open", { code: almuerzoCode });
+  paso(`La mesa del almuerzo (código ${tapado(almuerzoCode)}): canjea una sola vez`);
+  const mesa = await json("/api/scan/open", { code: almuerzoCode, scannerId: "e2e-mesa" });
   check(mesa.status === 200 && mesa.cuerpo.station?.kind === "benefit" && mesa.cuerpo.station.id === lunch.id, `la mesa abre con su puesto "${mesa.cuerpo.station?.name}"`);
+  const sesionMesa = mesa.cuerpo.session?.token;
+  const enLaMesa = paseEn(mesa.cuerpo, paseGratis.id);
+  check(enLaMesa?.benefits.length === 0 && (enLaMesa.diet ?? null) === null && !JSON.stringify(mesa.cuerpo.passes).includes("prize"), "la foto de la mesa trae de cada pase solo lo que necesita: su beneficio y su canje, sin la dieta de quien no come ahí ni los demás beneficios");
   const v3 = decideVerdict(await verifica(await qrGratis()), mesa.cuerpo.station, paseEn(mesa.cuerpo, paseGratis.id), undefined);
   check(v3.kind === "no" && v3.reason === "not_included", `${gratis.nombre} (inscripción gratis): no corresponde, la entrada no incluye el almuerzo`);
   const v4 = decideVerdict(await verifica(qrPago), mesa.cuerpo.station, paseEn(mesa.cuerpo, pasePago.id), undefined);
   check(v4.kind === "ok" && v4.action === "redeem", `${almuerzo.nombre}: verde, canjea el almuerzo`);
   inicio = Date.now();
-  const canje = { clientId: `e2e-${stamp}-almuerzo-1`, action: "redeem", passId: pasePago.id, benefitId: lunch.id, scannedAt: ahora(), scannerId: "e2e-mesa" };
-  const sync2 = await json("/api/scan/sync", { code: almuerzoCode, items: [canje] });
+  const canje = { clientId: `e2e-${stamp}-almuerzo-1`, action: "redeem", passId: pasePago.id, benefitId: lunch.id, scannedAt: ahora(), scannerId: "e2e-mesa", qr: qrPago };
+  const sync2 = await json("/api/scan/sync", { token: sesionMesa, items: [canje] });
   const canjeado = sync2.cuerpo.results?.[0];
   check(sync2.status === 200 && canjeado?.status === "synced" && canjeado.txHash, `el canje llegó al contrato en ${((Date.now() - inicio) / 1000).toFixed(0)} s`);
   if (canjeado?.txHash) tx(`canje del almuerzo de ${almuerzo.nombre} (redeem, firma la puerta)`, canjeado.txHash);
   const v5 = decideVerdict(await verifica(qrPago), sync2.cuerpo.snapshot.station, paseEn(sync2.cuerpo.snapshot, pasePago.id), undefined);
   check(v5.kind === "already" && v5.action === "redeem", `${almuerzo.nombre} otra vez: amarillo, ya canjeado (el escáner lo decide solo, sin mandar nada)`);
-  const segundo = await json("/api/scan/sync", { code: almuerzoCode, items: [{ ...canje, clientId: `e2e-${stamp}-almuerzo-2` }] });
+  const segundo = await json("/api/scan/sync", { token: sesionMesa, items: [{ ...canje, clientId: `e2e-${stamp}-almuerzo-2` }] });
   check(segundo.cuerpo.results?.[0]?.status === "duplicate", `y si otro puesto lo manda igual, el contrato lo rechaza (${segundo.cuerpo.results?.[0]?.error})`);
-  const sinAlmuerzo = await json("/api/scan/sync", { code: almuerzoCode, items: [{ ...canje, clientId: `e2e-${stamp}-almuerzo-gratis`, passId: paseGratis.id }] });
+  const sinAlmuerzo = await json("/api/scan/sync", { token: sesionMesa, items: [{ ...canje, clientId: `e2e-${stamp}-almuerzo-gratis`, passId: paseGratis.id, qr: await qrGratis() }] });
   check(sinAlmuerzo.cuerpo.results?.[0]?.status === "rejected", `un canje para quien no lo tiene se rechaza en el servidor (${sinAlmuerzo.cuerpo.results?.[0]?.error})`);
 
   // 7. La cadena
@@ -555,8 +567,8 @@ try {
 
   paso(`La puerta deja entrar a ${propia.nombre}: check_in lo firma la puerta, como con cualquier credencial`);
   inicio = Date.now();
-  const entradaPropia = { clientId: `e2e-${stamp}-entrada-propia`, action: "checkin", passId: pasePropio?.id, benefitId: null, scannedAt: new Date().toISOString(), scannerId: "e2e-puerta" };
-  const sync3 = await json("/api/scan/sync", { code: puertaCode, items: [entradaPropia] });
+  const entradaPropia = { clientId: `e2e-${stamp}-entrada-propia`, action: "checkin", passId: pasePropio?.id, benefitId: null, scannedAt: new Date().toISOString(), scannerId: "e2e-puerta", qr: pasePropio ? buildPrintedPayload(pasePropio.id, llavesDelEvento) : "" };
+  const sync3 = await json("/api/scan/sync", { token: sesionPuerta, items: [entradaPropia] });
   const entro = sync3.cuerpo.results?.[0];
   check(sync3.status === 200 && entro?.status === "synced" && entro.txHash, `la entrada llegó al contrato en ${((Date.now() - inicio) / 1000).toFixed(0)} s`);
   if (entro?.txHash) tx(`entrada por la puerta de ${propia.nombre} (check_in, firma la puerta)`, entro.txHash);

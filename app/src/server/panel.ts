@@ -6,6 +6,7 @@
 import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { translate, type Lang } from "../i18n/index.ts";
 import type { CredentialKind } from "../lib/credential-kinds.ts";
+import type { ScanVia } from "../lib/escaner-api.ts";
 import { localLogoOrNull } from "../lib/logo.ts";
 import { base32Encode, bytesToBase64url } from "../lib/qr-codec.ts";
 import { STATION_CODE_LENGTH, isValidStationCode, normalizeStationCode } from "../lib/station-code.ts";
@@ -13,6 +14,7 @@ import { getDb, jsonParam, readJson, type Db } from "./base/index.ts";
 import { describeForLog } from "./log.ts";
 import { getEventPublicKey } from "./qr-keys.ts";
 import {
+  ClientIdTaken,
   getRepo,
   type Benefit,
   type BenefitKind,
@@ -155,6 +157,23 @@ export async function ensureStationCodes(event: EventRecord, repo: Repo = getRep
   return listStationCodes(event.id);
 }
 
+/**
+ * Un código de puesto nuevo en lugar del dado (si se filtró, o cambió quien atiende): el viejo deja de abrir el
+ * escáner en el acto (y con él, la sesión de cualquier celular que lo tuviera abierto), y el puesto queda con uno
+ * nuevo. Solo un código de este evento. Devuelve el código nuevo, o null si el dado no era de este evento.
+ */
+export async function regenerateStationCode(event: EventRecord, input: string, repo: Repo = getRepo()): Promise<StationCode | null> {
+  const code = normalizeStationCode(input);
+  if (!isValidStationCode(code)) return null;
+  const db = getDb();
+  const row = await db.one("SELECT * FROM station_codes WHERE code = ? AND event_id = ?", [code, event.id]);
+  if (!row) return null;
+  const old = rowToStation(row);
+  await db.run("DELETE FROM station_codes WHERE code = ? AND event_id = ?", [code, event.id]);
+  const fresh = await ensureStationCodes(event, repo);
+  return fresh.find((c) => c.kind === old.kind && c.benefitId === old.benefitId && c.standId === old.standId) ?? null;
+}
+
 /** Para el escáner: a qué evento y puesto corresponde lo que escribió el voluntario, o null. */
 export async function resolveStationCode(input: string, repo: Repo = getRepo()): Promise<StationAccess | null> {
   const code = normalizeStationCode(input);
@@ -167,6 +186,8 @@ export async function resolveStationCode(input: string, repo: Repo = getRepo()):
   if (!event) return null;
   const benefits = await repo.listBenefits(event.id);
   const benefit = station.benefitId ? (benefits.find((b) => b.id === station.benefitId) ?? null) : null;
+  // Un código de mesa sin su beneficio (o de la mesa de un beneficio de otro evento) no abre nada: nunca cae a la puerta.
+  if (station.kind === "benefit" && !benefit) return null;
   let stand: StationStand | null = null;
   if (station.kind === "stand") {
     const standRow = await db.one("SELECT id, name, logo_url FROM stands WHERE id = ?", [station.standId]);
@@ -230,6 +251,8 @@ export interface PanelDuplicate {
   scannerId: string | null;
   /** El puesto donde se registró (la mesa del beneficio); null si no se sabe. La puerta la pone la pantalla. */
   station: string | null;
+  /** Cómo se leyó la credencial (el QR del celular, el impreso, a mano); null si el registro es de antes o vino de la cadena. */
+  via: ScanVia | null;
 }
 
 export interface Tally {
@@ -382,7 +405,7 @@ async function collect(event: EventRecord, repo: Repo): Promise<Collected> {
   const duplicates: PanelDuplicate[] = [
     ...checkIns
       .filter((c) => c.duplicate)
-      .map((c) => ({ id: c.id, kind: "checkin" as const, passId: c.passId, name: nameOf(c.passId), benefitName: null, scannedAt: c.scannedAt, scannerId: c.scannerId, station: null })),
+      .map((c) => ({ id: c.id, kind: "checkin" as const, passId: c.passId, name: nameOf(c.passId), benefitName: null, scannedAt: c.scannedAt, scannerId: c.scannerId, station: null, via: c.via })),
     ...redemptions
       .filter((r) => r.duplicate)
       .map((r) => ({
@@ -394,6 +417,7 @@ async function collect(event: EventRecord, repo: Repo): Promise<Collected> {
         scannedAt: r.scannedAt,
         scannerId: r.scannerId,
         station: benefitById.get(r.benefitId)?.station ?? null,
+        via: r.via,
       })),
   ].sort((a, b) => b.scannedAt.localeCompare(a.scannedAt));
 
@@ -680,9 +704,15 @@ async function reconcilePass(pass: Pass, status: PassStatusOnChain, repo: Repo, 
   if (status.checked_in) {
     const real = checkIns.filter((c) => !c.duplicate);
     if (real.length === 0) {
-      const added = await repo.recordCheckIn({ clientId: `chain:${pass.id}:checkin`, eventId: pass.eventId, passId: pass.id, scannerId: CHAIN_SCANNER_ID });
-      await repo.markCheckIn(added.id, { synced: true });
-      summary.checkInsAdded++;
+      try {
+        const added = await repo.recordCheckIn({ clientId: `chain:${pass.id}:checkin`, eventId: pass.eventId, passId: pass.id, scannerId: CHAIN_SCANNER_ID });
+        await repo.markCheckIn(added.id, { synced: true });
+        summary.checkInsAdded++;
+      } catch (error) {
+        // El id reservado ya es de otro registro (una base de antes de que el escáner los rechazara): se anota y se sigue con el resto.
+        if (!(error instanceof ClientIdTaken)) throw error;
+        summary.errors.push(`${pass.id}: ${CHAIN_UNAVAILABLE}`);
+      }
     } else {
       for (const c of real.filter((c) => !c.synced)) await repo.markCheckIn(c.id, { synced: true });
     }
@@ -701,15 +731,20 @@ async function reconcilePass(pass: Pass, status: PassStatusOnChain, repo: Repo, 
     const mine = realRedemptions.filter((r) => r.benefitId === benefit.id);
     if (mine.length === 0) {
       await repo.grantBenefit(pass.id, benefit.id, "ticket");
-      const added = await repo.recordRedemption({
-        clientId: `chain:${pass.id}:${benefit.id}`,
-        eventId: pass.eventId,
-        passId: pass.id,
-        benefitId: benefit.id,
-        scannerId: CHAIN_SCANNER_ID,
-      });
-      await repo.markRedemption(added.id, { synced: true });
-      summary.redemptionsAdded++;
+      try {
+        const added = await repo.recordRedemption({
+          clientId: `chain:${pass.id}:${benefit.id}`,
+          eventId: pass.eventId,
+          passId: pass.id,
+          benefitId: benefit.id,
+          scannerId: CHAIN_SCANNER_ID,
+        });
+        await repo.markRedemption(added.id, { synced: true });
+        summary.redemptionsAdded++;
+      } catch (error) {
+        if (!(error instanceof ClientIdTaken)) throw error;
+        summary.errors.push(`${pass.id}: ${CHAIN_UNAVAILABLE}`);
+      }
     } else {
       for (const r of mine.filter((r) => !r.synced)) await repo.markRedemption(r.id, { synced: true });
     }

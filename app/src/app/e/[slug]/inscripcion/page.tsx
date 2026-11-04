@@ -13,6 +13,8 @@ import { getRepo } from "@/server/repo.ts";
 import { registerAction } from "./actions.ts";
 
 export const dynamic = "force-dynamic";
+// La acción de inscribir crea la cuenta en la red de prueba y manda una transacción: tarda. Con Fluid en Vercel el tope por omisión alcanza; se declara igual.
+export const maxDuration = 300;
 
 type Params = Promise<{ slug: string }>;
 type Search = Promise<Record<string, string | string[] | undefined>>;

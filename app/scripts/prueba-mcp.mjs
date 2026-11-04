@@ -224,6 +224,8 @@ try {
   log(`  credenciales: ${creado.datos.draft.credentialTypes.filter((c) => c.included).map((c) => c.name).join(", ")}; canjes: ${creado.datos.draft.benefits.map((b) => `${b.name} (${b.place})`).join(", ")}`);
 
   const { getRepo } = await import("../src/server/repo.ts");
+  const { buildPrintedPayload } = await import("../src/server/qr.ts");
+  const { getEventQrKeys } = await import("../src/server/qr-keys.ts");
   const repo = getRepo();
   const oculto = await herramienta(http, "get_event", { event: slug });
   check(oculto.error && oculto.texto.startsWith("not_found:"), "get_event sin clave: el borrador no existe para el público");
@@ -288,16 +290,18 @@ try {
   const estado0 = await herramienta(puente, "event_status", { event: slug });
   check(!estado0.error && estado0.datos.counters.issued === 9 && estado0.datos.counters.checkedIn === 0, `event_status: ${estado0.datos.counters.issued} credenciales, ${estado0.datos.counters.checkedIn} entraron, por sincronizar ${estado0.datos.pendingSync}`);
   const puerta = estado0.datos.stations.find((s) => s.kind === "gate");
-  check(/^[A-Z2-7]{4}-[A-Z2-7]{4}-[A-Z2-7]{4}$/.test(puerta?.code ?? ""), `códigos de puesto: ${estado0.datos.stations.map((s) => `${s.name} ${s.code}`).join(", ")}`);
+  check(/^[A-Z2-7]{4}-[A-Z2-7]{4}-[A-Z2-7]{4}$/.test(puerta?.code ?? ""), `códigos de puesto (tapados): ${estado0.datos.stations.map((s) => `${s.name} ${s.code.slice(0, 4)}...`).join(", ")}`);
   check(sinPersonas(estado0.texto), "el estado no trae nombres ni correos");
 
   // 3. La puerta y lo de después
-  paso(`Dos personas entran por la puerta (la API del escáner con el código ${puerta.code}): check_in en el contrato`);
+  paso(`Dos personas entran por la puerta (la API del escáner con el código de la puerta, ${puerta.code.slice(0, 4)}...): check_in en el contrato`);
   const abierto = await post("/api/scan/open", { code: puerta.code });
   check(abierto.status === 200 && abierto.cuerpo.station?.kind === "gate" && abierto.cuerpo.passes.length === 9, `la puerta abre y baja ${abierto.cuerpo.passes.length} pases`);
   const entran = pases.slice(0, 2);
   const ahora = () => new Date().toISOString();
-  const items = entran.map((p, i) => ({ clientId: `mcp-${Date.now().toString(36)}-${i}`, action: "checkin", passId: p.id, benefitId: null, scannedAt: ahora(), scannerId: "prueba-mcp-puerta" }));
+  // Cada lectura viaja con el QR leído (acá, el de la credencial impresa de cada pase): el servidor lo vuelve a comprobar.
+  const llaves = await getEventQrKeys((await repo.getEventBySlug(slug)).id);
+  const items = entran.map((p, i) => ({ clientId: `mcp-${Date.now().toString(36)}-${i}`, action: "checkin", passId: p.id, benefitId: null, scannedAt: ahora(), scannerId: "prueba-mcp-puerta", qr: buildPrintedPayload(p.id, llaves) }));
   inicio = Date.now();
   const sync = await post("/api/scan/sync", { code: puerta.code, items });
   const resultados = sync.cuerpo.results ?? [];

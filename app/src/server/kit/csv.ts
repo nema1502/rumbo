@@ -126,9 +126,10 @@ export function parseTable(text: string, limits: TableLimits = TABLE_LIMITS): Ta
   const { delimiter, rows: parsed } = pickDelimiter(clean, limits);
   const grid = parsed.filter(filled);
   if (!grid[0]) return null;
-  // Un encabezado con una coma final ("Name,Email,Status,") no tiene una columna de más.
+  // Un encabezado con una coma final ("Name,Email,Status,") no tiene una columna de más... salvo que las filas de
+  // datos sí la llenen ("Name,Email," con "Ana Uno,ana1@example.com,approved"): entonces la columna existe, sin nombre.
   const headerCells = withoutTrailingEmpty(grid[0].cells);
-  if (headerCells.length > 1 && headerCells.some(isHeaderCell)) grid[0] = { ...grid[0], cells: headerCells };
+  if (headerCells.length > 1 && headerCells.some(isHeaderCell) && !dataFillsColumns(grid.slice(1), headerCells.length)) grid[0] = { ...grid[0], cells: headerCells };
   const first = grid[0];
 
   const width = expectedWidth(grid);
@@ -374,7 +375,15 @@ function pickDelimiter(text: string, limits: TableLimits): { delimiter: string; 
   let best: { d: string; width: number; fit: number; rows: Row[] } | null = null;
   let comma: Row[] | null = null;
   for (const d of DELIMITERS) {
-    const all = parseRows(text, d, limits);
+    let all: Row[];
+    try {
+      all = parseRows(text, d, limits);
+    } catch (error) {
+      // Con este separador una celda se pasa del tope (una línea entera de un archivo separado por comas, leída con
+      // tabulaciones): no es el separador. Si con ninguno entra, el de respaldo lo vuelve a decir.
+      if (error instanceof CsvLimitError && error.code === "cell_too_long") continue;
+      throw error;
+    }
     if (d === ",") comma = all;
     const rows = all.filter(filled);
     const width = expectedWidth(rows);
@@ -390,6 +399,13 @@ function withoutTrailingEmpty(cells: readonly string[]): string[] {
   let end = cells.length;
   while (end > 1 && (cells[end - 1] as string).trim() === "") end--;
   return cells.slice(0, end);
+}
+
+/** Si la mayoría de las filas de datos trae algo escrito más allá de la columna `from`: esa columna existe aunque el encabezado la haya dejado vacía. */
+function dataFillsColumns(rows: readonly Row[], from: number): boolean {
+  if (rows.length === 0) return false;
+  const filledBeyond = rows.filter((r) => r.cells.slice(from).some((c) => c.trim() !== "")).length;
+  return filledBeyond * 2 > rows.length;
 }
 
 /** Una fila del archivo, con la línea donde empieza (desde 1) para poder decir cuál falló. */
@@ -429,19 +445,25 @@ function parseRows(text: string, delimiter: string, limits: TableLimits = TABLE_
     field = "";
   };
 
+  // El tope de la celda se mide mientras se arma: una celda de megas no se recorre entera antes de avisar.
+  const grow = (c: string) => {
+    field += c;
+    if (field.length > limits.maxCell) throw new CsvLimitError("cell_too_long");
+  };
+
   for (let i = 0; i < text.length; i++) {
     const c = text[i] as string;
     if (c === "\n") line++;
     if (quoted) {
       if (c === '"') {
         if (text[i + 1] === '"') {
-          field += '"';
+          grow('"');
           i++;
         } else {
           quoted = false;
         }
       } else {
-        field += c;
+        grow(c);
       }
       continue;
     }
@@ -456,7 +478,7 @@ function parseRows(text: string, delimiter: string, limits: TableLimits = TABLE_
       endRow();
       start = line;
     } else if (c !== "\r") {
-      field += c;
+      grow(c);
     }
   }
   if (quoted) return parseRows(text.slice(0, quoteAt) + text.slice(quoteAt + 1), delimiter, limits);

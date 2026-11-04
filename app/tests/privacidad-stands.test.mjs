@@ -12,7 +12,7 @@ process.env.RUMBO_TRUSTED_IP_HEADER = "x-real-ip";
 const { getRepo } = await import("../src/server/repo.ts");
 const stands = await import("../src/server/stands.ts");
 const { ensureStationCodes, resolveStationCode, getOrCreateOrganizerKey } = await import("../src/server/panel.ts");
-const { buildSnapshot, processScanItems, scanStations, stationOf, parseScanItems, UNKNOWN_PASS, UNVERIFIED_VISIT } = await import("../src/server/escaner.ts");
+const { buildSnapshot, processScanItems, scanStations, stationOf, parseScanItems, UNKNOWN_PASS, UNVERIFIED_READ } = await import("../src/server/escaner.ts");
 const { getEventQrKeys } = await import("../src/server/qr-keys.ts");
 const { buildPrintedPayload, buildLiveGrant } = await import("../src/server/qr.ts");
 const { buildLivePayload } = await import("../src/lib/qr-live.ts");
@@ -125,7 +125,7 @@ test("con el código de un stand no se suman visitas por id de pase: hace falta 
   ];
   for (const [nombre, item] of falsas) {
     const [r] = await processScanItems(repo, d.event, puesto, [item], noHayRed);
-    assert.deepEqual([r.status, r.error], ["rejected", UNVERIFIED_VISIT], nombre);
+    assert.deepEqual([r.status, r.error], ["rejected", UNVERIFIED_READ], nombre);
   }
   assert.equal((await stands.getStandReport(d.stands[0].id, repo)).visits, 0, "ninguna visita fabricada cuenta");
   assert.ok(!(await repo.listPassBenefits(victima.pass.id)).some((b) => b.id === premio), "y nadie gana el premio de la ruta sin pasar");
@@ -155,12 +155,22 @@ test("la respuesta de la sincronización no cuenta qué pases existen: un mismo 
   const rs = await processScanItems(repo, d.event, puesto, [visita("o1", ok.pass.id), visita("o2", "AAAAAAAA"), visita("o3", deOtro.pass.id), visita("o4", pendiente.id)], noHayRed);
   assert.deepEqual(
     rs.map((r) => `${r.status}:${r.error}`),
-    Array(4).fill(`rejected:${UNVERIFIED_VISIT}`),
+    Array(4).fill(`rejected:${UNVERIFIED_READ}`),
   );
-  // Entradas en la puerta: un pase que no existe, uno de otro evento y uno sin activar contestan lo mismo.
+  // Entradas en la puerta sin QR: lo mismo, exista el pase o no.
   const puerta = stationOf(await resolveStationCode(d.codigos.find((c) => c.kind === "gate").code, repo));
-  const entrada = (clientId, passId) => ({ clientId, action: "checkin", passId, benefitId: null, scannedAt: ahora(), scannerId: "puerta" });
-  const es = await processScanItems(repo, d.event, puerta, [entrada("e1", "AAAAAAAA"), entrada("e2", deOtro.pass.id), entrada("e3", pendiente.id)], noHayRed);
+  const entrada = (clientId, passId, qr) => ({ clientId, action: "checkin", passId, benefitId: null, scannedAt: ahora(), scannerId: "puerta", ...(qr ? { qr } : {}) });
+  const sinQr = await processScanItems(repo, d.event, puerta, [entrada("s1", ok.pass.id), entrada("s2", "AAAAAAAA"), entrada("s3", deOtro.pass.id), entrada("s4", pendiente.id)], noHayRed);
+  assert.deepEqual(sinQr.map((r) => `${r.status}:${r.error}`), Array(4).fill(`rejected:${UNVERIFIED_READ}`));
+  // Y con un QR que el evento firmó (solo el servidor puede): un pase que no existe, uno de otro evento y uno sin activar contestan lo mismo.
+  const keys = await getEventQrKeys(d.event.id);
+  const es = await processScanItems(
+    repo,
+    d.event,
+    puerta,
+    [entrada("e1", "AAAAAAAA", buildPrintedPayload("AAAAAAAA", keys)), entrada("e2", deOtro.pass.id, buildPrintedPayload(deOtro.pass.id, keys)), entrada("e3", pendiente.id, buildPrintedPayload(pendiente.id, keys))],
+    noHayRed,
+  );
   assert.deepEqual(es.map((r) => `${r.status}:${r.error}`), Array(3).fill(`rejected:${UNKNOWN_PASS}`));
 });
 
@@ -172,7 +182,7 @@ test("por la ruta /api/scan/sync la visita viaja con su QR, y parseScanItems ace
   const code = d.codigoDe(d.stands[0]);
   const post = async (items) => (await rutas.sync.POST(await pedido("http://localhost/api/scan/sync", { ip: "10.0.0.9", body: { code, items } }))).json();
   const sinQr = await post([visita("h-1", ana.pass.id)]);
-  assert.deepEqual([sinQr.results[0].status, sinQr.results[0].error], ["rejected", UNVERIFIED_VISIT]);
+  assert.deepEqual([sinQr.results[0].status, sinQr.results[0].error], ["rejected", UNVERIFIED_READ]);
   const conQr = await post([visita("h-2", ana.pass.id, impreso)]);
   assert.equal(conQr.results[0].status, "synced");
   assert.deepEqual(
@@ -202,6 +212,11 @@ test("la etiqueta de la pantalla toma el nombre de pila de verdad, y nunca proye
     ["Dr. Pérez", null],
     ["  ", null],
     ["Quiroga, ana.q@example.com", null],
+    // Un correo largo recortado a veinte letras parecía un nombre: la palabra entera se mira antes de recortar.
+    ["anabelenquirogasoria@example.com", null],
+    ["anabelenquirogasoriamuylargo", "anabelenquirogasoria"],
+    ["https://anabelenquirogasoria.example", null],
+    ["anabelenquirogasoria59170012345", null],
   ];
   for (const [nombre, esperado] of casos) assert.equal(stands.publicLabel(nombre, null), esperado, JSON.stringify(nombre));
   // el alias, si lo hay, manda; y "no aparecer" manda sobre todo

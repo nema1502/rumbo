@@ -17,7 +17,16 @@ async function readKeys(eventId: string): Promise<EventQrKeys | null> {
   };
 }
 
-/** Las llaves del evento. Las crea la primera vez que hacen falta. */
+/**
+ * Las llaves del evento si ya las tiene; null si no. No crea nada: es para lo que llega de afuera con un id de
+ * evento que nadie comprobó (una ficha de sesión), que no tiene que generar llaves ni chocar con la clave
+ * foránea de un evento que no existe.
+ */
+export async function findEventQrKeys(eventId: string): Promise<EventQrKeys | null> {
+  return readKeys(eventId);
+}
+
+/** Las llaves del evento. Las crea la primera vez que hacen falta: solo para un evento que existe. */
 export async function getEventQrKeys(eventId: string): Promise<EventQrKeys> {
   const found = await readKeys(eventId);
   if (found) return found;

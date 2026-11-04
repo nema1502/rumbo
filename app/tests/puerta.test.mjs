@@ -16,6 +16,7 @@ const { normalizeSearch, searchSnapshotByName } = await import("../src/lib/busqu
 const { GATE_STATION, isManualScannerId, manualScannerId } = await import("../src/lib/escaner-api.ts");
 const { POST: buscar } = await import("../src/app/api/scan/buscar/route.ts");
 const { POST: agregar } = await import("../src/app/api/scan/agregar/route.ts");
+const { POST: abrir } = await import("../src/app/api/scan/open/route.ts");
 
 const repo = getRepo();
 
@@ -65,15 +66,29 @@ const llamar = async (ruta, handler, body, ip = "200.1.1.1") => {
 
 // ---------- Buscar ----------
 
-test("la búsqueda no distingue mayúsculas ni tildes, y encuentra por nombre o por correo", async () => {
+test("la búsqueda no distingue mayúsculas ni tildes, y encuentra por nombre o por el correo entero", async () => {
   assert.equal(normalizeSearch("  JOSÉ   Pérez "), "jose perez");
   const porNombre = await searchDoor(repo, datos.event, "jose");
   assert.deepEqual(porNombre.map((m) => m.passId), [jose.pass.id]);
   assert.deepEqual((await searchDoor(repo, datos.event, "PEREZ")).map((m) => m.passId), [jose.pass.id]);
-  assert.deepEqual((await searchDoor(repo, datos.event, "anita@")).map((m) => m.passId), [anita.pass.id], "por correo");
+  assert.deepEqual((await searchDoor(repo, datos.event, "anita@example.org")).map((m) => m.passId), [anita.pass.id], "por el correo entero");
+  assert.deepEqual((await searchDoor(repo, datos.event, " ANITA@Example.org ")).map((m) => m.passId), [anita.pass.id], "sin importar mayúsculas ni espacios");
   assert.deepEqual((await searchDoor(repo, datos.event, "rojas")).map((m) => m.passId), [ana.pass.id]);
   const dosAna = await searchDoor(repo, datos.event, "ana ");
   assert.deepEqual(dosAna.map((m) => m.name), ["Ana María Rojas", "Ana Torres"], "por nombre, en orden");
+});
+
+test("por un pedazo del correo no se busca: con el dominio a la vista se reconstruía letra por letra", async () => {
+  for (const pedazo of ["anita@", "@example.org", "nita@example.org", "a@example.org", "jose.perez@example", "ose.perez@example.com", "example.com"]) {
+    assert.deepEqual(await searchDoor(repo, datos.event, pedazo), [], pedazo);
+  }
+  // Lo que un tercero puede hacer es adivinar el correo entero, y eso es lo mismo que ya le dice el formulario de inscripción.
+  assert.deepEqual((await searchDoor(repo, datos.event, "jose.perez@example.com")).map((m) => m.passId), [jose.pass.id]);
+  // En Gmail, los puntos y lo que sigue a un "+" no cambian el buzón: el correo entero igual encuentra. (Los buzones de
+  // Gmail se arman al correr: las pruebas no escriben direcciones con forma real.)
+  const buzon = (local) => [local, "gmail.com"].join("@");
+  const gmail = await paseDePrueba(repo, datos, { name: "Gema Prueba", email: buzon("ge.ma+rumbo") });
+  assert.deepEqual((await searchDoor(repo, datos.event, buzon("gema"))).map((m) => m.passId), [gmail.pass.id]);
 });
 
 test("hacen falta tres letras, y quien no terminó de inscribirse no aparece", async () => {
@@ -83,11 +98,15 @@ test("hacen falta tres letras, y quien no terminó de inscribirse no aparece", a
   assert.deepEqual(await searchDoor(repo, datos.event, "nadie"), []);
 });
 
-test("el correo vuelve tapado, nunca entero", async () => {
-  assert.equal(maskEmail("jose.perez@example.com"), "j***@example.com");
+test("el correo vuelve tapado, también el dominio, nunca entero", async () => {
+  assert.equal(maskEmail("jose.perez@example.com"), "j***@e***.com");
+  // Un dominio de dos partes y uno de una letra, armados al correr: las pruebas no escriben direcciones con forma real.
+  assert.equal(maskEmail(["carla", "empresa-secreta.com.bo"].join("@")), "c***@e***.bo");
+  assert.equal(maskEmail(["a", "x.com"].join("@")), "a***@x***.com");
+  assert.equal(maskEmail("sin-arroba"), "***");
   const [match] = await searchDoor(repo, datos.event, "jose");
-  assert.equal(match.emailHint, "j***@example.com");
-  assert.ok(!JSON.stringify(match).includes("jose.perez"), "el correo entero no sale");
+  assert.equal(match.emailHint, "j***@e***.com");
+  assert.ok(!JSON.stringify(match).includes("jose.perez") && !JSON.stringify(match).includes("example"), "ni el correo ni el dominio salen enteros");
   assert.equal(match.ticket, "Inscripción");
   assert.equal(match.checkedInAt, null);
 });
@@ -140,11 +159,40 @@ test("solo el código de la puerta abre el buscador y el agregar; el de una mesa
   assert.equal((await llamar("buscar", buscar, { query: "jose" })).status, 400, "sin código");
 });
 
-test("la búsqueda tiene freno: ciento veinte por evento en diez minutos", async () => {
+test("la búsqueda tiene freno: ciento veinte por puesto e IP en diez minutos, contadas de un solo golpe, y la Puerta de al lado sigue buscando", async () => {
   for (let i = 0; i < 120; i++) assert.equal((await llamar("buscar", buscar, { code: datos.puerta, query: "jose" })).status, 200, `búsqueda ${i}`);
   const frenada = await llamar("buscar", buscar, { code: datos.puerta, query: "jose" });
   assert.equal(frenada.status, 429);
   assert.deepEqual(frenada.cuerpo, { error: "too_many_attempts" });
+  // El cupo no es del evento: otro celular con el mismo código, desde otra IP, sigue buscando.
+  assert.equal((await llamar("buscar", buscar, { code: datos.puerta, query: "jose" }, "200.1.1.2")).status, 200);
+  // Una ráfaga: cuatrocientas a la vez desde una IP nueva, y pasan exactamente ciento veinte.
+  await doorSearchAttempts().clear();
+  const rafaga = await Promise.all(Array.from({ length: 400 }, (_, i) => llamar("buscar", buscar, { code: datos.puerta, query: `persona ${i % 5}` }, "200.1.1.3")));
+  assert.equal(rafaga.filter((r) => r.status === 200).length, 120);
+  assert.equal(rafaga.filter((r) => r.status === 429).length, 280);
+});
+
+test("pedir una ficha nueva no renueva el cupo: el freno cuenta por puesto e IP, venga la búsqueda con la ficha o con el código", async () => {
+  const ip = "200.1.1.4";
+  const abrirPuerta = async (body) => {
+    const r = await llamar("open", abrir, { scannerId: "celu-cupo", ...body }, ip);
+    assert.equal(r.status, 200);
+    return r.cuerpo.session.token;
+  };
+  let token = await abrirPuerta({ code: datos.puerta });
+  for (let i = 0; i < 120; i++) assert.equal((await llamar("buscar", buscar, { token, query: "jose" }, ip)).status, 200, `búsqueda ${i}`);
+  assert.equal((await llamar("buscar", buscar, { token, query: "jose" }, ip)).status, 429);
+  // Abrir el puesto (con la ficha o con el código) da una ficha nueva sin contar nada: cinco veces, y el cupo sigue agotado.
+  for (let i = 0; i < 5; i++) {
+    token = await abrirPuerta(i % 2 === 0 ? { token } : { code: datos.puerta });
+    assert.equal((await llamar("buscar", buscar, { token, query: "jose" }, ip)).status, 429, `con la ficha nueva ${i + 1}`);
+  }
+  assert.equal((await llamar("buscar", buscar, { code: datos.puerta, query: "jose" }, ip)).status, 429, "con el código suelto tampoco");
+  // La misma Puerta desde otra IP, y la Puerta de otro evento desde esta, siguen buscando.
+  assert.equal((await llamar("buscar", buscar, { token, query: "jose" }, "200.1.1.5")).status, 200);
+  const otro = await evento();
+  assert.equal((await llamar("buscar", buscar, { code: otro.puerta, query: "jose" }, ip)).status, 200);
 });
 
 // ---------- Agregar en la puerta ----------
@@ -154,7 +202,7 @@ test("agregar en la puerta inscribe gratis a la persona, le manda su credencial 
   assert.equal(status, 201);
   assert.equal(cuerpo.kind, "added");
   assert.equal(cuerpo.match.name, "Pedro Nuevo");
-  assert.equal(cuerpo.match.emailHint, "p***@example.com");
+  assert.equal(cuerpo.match.emailHint, "p***@e***.com");
   assert.equal(cuerpo.match.checkedInAt, null);
   assert.equal(cuerpo.match.ticket, "Inscripción");
 
@@ -207,33 +255,44 @@ test("la entrada marcada a mano va por el mismo camino que una lectura y queda c
     redeem: async () => ({ hash: "no" }),
     outcome: async () => "missing",
   };
-  const scannerId = manualScannerId("abc12345");
-  assert.equal(scannerId, "manual:puerta:abc12345");
-  assert.ok(isManualScannerId(scannerId));
+  assert.equal(manualScannerId("abc12345"), "manual:puerta:abc12345");
+  assert.ok(isManualScannerId("manual:puerta:abc12345"));
   assert.ok(!isManualScannerId("abc12345"));
-  // Una lectura de hace veinte minutos (el servidor solo acepta horas de hasta un año atrás y una hora adelante).
+  // Una lectura de hace veinte minutos, sin QR y marcada como manual: el escáner manda su id tal cual, el prefijo lo pone el servidor.
   const hace = new Date(Date.now() - 20 * 60 * 1000).toISOString();
-  const item = { clientId: "manual-1", action: "checkin", passId: anita.pass.id, benefitId: null, scannedAt: hace, scannerId };
+  const item = { clientId: "manual-1", action: "checkin", passId: anita.pass.id, benefitId: null, scannedAt: hace, scannerId: "abc12345", via: "manual" };
   const [resultado] = await processScanItems(repo, datos.event, GATE_STATION, [item], cadena);
   assert.equal(resultado.status, "synced");
   assert.deepEqual(llamadas, [anita.pass.account]);
 
   const [fila] = await repo.listCheckInsForPass(anita.pass.id);
   assert.equal(fila.scannerId, "manual:puerta:abc12345", "queda con su puesto");
+  assert.equal(fila.via, "manual", "y como marcada a mano");
   assert.equal(Date.parse(fila.scannedAt), Date.parse(hace), "y con su hora");
   assert.ok(fila.synced);
   assert.equal((await repo.getPass(anita.pass.id)).status, "checked_in");
-  assert.equal((await searchDoor(repo, datos.event, "anita"))[0].checkedInAt !== null, true, "y el buscador ya la muestra como que entró");
+  assert.equal((await searchDoor(repo, datos.event, "torres"))[0].checkedInAt !== null, true, "y el buscador ya la muestra como que entró");
 
   // marcar dos veces no llega dos veces al contrato
   const [otra] = await processScanItems(repo, datos.event, GATE_STATION, [item], cadena);
   assert.equal(otra.status, "synced");
   assert.equal(llamadas.length, 1);
+
+  // El prefijo que mande el cliente no vale nada: sin "via: manual" y sin QR, no es una lectura; con "manual", se saca y se vuelve a poner.
+  const disfraz = { clientId: "manual-3", action: "checkin", passId: ana.pass.id, benefitId: null, scannedAt: hace, scannerId: "manual:puerta:manual:puerta:zzz" };
+  assert.equal((await processScanItems(repo, datos.event, GATE_STATION, [disfraz], cadena))[0].status, "rejected");
+  assert.equal((await repo.listCheckInsForPass(ana.pass.id)).length, 0);
+  await processScanItems(repo, datos.event, GATE_STATION, [{ ...disfraz, via: "manual" }], cadena);
+  assert.equal((await repo.listCheckInsForPass(ana.pass.id))[0].scannerId, "manual:puerta:zzz");
 });
 
 test("el escáner de una mesa no puede marcar entradas, ni a mano", async () => {
   const mesa = { id: datos.lunch.id, kind: "benefit", name: "Almuerzo", place: null };
-  const item = { clientId: "manual-2", action: "checkin", passId: ana.pass.id, benefitId: null, scannedAt: new Date().toISOString(), scannerId: manualScannerId("zzz") };
+  const item = { clientId: "manual-2", action: "checkin", passId: jose.pass.id, benefitId: null, scannedAt: new Date().toISOString(), scannerId: "zzz", via: "manual" };
   const [resultado] = await processScanItems(repo, datos.event, mesa, [item], { checkIn: async () => assert.fail("no debería llegar"), redeem: async () => ({ hash: "x" }), outcome: async () => "missing" });
   assert.equal(resultado.status, "rejected");
+  // Ni un canje "a mano": sin el QR, en una mesa no se registra nada.
+  const canje = { clientId: "manual-4", action: "redeem", passId: jose.pass.id, benefitId: datos.lunch.id, scannedAt: new Date().toISOString(), scannerId: "zzz", via: "manual" };
+  const [sinQr] = await processScanItems(repo, datos.event, mesa, [canje], { checkIn: async () => ({ hash: "x" }), redeem: async () => assert.fail("no debería llegar"), outcome: async () => "missing" });
+  assert.equal(sinQr.status, "rejected");
 });
