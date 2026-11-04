@@ -16,8 +16,9 @@ export async function POST(request: Request): Promise<Response> {
   const denied = requireGate(auth.access);
   if (denied) return denied;
 
-  // El cupo es de cada sesión (o código) en cada IP, no del evento: quien lo agota no deja sin buscador a la
-  // Puerta de al lado. Y se cuenta y se decide de un solo golpe, así una ráfaga no pasa entera.
+  // El cupo es de cada puesto (su código, el que lleva la ficha) en cada IP, no del evento: quien lo agota no deja
+  // sin buscador a la Puerta de al lado, y pedir una ficha nueva no lo renueva. Y se cuenta y se decide de un solo
+  // golpe, así una ráfaga no pasa entera.
   const wait = await doorSearchAttempts().take(`${auth.access.event.id}:${auth.principal}:${clientKey(request.headers)}`);
   if (wait > 0) {
     return Response.json({ error: "too_many_attempts" }, { status: 429, headers: { "Retry-After": String(Math.ceil(wait / 1000)) } });

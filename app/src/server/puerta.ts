@@ -23,10 +23,11 @@ export function requireGate(access: StationAccess): Response | null {
 // ---------- El freno de la búsqueda ----------
 
 /**
- * Las búsquedas se cuentan por evento, sesión del escáner (o código) e IP: un voluntario escribe de a una por
- * vez, y ciento veinte en diez minutos alcanzan de sobra; si alguien recorre la lista con búsquedas de tres letras,
- * se frena él, no la Puerta de al lado. Se cuenta y se decide de un solo golpe (Limiter.take): una ráfaga de
- * cuatrocientas búsquedas a la vez no pasa entera antes de que el freno se entere.
+ * Las búsquedas se cuentan por evento, puesto (su código, venga en la ficha o suelto) e IP: un voluntario escribe
+ * de a una por vez, y ciento veinte en diez minutos alcanzan de sobra; si alguien recorre la lista con búsquedas de
+ * tres letras, se frena él, no la Puerta de al lado. No se cuenta por ficha: abrir el puesto da una ficha nueva sin
+ * contar nada, y con eso el cupo se renovaba en segundos. Se cuenta y se decide de un solo golpe (Limiter.take):
+ * una ráfaga de cuatrocientas búsquedas a la vez no pasa entera antes de que el freno se entere.
  */
 export function doorSearchAttempts(): Limiter {
   return limiter("door-search", {

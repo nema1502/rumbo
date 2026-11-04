@@ -10,6 +10,7 @@ import { entornoDePrueba, eventoDePrueba, paseDePrueba, pedido, qrImpreso } from
 entornoDePrueba();
 process.env.RUMBO_TRUSTED_IP_HEADER = "x-real-ip";
 const { getRepo } = await import("../src/server/repo.ts");
+const { getDb } = await import("../src/server/base/index.ts");
 const stellar = await import("../src/server/stellar.ts");
 const { ensureStationCodes, resolveStationCode } = await import("../src/server/panel.ts");
 const { stationCodeAttempts, registrationAttempts } = await import("../src/server/limites.ts");
@@ -128,6 +129,35 @@ test("la ficha deja de valer cuando quien organiza cambia el código, y abrir co
   assert.deepEqual((await llamar("open", { token }, "10.0.0.2")).status, 401);
   assert.equal((await abrir(nuevo, "10.0.0.2")).status, 200);
   assert.equal(await resolveStationCode(d.codigoStand, repo), null);
+});
+
+test("una ficha con la forma correcta de un evento que no existe contesta 401 en las cuatro rutas: no crea llaves, no choca con la base y cuesta una sola lectura", async () => {
+  const d = await evento();
+  const inventado = "11111111-2222-4333-8444-555555555555";
+  const armar = (claims) => `${Buffer.from(JSON.stringify({ v: 1, e: inventado, c: d.puerta, s: "celu-1", x: Date.now() + 60_000, ...claims }), "utf8").toString("base64url")}.firma`;
+  const token = armar({});
+  const cuerpos = { open: { token, scannerId: "celu-1" }, sync: { token, items: [] }, buscar: { token, query: "ana" }, agregar: { token, name: "Pedro Nuevo", email: "pedro.nuevo@example.com" } };
+  for (const [ruta, cuerpo] of Object.entries(cuerpos)) {
+    const r = await llamar(ruta, cuerpo, "10.0.0.4");
+    assert.deepEqual([r.status, r.cuerpo], [401, { error: "session_expired" }], ruta);
+  }
+  const db = getDb();
+  assert.equal(await db.one("SELECT 1 AS yes FROM event_qr_keys WHERE event_id = ?", [inventado]), null, "no quedaron llaves de un evento que no existe");
+  // Lo que cuesta leerla: una vencida se descarta sin tocar la base; una de un evento que no existe, una lectura y ninguna escritura.
+  const one = db.one.bind(db);
+  const run = db.run.bind(db);
+  const cuenta = { lecturas: 0, escrituras: 0 };
+  db.one = (...args) => (cuenta.lecturas++, one(...args));
+  db.run = (...args) => (cuenta.escrituras++, run(...args));
+  try {
+    assert.equal(await readScanSession(armar({ e: d.event.id, x: Date.now() - 1 })), null, "vencida");
+    assert.deepEqual(cuenta, { lecturas: 0, escrituras: 0 }, "una vencida no busca las llaves");
+    assert.equal(await readScanSession(token), null, "de un evento que no existe");
+    assert.deepEqual(cuenta, { lecturas: 1, escrituras: 0 }, "una de un evento que no existe cuesta una lectura, y nunca crea llaves");
+  } finally {
+    db.one = one;
+    db.run = run;
+  }
 });
 
 test("la cola agrupa lo pendiente por puesto con la ficha de cada uno: la de la sesión para el puesto abierto, la última guardada para los otros, y el código si no hay", () => {

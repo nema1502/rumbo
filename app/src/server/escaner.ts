@@ -538,7 +538,10 @@ export type ScanAuth =
       body: Record<string, unknown>;
       /** La sesión con que vino el pedido, o null si vino con el código. */
       session: ScanSessionClaims | null;
-      /** Una huella de la sesión o del código, para contar por sesión (el freno de la búsqueda de la puerta). */
+      /**
+       * Una huella del código del puesto (el que lleva la ficha, o el que vino), para contar por puesto (el freno de la
+       * búsqueda de la puerta). Contar por ficha dejaba renovar el cupo pidiendo una ficha nueva, que open da sin contar nada.
+       */
       principal: string;
     }
   | { ok: false; response: Response };
@@ -571,7 +574,7 @@ export async function authorizeScanRequest(repo: Repo, request: Request): Promis
     // El código se cambió desde el panel: la sesión que lo llevaba se cierra con él.
     if (!access || access.event.id !== session.eventId) return unauthorized("wrong_code");
     if (stationCodesExpired(access.event)) return unauthorized("expired");
-    return { ok: true, access, body, session, principal: sessionFingerprint(token) };
+    return { ok: true, access, body, session, principal: sessionFingerprint(session.code) };
   }
 
   const attempts = stationCodeAttempts();

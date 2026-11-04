@@ -16,6 +16,7 @@ const { normalizeSearch, searchSnapshotByName } = await import("../src/lib/busqu
 const { GATE_STATION, isManualScannerId, manualScannerId } = await import("../src/lib/escaner-api.ts");
 const { POST: buscar } = await import("../src/app/api/scan/buscar/route.ts");
 const { POST: agregar } = await import("../src/app/api/scan/agregar/route.ts");
+const { POST: abrir } = await import("../src/app/api/scan/open/route.ts");
 
 const repo = getRepo();
 
@@ -158,7 +159,7 @@ test("solo el código de la puerta abre el buscador y el agregar; el de una mesa
   assert.equal((await llamar("buscar", buscar, { query: "jose" })).status, 400, "sin código");
 });
 
-test("la búsqueda tiene freno: ciento veinte por sesión e IP en diez minutos, contadas de un solo golpe, y la Puerta de al lado sigue buscando", async () => {
+test("la búsqueda tiene freno: ciento veinte por puesto e IP en diez minutos, contadas de un solo golpe, y la Puerta de al lado sigue buscando", async () => {
   for (let i = 0; i < 120; i++) assert.equal((await llamar("buscar", buscar, { code: datos.puerta, query: "jose" })).status, 200, `búsqueda ${i}`);
   const frenada = await llamar("buscar", buscar, { code: datos.puerta, query: "jose" });
   assert.equal(frenada.status, 429);
@@ -170,6 +171,28 @@ test("la búsqueda tiene freno: ciento veinte por sesión e IP en diez minutos, 
   const rafaga = await Promise.all(Array.from({ length: 400 }, (_, i) => llamar("buscar", buscar, { code: datos.puerta, query: `persona ${i % 5}` }, "200.1.1.3")));
   assert.equal(rafaga.filter((r) => r.status === 200).length, 120);
   assert.equal(rafaga.filter((r) => r.status === 429).length, 280);
+});
+
+test("pedir una ficha nueva no renueva el cupo: el freno cuenta por puesto e IP, venga la búsqueda con la ficha o con el código", async () => {
+  const ip = "200.1.1.4";
+  const abrirPuerta = async (body) => {
+    const r = await llamar("open", abrir, { scannerId: "celu-cupo", ...body }, ip);
+    assert.equal(r.status, 200);
+    return r.cuerpo.session.token;
+  };
+  let token = await abrirPuerta({ code: datos.puerta });
+  for (let i = 0; i < 120; i++) assert.equal((await llamar("buscar", buscar, { token, query: "jose" }, ip)).status, 200, `búsqueda ${i}`);
+  assert.equal((await llamar("buscar", buscar, { token, query: "jose" }, ip)).status, 429);
+  // Abrir el puesto (con la ficha o con el código) da una ficha nueva sin contar nada: cinco veces, y el cupo sigue agotado.
+  for (let i = 0; i < 5; i++) {
+    token = await abrirPuerta(i % 2 === 0 ? { token } : { code: datos.puerta });
+    assert.equal((await llamar("buscar", buscar, { token, query: "jose" }, ip)).status, 429, `con la ficha nueva ${i + 1}`);
+  }
+  assert.equal((await llamar("buscar", buscar, { code: datos.puerta, query: "jose" }, ip)).status, 429, "con el código suelto tampoco");
+  // La misma Puerta desde otra IP, y la Puerta de otro evento desde esta, siguen buscando.
+  assert.equal((await llamar("buscar", buscar, { token, query: "jose" }, "200.1.1.5")).status, 200);
+  const otro = await evento();
+  assert.equal((await llamar("buscar", buscar, { code: otro.puerta, query: "jose" }, ip)).status, 200);
 });
 
 // ---------- Agregar en la puerta ----------
