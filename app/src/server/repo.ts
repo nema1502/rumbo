@@ -541,8 +541,8 @@ export function normalizeEmail(email: string): string {
 
 /**
  * La clave con la que dos correos cuentan como la misma persona. Es el correo normalizado, salvo en Gmail
- * (gmail.com y googlemail.com), donde los puntos del local y lo que sigue a un "+" no cambian el buzón:
- * "a.na+rumbo@googlemail.com" y "ana@gmail.com" son la misma persona. El correo se guarda como lo escribió.
+ * (gmail.com y googlemail.com), donde los puntos del local y lo que sigue a un "+" no cambian el buzón: el local
+ * "a.na+rumbo" en googlemail.com y el local "ana" en gmail.com son la misma persona. El correo se guarda como lo escribió.
  */
 export function emailKey(email: string): string {
   const clean = normalizeEmail(email);

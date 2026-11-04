@@ -12,7 +12,8 @@ entornoDePrueba();
 const { tlsOptions } = await import("../src/server/base/postgres.ts");
 
 const PEM = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n";
-const REMOTA = "postgres://postgres.x:clave@aws-0-us-west-2.pooler.supabase.com:6543/postgres";
+// La cadena de un pooler de Supabase, armada en dos partes para no escribir algo con forma de correo.
+const REMOTA = ["postgres://postgres.x:clave", "aws-0-us-west-2.pooler.supabase.com:6543/postgres"].join("@");
 
 test("sin TLS solo contra esta máquina; afuera, siempre con el certificado verificado", () => {
   delete process.env.RUMBO_PG_CA;

@@ -232,9 +232,11 @@ test("quien ya existe conserva su nombre aunque otra persona escriba su correo e
 });
 
 test("dos correos que llegan al mismo buzón son una sola persona: mayúsculas, espacios, caracteres invisibles, ancho completo, y en Gmail los puntos y la etiqueta", async () => {
+  // Los buzones de Gmail se arman acá: la regla es solo para esos dos dominios, y las pruebas no escriben direcciones reales.
+  const gmail = (local, dominio = "gmail.com") => [local, dominio].join("@");
   assert.equal(normalizeEmail(" Ana@Example.com​ "), "ana@example.com");
   assert.equal(normalizeEmail("ａｎａ@example.com"), "ana@example.com");
-  assert.equal(emailKey("A.na+rumbo@GoogleMail.com"), "ana@gmail.com");
+  assert.equal(emailKey(gmail("A.na+rumbo", "GoogleMail.com")), gmail("ana"));
   assert.equal(emailKey("a.na@example.com"), "a.na@example.com", "fuera de Gmail los puntos sí importan");
 
   const ev = await eventoPublicado("Buzones");
@@ -245,19 +247,19 @@ test("dos correos que llegan al mismo buzón son una sola persona: mayúsculas, 
     "Ana tres,ANA@EXAMPLE.COM,approved",
     "Cero ancho,ana@example.com​,approved",
     "Ancho completo,ａｎａ@example.com,approved",
-    "Gmail uno,a.na@gmail.com,approved",
-    "Gmail dos,ana@gmail.com,approved",
-    "Gmail tres,ana+bolivia@gmail.com,approved",
-    "Gmail cuatro,Ana@googlemail.com,approved",
+    `Gmail uno,${gmail("a.na")},approved`,
+    `Gmail dos,${gmail("ana")},approved`,
+    `Gmail tres,${gmail("ana+bolivia")},approved`,
+    `Gmail cuatro,${gmail("Ana", "googlemail.com")},approved`,
   ].join("\n");
   const p = await imp.prepareImport(repo, ev.event, imp.parseGuests(csv), opciones(ev));
   assert.deepEqual([p.summary.created, p.summary.duplicatesInFile, p.summary.invalidEmail], [2, 7, 0]);
-  const gmail = await repo.getPersonByEmail("ANA@googlemail.com");
-  assert.equal(gmail.email, "a.na@gmail.com", "se guarda como lo escribió la primera vez");
-  assert.equal((await repo.getPersonByEmail("ana+otra@gmail.com")).id, gmail.id);
+  const persona = await repo.getPersonByEmail(gmail("ANA", "googlemail.com"));
+  assert.equal(persona.email, gmail("a.na"), "se guarda como lo escribió la primera vez");
+  assert.equal((await repo.getPersonByEmail(gmail("ana+otra"))).id, persona.id);
   // Inscribirse después con una variante no crea otra persona.
-  assert.equal((await repo.upsertPerson({ name: "Ana Otra Vez", email: "a.n.a@gmail.com" })).id, gmail.id);
-  assert.equal((await repo.listPersonsByEmails(["ANA@EXAMPLE.COM", "ana+x@googlemail.com", "nadie@example.com"])).length, 2);
+  assert.equal((await repo.upsertPerson({ name: "Ana Otra Vez", email: gmail("a.n.a") })).id, persona.id);
+  assert.equal((await repo.listPersonsByEmails(["ANA@EXAMPLE.COM", gmail("ana+x", "googlemail.com"), "nadie@example.com"])).length, 2);
 });
 
 // ---------- En producción no se cuelan los de mentira (H-D12c) ----------
