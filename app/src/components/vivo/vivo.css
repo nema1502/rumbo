@@ -106,3 +106,15 @@
 @media (prefers-reduced-motion: reduce) {
   .viv-punto, .viv-cifra-valor, .viv-sorteo-cifra { animation: none; }
 }
+
+/* El sorteo: la opción de incluir a todas las credenciales, la lista congelada con su huella, y el botón que congela */
+button.viv-boton { border: 0; cursor: pointer; font-family: inherit; }
+.viv-boton:disabled, .viv-enlace-boton:disabled { opacity: 0.6; cursor: wait; }
+.viv-enlace-boton { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
+.viv-opcion { display: inline-flex; align-items: center; gap: 10px; font-size: clamp(0.95rem, 2vh, 1.3rem); color: var(--tinta-2); cursor: pointer; }
+.viv-opcion input { width: 1.2em; height: 1.2em; accent-color: var(--acento); }
+.viv-congelada { display: grid; gap: 6px; }
+.viv-congelada-texto { font-size: clamp(1.05rem, 2.4vh, 1.7rem); font-weight: 600; }
+.viv-huella { font-size: clamp(0.85rem, 1.8vh, 1.15rem); color: var(--tinta-2); overflow-wrap: anywhere; }
+.viv-huella code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: 0.02em; }
+.viv-huella-etiqueta { color: var(--apagado); }

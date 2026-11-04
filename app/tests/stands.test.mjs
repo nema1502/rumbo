@@ -395,8 +395,11 @@ test("la lista del sorteo: solo códigos de quienes entraron, siempre ordenada, 
   assert.equal((await buildRaffleList(d.event)).sha256, lista.sha256, "la misma lista da siempre la misma huella");
   assert.ok(!/@example\.com|Sorteo/.test(JSON.stringify(lista)), "sin nombres ni correos");
   const csv = raffleListCsv(lista);
-  assert.equal(csv.split("\r\n")[0], "n,pass_id");
-  assert.equal(csv.trim().split("\r\n").length, 4);
+  const lineas = csv.trim().split("\r\n");
+  assert.match(lineas[0], /^# evento /);
+  assert.match(lineas[1], new RegExp(`^# sha256 ${lista.sha256} `));
+  assert.equal(lineas[2], "n,pass_id");
+  assert.equal(lineas.length, 6);
 });
 
 test("los datos del stand se limpian: nombre, logo y beneficio", async () => {

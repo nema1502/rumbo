@@ -2,7 +2,8 @@
 // La pantalla en vivo: grande, oscura y con letra enorme, para proyectar. Tres cifras (quienes entraron, los
 // almuerzos y la merch entregados), el ranking de la ruta de stands y el espacio del sorteo. Pide los números
 // cada tres segundos mientras la pestaña está a la vista. Nunca muestra correos: el ranking usa el nombre de
-// pila o el alias que cada persona eligió.
+// pila o el alias que cada persona eligió. La lista del sorteo se congela desde acá: desde ese momento la que
+// se proyecta (con su huella) es la que se sortea, aunque alguien entre después.
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -23,6 +24,9 @@ export function PantallaVivo({ slug, initial }: { slug: string; initial: LiveSta
   const pathname = usePathname();
   const [vivo, setVivo] = useState<LiveState>(initial);
   const [conexion, setConexion] = useState<Conexion>("ok");
+  const [incluirTodos, setIncluirTodos] = useState(false);
+  const [cambiandoLista, setCambiandoLista] = useState(false);
+  const [errorLista, setErrorLista] = useState(false);
   // Cuántas filas del ranking entran en el alto que sobra: la pantalla no se desplaza, se muestran las que caben.
   const cajaRef = useRef<HTMLDivElement>(null);
   const [filas, setFilas] = useState(MAX_FILAS);
@@ -69,9 +73,32 @@ export function PantallaVivo({ slug, initial }: { slug: string; initial: LiveSta
     };
   }, [traer]);
 
+  /** Congela la lista del sorteo de este momento, o vuelve a la viva. Después se vuelven a pedir los números. */
+  async function cambiarLista(action: "freeze" | "thaw") {
+    setCambiandoLista(true);
+    setErrorLista(false);
+    try {
+      const res = await fetch(`/api/vivo/${slug}/sorteo`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(action === "freeze" ? { action, all: incluirTodos } : { action }),
+      });
+      if (res.status === 401) return setConexion("vencida");
+      if (!res.ok) throw new Error(String(res.status));
+      await traer();
+    } catch {
+      setErrorLista(true);
+    } finally {
+      setCambiandoLista(false);
+    }
+  }
+
   const { event, route, raffle } = vivo;
   const lugar = event.venue ? `${event.venue}, ${event.place}` : event.place;
   const meta = route.target ?? route.standCount;
+  const congelada = raffle.frozen;
+  const participan = congelada ? congelada.total : raffle.eligible;
+  const todos = congelada ? "" : incluirTodos ? "?todos=1" : "";
 
   return (
     <div className="vivo" data-tema="noche">
@@ -156,20 +183,46 @@ export function PantallaVivo({ slug, initial }: { slug: string; initial: LiveSta
             <h2 id="viv-sorteo-titulo">{t("vivo.sorteo.titulo")}</h2>
           </div>
           <div className="viv-sorteo-fila">
-            <p className="viv-sorteo-cifra" key={raffle.eligible}>
-              {raffle.eligible}
+            <p className="viv-sorteo-cifra" key={participan}>
+              {participan}
             </p>
-            <p className="viv-sorteo-texto">{raffle.eligible === 0 ? t("vivo.sorteo.ninguna") : t(raffle.eligible === 1 ? "vivo.sorteo.participa1" : "vivo.sorteo.participan")}</p>
+            <p className="viv-sorteo-texto">{participan === 0 ? t("vivo.sorteo.ninguna") : t(participan === 1 ? "vivo.sorteo.participa1" : "vivo.sorteo.participan")}</p>
           </div>
+          {congelada ? (
+            <div className="viv-congelada" aria-live="polite">
+              <p className="viv-congelada-texto">
+                {t(congelada.total === 1 ? "vivo.sorteo.congelada1" : "vivo.sorteo.congelada", { hora: formatDate(lang, congelada.at, event.timezone, { hour: "2-digit", minute: "2-digit" }), n: congelada.total })}
+              </p>
+              <p className="viv-huella">
+                <span className="viv-huella-etiqueta">{t("vivo.sorteo.huella")}</span> <code>{congelada.sha256}</code>
+              </p>
+              <p className="viv-pie">{t("vivo.sorteo.notaCongelada")}</p>
+            </div>
+          ) : (
+            <label className="viv-opcion">
+              <input type="checkbox" checked={incluirTodos} onChange={(e) => setIncluirTodos(e.target.checked)} disabled={cambiandoLista} />
+              <span>{t("vivo.sorteo.todos")}</span>
+            </label>
+          )}
           <div className="viv-acciones">
-            <a className="viv-boton" href={`/api/vivo/${slug}/sorteo`} download>
+            {congelada ? (
+              <button type="button" className="viv-enlace viv-enlace-chico viv-enlace-boton" onClick={() => void cambiarLista("thaw")} disabled={cambiandoLista}>
+                {t("vivo.sorteo.descongelar")}
+              </button>
+            ) : (
+              <button type="button" className="viv-boton" onClick={() => void cambiarLista("freeze")} disabled={cambiandoLista}>
+                {cambiandoLista ? t("vivo.sorteo.congelando") : t("vivo.sorteo.congelar")}
+              </button>
+            )}
+            <a className={congelada ? "viv-boton" : "viv-enlace viv-enlace-chico"} href={`/api/vivo/${slug}/sorteo${todos}`} download>
               {t("vivo.sorteo.exportar")}
             </a>
-            <a className="viv-enlace viv-enlace-chico" href={`/api/vivo/${slug}/sorteo?formato=csv`} download>
+            <a className="viv-enlace viv-enlace-chico" href={`/api/vivo/${slug}/sorteo?formato=csv${todos ? "&todos=1" : ""}`} download>
               {t("vivo.sorteo.csv")}
             </a>
           </div>
-          <p className="viv-pie">{t("vivo.sorteo.nota")}</p>
+          {errorLista && <p className="viv-chip viv-chip-alerta">{t("vivo.sorteo.error")}</p>}
+          <p className="viv-pie">{congelada ? t("vivo.sorteo.nota") : `${t("vivo.sorteo.soloAsistentes")} ${t("vivo.sorteo.nota")}`}</p>
         </section>
       </div>
 
