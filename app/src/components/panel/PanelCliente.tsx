@@ -354,14 +354,26 @@ function DetalleCadena({ cadena, nombreDe, timezone }: { cadena: EstadoCadena; n
   if (cadena.error) return <Aviso tono="alerta">{cadena.error}</Aviso>;
   const result = cadena.result;
   if (!result) return null;
-  const coincide = result.checkInsAdded === 0 && result.redemptionsAdded === 0 && result.passesFixed === 0 && result.pendingSync === 0 && result.mismatches.length === 0;
+  // "Coincide" solo si se pudo leer todo y no quedó nada afuera: con una consulta fallida o con entradas del
+  // contrato que no son de este panel, decirlo sería mentir.
+  const parcial = result.errors.length > 0 || result.contracts.some((c) => c.error !== null);
+  const coincide =
+    !parcial &&
+    result.unknownOnChain === 0 &&
+    result.checkInsAdded === 0 &&
+    result.redemptionsAdded === 0 &&
+    result.passesFixed === 0 &&
+    result.pendingSync === 0 &&
+    result.mismatches.length === 0;
   return (
     <Tarjeta className="cadena-detalle">
       <p suppressHydrationWarning>
         <strong>{t("panel.cadena.ultima", { fecha: fechaHora(lang, timezone, result.syncedAt) })}</strong>
       </p>
       <p>
-        {coincide
+        {parcial
+          ? t("panel.cadena.parcial")
+          : coincide
           ? t("panel.cadena.coincide")
           : t("panel.cadena.resumen", {
               entradas: result.checkInsAdded,

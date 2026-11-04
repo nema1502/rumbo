@@ -10,6 +10,9 @@ import { createRumboMcpServer } from "@/server/mcp/servidor.ts";
 import { langOfRequest, originOfRequest } from "@/server/pedido.ts";
 
 export const dynamic = "force-dynamic";
+// Publicar un evento despliega contratos e importar manda tandas de credenciales: en Vercel el tope por omisión alcanza
+// con Fluid, pero se declara igual para que una plataforma sin Fluid no corte la llamada a los diez segundos.
+export const maxDuration = 300;
 
 function bearer(request: NextRequest): string | null {
   const match = /^Bearer\s+(.+)$/i.exec(request.headers.get("authorization") ?? "");
