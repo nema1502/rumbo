@@ -46,6 +46,8 @@ Nada de `data/` ni de `.env.local` se versiona.
 
 Con `RUMBO_ACCOUNTS=pollar` y `NEXT_PUBLIC_POLLAR_PUBLISHABLE_KEY` (la clave publicable de la app "Rumbo" en [Pollar](https://pollar.xyz), red de prueba), quien se inscribe entra con Google o con su correo (un código de un solo uso), y su credencial queda en su propia cuenta de Stellar, que crea y custodia Pollar. El servidor nunca tiene esa llave. Sin las dos variables, todo sigue en el modo de prueba de arriba, que queda como respaldo y para las pruebas. El SDK es `@pollar/core` 0.11.5, en versión exacta.
 
+**La política de firma de Pollar.** El firmante de Pollar firma por las cuentas que custodia solo lo que la política de la app permite (en su panel: Wallets, Auth Policy): una fila por contrato, con las funciones exactas, y hay que incluir cada contrato del árbol de la llamada. Sin la fila, rechaza la entrada de autorización (`SOROBAN_AUTH_NO_POLICY`) y la inscripción termina en "Tu cuenta no autorizó la inscripción": así falló la primera prueba real, el 4-nov-2026. Como cada evento tiene su propio contrato, al publicar uno el servidor le avisa a Pollar con una fila (`register` y `buy`) usando `POLLAR_SECRET_KEY` (`src/server/pollar-politica.ts`; `pnpm seed -- --contratos-propios` hace lo mismo). Si el aviso falla, publicar sigue y queda en el registro del servidor. El USDC de prueba (`transfer`, que `buy` llama adentro) y los dos contratos del evento de muestra se cargaron a mano ese día. La fila comodín (`*`) existe, pero no se usa: abriría la firma a cualquier contrato. Dos cosas de Pollar para el sprint de diciembre: la API v1 que usa el SDK 0.11 se retira el 30-nov-2026 (hay que pasar a `0.12`, donde además cada firma pide confirmación salvo que la política diga otra cosa), y la custodia de Pollar no se ofrece en mainnet (allá van billeteras cofirmadas o passkeys).
+
 Cómo va una inscripción:
 
 1. **Entrar.** El formulario muestra "Entrar con Google" y "Entrar con mi correo" (`src/components/evento/FormularioConCuenta.tsx`, con un solo `PollarClient` por pestaña en `usePollar.ts`). Google abre una pestaña nueva; al terminar, esa pestaña cae en la portada de la app y la inscripción sigue en la de antes, que ya dice "Entraste como ..." y trae el nombre y el correo escritos. Pollar crea la cuenta al entrar: mientras tanto la pantalla dice "Estamos creando tu cuenta de Stellar" y espera hasta un minuto y medio.
@@ -347,7 +349,7 @@ Están todas en [`.env.example`](.env.example), con lo que hace cada una. Las ll
 
 ## En producción
 
-La app corre en Vercel y la base es Postgres en Supabase, por el pooler en modo transacción. Además de las variables de siempre (`STELLAR_*`, `RUMBO_ACCOUNTS`, `RUMBO_MAILER`, `RUMBO_CREATE_KEY`, `NEXT_PUBLIC_BASE_URL`, y con Pollar `NEXT_PUBLIC_POLLAR_PUBLISHABLE_KEY`, que Next pone en el navegador al compilar y el servidor lee al pedir):
+La app corre en Vercel y la base es Postgres en Supabase, por el pooler en modo transacción. Además de las variables de siempre (`STELLAR_*`, `RUMBO_ACCOUNTS`, `RUMBO_MAILER`, `RUMBO_CREATE_KEY`, `NEXT_PUBLIC_BASE_URL`, y con Pollar `NEXT_PUBLIC_POLLAR_PUBLISHABLE_KEY`, que Next pone en el navegador al compilar y el servidor lee al pedir, y `POLLAR_SECRET_KEY`, con la que el servidor le avisa a Pollar el contrato de cada evento que se publica):
 
 | Variable | Qué es |
 |---|---|
@@ -374,6 +376,7 @@ Para probar el motor de producción en esta máquina, sin Supabase: `pnpm db:loc
 ## Lo que falta
 
 - **Un enlace de solo lectura por auspiciante.** Hoy el informe (`/admin/<evento>/informe`) lo abre quien organiza, con su clave, y quien auspicia lo recibe impreso o en PDF. Viene un enlace propio por auspiciante, sin la clave del panel, que muestre solo su informe.
+- **Pollar 0.12 antes del 30-nov-2026.** La API v1 que usa `@pollar/core` 0.11 se retira ese día; en 0.12 cada firma pide confirmación a la persona salvo que la política de la app diga otra cosa, así que la inscripción tiene que mostrar ese pedido (`onConfirmationRequest`). Y para mainnet, donde Pollar no custodia cuentas, la inscripción con Google pasa a billeteras cofirmadas o a passkeys.
 
 ## Cómo se escribe lo visible
 

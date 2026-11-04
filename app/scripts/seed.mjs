@@ -102,6 +102,10 @@ if (process.argv.includes("--contratos-propios") || process.argv.includes("--con
     await repo.updateTicketType(ticket.id, { contractId });
     if (ticket.priceUsdc === 0) event = await repo.updateEvent(event.id, { contractId });
     console.log(`La entrada "${ticket.name}" apunta ahora a su propio contrato ${contractId}`);
+    // Con la clave secreta de Pollar, su firmante conoce el contrato nuevo (si no, la inscripción con Google falla).
+    const { allowEventContractInPollar } = await import("../src/server/pollar-politica.ts");
+    const aviso = await allowEventContractInPollar(contractId, `${event.name}: ${ticket.name}`);
+    console.log(aviso.ok ? `  Pollar ya lo conoce (fila ${aviso.policyId})` : aviso.reason === "not_configured" ? "  Sin POLLAR_SECRET_KEY: a Pollar no se le avisó" : `  Pollar no lo aceptó: ${aviso.detail}`);
   }
   tickets = await repo.listTicketTypes(event.id);
 }

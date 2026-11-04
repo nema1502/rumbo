@@ -8,6 +8,7 @@
 import { Address, Operation, TransactionBuilder, BASE_FEE, nativeToScVal } from "@stellar/stellar-sdk";
 import { isPublicKind } from "../../lib/credential-kinds.ts";
 import { BUSY, tryExclusive } from "../compartido.ts";
+import { allowEventContractInPollar, type AllowOutcome } from "../pollar-politica.ts";
 import type { EventRecord, Repo } from "../repo.ts";
 import { NETWORK_PASSPHRASE, TX_TIMEOUT_SECONDS, getRpc, getSponsor, getTestAsset, readDeployInfo, submitSponsored, toStroops, withSponsorLock } from "../stellar.ts";
 
@@ -25,6 +26,11 @@ export interface ContractSpec {
 export interface ContractProvisioner {
   /** Crea el contrato y devuelve su id. */
   deploy(spec: ContractSpec): Promise<string>;
+  /**
+   * Le avisa a Pollar que el contrato existe, para que firme por las cuentas que custodia lo que la persona
+   * hace en él (register y buy). Sin esto, el de verdad usa allowEventContractInPollar; las pruebas, nada.
+   */
+  allow?(contractId: string, label: string): Promise<AllowOutcome>;
 }
 
 export type PublishFailure = "no_attendee" | "no_free_attendee" | "no_capacity" | "deploy_failed" | "busy";
@@ -64,8 +70,12 @@ async function publishOnce(repo: Repo, eventId: string, provisioner: ContractPro
     try {
       const contractId = await provisioner.deploy({ price: type.priceUsdc, capacity, benefits, organizerAccount: event.organizerAccount });
       // Solo si la entrada sigue sin contrato: el que ya tiene (con inscriptos, quizás) no se pisa nunca.
-      if (await repo.setTicketTypeContractIfEmpty(type.id, contractId)) deployed++;
-      else console.warn(`[publicar] La entrada ${type.id} ya tenía contrato: el recién creado (${contractId}) queda sin usar`);
+      if (await repo.setTicketTypeContractIfEmpty(type.id, contractId)) {
+        deployed++;
+        // Con cuentas de Pollar, su firmante tiene que conocer el contrato; si el aviso falla, publicar sigue y
+        // queda en el registro: la inscripción con Google diría "no autorizó" hasta cargar la fila a mano.
+        await (provisioner.allow ?? allowEventContractInPollar)(contractId, `${event.name}: ${type.name}`);
+      } else console.warn(`[publicar] La entrada ${type.id} ya tenía contrato: el recién creado (${contractId}) queda sin usar`);
     } catch (error) {
       return { ok: false, reason: "deploy_failed", detail: error instanceof Error ? error.message : String(error) };
     }
