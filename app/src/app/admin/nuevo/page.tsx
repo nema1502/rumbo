@@ -41,7 +41,11 @@ const ENTRAR_Y_VOLVER = "/admin?volver=/admin/nuevo";
 
 /** El tope alcanzado, en palabras: cuántos (o desde esta conexión) y en cuánto se libera. */
 function topeTexto(t: T, quota: Extract<CreateQuota, { ok: false }>): string {
-  const cuantos = quota.reason === "ip" ? t("panel.cuenta.topeIp") : quota.limit === 1 ? t("panel.cuenta.topeUno") : t("panel.cuenta.tope", { n: quota.limit });
+  const cuantos =
+    quota.reason === "global" ? t("panel.cuenta.topeGlobal")
+    : quota.reason === "ip" ? t("panel.cuenta.topeIp")
+    : quota.limit === 1 ? t("panel.cuenta.topeUno")
+    : t("panel.cuenta.tope", { n: quota.limit });
   const horas = Math.ceil(quota.freesInMs / 3600_000);
   const libera = horas <= 1 ? t("panel.cuenta.liberaUna") : t("panel.cuenta.libera", { horas });
   return `${cuantos} ${libera}`;

@@ -5,6 +5,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import "@/components/evento/evento.css";
+import { CerrarSesion } from "@/components/panel/CerrarSesion.tsx";
 import { EntrarOrganizador } from "@/components/panel/EntrarOrganizador.tsx";
 import { BotonEnlace, Chip, Pantalla, Tarjeta, Aviso } from "@/components/ui.tsx";
 import { getLang, getT } from "@/i18n/server.ts";
@@ -87,17 +88,18 @@ export default async function OrganizerHomePage({ searchParams }: { searchParams
             })}
           </ul>
         )}
+        {/* Lo que viene para los capítulos de Stellar, dicho como promesa: todavía no existe. */}
+        <Tarjeta className="proximamente">
+          <Chip estado="neutro">{t("panel.cuenta.proximamente")}</Chip>
+          <h2>{t("panel.cuenta.cierreTitulo")}</h2>
+          <p>{t("panel.cuenta.cierreTexto")}</p>
+        </Tarjeta>
       </div>
       <div className="pantalla-accion">
         <BotonEnlace href="/admin/nuevo" grande>
           {t("panel.cuenta.crear")}
         </BotonEnlace>
-        <form className="panel-salir" method="post" action="/api/organizador/salir">
-          <button type="submit" className="enlace">
-            {t("panel.cuenta.salir")}
-          </button>
-          <span className="apagado chico">{t("panel.cuenta.salirAyuda")}</span>
-        </form>
+        <CerrarSesion pollarKey={pollarPublishableKey()} />
       </div>
     </section>
   );

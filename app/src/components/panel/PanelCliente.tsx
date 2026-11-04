@@ -14,6 +14,7 @@ import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
 import type { ChainSyncSummary, PanelDuplicate, PanelPass, PanelState } from "@/server/panel.ts";
 import type { PanelVia } from "@/server/panel-sesion.ts";
 import { BotonCopiar } from "./BotonCopiar.tsx";
+import { CerrarSesion } from "./CerrarSesion.tsx";
 import { CompartirPanel } from "./CompartirPanel.tsx";
 import { Contador } from "./Contador.tsx";
 
@@ -41,7 +42,20 @@ function fechaHora(lang: Lang, timeZone: string, iso: string): string {
   return new Intl.DateTimeFormat(LOCALES[lang], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: lang === "es" ? "h23" : "h12", timeZone }).format(new Date(iso));
 }
 
-export function PanelCliente({ slug, initial, publicado = false, via = "key" }: { slug: string; initial: PanelState; publicado?: boolean; via?: PanelVia }) {
+export function PanelCliente({
+  slug,
+  initial,
+  publicado = false,
+  via = "key",
+  pollarKey = null,
+}: {
+  slug: string;
+  initial: PanelState;
+  publicado?: boolean;
+  via?: PanelVia;
+  /** Con la cuenta: la clave publicable de Pollar, para cerrar también su sesión en este navegador. */
+  pollarKey?: string | null;
+}) {
   const t = useT();
   const lang = useLang();
   const [state, setState] = useState<PanelState>(initial);
@@ -347,12 +361,15 @@ export function PanelCliente({ slug, initial, publicado = false, via = "key" }: 
       </section>
 
       {/* Con la clave se sale de este panel; con la cuenta se cierra la sesión en este navegador (Mis eventos queda arriba). */}
-      <form className="panel-salir" method="post" action={via === "organizer" ? "/api/organizador/salir" : `/api/admin/${slug}/salir`}>
-        <button type="submit" className="enlace">
-          {via === "organizer" ? t("panel.cuenta.salir") : t("panel.acceso.salir")}
-        </button>
-        {via === "organizer" && <span className="apagado chico">{t("panel.cuenta.salirAyuda")}</span>}
-      </form>
+      {via === "organizer" ? (
+        <CerrarSesion pollarKey={pollarKey} />
+      ) : (
+        <form className="panel-salir" method="post" action={`/api/admin/${slug}/salir`}>
+          <button type="submit" className="enlace">
+            {t("panel.acceso.salir")}
+          </button>
+        </form>
+      )}
 
       <div className="panel-accion">
         <p className="panel-accion-estado" suppressHydrationWarning>

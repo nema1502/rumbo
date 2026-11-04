@@ -86,9 +86,11 @@ export interface PanelAccess {
  * Primero la clave del evento (su cookie), después la sesión de organizador si el evento es de esa cuenta.
  */
 export async function panelAccess(event: EventRecord): Promise<PanelAccess | null> {
-  if (await verifyOrganizerKey(event.id, await panelKeyFromCookies(event.slug))) return { via: "key", organizer: null };
+  // Primero la cuenta: si la dueña abre su propio enlace para compartir en el mismo navegador, la cookie de la
+  // clave no le cambia el panel a "modo clave" (sin Mis eventos ni Compartir) por treinta días.
   const organizer = await organizerFromCookies();
   if (organizer && canManageEvent(organizer, event)) return { via: "organizer", organizer };
+  if (await verifyOrganizerKey(event.id, await panelKeyFromCookies(event.slug))) return { via: "key", organizer: null };
   return null;
 }
 
@@ -98,8 +100,9 @@ type Authorized = { event: EventRecord; via: PanelVia; response?: undefined } | 
 export async function authorizePanelRequest(request: NextRequest, slug: string): Promise<Authorized> {
   const event = await getRepo().getEventBySlug(slug);
   if (!event) return { response: NextResponse.json({ error: "not_found" }, { status: 404 }) };
-  if (await verifyOrganizerKey(event.id, panelKeyFromRequest(request, slug))) return { event, via: "key" };
+  // Como en panelAccess: la sesión de la dueña gana sobre la cookie de la clave.
   const organizer = await organizerFromRequest(request);
   if (organizer && canManageEvent(organizer, event)) return { event, via: "organizer" };
+  if (await verifyOrganizerKey(event.id, panelKeyFromRequest(request, slug))) return { event, via: "key" };
   return { response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
 }

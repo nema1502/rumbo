@@ -22,7 +22,26 @@ export function clientKey(headers: { get(name: string): string | null }): string
   if (!header) return "local";
   const value = headers.get(header);
   const ip = value?.split(",").at(-1)?.trim();
-  return ip ? ip.slice(0, 64) : "local";
+  return ip ? networkOf(ip).slice(0, 64) : "local";
+}
+
+/**
+ * Una IPv6 se cuenta por su /64: es lo que suele tener una sola máquina o una sola red, y con la dirección entera
+ * cada una de sus miles de direcciones era una conexión nueva para los frenos. Una IPv4 (también escrita como
+ * ::ffff:1.2.3.4) queda entera. Lo que no se entiende como IPv6 queda como vino.
+ */
+export function networkOf(ip: string): string {
+  if (!ip.includes(":")) return ip;
+  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(ip);
+  if (mapped) return mapped[1]!;
+  const sinZona = ip.split("%")[0]!.toLowerCase();
+  const partes = sinZona.split("::");
+  if (partes.length > 2) return ip;
+  const cabeza = partes[0] ? partes[0].split(":") : [];
+  const cola = partes.length === 2 && partes[1] ? partes[1].split(":") : [];
+  const grupos = partes.length === 2 ? [...cabeza, ...Array(Math.max(0, 8 - cabeza.length - cola.length)).fill("0"), ...cola] : cabeza;
+  if (grupos.length !== 8 || !grupos.slice(0, 4).every((g) => /^[0-9a-f]{1,4}$/.test(g))) return ip;
+  return `${grupos.slice(0, 4).map((g) => parseInt(g, 16).toString(16)).join(":")}::/64`;
 }
 
 // ---------- El freno de intentos ----------

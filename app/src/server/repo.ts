@@ -493,6 +493,8 @@ export interface Repo {
   listEventsByOrganizer(organizerId: string): Promise<EventRecord[]>;
   /** Cuántos eventos creó esa cuenta desde `since` (ISO 8601): el tope de creación por día. */
   countEventsByOrganizerSince(organizerId: string, since: string): Promise<number>;
+  /** Cuándo se creó cada evento con cuenta (de cualquier cuenta) desde `since`, de más viejo a más nuevo: el techo de todo Rumbo. */
+  listAccountEventTimesSince(since: string): Promise<string[]>;
 
   // Equipos (la inscripción de la hackatón)
   /** Crea el equipo, o devuelve el que ya tenía ese nombre en el evento (sin importar mayúsculas). */
@@ -1366,6 +1368,11 @@ export class SqlRepo implements Repo {
   async countEventsByOrganizerSince(organizerId: string, since: string): Promise<number> {
     const row = await this.db.one("SELECT COUNT(*) AS n FROM events WHERE organizer_id = ? AND created_at >= ?", [organizerId, since]);
     return num(row?.n ?? 0);
+  }
+
+  async listAccountEventTimesSince(since: string): Promise<string[]> {
+    const rows = await this.db.all("SELECT created_at FROM events WHERE organizer_id IS NOT NULL AND created_at >= ? ORDER BY created_at", [since]);
+    return rows.map((row) => str(row.created_at));
   }
 
   // Equipos

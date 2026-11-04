@@ -25,6 +25,8 @@ export const SESSION_TTL_MS = 30 * 24 * 3600_000;
 export const TOUCH_EVERY_MS = 3600_000;
 /** Cuántos eventos puede crear una cuenta en veinticuatro horas si RUMBO_EVENTS_PER_DAY no dice otra cosa. */
 export const DEFAULT_EVENTS_PER_DAY = 3;
+/** El techo de todo Rumbo, sumando todas las cuentas y conexiones: los topes por cuenta y por IP se esquivan abriendo más. */
+export const DEFAULT_EVENTS_GLOBAL_PER_DAY = 100;
 const DAY_MS = 24 * 3600_000;
 
 /** La huella con la que se guarda una ficha: SHA-256 en hex. La ficha nunca toca la base. */
@@ -126,11 +128,17 @@ export function eventsPerDay(): number {
   return Number.isInteger(n) && n > 0 ? n : DEFAULT_EVENTS_PER_DAY;
 }
 
+export function eventsGlobalPerDay(): number {
+  const n = Number(getEnv("RUMBO_EVENTS_GLOBAL_PER_DAY", String(DEFAULT_EVENTS_GLOBAL_PER_DAY)));
+  return Number.isInteger(n) && n > 0 ? n : DEFAULT_EVENTS_GLOBAL_PER_DAY;
+}
+
 export type CreateWithAccount =
   | { ok: true; event: EventRecord }
   | { ok: false; reason: "quota"; limit: number }
   | { ok: false; reason: "busy" }
-  | { ok: false; reason: "ip"; waitMs: number };
+  | { ok: false; reason: "ip"; waitMs: number }
+  | { ok: false; reason: "global" };
 
 export interface CreateOptions {
   /** Quién pide (clientKey): el tope por IP. Sin él, no se cuenta (el MCP y las pruebas que no lo pasan). */
@@ -157,7 +165,10 @@ export async function createEventWithAccount(
   checkTemplateInput(input);
   const outcome = await tryExclusive(`crear-evento:${organizer.id}`, async (): Promise<CreateWithAccount> => {
     const limit = eventsPerDay();
-    if ((await repo.countEventsByOrganizerSince(organizer.id, new Date(now - DAY_MS).toISOString())) >= limit) return { ok: false, reason: "quota", limit };
+    const since = new Date(now - DAY_MS).toISOString();
+    if ((await repo.countEventsByOrganizerSince(organizer.id, since)) >= limit) return { ok: false, reason: "quota", limit };
+    // El techo de todos: aproximado (el turno es por cuenta), alcanza para que nadie llene la red de prueba de a muchas cuentas.
+    if ((await repo.listAccountEventTimesSince(since)).length >= eventsGlobalPerDay()) return { ok: false, reason: "global" };
     if (requester !== undefined) {
       const waitMs = await eventCreateAttempts().take(requester);
       if (waitMs > 0) return { ok: false, reason: "ip", waitMs };
@@ -167,7 +178,11 @@ export async function createEventWithAccount(
   return outcome === BUSY ? { ok: false, reason: "busy" } : outcome;
 }
 
-export type CreateQuota = { ok: true; limit: number; left: number } | { ok: false; reason: "quota"; limit: number; freesInMs: number } | { ok: false; reason: "ip"; freesInMs: number };
+export type CreateQuota =
+  | { ok: true; limit: number; left: number }
+  | { ok: false; reason: "quota"; limit: number; freesInMs: number }
+  | { ok: false; reason: "ip"; freesInMs: number }
+  | { ok: false; reason: "global"; freesInMs: number };
 
 /**
  * Para la pantalla de /admin/nuevo: si esa cuenta (y esa IP) pueden crear un evento ahora, y si no, cuándo se libera.
@@ -182,6 +197,9 @@ export async function createQuota(repo: Repo, organizer: Organizer, requester: s
     .sort((a, b) => a - b);
   // Se libera cuando el más viejo de los que sobran sale de las veinticuatro horas.
   if (recent.length >= limit) return { ok: false, reason: "quota", limit, freesInMs: Math.max(0, recent[recent.length - limit]! + DAY_MS - now) };
+  const techo = eventsGlobalPerDay();
+  const todos = (await repo.listAccountEventTimesSince(new Date(since).toISOString())).map((at) => Date.parse(at));
+  if (todos.length >= techo) return { ok: false, reason: "global", freesInMs: Math.max(0, todos[todos.length - techo]! + DAY_MS - now) };
   if (requester !== undefined) {
     const waitMs = await eventCreateAttempts().blockedFor(requester);
     if (waitMs > 0) return { ok: false, reason: "ip", freesInMs: waitMs };

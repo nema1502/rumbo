@@ -30,6 +30,10 @@ export function fromOwnSite(request: NextRequest): boolean {
     const site = request.headers.get("sec-fetch-site");
     return site === null || site === "same-origin";
   }
+  // Las páginas de /admin van con Referrer-Policy: no-referrer, y con esa política el navegador manda
+  // "Origin: null" en los POST de la propia app (un formulario o un fetch al mismo sitio). Se acepta solo si
+  // Sec-Fetch-Site, que lo pone el navegador y una página no puede falsificar, dice same-origin.
+  if (origin === "null") return request.headers.get("sec-fetch-site") === "same-origin";
   let claimed: string;
   try {
     claimed = new URL(origin).origin;

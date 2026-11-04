@@ -6,7 +6,7 @@ import { notFound, redirect } from "next/navigation";
 import { AccesoPanel } from "@/components/panel/AccesoPanel.tsx";
 import { PanelCliente } from "@/components/panel/PanelCliente.tsx";
 import { getT } from "@/i18n/server.ts";
-import { pollarEnabled } from "@/server/accounts.ts";
+import { pollarEnabled, pollarPublishableKey } from "@/server/accounts.ts";
 import { ensureStationCodes, getPanelState } from "@/server/panel.ts";
 import { PANEL_KEY_QUERY, panelAccess } from "@/server/panel-sesion.ts";
 import { getRepo } from "@/server/repo.ts";
@@ -38,5 +38,13 @@ export default async function AdminPage({ params, searchParams }: { params: Para
   if (!event.published) redirect(`/admin/${encodeURIComponent(slug)}/armar`);
 
   await ensureStationCodes(event, repo);
-  return <PanelCliente slug={slug} initial={await getPanelState(event, repo)} publicado={query.publicado === "1"} via={access.via} />;
+  return (
+    <PanelCliente
+      slug={slug}
+      initial={await getPanelState(event, repo)}
+      publicado={query.publicado === "1"}
+      via={access.via}
+      pollarKey={access.via === "organizer" ? pollarPublishableKey() : null}
+    />
+  );
 }

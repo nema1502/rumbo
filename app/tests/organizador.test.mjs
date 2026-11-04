@@ -399,3 +399,66 @@ test("a dónde vuelve /admin después de entrar: solo a una ruta propia del pane
   assert.equal(safeReturnPath("/admin/\\otro"), null, "una barra invertida, que el navegador lee como /");
   assert.equal(safeReturnPath("/admin/x\nSet-Cookie"), null);
 });
+
+test("cerrar sesión desde la propia app llega con Origin null (las páginas van con no-referrer) y cierra; con Origin null desde otro sitio, no", async () => {
+  const llave = Keypair.random();
+  const { token } = await entrarCon(llave);
+  const { NextRequest } = await import("next/server");
+  const pedir = (headers) => new NextRequest("https://rum.bo/api/organizador/salir", { method: "POST", headers: new Headers({ "x-real-ip": "190.0.0.8", cookie: `${org.ORGANIZER_COOKIE}=${token}`, ...headers }) });
+  assert.equal((await salir(pedir({ origin: "null", "sec-fetch-site": "cross-site" }))).status, 403);
+  assert.equal((await salir(pedir({ origin: "null" }))).status, 403, "sin Sec-Fetch-Site, un Origin null no alcanza");
+  assert.ok(await repo.getOrganizerSession(org.sessionIdOf(token)), "la sesión sigue");
+  assert.equal((await salir(pedir({ origin: "null", "sec-fetch-site": "same-origin" }))).status, 303);
+  assert.equal(await repo.getOrganizerSession(org.sessionIdOf(token)), null);
+});
+
+test("la dueña que abrió su propio enlace con la clave sigue entrando con la cuenta: la sesión gana sobre la cookie de la clave", async () => {
+  const llave = Keypair.random();
+  const { token } = await entrarCon(llave);
+  const creado = await org.createEventWithAccount(repo, await repo.getOrganizerByAccount(llave.publicKey()), plantilla);
+  const slug = creado.event.slug;
+  const clave = await getOrCreateOrganizerKey(creado.event.id);
+  const ambas = { cookie: `${org.ORGANIZER_COOKIE}=${token}; rumbo.panel.${slug}=${clave}` };
+  const acceso = await authorizePanelRequest(await pedido(`http://localhost/api/admin/${slug}`, { method: "GET", headers: ambas }), slug);
+  assert.equal(acceso.via, "organizer");
+  // Quien coorganiza, solo con la clave, sigue entrando por la clave.
+  const soloClave = await authorizePanelRequest(await pedido(`http://localhost/api/admin/${slug}`, { method: "GET", headers: { cookie: `rumbo.panel.${slug}=${clave}` } }), slug);
+  assert.equal(soloClave.via, "key");
+});
+
+test("los frenos cuentan una IPv6 por su /64; una IPv4 queda entera", async () => {
+  const { networkOf, clientKey } = await import("../src/server/limites.ts");
+  assert.equal(networkOf("2001:db8:85a3:12:1:2:3:4"), "2001:db8:85a3:12::/64");
+  assert.equal(networkOf("2001:db8:85a3:12::99"), "2001:db8:85a3:12::/64");
+  assert.equal(networkOf("2001:0DB8:0000:0001::1%eth0"), "2001:db8:0:1::/64");
+  assert.equal(networkOf("::1"), "0:0:0:0::/64");
+  assert.equal(networkOf("::ffff:190.0.0.1"), "190.0.0.1");
+  assert.equal(networkOf("190.0.0.1"), "190.0.0.1");
+  assert.equal(networkOf("no:es:una:ip:::"), "no:es:una:ip:::");
+  const headers = (ip) => ({ get: (name) => (name === "x-real-ip" ? ip : null) });
+  assert.equal(clientKey(headers("2001:db8:1:2:aaaa::1")), clientKey(headers("2001:db8:1:2:bbbb::2")), "dos direcciones del mismo /64 son la misma conexión");
+  assert.notEqual(clientKey(headers("2001:db8:1:2::1")), clientKey(headers("2001:db8:1:3::1")));
+});
+
+test("el techo de todo Rumbo: con RUMBO_EVENTS_GLOBAL_PER_DAY=2, la tercera cuenta no crea y la pantalla lo sabe", async () => {
+  const antes = (await repo.listAccountEventTimesSince(new Date(Date.now() - 24 * 3600_000).toISOString())).length;
+  process.env.RUMBO_EVENTS_GLOBAL_PER_DAY = String(antes + 2);
+  try {
+    const cuentas = [];
+    for (let i = 0; i < 3; i++) {
+      const llave = Keypair.random();
+      await entrarCon(llave, { ip: `190.0.1.${i + 1}` });
+      cuentas.push(await repo.getOrganizerByAccount(llave.publicKey()));
+    }
+    assert.equal((await org.createEventWithAccount(repo, cuentas[0], plantilla)).ok, true);
+    assert.equal((await org.createEventWithAccount(repo, cuentas[1], plantilla)).ok, true);
+    const tercera = await org.createEventWithAccount(repo, cuentas[2], plantilla);
+    assert.deepEqual(tercera, { ok: false, reason: "global" });
+    const cupo = await org.createQuota(repo, cuentas[2], undefined);
+    assert.equal(cupo.ok, false);
+    assert.equal(cupo.reason, "global");
+    assert.ok(cupo.freesInMs > 0 && cupo.freesInMs <= 24 * 3600_000);
+  } finally {
+    delete process.env.RUMBO_EVENTS_GLOBAL_PER_DAY;
+  }
+});
