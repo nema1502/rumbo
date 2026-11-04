@@ -7,6 +7,7 @@ import { FilaEntrada } from "@/components/evento/FilaEntrada.tsx";
 import { Aviso, BotonEnlace, Chip } from "@/components/ui.tsx";
 import { getLang, getT } from "@/i18n/server.ts";
 import { isPublicKind } from "@/lib/credential-kinds.ts";
+import { isSoldOut, readContractCapacity } from "@/server/evento/cupo.ts";
 import { formatEventWhen, formatEventWhere, joinList } from "@/server/evento/fecha.ts";
 import { getRepo, type TicketTypeBenefit } from "@/server/repo.ts";
 
@@ -52,6 +53,8 @@ export default async function EventPage({ params }: { params: Params }) {
 
   const when = formatEventWhen(lang, event);
   const hasFree = tickets.some((ticket) => ticket.priceUsdc === 0);
+  // Si el contrato de una entrada ya no emite más, la tarjeta dice "Agotada" (se lee una vez por minuto, no en cada carga).
+  const cupos = await Promise.all(tickets.map((ticket) => readContractCapacity(ticket.contractId ?? event.contractId)));
 
   // Qué incluye el evento y con qué entrada viene cada cosa (si no viene con todas).
   const included = catalog.map((benefit) => {
@@ -95,7 +98,7 @@ export default async function EventPage({ params }: { params: Params }) {
         {tickets.length === 0 ? (
           <Aviso>{t("evento.sinEntradas")}</Aviso>
         ) : (
-          tickets.map((ticket) => (
+          tickets.map((ticket, i) => (
             <FilaEntrada
               key={ticket.id}
               ticket={ticket}
@@ -103,6 +106,8 @@ export default async function EventPage({ params }: { params: Params }) {
               href={`/e/${encodeURIComponent(slug)}/inscripcion?entrada=${encodeURIComponent(ticket.id)}`}
               lang={lang}
               t={t}
+              soldOut={isSoldOut(cupos[i] ?? null)}
+              secondary={ticket.priceUsdc > 0 && hasFree}
             />
           ))
         )}

@@ -21,6 +21,7 @@ import {
   type PassStatus,
   type Repo,
 } from "./repo.ts";
+import { readContractCapacity, smallestCapacity } from "./evento/cupo.ts";
 import { isPermanentContractError, rumboPass, type PassStatusOnChain } from "./stellar.ts";
 
 // ---------- La base ----------
@@ -226,6 +227,8 @@ export interface PanelDuplicate {
   benefitName: string | null;
   scannedAt: string;
   scannerId: string | null;
+  /** El puesto donde se registró (la mesa del beneficio); null si no se sabe. La puerta la pone la pantalla. */
+  station: string | null;
 }
 
 export interface Tally {
@@ -373,7 +376,7 @@ async function collect(event: EventRecord, repo: Repo): Promise<Collected> {
   const duplicates: PanelDuplicate[] = [
     ...checkIns
       .filter((c) => c.duplicate)
-      .map((c) => ({ id: c.id, kind: "checkin" as const, passId: c.passId, name: nameOf(c.passId), benefitName: null, scannedAt: c.scannedAt, scannerId: c.scannerId })),
+      .map((c) => ({ id: c.id, kind: "checkin" as const, passId: c.passId, name: nameOf(c.passId), benefitName: null, scannedAt: c.scannedAt, scannerId: c.scannerId, station: null })),
     ...redemptions
       .filter((r) => r.duplicate)
       .map((r) => ({
@@ -384,6 +387,7 @@ async function collect(event: EventRecord, repo: Repo): Promise<Collected> {
         benefitName: benefitById.get(r.benefitId)?.name ?? null,
         scannedAt: r.scannedAt,
         scannerId: r.scannerId,
+        station: benefitById.get(r.benefitId)?.station ?? null,
       })),
   ].sort((a, b) => b.scannedAt.localeCompare(a.scannedAt));
 
@@ -393,13 +397,16 @@ async function collect(event: EventRecord, repo: Repo): Promise<Collected> {
     return { ...c, benefitName: benefit?.name ?? null, standName: c.standId ? (standNames.get(c.standId) ?? null) : null, station: benefit?.station ?? null };
   });
 
+  // "de 200 lugares": el cupo de la base, o el del contrato si es menor (se recuerda un minuto, no se lee en cada pedido).
+  const capacity = smallestCapacity(event.capacity, ...(await Promise.all(ticketTypes.map((t) => readContractCapacity(t.contractId ?? event.contractId)))));
+
   const state: PanelState = {
     generatedAt: now(),
     event: toPanelEvent(event),
     counters: {
       issued: issuedPasses.length,
       pending: panelPasses.length - issuedPasses.length,
-      capacity: event.capacity,
+      capacity,
       checkedIn: panelPasses.filter((p) => p.status === "checked_in").length,
       lunch: tally("lunch"),
       prizes: tally("prize"),
@@ -428,6 +435,8 @@ export interface SponsorReport {
   generatedAt: string;
   event: PanelEvent;
   issued: number;
+  /** El cupo que se muestra: el de la base, o el del contrato si es menor. Null si no hay cupo fijado. */
+  capacity: number | null;
   checkedIn: number;
   ticketTypes: PanelTicketTypeRow[];
   benefits: PanelBenefitRow[];
@@ -443,6 +452,7 @@ export async function getSponsorReport(event: EventRecord, repo: Repo = getRepo(
     generatedAt: state.generatedAt,
     event: state.event,
     issued: state.counters.issued,
+    capacity: state.counters.capacity,
     checkedIn: state.counters.checkedIn,
     ticketTypes: state.ticketTypes,
     benefits: state.benefits,

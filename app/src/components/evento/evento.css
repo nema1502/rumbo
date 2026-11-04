@@ -40,6 +40,9 @@
   font: inherit; text-decoration: underline; text-decoration-style: dotted; cursor: not-allowed;
 }
 .tarjeta .entrada-banco { margin-bottom: -8px; }
+/* Agotada: el chip lo dice y el botón se apaga; la tarjeta baja un tono */
+.entrada-agotada .entrada-nombre { color: var(--tinta-2); }
+.entrada-agotada .chip { margin: 0; }
 
 /* El formulario: nombre, correo y una sola acción */
 .form-inscripcion fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 16px; }
@@ -89,6 +92,12 @@
 @keyframes credencial-qr-barra { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 @media (prefers-reduced-motion: reduce) { .credencial-qr-barra span { animation: none; } }
 .credencial-qr-aviso { text-align: center; margin: 0; }
+/* "Copiar el código": el texto del QR vigente, para un escáner sin cámara. Del alto de un toque. */
+.credencial-qr-copiar { min-height: 44px; }
+/* En escritorio la credencial entera entra en pantalla: la acción no hace falta fija y no tapa los canjes */
+@media (min-width: 720px) {
+  .credencial-pantalla .pantalla-accion { position: static; }
+}
 .credencial-datos { display: grid; gap: 10px; justify-items: start; }
 .tarjeta .credencial-nombre {
   color: var(--tinta); font-family: var(--display); font-weight: 800; font-size: clamp(1.6rem, 4vw, 2.1rem);

@@ -9,6 +9,7 @@ import { Contador } from "@/components/panel/Contador.tsx";
 import { Aviso, Tarjeta } from "@/components/ui.tsx";
 import { formatDate, makeT } from "@/i18n/index.ts";
 import { getLang } from "@/i18n/server.ts";
+import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
 import { getSponsorReport, verifyOrganizerKey } from "@/server/panel.ts";
 import { PANEL_KEY_QUERY, panelKeyFromCookies } from "@/server/panel-sesion.ts";
 import { getRepo } from "@/server/repo.ts";
@@ -42,7 +43,8 @@ export default async function InformePage({ params, searchParams }: { params: Pa
 
   const report = await getSponsorReport(event, repo);
   const corte = formatDate(lang, report.generatedAt, event.timezone, { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
-  const lugar = event.venue ? `${event.venue}, ${event.place}` : event.place;
+  const when = formatEventWhen(lang, event);
+  const lugar = formatEventWhere(event);
   const titular = report.headline;
 
   return (
@@ -51,7 +53,7 @@ export default async function InformePage({ params, searchParams }: { params: Pa
         <p className="panel-sobre">{t("panel.informe.titulo")}</p>
         <h1>{event.name}</h1>
         <p className="bajada">
-          {formatDate(lang, event.startsAt, event.timezone)}, {lugar}
+          {when.date}, {when.time}, {lugar}
         </p>
         <p className="secundario">{t("panel.informe.corte", { fecha: corte })}</p>
       </header>
@@ -71,8 +73,8 @@ export default async function InformePage({ params, searchParams }: { params: Pa
         <Contador
           etiqueta={t("panel.informe.credenciales")}
           valor={report.issued}
-          total={event.capacity}
-          detalle={event.capacity ? t("panel.contador.deCupo", { total: event.capacity }) : t("panel.contador.sinCupo")}
+          total={report.capacity}
+          detalle={report.capacity ? t("panel.contador.deCupo", { total: report.capacity }) : t("panel.contador.sinCupo")}
         />
         <Contador
           etiqueta={t("panel.informe.entraron")}

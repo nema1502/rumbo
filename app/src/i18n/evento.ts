@@ -16,6 +16,7 @@ export const evento = {
     "evento.entrada.comprar": "Comprar",
     "evento.entrada.banco": "o con el QR del banco",
     "evento.entrada.pronto": "pronto",
+    "evento.entrada.agotada": "Agotada",
     "evento.sinEntradas": "Las inscripciones todavía no están abiertas.",
 
     // El formulario
@@ -50,8 +51,11 @@ export const evento = {
     "evento.listo.tituloGratis": "Inscripción lista",
     "evento.listo.tituloPago": "Entrada paga",
     "evento.listo.texto": "Te mandamos el enlace a tu credencial a {correo}. Es personal: guardalo.",
+    "evento.listo.textoPrueba": "En este modo de prueba no mandamos correo: guardá este enlace, es personal.",
     "evento.listo.pago": "Pagaste {monto} USDC de prueba y la plata ya está con quien organiza.",
     "evento.listo.ver": "Ver mi credencial",
+    "evento.listo.copiar": "Copiar el enlace",
+    "evento.listo.copiado": "Enlace copiado",
 
     // La credencial
     "evento.credencial.titulo": "Tu credencial",
@@ -92,6 +96,9 @@ export const evento = {
     "evento.credencial.qrRota": "Este QR se renueva solo cada {segundos} segundos: una captura de pantalla no sirve.",
     "evento.credencial.qrFallo": "Este navegador no pudo armar el QR. Probá con otro, o descargá la credencial para imprimirla.",
     "evento.credencial.impresa": "Credencial impresa",
+    "evento.credencial.copiarCodigo": "Copiar el código",
+    "evento.credencial.codigoCopiado": "Copiado",
+    "evento.credencial.copiarCodigoAria": "Copiar el texto del QR, para escribirlo en un escáner sin cámara",
   },
   en: {
     "evento.organiza": "Organized by {nombre}",
@@ -105,6 +112,7 @@ export const evento = {
     "evento.entrada.comprar": "Buy",
     "evento.entrada.banco": "or with your bank QR code",
     "evento.entrada.pronto": "soon",
+    "evento.entrada.agotada": "Sold out",
     "evento.sinEntradas": "Registration is not open yet.",
 
     "evento.form.tituloGratis": "Register",
@@ -135,8 +143,11 @@ export const evento = {
     "evento.listo.tituloGratis": "You are registered",
     "evento.listo.tituloPago": "Ticket paid",
     "evento.listo.texto": "We sent the link to your pass to {correo}. It is personal: keep it.",
+    "evento.listo.textoPrueba": "In this test mode we do not send email: keep this link, it is personal.",
     "evento.listo.pago": "You paid {monto} test USDC and the money is already with the organizer.",
     "evento.listo.ver": "See my pass",
+    "evento.listo.copiar": "Copy the link",
+    "evento.listo.copiado": "Link copied",
 
     "evento.credencial.titulo": "Your pass",
     "evento.credencial.numero": "Pass {n} of {total}",
@@ -174,5 +185,8 @@ export const evento = {
     "evento.credencial.qrRota": "This QR code renews itself every {segundos} seconds: a screenshot will not work.",
     "evento.credencial.qrFallo": "This browser could not build the QR code. Try another one, or download the pass to print it.",
     "evento.credencial.impresa": "Printed pass",
+    "evento.credencial.copiarCodigo": "Copy the code",
+    "evento.credencial.codigoCopiado": "Copied",
+    "evento.credencial.copiarCodigoAria": "Copy the QR code text, to type it into a scanner without a camera",
   },
 } satisfies AreaDictionary;
