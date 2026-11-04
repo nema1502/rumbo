@@ -6,10 +6,12 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Aviso, Boton, BotonEnlace, Chip, Tarjeta } from "@/components/ui.tsx";
 import { useLang, useT } from "@/i18n/client.tsx";
-import { formatDate, type Lang } from "@/i18n/index.ts";
+import type { Lang } from "@/i18n/index.ts";
 import { kindLabelKey } from "@/lib/credential-kinds.ts";
+import { isManualScannerId } from "@/lib/escaner-api.ts";
 import { formatStationCode } from "@/lib/station-code.ts";
-import type { ChainSyncSummary, PanelPass, PanelState } from "@/server/panel.ts";
+import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
+import type { ChainSyncSummary, PanelDuplicate, PanelPass, PanelState } from "@/server/panel.ts";
 import { BotonCopiar } from "./BotonCopiar.tsx";
 import { Contador } from "./Contador.tsx";
 
@@ -102,7 +104,19 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
   const nombreDe = (passId: string) => state.passes.find((p) => p.id === passId)?.name ?? passId;
 
   const { counters, event } = state;
-  const lugar = event.venue ? `${event.venue}, ${event.place}` : event.place;
+  const when = formatEventWhen(lang, event);
+  const lugar = formatEventWhere(event);
+
+  // Dónde se registró un doble: el puesto, no el id del celular. Un canje trae la mesa de su beneficio; una
+  // entrada es la puerta, con el escáner o marcada a mano; si no se sabe, "en otro escáner".
+  const dondeDoble = (d: PanelDuplicate) =>
+    isManualScannerId(d.scannerId)
+      ? t("panel.dobles.aMano")
+      : d.kind === "checkin"
+        ? t("panel.dobles.puesto", { puesto: t("panel.puestos.puerta") })
+        : d.station
+          ? t("panel.dobles.puesto", { puesto: d.station })
+          : t("panel.dobles.otroEscaner");
 
   return (
     <section className="panel">
@@ -119,7 +133,7 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
         </p>
         <h1>{event.name}</h1>
         <p className="bajada">
-          {formatDate(lang, event.startsAt, event.timezone)}, {lugar}. {t("panel.bajada")}
+          {when.date}, {when.time}, {lugar}. {t("panel.bajada")}
         </p>
       </header>
 
@@ -239,7 +253,7 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
                   <span className="doble-que">{d.kind === "checkin" ? t("panel.dobles.entrada") : d.benefitName}</span>
                   <span className="apagado chico" suppressHydrationWarning>
                     {fechaHora(lang, d.scannedAt)}
-                    {d.scannerId ? `, ${t("panel.dobles.escaner", { id: d.scannerId })}` : ""}
+                    {d.scannerId ? `, ${dondeDoble(d)}` : ""}
                   </span>
                 </li>
               ))}
