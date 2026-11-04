@@ -51,11 +51,15 @@ export function toDollarParams(sql: string): string {
   return out;
 }
 
-/** Una fila de Postgres como la da SQLite: fechas en ISO 8601 y enteros grandes como número. */
+/**
+ * Una fila de Postgres como la da SQLite: fechas en ISO 8601 y enteros grandes como número. Una fecha que el
+ * driver no supo leer (un año de menos de cien, que Postgres guarda y el driver devuelve como "Invalid Date")
+ * vuelve como null: convertirla lanzaba y con una sola fila así se caía la lectura de todo el evento.
+ */
 export function normalizePgRow(row: Row): Row {
   const out: Row = {};
   for (const [key, value] of Object.entries(row)) {
-    if (value instanceof Date) out[key] = value.toISOString();
+    if (value instanceof Date) out[key] = Number.isFinite(value.getTime()) ? value.toISOString() : null;
     else if (typeof value === "bigint") out[key] = Number(value);
     else out[key] = value;
   }

@@ -62,16 +62,16 @@ test("una hora de lectura imposible no entra: la forma se rechaza al leer el ped
   const d = await eventoDePrueba(repo);
   const { pass } = await paseDePrueba(repo, d);
   assert.equal(parseScanItems([item({ passId: pass.id, scannedAt: "2026-02-30T10:00:00Z" })]), null, "un 30 de febrero no tiene forma de fecha");
-  const leidos = parseScanItems([item({ passId: pass.id, scannedAt: new Date(Date.now() - 2 * 366 * 24 * 3600 * 1000).toISOString() }), item({ passId: pass.id, scannedAt: new Date(Date.now() + 2 * 3600 * 1000).toISOString() })]);
+  const leidos = parseScanItems([item({ passId: pass.id, scannedAt: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString() }), item({ passId: pass.id, scannedAt: new Date(Date.now() + 2 * 3600 * 1000).toISOString() })]);
   assert.equal(leidos.length, 2, "la forma está bien");
   const [viejo, futuro] = await processScanItems(repo, d.event, GATE_STATION, leidos, red);
   assert.deepEqual([viejo.status, viejo.error], ["rejected", "hora de la lectura fuera de rango"]);
   assert.deepEqual([futuro.status, futuro.error], ["rejected", "hora de la lectura fuera de rango"]);
   assert.equal((await repo.listCheckInsForPass(pass.id)).length, 0, "nada en el espejo");
-  // Lo que un escáner sin red guardó hace días, o con el reloj un poco adelantado, vale.
-  assert.equal(isScannedAtInRange(new Date(Date.now() - 10 * 24 * 3600 * 1000).toISOString()), true);
-  assert.equal(isScannedAtInRange(new Date(Date.now() + SCANNED_AT_FUTURE_MS - 1000).toISOString()), true);
-  const [ayer] = await processScanItems(repo, d.event, GATE_STATION, [item({ passId: pass.id, scannedAt: new Date(Date.now() - 24 * 3600 * 1000).toISOString() })], red);
+  // Lo que un escáner sin red guardó desde la víspera, o con el reloj un poco adelantado, vale.
+  assert.equal(isScannedAtInRange(new Date(Date.now() - 23 * 3600 * 1000).toISOString(), d.event), true);
+  assert.equal(isScannedAtInRange(new Date(Date.now() + SCANNED_AT_FUTURE_MS - 1000).toISOString(), d.event), true);
+  const [ayer] = await processScanItems(repo, d.event, GATE_STATION, [item({ passId: pass.id, scannedAt: new Date(Date.now() - 23 * 3600 * 1000).toISOString() })], red);
   assert.equal(ayer.status, "synced");
 });
 

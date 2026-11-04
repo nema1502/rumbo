@@ -19,7 +19,8 @@ import { getDb, type Row, type SqlValue } from "./base/index.ts";
 import { isFoodBenefit } from "./kit/plantillas.ts";
 import { clientKey, stationCodeAttempts } from "./limites.ts";
 import { csvCell, ensureStationCodes, resolveStationCode, type StationAccess, type StationStand } from "./panel.ts";
-import { ClientIdTaken, getRepo, type EventRecord, type Repo } from "./repo.ts";
+import { ClientIdTaken, checkedScannedAt, getRepo, type EventRecord, type Repo } from "./repo.ts";
+import { isReadableDate } from "../lib/fecha-iso.ts";
 
 // ---------- La base ----------
 
@@ -344,7 +345,8 @@ const rowToVisit = (r: Row): StandVisit => ({
   eventId: str(r.event_id),
   passId: str(r.pass_id),
   scannerId: strOrNull(r.scanner_id),
-  scannedAt: str(r.scanned_at),
+  // Una fila con una hora que no se puede leer (de antes de validarla) no tumba la credencial: vale la de llegada.
+  scannedAt: isReadableDate(r.scanned_at) ? r.scanned_at : str(r.created_at),
   consent: str(r.consent) as ConsentState,
   consentAt: strOrNull(r.consent_at),
   rating: r.rating === null || r.rating === undefined ? null : num(r.rating),
@@ -373,6 +375,7 @@ export async function recordVisit(
   input: { standId: string; passId: string; clientId?: string | null; scannerId?: string | null; scannedAt?: string },
   repo: Repo = getRepo(),
 ): Promise<VisitResult> {
+  const scannedAt = checkedScannedAt(input.scannedAt);
   const stand = await getStand(input.standId);
   if (!stand) throw new StandsError("not_found");
   const pass = await repo.getPass(input.passId);
@@ -392,7 +395,7 @@ export async function recordVisit(
     stand.eventId,
     pass.id,
     input.scannerId ?? null,
-    input.scannedAt ?? now(),
+    scannedAt,
     now(),
   );
   const visit = rowToVisit((await one("SELECT * FROM stand_visits WHERE stand_id = ? AND pass_id = ?", stand.id, pass.id)) as Row);
@@ -534,14 +537,14 @@ export async function hideFromScreen(event: EventRecord, passId: string, repo: R
 export async function standScanVisits(standId: string): Promise<ScanStandVisit[]> {
   return (
     await all(
-    `SELECT v.pass_id, v.scanned_at, v.consent, per.name
+    `SELECT v.pass_id, v.scanned_at, v.created_at, v.consent, per.name
      FROM stand_visits v JOIN passes p ON p.id = v.pass_id JOIN persons per ON per.id = p.person_id
      WHERE v.stand_id = ? ORDER BY v.scanned_at DESC`,
       standId,
     )
   ).map((r) => ({
     passId: str(r.pass_id),
-    at: str(r.scanned_at),
+    at: isReadableDate(r.scanned_at) ? r.scanned_at : str(r.created_at),
     consent: str(r.consent) as ConsentState,
     name: str(r.consent) === "granted" ? str(r.name) : null,
   }));
@@ -595,7 +598,7 @@ export async function getStandPanel(standId: string, repo: Repo = getRepo()): Pr
   if (!event) throw new StandsError("not_found");
   const contacts = (
     await all(
-    `SELECT v.pass_id, v.scanned_at, v.consent_at, v.rating, v.note, per.name, per.email
+    `SELECT v.pass_id, v.scanned_at, v.created_at, v.consent_at, v.rating, v.note, per.name, per.email
      FROM stand_visits v JOIN passes p ON p.id = v.pass_id JOIN persons per ON per.id = p.person_id
      WHERE v.stand_id = ? AND v.consent = 'granted' ORDER BY v.scanned_at DESC`,
       standId,
@@ -605,7 +608,7 @@ export async function getStandPanel(standId: string, repo: Repo = getRepo()): Pr
       passId: str(r.pass_id),
       name: str(r.name),
       email: str(r.email),
-      visitedAt: str(r.scanned_at),
+      visitedAt: isReadableDate(r.scanned_at) ? r.scanned_at : str(r.created_at),
       consentAt: strOrNull(r.consent_at),
       rating: r.rating === null || r.rating === undefined ? null : num(r.rating),
       note: strOrNull(r.note) ?? "",

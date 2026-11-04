@@ -5,6 +5,7 @@
 // puerta, con su espejo en la base. Lo usan las rutas de /api/scan.
 import type { ScanEvent, ScanItem, ScanItemResult, ScanItemStatus, ScanPassInfo, ScanSnapshot, ScanStation } from "../lib/escaner-api.ts";
 import { GATE_STATION, STOCK_EXCEEDED } from "../lib/escaner-api.ts";
+import { isRealIsoDate } from "../lib/fecha-iso.ts";
 import { isValidPassId } from "../lib/qr-codec.ts";
 import { verifyQrSignature } from "../lib/qr-verify.ts";
 import { BUSY, LeaseLost, tryExclusive } from "./compartido.ts";
@@ -13,7 +14,7 @@ import { clientKey, stationCodeAttempts } from "./limites.ts";
 import { describeForLog } from "./log.ts";
 import { resolveStationCode, type StationAccess } from "./panel.ts";
 import { getEventPublicKey } from "./qr-keys.ts";
-import { ClientIdTaken, type CheckIn, type EventRecord, type PassBenefit, type PassView, type Repo, type SyncMark } from "./repo.ts";
+import { ClientIdTaken, InvalidScannedAt, type CheckIn, type EventRecord, type PassBenefit, type PassView, type Repo, type SyncMark } from "./repo.ts";
 import { claimRoutePrize, isRoutePrize, recordVisit, StandsError, standScanVisits } from "./stands.ts";
 import {
   PERMANENT_CONTRACT_ERRORS,
@@ -239,14 +240,21 @@ function belongsToStation(station: ScanStation, item: ScanItem): boolean {
   return item.action === "redeem" && item.benefitId === station.id;
 }
 
-/** Cuánto puede estar atrasada o adelantada la hora de una lectura respecto del servidor: lo que un escáner sin red guardó hace días vale; una fecha de otro año, no. */
-export const SCANNED_AT_PAST_MS = 366 * 24 * 60 * 60 * 1000;
-export const SCANNED_AT_FUTURE_MS = 60 * 60 * 1000;
+/**
+ * Cuánto puede estar atrasada la hora de una lectura: hasta un día antes del inicio del evento (o de ahora, si
+ * el evento todavía no empezó: la prueba del escáner la víspera vale). Más atrás es una constancia inventada,
+ * no una cola que subió tarde. Y adelantada, diez minutos: el escáner marca la hora con el reloj corregido por
+ * el servidor, así que más que eso es un reloj roto o un dato inventado.
+ */
+export const SCANNED_AT_PAST_MS = 24 * 60 * 60 * 1000;
+export const SCANNED_AT_FUTURE_MS = 10 * 60 * 1000;
 
-/** Si la hora de la lectura cae dentro de lo posible: de un año atrás a una hora adelante del reloj del servidor. */
-export function isScannedAtInRange(scannedAt: string, now: number = Date.now()): boolean {
+/** Si la hora de la lectura cae dentro de lo posible para ese evento, según el reloj del servidor. */
+export function isScannedAtInRange(scannedAt: string, event: Pick<EventRecord, "startsAt">, now: number = Date.now()): boolean {
   const at = Date.parse(scannedAt);
-  return Number.isFinite(at) && at >= now - SCANNED_AT_PAST_MS && at <= now + SCANNED_AT_FUTURE_MS;
+  const starts = Date.parse(event.startsAt);
+  const floor = (Number.isFinite(starts) ? Math.min(starts, now) : now) - SCANNED_AT_PAST_MS;
+  return Number.isFinite(at) && at >= floor && at <= now + SCANNED_AT_FUTURE_MS;
 }
 
 async function processOne(repo: Repo, event: EventRecord, station: ScanStation, item: ScanItem, chain: ScanChain): Promise<ScanItemResult> {
@@ -257,8 +265,8 @@ async function processOne(repo: Repo, event: EventRecord, station: ScanStation, 
     error,
   });
   if (!belongsToStation(station, item)) return result("rejected", null, "fuera del puesto");
-  // Una hora imposible (el reloj de un celular en otro año) no entra al espejo: con Postgres quedaría reintentando para siempre.
-  if (!isScannedAtInRange(item.scannedAt)) return result("rejected", null, "hora de la lectura fuera de rango");
+  // Una hora imposible (el reloj de un celular en otro año, una constancia de antes del evento) no entra al espejo.
+  if (!isScannedAtInRange(item.scannedAt, event)) return result("rejected", null, "hora de la lectura fuera de rango");
   // El mismo clientId no va dos veces a la vez al contrato: si otro pedido (de esta instancia o de otra) lo está
   // mandando, este vuelve a la cola del escáner y se reintenta. Lo mismo si el turno se perdió a mitad de camino.
   try {
@@ -294,6 +302,8 @@ async function syncItem(repo: Repo, event: EventRecord, station: ScanStation, it
   } catch (error) {
     // Un clientId de otro registro no se reintenta: con el mismo id el servidor no daría nunca otra cosa.
     if (error instanceof ClientIdTaken) return result("rejected", null, "clientId de otro registro");
+    // La capa de datos vuelve a mirar la hora antes de escribir: una que no existe tampoco se reintenta.
+    if (error instanceof InvalidScannedAt) return result("rejected", null, "hora de la lectura fuera de rango");
     return result("retry", null, describe(error));
   }
 }
@@ -504,22 +514,9 @@ export async function authorizeScanRequest(repo: Repo, request: Request): Promis
 }
 
 const ACTIONS = new Set(["checkin", "redeem", "visit"]);
-const ISO_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|([+-])(\d{2}):(\d{2}))$/;
 
-/**
- * Si el texto es una fecha ISO 8601 que existe de verdad: la forma, y además el mes, el día (según el mes y el
- * año), la hora y el desfase. Date.parse acepta un 30 de febrero y lo corre a marzo; Postgres lo rechaza, y
- * un registro con esa fecha quedaba reintentando para siempre.
- */
-export function isRealIsoDate(text: string): boolean {
-  const m = ISO_RE.exec(text);
-  if (!m) return false;
-  const [year, month, day, hour, minute, second] = [m[1], m[2], m[3], m[4], m[5], m[6]].map(Number) as [number, number, number, number, number, number];
-  if (year < 1970 || year > 9999 || month < 1 || month > 12 || hour > 23 || minute > 59 || second > 59) return false;
-  if (day < 1 || day > new Date(Date.UTC(year, month, 0)).getUTCDate()) return false;
-  if (m[8] !== "Z" && (Number(m[10]) > 14 || Number(m[11]) > 59)) return false;
-  return Number.isFinite(Date.parse(text));
-}
+// La forma de la fecha de cada lectura vive en src/lib/fecha-iso.ts, porque la capa de datos la vuelve a mirar.
+export { isRealIsoDate };
 
 /** Sin NUL ni otros controles: Postgres no los guarda, y en un id o un nombre de escáner no significan nada. */
 const clean = (text: string): string => text.replace(/[\u0000-\u001f\u007f]/g, "");
