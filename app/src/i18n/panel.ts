@@ -66,7 +66,9 @@ export const panel = {
     "panel.dobles.bajada": "Lo que un escáner registró y ya estaba hecho. Casi siempre es la misma persona escaneada dos veces.",
     "panel.dobles.vacio": "Ningún doble por ahora.",
     "panel.dobles.entrada": "Entrada",
-    "panel.dobles.escaner": "Escáner {id}",
+    "panel.dobles.puesto": "en {puesto}",
+    "panel.dobles.aMano": "marcada a mano en la puerta",
+    "panel.dobles.otroEscaner": "en otro escáner",
 
     "panel.acceso.titulo": "Esta puerta tiene llave",
     "panel.acceso.bajada": "El panel de {evento} es para quien organiza. Entrá con tu clave.",
@@ -171,7 +173,9 @@ export const panel = {
     "panel.dobles.bajada": "What a scanner recorded that was already done. Almost always the same person scanned twice.",
     "panel.dobles.vacio": "No duplicates so far.",
     "panel.dobles.entrada": "Check-in",
-    "panel.dobles.escaner": "Scanner {id}",
+    "panel.dobles.puesto": "at {puesto}",
+    "panel.dobles.aMano": "marked by hand at the gate",
+    "panel.dobles.otroEscaner": "at another scanner",
 
     "panel.acceso.titulo": "This door has a key",
     "panel.acceso.bajada": "The panel for {evento} is for the organizer. Enter with your key.",

@@ -1,11 +1,11 @@
 // Crea el evento de muestra, "Hackatón de la comunidad", con sus dos entradas (inscripción gratis y
 // "Con almuerzo" a 10 USDC de prueba) y sus tres beneficios, apuntando a los contratos del despliegue
 // (contracts/rumbo-pass/deploy/testnet.json: el gratis y el pago). Se puede correr las veces que haga falta.
-//   --demo      agrega a una persona de ejemplo con su pase, su cuenta de prueba y su inscripción en el contrato
-//   --refresh   vuelve a apuntar las entradas a los contratos del despliegue actual (si se volvió a desplegar)
-//   --contratos-nuevos   despliega un contrato gratis y uno pago para el evento de muestra (el mismo WASM, las mismas
-//               cuentas y el mismo USDC de prueba del despliegue) y apunta las entradas a esos: por si los de muestra
-//               se llenan con las corridas de prueba (cada inscripción gasta cupo)
+//   --demo               agrega a una persona de ejemplo con su pase, su cuenta de prueba y su inscripción en el contrato
+//   --refresh            vuelve a apuntar las entradas a los contratos del despliegue actual (si se volvió a desplegar)
+//   --contratos-propios  despliega contratos nuevos solo para este evento, en vez de usar los compartidos del
+//                        despliegue: así cada base (la de quien evalúa, la de producción) tiene los suyos
+//   --contratos-nuevos   lo mismo (el nombre que usa el e2e)
 import { APP_DIR, loadEnv } from "./lib/env.mjs";
 
 process.chdir(APP_DIR);
@@ -64,26 +64,11 @@ for (const [ticket, contract] of [[freeTicket, freeContract], [paidTicket, paidC
   }
 }
 
-if (process.argv.includes("--contratos-nuevos")) {
-  const { networkProvisioner } = await import("../src/server/kit/publicar.ts");
-  for (const [ticket, muestra] of [[freeTicket, deploy?.events.free], [paidTicket, deploy?.events.paid]]) {
-    if (!ticket) continue;
-    const contract = await networkProvisioner.deploy({
-      price: ticket.priceUsdc,
-      capacity: muestra?.capacity ?? 50,
-      benefits: muestra?.benefits ?? (ticket.priceUsdc > 0 ? 2 : 1),
-      organizerAccount: event.organizerAccount,
-    });
-    await repo.updateTicketType(ticket.id, { contractId: contract });
-    if (ticket === freeTicket) event = await repo.updateEvent(event.id, { contractId: contract });
-    console.log(`La entrada "${ticket.name}" tiene un contrato nuevo: ${contract} (${ticket.priceUsdc} USDC de prueba)`);
-  }
-}
-
 let benefits = await repo.listBenefits(event.id);
 if (benefits.length === 0) {
-  await repo.createBenefit({ eventId: event.id, name: "Almuerzo del sábado", kind: "lunch", station: "Mesa del almuerzo", sortOrder: 0 });
-  await repo.createBenefit({ eventId: event.id, name: "Polera talle M", kind: "merch", station: "Stand de la comunidad", sortOrder: 1 });
+  // El almuerzo sin día (el evento es un domingo); la polera con tope, así el panel muestra "Quedan N".
+  await repo.createBenefit({ eventId: event.id, name: "Almuerzo", kind: "lunch", station: "Mesa del almuerzo", sortOrder: 0 });
+  await repo.createBenefit({ eventId: event.id, name: "Polera talle M", kind: "merch", station: "Stand de la comunidad", sortOrder: 1, stock: 25 });
   await repo.createBenefit({ eventId: event.id, name: "Premio del sorteo", kind: "prize", station: "Escenario", sortOrder: 2 });
   benefits = await repo.listBenefits(event.id);
   const lunch = benefits.find((b) => b.kind === "lunch");
@@ -95,7 +80,30 @@ if (benefits.length === 0) {
     await repo.linkBenefit(paidTicket.id, shirt.id, 1);
   }
   await repo.linkBenefit(freeTicket.id, shirt.id, 0);
-  console.log("Beneficios: almuerzo del sábado (con la entrada paga), polera talle M (todos), premio del sorteo (se otorga después)");
+  console.log("Beneficios: almuerzo (con la entrada paga), polera talle M (todos, 25 en total), premio del sorteo (se otorga después)");
+}
+
+// Contratos propios: los crea networkProvisioner (el mismo camino que usa el kit al publicar un evento), con el
+// WASM del despliegue de muestra y el cupo del evento. Se despliegan una sola vez: si una entrada ya apunta a un
+// contrato que no es de los compartidos, se deja; con --refresh además, se renuevan. Son dos transacciones.
+if (process.argv.includes("--contratos-propios") || process.argv.includes("--contratos-nuevos")) {
+  const { networkProvisioner } = await import("../src/server/kit/publicar.ts");
+  const shared = new Set([freeContract, paidContract].filter(Boolean));
+  for (const ticket of [freeTicket, paidTicket]) {
+    if (!ticket) continue;
+    if (ticket.contractId && !shared.has(ticket.contractId) && !refresh) {
+      console.log(`La entrada "${ticket.name}" ya tiene su propio contrato: ${ticket.contractId}`);
+      continue;
+    }
+    // Cuántos canjes tiene el contrato: los beneficios enlazados a la entrada (0 el almuerzo, 1 la polera).
+    const benefitsCount = (await repo.listTicketTypeBenefits(ticket.id)).length;
+    console.log(`Desplegando el contrato propio de "${ticket.name}" en la red de prueba...`);
+    const contractId = await networkProvisioner.deploy({ price: ticket.priceUsdc, capacity: event.capacity ?? 200, benefits: benefitsCount, organizerAccount: event.organizerAccount });
+    await repo.updateTicketType(ticket.id, { contractId });
+    if (ticket.priceUsdc === 0) event = await repo.updateEvent(event.id, { contractId });
+    console.log(`La entrada "${ticket.name}" apunta ahora a su propio contrato ${contractId}`);
+  }
+  tickets = await repo.listTicketTypes(event.id);
 }
 
 if (process.argv.includes("--demo")) {

@@ -75,6 +75,12 @@
   margin-right: 14px; min-height: 36px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--linea);
   background: var(--acento-suave); color: var(--tinta); font: 600 0.95rem var(--texto); cursor: pointer;
 }
+/* En celular el botón y el nombre del archivo no entran en una línea: el botón va arriba, ancho, y el nombre
+   (o "Sin archivos seleccionados") debajo, entero en vez de cortado por el medio */
+@media (max-width: 560px) {
+  .importar-archivo input[type="file"] { white-space: normal; font-size: 0.95rem; }
+  .importar-archivo input[type="file"]::file-selector-button { display: block; width: 100%; margin: 0 0 8px; min-height: 44px; }
+}
 
 /* La inscripción por equipos */
 .equipo { width: min(620px, 100%); }

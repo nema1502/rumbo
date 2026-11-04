@@ -43,15 +43,28 @@ export function otherLang(lang: Lang): Lang {
 
 const LOCALES: Record<Lang, string> = { es: "es-BO", en: "en-US" };
 
-/** La fecha de un evento, en su zona horaria, como la lee la gente: "domingo, 22 de noviembre, 09:00". En castellano, con reloj de 24 horas. */
+/**
+ * La fecha de un evento, en su zona horaria, como la lee la gente: "domingo, 22 de noviembre, 09:00" y
+ * "Sunday, November 22, 9:00 AM". En castellano, con reloj de 24 horas y en minúscula, como la escribe Intl
+ * (sirve dentro de una frase: "hasta el domingo"); la pantalla que abre con la fecha la pone con mayúscula
+ * (formatEventWhen, en src/server/evento/fecha.ts). En inglés, la hora sin cero adelante aunque se pida
+ * "2-digit": "09:00 AM" no se escribe.
+ */
 export function formatDate(
   lang: Lang,
   iso: string,
   timeZone = "America/La_Paz",
   options: Intl.DateTimeFormatOptions = { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" },
 ): string {
+  const hour: Intl.DateTimeFormatOptions = lang === "en" && options.hour === "2-digit" ? { hour: "numeric" } : {};
   const hourCycle: Intl.DateTimeFormatOptions = lang === "es" ? { hourCycle: "h23" } : {};
-  return new Intl.DateTimeFormat(LOCALES[lang], { ...options, ...hourCycle, timeZone }).format(new Date(iso));
+  return new Intl.DateTimeFormat(LOCALES[lang], { ...options, ...hour, ...hourCycle, timeZone }).format(new Date(iso));
+}
+
+/** Si dos instantes caen el mismo día en esa zona horaria. */
+export function sameDay(a: string | number | Date, b: string | number | Date, timeZone = "America/La_Paz"): boolean {
+  const day = new Intl.DateTimeFormat("en-US", { year: "numeric", month: "numeric", day: "numeric", timeZone });
+  return day.format(new Date(a)) === day.format(new Date(b));
 }
 
 /** Un monto en USDC de prueba: "10" o "10,50", según el idioma. */

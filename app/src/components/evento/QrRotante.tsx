@@ -2,13 +2,18 @@
 // El QR de la credencial en el celular: se arma solo cada 20 segundos, sin red, con la clave que el servidor
 // entregó al abrir la credencial (src/lib/qr-live.ts). Una captura de pantalla vale lo que dura su ventana
 // y la siguiente. Si el reloj del celular está desfasado, se corrige con la hora del servidor al abrir con red.
+// Debajo, "Copiar el código" copia el texto del QR vigente: con eso un escáner sin cámara (una laptop, un
+// celular por http) lo pega en "Escribir el código".
 import { useEffect, useRef, useState } from "react";
+import { BotonCopiar } from "@/components/panel/BotonCopiar.tsx";
 import { useT } from "@/i18n/client.tsx";
 import { WINDOW_SECONDS, msUntilNextWindow, windowOf } from "@/lib/qr-codec.ts";
 import { buildLivePayload, clockOffset, type LiveGrant } from "@/lib/qr-live.ts";
 import { renderQrSvg } from "@/lib/qr-svg.ts";
 
 const CHECK_EVERY_MS = 500;
+/** Cuánto dura la marca de "Copiado". */
+const COPIED_MS = 2000;
 
 /** La hora del servidor menos la de este celular, medida con el viaje de ida y vuelta. 0 si no hay red. */
 async function medirReloj(): Promise<number> {
@@ -32,6 +37,8 @@ export function QrRotante({ grant }: { grant: LiveGrant }) {
   const [ventana, setVentana] = useState<{ numero: number; resta: number } | null>(null);
   const desfase = useRef(0);
   const actual = useRef(-1);
+  /** El texto del QR que está en pantalla: lo que copia "Copiar el código". */
+  const contenido = useRef("");
 
   useEffect(() => {
     let vivo = true;
@@ -43,9 +50,10 @@ export function QrRotante({ grant }: { grant: LiveGrant }) {
       if (numero === actual.current) return;
       actual.current = numero;
       try {
-        const contenido = await buildLivePayload(grant, ahora);
+        const texto = await buildLivePayload(grant, ahora);
         if (!vivo) return;
-        setSvg(renderQrSvg(contenido, { cellSize: 4, margin: 2 }));
+        contenido.current = texto;
+        setSvg(renderQrSvg(texto, { cellSize: 4, margin: 2 }));
         setVentana({ numero, resta: msUntilNextWindow(ahora) });
         setFallo(false);
       } catch {
@@ -85,6 +93,16 @@ export function QrRotante({ grant }: { grant: LiveGrant }) {
             <div className="credencial-qr-barra" aria-hidden="true">
               <span key={ventana.numero} style={{ animationDuration: `${ventana.resta}ms` }} />
             </div>
+          )}
+          {svg && (
+            <BotonCopiar
+              className="credencial-qr-copiar"
+              texto={() => contenido.current}
+              etiqueta={t("evento.credencial.copiarCodigo")}
+              listo={t("evento.credencial.codigoCopiado")}
+              duracionMs={COPIED_MS}
+              title={t("evento.credencial.copiarCodigoAria")}
+            />
           )}
           <p className="credencial-qr-aviso chico apagado">{t("evento.credencial.qrRota", { segundos: WINDOW_SECONDS })}</p>
         </>

@@ -20,10 +20,15 @@ function hourOptions(lang: Lang): Intl.DateTimeFormatOptions {
   return { hour: lang === "es" ? "2-digit" : "numeric", minute: "2-digit" };
 }
 
+/** La fecha abre la línea, así que va con mayúscula ("Domingo, 22 de noviembre"); en castellano Intl la escribe en minúscula. */
 function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+/**
+ * La fecha y la hora del evento, como las muestran todas las pantallas (el afiche, el inicio, el panel, el
+ * informe, la credencial): "Domingo, 22 de noviembre" y "09:00 a 19:00".
+ */
 export function formatEventWhen(lang: Lang, event: EventTimes): EventWhen {
   const t = makeT(lang);
   const date = capitalize(formatDate(lang, event.startsAt, event.timezone, { weekday: "long", day: "numeric", month: "long" }));

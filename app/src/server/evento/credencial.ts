@@ -8,6 +8,7 @@ import { getRepo, type BenefitKind, type EventRecord, type Pass, type PassBenefi
 import { rumboPass, type PassStatusOnChain } from "../stellar.ts";
 import { getRouteGoal } from "../stands.ts";
 import { verifyAccessKey } from "./acceso.ts";
+import { readContractCapacity, smallestCapacity } from "./cupo.ts";
 
 /** Cómo se muestra cada beneficio en la credencial. */
 export type BenefitState = "pendiente" | "canjeado" | "pagada" | "paraRetirar" | "sorteo" | "ganado" | "entregado";
@@ -66,14 +67,17 @@ export function benefitState(benefit: Pick<PassBenefit, "kind" | "source">, rede
   return "pendiente";
 }
 
-/** El lugar del pase entre los activos del evento, por orden de activación, y el cupo. */
-async function passNumber(repo: Repo, pass: Pass, event: EventRecord): Promise<{ number: number; total: number }> {
-  const all = await repo.listPasses(pass.eventId);
+/**
+ * El lugar del pase entre los activos del evento, por orden de activación, y el cupo: el de la base, o el del
+ * contrato de la entrada si es menor (se recuerda un minuto). Sin cupo fijado, las credenciales que hay.
+ */
+async function passNumber(repo: Repo, pass: Pass, event: EventRecord, contractId: string | null): Promise<{ number: number; total: number }> {
+  const [all, cupo] = await Promise.all([repo.listPasses(pass.eventId), readContractCapacity(contractId)]);
   const key = (p: Pass) => `${p.activatedAt ?? p.createdAt}|${p.createdAt}`;
   const activated = all.filter((p) => p.status !== "pending").sort((a, b) => key(a).localeCompare(key(b)));
   const index = activated.findIndex((p) => p.id === pass.id);
   const number = index >= 0 ? index + 1 : activated.length + 1;
-  return { number, total: event.capacity ?? Math.max(activated.length, number) };
+  return { number, total: smallestCapacity(event.capacity, cupo) ?? Math.max(activated.length, number) };
 }
 
 /** La credencial, si la clave de acceso es la del pase. Si no, null: no se dice si el pase existe. */
@@ -92,7 +96,7 @@ export async function loadCredentialUnchecked(passId: string): Promise<Credentia
     repo.listCheckInsForPass(passId),
     repo.listRedemptionsForPass(passId),
     repo.listBenefits(view.event.id),
-    passNumber(repo, view.pass, view.event),
+    passNumber(repo, view.pass, view.event, view.contractId),
     repo.getPassTeam(passId),
   ]);
 

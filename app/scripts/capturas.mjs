@@ -296,7 +296,8 @@ try {
       await ir(conLang(`/admin/${SLUG}?k=${panelKey}`, lang));
       await cdp.waitFor(`document.querySelector(".panel")`, 30_000);
     }
-    await pantalla("panel", `/admin/${SLUG}`, lang, { accion: ".panel-accion .boton", antes: () => cdp.waitFor(`document.querySelector(".panel")`, 30_000) });
+    // La acción del panel (verificar el registro del evento) va al pie sin fijar: no se mide que quede a la vista.
+    await pantalla("panel", `/admin/${SLUG}`, lang, { accion: null, antes: () => cdp.waitFor(`document.querySelector(".panel")`, 30_000) });
     await pantalla("informe", `/admin/${SLUG}/informe`, lang, { accion: ".panel-accion .boton" });
   }
 
@@ -306,7 +307,7 @@ try {
   await pantalla("evento", `/e/${SLUG}`, "es", { accion: ".entrada .boton", tamanos: nocturnas });
   await pantalla("formulario-gratis", `/e/${SLUG}/inscripcion?entrada=${freeTicket.id}`, "es", { accion: ".pantalla-accion .boton", tamanos: nocturnas });
   if (personaEs) await pantalla("credencial", `/p/${personaEs.pass.id}?k=${encodeURIComponent(personaEs.key)}`, "es", { accion: ".pantalla-accion .boton", tamanos: nocturnas });
-  await pantalla("panel", `/admin/${SLUG}`, "es", { accion: ".panel-accion .boton", tamanos: nocturnas, antes: () => cdp.waitFor(`document.querySelector(".panel")`, 30_000) });
+  await pantalla("panel", `/admin/${SLUG}`, "es", { accion: null, tamanos: nocturnas, antes: () => cdp.waitFor(`document.querySelector(".panel")`, 30_000) });
   await pantalla("informe", `/admin/${SLUG}/informe`, "es", { accion: ".panel-accion .boton", tamanos: nocturnas });
   if (quiero("escaner-codigo")) {
     await tamano(1440, 900);

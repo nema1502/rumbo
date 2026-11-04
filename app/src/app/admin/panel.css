@@ -83,12 +83,16 @@
 .pase-estado { grid-area: estado; }
 .pase-canjes { grid-area: canjes; display: flex; flex-wrap: wrap; gap: 6px; }
 
-/* La acción principal, siempre a la vista: abajo, fija */
+/* La acción principal abajo, fija, con un degradado corto que no tapa el contenido (el informe: Imprimir) */
 .panel-accion {
   position: sticky; bottom: 0; margin-top: auto;
   display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between;
-  padding: 14px 0 18px; background: linear-gradient(to top, var(--papel) 75%, transparent);
+  padding: 10px 0 14px; background: linear-gradient(to top, var(--papel) 55%, transparent);
 }
+/* En el informe, "Volver al panel" se dibujaba sobre el encabezado difuminado de la tarjeta de abajo: fondo sólido más alto */
+.informe .panel-accion { background: linear-gradient(to top, var(--papel) 78%, transparent); }
+/* En el panel, "Verificar el registro del evento" no es la acción de cada minuto: queda al pie, sin fijar */
+.panel .panel-accion { position: static; }
 .panel-accion-estado { color: var(--tinta-2); font-size: 0.95rem; flex: 1 1 260px; margin: 0; }
 .panel-accion .boton { margin-left: auto; }
 .panel-salir { display: flex; justify-content: flex-end; }

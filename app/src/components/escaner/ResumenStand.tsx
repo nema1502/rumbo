@@ -2,7 +2,8 @@
 // Lo que ve quien atiende un stand debajo de la cámara: cuántas personas pasaron, cuántas aceptaron compartir
 // su contacto y cuántas todavía no contestaron. La pregunta ("¿querés compartir tu contacto con este
 // stand?") le llega a la persona en su propia credencial, no acá: este resumen solo muestra qué respondió.
-// Con el nombre únicamente de quien dijo que sí; del resto, apenas la credencial y la hora.
+// Con el nombre únicamente de quien dijo que sí; del resto, apenas "Una visita" y la hora (el código de la
+// credencial no se muestra: no es un nombre y a quien atiende no le sirve).
 import { Chip, type EstadoChip } from "@/components/ui.tsx";
 import { useLang, useT } from "@/i18n/client.tsx";
 import { formatDate } from "@/i18n/index.ts";
@@ -37,7 +38,7 @@ export function ResumenStand({ snapshot, code }: { snapshot: ScanSnapshot; code:
           {visits.slice(0, RECENT).map((visit) => (
             <li key={visit.passId}>
               <span className="esc-stand-quien">
-                <strong>{visit.name || t("escaner.sinNombre", { id: visit.passId })}</strong>
+                <strong>{visit.name || t("escaner.visitaSinNombre")}</strong>
                 <span className="apagado chico" suppressHydrationWarning>
                   {formatDate(lang, visit.at, snapshot.event.timezone, { hour: "2-digit", minute: "2-digit" })}
                 </span>

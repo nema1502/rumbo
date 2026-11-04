@@ -1,7 +1,7 @@
 // Armar un evento desde una plantilla, en dos pasos: elegir la plantilla (una sola acción: "Seguir") y contar lo
 // básico del evento (otra sola acción: "Crear el borrador"). Lo demás se edita en /admin/<evento>/armar.
 import type { Metadata } from "next";
-import { Aviso, Boton, Campo, Chip, Tarjeta } from "@/components/ui.tsx";
+import { Aviso, Boton, BotonEnlace, Campo, Chip, Pantalla, Tarjeta } from "@/components/ui.tsx";
 import { getLang, getT } from "@/i18n/server.ts";
 import { createGate } from "@/server/kit/acceso.ts";
 import { TEMPLATES, TEMPLATE_IDS, isTemplateId, suggestedStart, templateStations } from "@/server/kit/plantillas.ts";
@@ -35,16 +35,13 @@ export default async function NewEventPage({ searchParams }: { searchParams: Sea
   const lang = await getLang();
   const gate = createGate();
 
+  // Cerrado (producción sin RUMBO_CREATE_KEY): se dice quién tiene la clave y la salida es volver al inicio.
   if (!gate.open) {
     return (
-      <section className="pantalla">
-        <header className="pantalla-cabecera">
-          <h1>{t("kit.nuevo.titulo")}</h1>
-        </header>
-        <div className="pantalla-cuerpo">
-          <Aviso>{t("kit.datos.cerrado")}</Aviso>
-        </div>
-      </section>
+      <Pantalla titulo={t("kit.nuevo.titulo")} accion={<BotonEnlace href="/">{t("noEncontrado.volver")}</BotonEnlace>}>
+        <Aviso>{t("kit.datos.cerrado")}</Aviso>
+        <p className="apagado chico">{t("kit.datos.cerradoAyuda")}</p>
+      </Pantalla>
     );
   }
 
