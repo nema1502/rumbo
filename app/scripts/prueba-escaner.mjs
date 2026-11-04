@@ -534,7 +534,7 @@ try {
   // Si la prueba ya corrió antes sobre esta base, hay otras Camila que ya entraron: la nuestra es la única con la acción.
   const filas = await pagina.eval(`__esc.filas()`);
   const nuestra = filas.filter((f) => f.includes("Marcar la entrada"));
-  check(nuestra.length === 1 && nuestra[0].includes("e***@example.com") && !nuestra[0].includes(manual.person.email), `la fila muestra el correo tapado y la acción: ${nuestra[0]}`);
+  check(nuestra.length === 1 && nuestra[0].includes("e***@e***.com") && !nuestra[0].includes(manual.person.email) && !nuestra[0].includes("example"), `la fila muestra el correo tapado (también el dominio) y la acción: ${nuestra[0]}`);
   await pagina.captura("puerta-buscar-1440x900");
   await pagina.eval(`__esc.clickText("Marcar la entrada")`);
   await pagina.waitFor(`document.querySelector(".esc-veredicto")`, 10_000);

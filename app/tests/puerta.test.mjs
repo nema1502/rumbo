@@ -65,15 +65,27 @@ const llamar = async (ruta, handler, body, ip = "200.1.1.1") => {
 
 // ---------- Buscar ----------
 
-test("la búsqueda no distingue mayúsculas ni tildes, y encuentra por nombre o por correo", async () => {
+test("la búsqueda no distingue mayúsculas ni tildes, y encuentra por nombre o por el correo entero", async () => {
   assert.equal(normalizeSearch("  JOSÉ   Pérez "), "jose perez");
   const porNombre = await searchDoor(repo, datos.event, "jose");
   assert.deepEqual(porNombre.map((m) => m.passId), [jose.pass.id]);
   assert.deepEqual((await searchDoor(repo, datos.event, "PEREZ")).map((m) => m.passId), [jose.pass.id]);
-  assert.deepEqual((await searchDoor(repo, datos.event, "anita@")).map((m) => m.passId), [anita.pass.id], "por correo");
+  assert.deepEqual((await searchDoor(repo, datos.event, "anita@example.org")).map((m) => m.passId), [anita.pass.id], "por el correo entero");
+  assert.deepEqual((await searchDoor(repo, datos.event, " ANITA@Example.org ")).map((m) => m.passId), [anita.pass.id], "sin importar mayúsculas ni espacios");
   assert.deepEqual((await searchDoor(repo, datos.event, "rojas")).map((m) => m.passId), [ana.pass.id]);
   const dosAna = await searchDoor(repo, datos.event, "ana ");
   assert.deepEqual(dosAna.map((m) => m.name), ["Ana María Rojas", "Ana Torres"], "por nombre, en orden");
+});
+
+test("por un pedazo del correo no se busca: con el dominio a la vista se reconstruía letra por letra", async () => {
+  for (const pedazo of ["anita@", "@example.org", "nita@example.org", "a@example.org", "jose.perez@example.co", "ose.perez@example.com", "example.com"]) {
+    assert.deepEqual(await searchDoor(repo, datos.event, pedazo), [], pedazo);
+  }
+  // Lo que un tercero puede hacer es adivinar el correo entero, y eso es lo mismo que ya le dice el formulario de inscripción.
+  assert.deepEqual((await searchDoor(repo, datos.event, "jose.perez@example.com")).map((m) => m.passId), [jose.pass.id]);
+  // En Gmail, los puntos y lo que sigue a un "+" no cambian el buzón: el correo entero igual encuentra.
+  const gmail = await paseDePrueba(repo, datos, { name: "Gema Prueba", email: "ge.ma+rumbo@gmail.com" });
+  assert.deepEqual((await searchDoor(repo, datos.event, "gema@gmail.com")).map((m) => m.passId), [gmail.pass.id]);
 });
 
 test("hacen falta tres letras, y quien no terminó de inscribirse no aparece", async () => {
@@ -83,11 +95,14 @@ test("hacen falta tres letras, y quien no terminó de inscribirse no aparece", a
   assert.deepEqual(await searchDoor(repo, datos.event, "nadie"), []);
 });
 
-test("el correo vuelve tapado, nunca entero", async () => {
-  assert.equal(maskEmail("jose.perez@example.com"), "j***@example.com");
+test("el correo vuelve tapado, también el dominio, nunca entero", async () => {
+  assert.equal(maskEmail("jose.perez@example.com"), "j***@e***.com");
+  assert.equal(maskEmail("carla@empresa-secreta.com.bo"), "c***@e***.bo");
+  assert.equal(maskEmail("a@x.com"), "a***@x***.com");
+  assert.equal(maskEmail("sin-arroba"), "***");
   const [match] = await searchDoor(repo, datos.event, "jose");
-  assert.equal(match.emailHint, "j***@example.com");
-  assert.ok(!JSON.stringify(match).includes("jose.perez"), "el correo entero no sale");
+  assert.equal(match.emailHint, "j***@e***.com");
+  assert.ok(!JSON.stringify(match).includes("jose.perez") && !JSON.stringify(match).includes("example"), "ni el correo ni el dominio salen enteros");
   assert.equal(match.ticket, "Inscripción");
   assert.equal(match.checkedInAt, null);
 });
@@ -140,11 +155,18 @@ test("solo el código de la puerta abre el buscador y el agregar; el de una mesa
   assert.equal((await llamar("buscar", buscar, { query: "jose" })).status, 400, "sin código");
 });
 
-test("la búsqueda tiene freno: ciento veinte por evento en diez minutos", async () => {
+test("la búsqueda tiene freno: ciento veinte por sesión e IP en diez minutos, contadas de un solo golpe, y la Puerta de al lado sigue buscando", async () => {
   for (let i = 0; i < 120; i++) assert.equal((await llamar("buscar", buscar, { code: datos.puerta, query: "jose" })).status, 200, `búsqueda ${i}`);
   const frenada = await llamar("buscar", buscar, { code: datos.puerta, query: "jose" });
   assert.equal(frenada.status, 429);
   assert.deepEqual(frenada.cuerpo, { error: "too_many_attempts" });
+  // El cupo no es del evento: otro celular con el mismo código, desde otra IP, sigue buscando.
+  assert.equal((await llamar("buscar", buscar, { code: datos.puerta, query: "jose" }, "200.1.1.2")).status, 200);
+  // Una ráfaga: cuatrocientas a la vez desde una IP nueva, y pasan exactamente ciento veinte.
+  await doorSearchAttempts().clear();
+  const rafaga = await Promise.all(Array.from({ length: 400 }, (_, i) => llamar("buscar", buscar, { code: datos.puerta, query: `persona ${i % 5}` }, "200.1.1.3")));
+  assert.equal(rafaga.filter((r) => r.status === 200).length, 120);
+  assert.equal(rafaga.filter((r) => r.status === 429).length, 280);
 });
 
 // ---------- Agregar en la puerta ----------
@@ -154,7 +176,7 @@ test("agregar en la puerta inscribe gratis a la persona, le manda su credencial 
   assert.equal(status, 201);
   assert.equal(cuerpo.kind, "added");
   assert.equal(cuerpo.match.name, "Pedro Nuevo");
-  assert.equal(cuerpo.match.emailHint, "p***@example.com");
+  assert.equal(cuerpo.match.emailHint, "p***@e***.com");
   assert.equal(cuerpo.match.checkedInAt, null);
   assert.equal(cuerpo.match.ticket, "Inscripción");
 
@@ -223,7 +245,7 @@ test("la entrada marcada a mano va por el mismo camino que una lectura y queda c
   assert.equal(Date.parse(fila.scannedAt), Date.parse(hace), "y con su hora");
   assert.ok(fila.synced);
   assert.equal((await repo.getPass(anita.pass.id)).status, "checked_in");
-  assert.equal((await searchDoor(repo, datos.event, "anita"))[0].checkedInAt !== null, true, "y el buscador ya la muestra como que entró");
+  assert.equal((await searchDoor(repo, datos.event, "torres"))[0].checkedInAt !== null, true, "y el buscador ya la muestra como que entró");
 
   // marcar dos veces no llega dos veces al contrato
   const [otra] = await processScanItems(repo, datos.event, GATE_STATION, [item], cadena);

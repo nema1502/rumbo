@@ -11,7 +11,7 @@ import { registerForEvent, validateFields, type FailureReason, type FieldErrors 
 import { limiter, type Limiter } from "./limites.ts";
 import { describeForLog } from "./log.ts";
 import type { StationAccess } from "./panel.ts";
-import type { EventRecord, Pass, Repo } from "./repo.ts";
+import { emailKey, type EventRecord, type Pass, type Repo } from "./repo.ts";
 
 // ---------- El permiso ----------
 
@@ -23,8 +23,10 @@ export function requireGate(access: StationAccess): Response | null {
 // ---------- El freno de la búsqueda ----------
 
 /**
- * Las búsquedas son por código de puesto: un voluntario escribe de a una por vez. Ciento veinte por
- * puesto en diez minutos alcanza de sobra; si alguien recorre la lista con búsquedas de tres letras, se frena.
+ * Las búsquedas se cuentan por evento, sesión del escáner (o código) e IP: un voluntario escribe de a una por
+ * vez, y ciento veinte en diez minutos alcanzan de sobra; si alguien recorre la lista con búsquedas de tres letras,
+ * se frena él, no la Puerta de al lado. Se cuenta y se decide de un solo golpe (Limiter.take): una ráfaga de
+ * cuatrocientas búsquedas a la vez no pasa entera antes de que el freno se entere.
  */
 export function doorSearchAttempts(): Limiter {
   return limiter("door-search", {
@@ -39,20 +41,27 @@ export function doorSearchAttempts(): Limiter {
 
 // ---------- Buscar ----------
 
-/** "ana.perez@example.com" se muestra como "a***@example.com": alcanza para distinguir a dos Ana sin dar el correo entero. */
+/**
+ * "ana.perez@example.com" se muestra como "a***@e***.com": alcanza para distinguir a dos Ana sin dar el correo. El
+ * dominio también va tapado: con él a la vista y la primera letra, antes se reconstruía el correo letra por letra.
+ */
 export function maskEmail(email: string): string {
   const at = email.lastIndexOf("@");
   if (at < 1) return "***";
-  return `${email.slice(0, 1)}***${email.slice(at)}`;
+  const domain = email.slice(at + 1);
+  const dot = domain.lastIndexOf(".");
+  return `${email.slice(0, 1)}***@${domain.slice(0, 1)}***${dot > 0 ? domain.slice(dot) : ""}`;
 }
 
 /**
- * Las personas inscriptas del evento cuyo nombre o correo contiene lo escrito (sin importar mayúsculas ni
- * tildes). Hasta ocho, por nombre. Devuelve el correo tapado, nunca entero.
+ * Las personas inscriptas del evento cuyo nombre contiene lo escrito (sin importar mayúsculas ni tildes), o cuyo
+ * correo es exactamente el escrito, entero (normalizado, y por buzón en Gmail): por un pedazo del correo no se
+ * busca, porque dejaba adivinarlo letra por letra. Hasta ocho, por nombre. Devuelve el correo tapado, nunca entero.
  */
 export async function searchDoor(repo: Repo, event: EventRecord, query: string): Promise<DoorMatch[]> {
   const needle = normalizeSearch(query);
   if (needle.length < SEARCH_MIN_LENGTH) return [];
+  const wantedEmail = query.includes("@") ? emailKey(query) : null;
   // Los pases con su persona en una sola consulta: la búsqueda se pide con cada letra que escribe el voluntario.
   const [passes, checkIns, ticketTypes] = await Promise.all([repo.listPassesWithPerson(event.id), repo.listCheckIns(event.id), repo.listTicketTypes(event.id)]);
   const mirrored = new Map<string, string>();
@@ -65,7 +74,9 @@ export async function searchDoor(repo: Repo, event: EventRecord, query: string):
   const matches: DoorMatch[] = [];
   for (const { pass, person } of passes) {
     if (pass.status === "pending") continue;
-    if (!normalizeSearch(person.name).includes(needle) && !person.email.toLowerCase().includes(needle)) continue;
+    const byName = normalizeSearch(person.name).includes(needle);
+    const byEmail = wantedEmail !== null && emailKey(person.email) === wantedEmail;
+    if (!byName && !byEmail) continue;
     matches.push({
       passId: pass.id,
       name: person.name,
