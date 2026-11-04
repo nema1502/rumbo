@@ -68,6 +68,42 @@ test("DUPLICATE: ya está en camino, no es un error; se sigue esperando el resul
   assert.deepEqual(esperas, [], "y sin esperas de más");
 });
 
+test("si tras los sondeos la red todavía no sabe de la transacción, se espera a que venza antes de darla por perdida (y de soltar el turno)", async () => {
+  // Una transacción con vencimiento, como las de verdad (TX_TIMEOUT_SECONDS): el tope sale de "ahora".
+  const conVencimiento = () =>
+    new TransactionBuilder(new Account("GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF", "100"), { fee: "100", networkPassphrase: Networks.TESTNET })
+      .addOperation(Operation.bumpSequence({ bumpTo: "200" }))
+      .setTimeout(stellar.TX_TIMEOUT_SECONDS)
+      .build();
+  const desconocida = { status: rpc.Api.GetTransactionStatus.NOT_FOUND };
+  const entro = { status: rpc.Api.GetTransactionStatus.SUCCESS, ledger: 78, returnValue: undefined };
+  // El nodo no la encuentra en la primera tanda de sondeos y sí después de la espera.
+  const tarde = nodo([{ status: "PENDING" }]);
+  const vistas = [];
+  tarde.pollTransaction = async (hash, opciones) => {
+    vistas.push(opciones?.attempts);
+    return vistas.length === 1 ? desconocida : entro;
+  };
+  const { esperas, sleep } = sinEspera();
+  const tx = await sendAndWait(tarde, conVencimiento(), {}, { sleep });
+  assert.equal(tx.ledger, 78);
+  assert.deepEqual(vistas, [40, 1], "cuarenta sondeos, la espera, y una mirada más");
+  assert.equal(esperas.length, 1);
+  assert.ok(esperas[0] > 50_000 && esperas[0] <= (stellar.TX_TIMEOUT_SECONDS + 5) * 1000, `esperó ${esperas[0]} ms: hasta que la transacción venció`);
+
+  // Si ni después de vencer se sabe de ella, recién ahí es "no se confirmó a tiempo".
+  const nunca = nodo([{ status: "PENDING" }], desconocida);
+  const segunda = sinEspera();
+  await assert.rejects(sendAndWait(nunca, conVencimiento(), {}, { sleep: segunda.sleep }), /no se confirmó a tiempo/);
+  assert.equal(segunda.esperas.length, 1);
+
+  // Sin vencimiento no hay nada que esperar: una sola tanda de sondeos.
+  const sinVencer = nodo([{ status: "PENDING" }], desconocida);
+  const tercera = sinEspera();
+  await assert.rejects(sendAndWait(sinVencer, transaccion(), {}, { sleep: tercera.sleep }), /no se confirmó a tiempo/);
+  assert.deepEqual([sinVencer.visto.consultas.length, tercera.esperas], [1, []]);
+});
+
 test("DUPLICATE sin hash en la respuesta: se usa el de la transacción", async () => {
   const red = nodo([{ status: "DUPLICATE", hash: "" }]);
   const tx = await sendAndWait(red, transaccion(), {}, { sleep: async () => {} });
