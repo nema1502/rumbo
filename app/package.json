@@ -6,12 +6,12 @@
   "description": "La app de Rumbo: la página del evento, la credencial, el escáner y el panel.",
   "license": "MIT",
   "engines": {
-    "node": ">=24"
+    "node": "24.x"
   },
   "packageManager": "pnpm@12.11.2",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/copiar-despliegue.mjs && next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",

@@ -248,6 +248,10 @@ La app corre en Vercel y la base es Postgres en Supabase, por el pooler en modo 
 | `DATABASE_URL` | La cadena del pooler de Supabase en modo transacción, la del puerto 6543: `postgres://postgres.<proyecto>:<clave>@<región>.pooler.supabase.com:6543/postgres` |
 | `RUMBO_DATA_KEY` | 32 bytes al azar en base64, con los que se cifran los secretos guardados. Se genera una vez y no se cambia: con otra llave, lo guardado no se descifra. Sin ella la app no arranca |
 | `RUMBO_PG_POOL_MAX` | Opcional: cuántas conexiones abre cada instancia (cinco) |
+| `RUMBO_DATA_DIR` | `/tmp/rumbo`: en Vercel el disco es de solo lectura salvo `/tmp`, y ahí deja sus correos el `DevMailer` mientras no haya Resend (se pierden; el enlace a la credencial se muestra en pantalla igual) |
+| `RUMBO_DEPLOY_JSON` | `./deploy/testnet.json`: la copia de `contracts/rumbo-pass/deploy/testnet.json` que `pnpm build` arma con `scripts/copiar-despliegue.mjs`, porque con la carpeta raíz en `app/` lo de afuera no viaja. Hace falta para publicar eventos nuevos desde una plantilla |
+
+`vercel.json` fija la región `pdx1` (Oregón), la misma de la base en Supabase (`us-west-2`), y el preset de Next.
 
 1. **El proyecto.** Crear el proyecto en Supabase y copiar la cadena del pooler en modo transacción (Connect, Transaction pooler). Generar la llave con `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"` y guardarla también en un gestor de contraseñas: si se pierde, las llaves de los QR y las cuentas guardadas no se recuperan.
 2. **Migrar.** Desde `app/`: `DATABASE_URL=<la cadena> pnpm db:migrate`. Aplica lo que falte, en orden, y se puede correr las veces que haga falta. Deja el acceso por fila prendido en todas las tablas: por la API pública de Supabase no se ve nada, y la app entra como dueña de las tablas. Antes de desplegar un cambio que trae una migración nueva, se migra primero.

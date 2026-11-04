@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
   // servidor, los tipos XDR quedan duplicados y firmar una autorización falla ("expected string, Uint8Array,
   // or XdrString"). Fuera del bundle, Node lo carga una sola vez, como en los scripts.
   serverExternalPackages: ["@stellar/stellar-sdk", "postgres"],
+  // Lo público del despliegue del contrato (la copia que arma scripts/copiar-despliegue.mjs en pnpm build) viaja
+  // con cada función: en Vercel la app lo lee con RUMBO_DEPLOY_JSON=./deploy/testnet.json para publicar eventos nuevos.
+  outputFileTracingIncludes: { "/**": ["./deploy/testnet.json"] },
 };
 
 export default nextConfig;

@@ -33,3 +33,6 @@ test_snapshots/
 # La app (Next.js): lo que genera al compilar
 app/.next/
 app/next-env.d.ts
+
+# La copia del despliegue del contrato que arma pnpm build para Vercel (scripts/copiar-despliegue.mjs)
+app/deploy/
