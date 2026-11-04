@@ -48,6 +48,5 @@ El script inscribe a una persona de prueba, lee `status()` en la cadena, verific
 
 - El SVG se descarga; la versión en PDF (con `resvg`) todavía no está.
 - Reabrir la credencial sin conexión: el QR se arma sin red mientras la página está abierta, pero si el navegador la descarta y se vuelve a abrir sin señal, la página no carga. Pide un service worker para `/p/`, como el del escáner.
-- Las claves de acceso solo existen con `RUMBO_REPO=sqlite`.
 - Un desafío contra bots en el formulario (Turnstile, hCaptcha o parecido): pide elegir el servicio.
 - Que la respuesta no diga si el correo ya estaba inscripto: hoy una inscripción nueva muestra el enlace en pantalla y una conocida no (y tarda distinto, porque la nueva pasa por la red). Igualarlas pide decidir el recorrido, por ejemplo confirmar siempre por correo antes de mostrar la credencial.

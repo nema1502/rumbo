@@ -36,7 +36,7 @@ Lo que hoy es distinto de producción, y la interfaz lo dice ("Modo de prueba: l
 
 - **La cuenta de cada persona la crea y la guarda el servidor** (`DevAccountProvider`, tabla `dev_accounts` en la base local): la fondea con friendbot, le agrega la línea de confianza al USDC de prueba, le da un saldo inicial del emisor propio (`RUMBO_INITIAL_TEST_USDC`, cien por defecto) y firma por ella cuando el contrato se lo pide. Con Pollar prendido (abajo, "Entrar con Google") la cuenta es de la persona y el servidor no tiene su llave.
 - **El USDC es de prueba:** lo emite una cuenta propia en la red de prueba y en pantalla se llama "USDC de prueba". No vale nada fuera de la demostración.
-- **Las comisiones de red las paga el servidor** con una cuenta patrocinadora, así ninguna cuenta de persona necesita XLM. Eso sí se queda igual en producción.
+- **Las comisiones de red las paga el servidor** con una cuenta patrocinadora, así ninguna cuenta de persona necesita XLM. Eso sí se queda igual en producción: también con la cuenta propia (abajo, "Entrar con Google") la patrocinadora manda y paga cada transacción.
 - **En desarrollo la base es un archivo SQLite** (`data/rumbo.db`); en producción es Postgres en Supabase (abajo, "En producción"). **Los correos se escriben a disco** (`data/correos/`) en vez de mandarse: Resend queda como interfaz con su esqueleto, por hacer.
 - **El panel se abre con una clave por evento** en vez de una cuenta de organizador.
 
