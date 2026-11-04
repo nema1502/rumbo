@@ -156,6 +156,23 @@ export async function ensureStationCodes(event: EventRecord, repo: Repo = getRep
   return listStationCodes(event.id);
 }
 
+/**
+ * Un código de puesto nuevo en lugar del dado (si se filtró, o cambió quien atiende): el viejo deja de abrir el
+ * escáner en el acto (y con él, la sesión de cualquier celular que lo tuviera abierto), y el puesto queda con uno
+ * nuevo. Solo un código de este evento. Devuelve el código nuevo, o null si el dado no era de este evento.
+ */
+export async function regenerateStationCode(event: EventRecord, input: string, repo: Repo = getRepo()): Promise<StationCode | null> {
+  const code = normalizeStationCode(input);
+  if (!isValidStationCode(code)) return null;
+  const db = getDb();
+  const row = await db.one("SELECT * FROM station_codes WHERE code = ? AND event_id = ?", [code, event.id]);
+  if (!row) return null;
+  const old = rowToStation(row);
+  await db.run("DELETE FROM station_codes WHERE code = ? AND event_id = ?", [code, event.id]);
+  const fresh = await ensureStationCodes(event, repo);
+  return fresh.find((c) => c.kind === old.kind && c.benefitId === old.benefitId && c.standId === old.standId) ?? null;
+}
+
 /** Para el escáner: a qué evento y puesto corresponde lo que escribió el voluntario, o null. */
 export async function resolveStationCode(input: string, repo: Repo = getRepo()): Promise<StationAccess | null> {
   const code = normalizeStationCode(input);

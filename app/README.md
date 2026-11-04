@@ -102,10 +102,10 @@ Cada parte tiene su guía: [la inscripción y la credencial](src/server/evento/R
 | `GET /api/evento/<evento>` | Lo público del evento, sus entradas y su catálogo de beneficios |
 | `POST /api/evento/<evento>/inscripcion` | Inscribe o cobra, igual que el formulario |
 | `GET /api/pase/<pase>?k=<clave>` y `/svg` | La credencial como datos, y para imprimir |
-| `POST /api/scan/open` y `/api/scan/sync` | El escáner: abrir el puesto con su código, y subir la cola |
-| `POST /api/scan/buscar` y `/api/scan/agregar` | El respaldo de la puerta (solo con el código del puesto Puerta): buscar por nombre o correo, e inscribir gratis a quien llegó sin credencial |
+| `POST /api/scan/open` y `/api/scan/sync` | El escáner: abrir el puesto con su código (recibe la foto del evento y una ficha de sesión de treinta y seis horas, atada al código), y subir la cola con esa ficha. Los códigos vencen un día después del evento |
+| `POST /api/scan/buscar` y `/api/scan/agregar` | El respaldo de la puerta (solo con la sesión del puesto Puerta): buscar por nombre o por el correo entero, e inscribir gratis a quien llegó sin credencial |
 | `GET /api/hora` | La hora del servidor, para que una credencial con el reloj desfasado arme el QR de la ventana que corresponde |
-| `GET /api/admin/<evento>` y `/csv`, `POST .../cadena`, `.../entrar`, `.../salir` | El panel: el estado en JSON, la lista en CSV, el contraste con la cadena y la sesión |
+| `GET /api/admin/<evento>` y `/csv`, `POST .../cadena`, `.../entrar`, `.../salir`, `.../puestos` | El panel: el estado en JSON, la lista en CSV, el contraste con la cadena, la sesión y un código de puesto nuevo en lugar de uno que se filtró |
 | `GET` y `POST /api/admin/<evento>/stands` | Stands y ruta: leer, y agregar, cambiar o sacar un stand, cambiarle el código, fijar la meta y sacar a alguien de la pantalla en vivo |
 | `GET` y `POST /api/pase/<pase>/ruta?k=<clave>` | La ruta de una credencial, y la respuesta de la persona a la pregunta de permiso o cómo quiere aparecer en la pantalla |
 | `GET /api/stand/<código>`, `POST .../contacto`, `GET .../csv` | El panel del stand en JSON, la calificación y la nota de un contacto, y el CSV |

@@ -15,7 +15,7 @@ import { describeForLog } from "./log.ts";
 import { resolveStationCode, type StationAccess } from "./panel.ts";
 import { getEventPublicKey } from "./qr-keys.ts";
 import { issueScanSession, readScanSession, sessionFingerprint, type ScanSessionClaims } from "./sesion-escaner.ts";
-import { normalizeStationCode } from "../lib/station-code.ts";
+import { normalizeStationCode, stationCodesExpired } from "../lib/station-code.ts";
 import { ClientIdTaken, InvalidScannedAt, type CheckIn, type EventRecord, type PassBenefit, type PassView, type Repo, type SyncMark } from "./repo.ts";
 import { claimRoutePrize, isRoutePrize, recordVisit, StandsError, standScanVisits } from "./stands.ts";
 import {
@@ -553,6 +553,7 @@ export async function authorizeScanRequest(repo: Repo, request: Request): Promis
     const access = await resolveStationCode(session.code, repo);
     // El código se cambió desde el panel: la sesión que lo llevaba se cierra con él.
     if (!access || access.event.id !== session.eventId) return unauthorized("wrong_code");
+    if (stationCodesExpired(access.event)) return unauthorized("expired");
     return { ok: true, access, body, session, principal: sessionFingerprint(token) };
   }
 
@@ -572,6 +573,8 @@ export async function authorizeScanRequest(repo: Repo, request: Request): Promis
     await attempts.note(key);
     return unauthorized("wrong_code");
   }
+  // Los códigos vencen un día después del evento: el código es bueno, así que no cuenta como intento, pero no abre.
+  if (stationCodesExpired(access.event)) return unauthorized("expired");
   return { ok: true, access, body, session: null, principal: sessionFingerprint(normalizeStationCode(code)) };
 }
 

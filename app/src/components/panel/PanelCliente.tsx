@@ -9,7 +9,7 @@ import { useLang, useT } from "@/i18n/client.tsx";
 import type { Lang } from "@/i18n/index.ts";
 import { kindLabelKey } from "@/lib/credential-kinds.ts";
 import { isManualScannerId } from "@/lib/escaner-api.ts";
-import { formatStationCode } from "@/lib/station-code.ts";
+import { formatStationCode, stationCodesExpired } from "@/lib/station-code.ts";
 import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
 import type { ChainSyncSummary, PanelDuplicate, PanelPass, PanelState } from "@/server/panel.ts";
 import { BotonCopiar } from "./BotonCopiar.tsx";
@@ -47,6 +47,9 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
   const [cadena, setCadena] = useState<EstadoCadena>({ busy: false, result: initial.lastChainSync, error: null });
   const [query, setQuery] = useState("");
   const [origin, setOrigin] = useState("");
+  /** El código de puesto que se está cambiando, y si el último cambio falló. */
+  const [cambiando, setCambiando] = useState<string | null>(null);
+  const [errorPuesto, setErrorPuesto] = useState(false);
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -96,6 +99,26 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
       setCadena({ busy: false, result: data.sync, error: null });
     } catch {
       setCadena((actual) => ({ ...actual, busy: false, error: t("panel.cadena.error") }));
+    }
+  }
+
+  /** Un código de puesto nuevo: el de ahora deja de abrir el escáner en el acto. */
+  async function cambiarCodigo(code: string, puesto: string) {
+    if (!window.confirm(t("panel.puestos.confirmarCambiar", { puesto }))) return;
+    setCambiando(code);
+    setErrorPuesto(false);
+    try {
+      const res = await fetch(`/api/admin/${slug}/puestos`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code }) });
+      if (res.status === 401) {
+        setConexion("vencida");
+        return;
+      }
+      if (!res.ok) throw new Error(String(res.status));
+      setState(((await res.json()) as { state: PanelState }).state);
+    } catch {
+      setErrorPuesto(true);
+    } finally {
+      setCambiando(null);
     }
   }
 
@@ -214,6 +237,8 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
         <Tarjeta>
           <h2>{t("panel.puestos.titulo")}</h2>
           <p className="chico">{t("panel.puestos.bajada")}</p>
+          {stationCodesExpired(event) && <Aviso>{t("panel.puestos.vencidos")}</Aviso>}
+          {errorPuesto && <Aviso tono="alerta">{t("panel.puestos.errorCambiar")}</Aviso>}
           <ul className="puestos">
             {state.stations.map((station) => {
               const puesto = station.kind === "gate" ? t("panel.puestos.puerta") : station.kind === "stand" ? t("stands.escaner.titulo", { nombre: station.standName ?? "" }) : (station.benefitName ?? "");
@@ -231,6 +256,9 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
                     listo={t("panel.puestos.copiado")}
                     aria-label={t("panel.puestos.copiarAria", { puesto })}
                   />
+                  <Boton variante="secundario" className="boton-chico" onClick={() => void cambiarCodigo(station.code, puesto)} disabled={cambiando !== null} aria-label={t("panel.puestos.cambiarAria", { puesto })}>
+                    {cambiando === station.code ? t("panel.puestos.cambiando") : t("panel.puestos.cambiar")}
+                  </Boton>
                 </li>
               );
             })}
