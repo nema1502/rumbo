@@ -102,7 +102,7 @@ El servidor MCP le da al asistente que ya usás las mismas funciones, por HTTP y
 
 Entrar con Google o con el correo, con una cuenta propia por medio de Pollar, está en el código y corrió en la red de prueba con una llave local; falta probarlo con una cuenta de Google real, y se prende con `RUMBO_ACCOUNTS=pollar`. Sin eso, la cuenta la crea el servidor en modo de prueba. Las passkeys vienen después.
 
-En [un video de poco más de un minuto](site/assets/mvp-es.mp4), grabado el 3 de noviembre, se ve el MVP real andando en la red de prueba, sin maquetas (sus pantallas de inscripción todavía dicen que la credencial llega por correo; eso viene después): la inscripción gratis, la credencial con su QR que cambia, la cámara del voluntario leyendo ese QR en la puerta, el canje sin conexión que se sincroniza solo al volver la red, el panel y la transacción de la inscripción en stellar.expert (lo graba [app/scripts/grabar-recorrido.mjs](app/scripts/grabar-recorrido.mjs)).
+En [un video de poco más de un minuto](site/assets/mvp-es.mp4), grabado el 4 de noviembre, se ve el MVP real andando en la red de prueba, sin maquetas: la inscripción gratis, la credencial con su QR que cambia, la cámara del voluntario leyendo ese QR en la puerta, el canje sin conexión que se sincroniza solo al volver la red, el panel y la transacción de la inscripción en stellar.expert (lo graba [app/scripts/grabar-recorrido.mjs](app/scripts/grabar-recorrido.mjs)).
 
 Sin instalar nada: la [landing](https://rumbo-eventos.vercel.app) con una animación de 31 segundos del flujo entero, y una [maqueta clickeable](https://rumbo-eventos.vercel.app/#probar) (no guarda nada) donde te inscribís, recibís la credencial, la escaneás como voluntario (también sin conexión) y ves cómo sería el sorteo.
 

@@ -1,18 +1,18 @@
-Rumbo, el flujo entero por el servidor MCP contra la red de prueba de Stellar. 2026-11-04T04:37:12.058Z
+Rumbo, el flujo entero por el servidor MCP contra la red de prueba de Stellar. 2026-11-04T15:57:06.683Z
 Servidor: http://127.0.0.1:3250 (levantado por este script, con la clave de la casa puesta). Datos: ./data/mcp.
 
 > Una base nueva en ./data/mcp y el servidor de desarrollo en el puerto 3250  (0.0 s)
   ok    el servidor contesta en http://127.0.0.1:3250
   ok    GET /api/mcp dice que el camino es POST (405): no hay sesiones ni flujo de eventos
 
-> Un cliente MCP por HTTP (POST /api/mcp), sin ninguna clave: se presenta y lista lo que sabe hacer  (152.0 s)
+> Un cliente MCP por HTTP (POST /api/mcp), sin ninguna clave: se presenta y lista lo que sabe hacer  (8.4 s)
   ok    el servidor se presenta como "rumbo" 0.1.0, con instrucciones de 1232 letras
   ok    tools/list: 11 herramientas: list_templates, create_event_draft, publish_event, get_event, import_guest_list, continue_import, resend_links, event_status, sponsor_report, draw_list, chapter_package_summary
   ok    prompts/get describe_your_event: The organizer said: "un Build with AI para 150 personas el 28 de noviembre en Santa Cruz"
   ok    list_templates: DevFest (300), Build with AI (150), Día de la Mujer (IWD) (120), Hackatón (200), Meetup (60), Taller (40)
   Build with AI trae: Asistente: Almuerzo, Refrigerio, Café del auspiciante; Oradora u orador: Almuerzo, Refrigerio, Polera; Mentora o mentor: Almuerzo, Refrigerio, Cena; Voluntaria o voluntario: Almuerzo, Refrigerio, Polera de staff; Organización: Almuerzo, Refrigerio, Cena, Polera de staff; Auspiciante: Almuerzo, Refrigerio, Café del auspiciante; puestos: Puerta, Almuerzo, Refrigerio, Cena, Polera, Polera de staff, Café del auspiciante, Premio del sorteo
 
-> Armar el evento: un Build with AI para 150 personas el 28 de noviembre en Santa Cruz  (152.8 s)
+> Armar el evento: un Build with AI para 150 personas el 28 de noviembre en Santa Cruz  (8.8 s)
   ok    sin la clave de la casa no se crea nada: unauthorized: Creating an event on this server needs its house key (RUMBO_CREATE_KEY): pass it as create_key, 
   ok    quedó el borrador "Build with AI Santa Cruz" (/e/build-with-ai-santa-cruz), 2026-11-28T09:00:00-04:00, cupo 150, con su clave de organizador
   para revisarlo: http://127.0.0.1:3250/admin/build-with-ai-santa-cruz/armar?k=...
@@ -20,66 +20,66 @@ Servidor: http://127.0.0.1:3250 (levantado por este script, con la clave de la c
   ok    get_event sin clave: el borrador no existe para el público
   ok    get_event con la clave: el borrador, con sus 6 tipos de credencial
 
-> Publicar el evento en la red de prueba: un contrato rumbo-pass por tipo de credencial  (154.4 s)
+> Publicar el evento en la red de prueba: un contrato rumbo-pass por tipo de credencial  (9.1 s)
   ok    publish_event sin la clave de organizador no publica
-  ok    publicado: 6 contratos creados en 30 s
-  Asistente (attendee, gratis): CAVCR63TQCMMYNNLPMP2SIGS7CYAEWBC5IKBKFCBQDBQCVOC33OA67SG
-    https://stellar.expert/explorer/testnet/contract/CAVCR63TQCMMYNNLPMP2SIGS7CYAEWBC5IKBKFCBQDBQCVOC33OA67SG
-  Oradora u orador (speaker, gratis): CAT4KUB4D5YLQLBFGLJA2DCBNCXHHBO5QEFYIP7IJU2LXUCVTDNI62WW
-    https://stellar.expert/explorer/testnet/contract/CAT4KUB4D5YLQLBFGLJA2DCBNCXHHBO5QEFYIP7IJU2LXUCVTDNI62WW
-  Mentora o mentor (mentor, gratis): CCUUYEASBMZULRBUVRHFXLKQRDJZ3CIDL22WBGKFCYPH5MZTJFZPAX2N
-    https://stellar.expert/explorer/testnet/contract/CCUUYEASBMZULRBUVRHFXLKQRDJZ3CIDL22WBGKFCYPH5MZTJFZPAX2N
-  Voluntaria o voluntario (volunteer, gratis): CCK7ZDVYKL3VMTVWDB7YORWOLVNRNXN4Y4MIDBN4ETCDDX2Z3LEWCPFV
-    https://stellar.expert/explorer/testnet/contract/CCK7ZDVYKL3VMTVWDB7YORWOLVNRNXN4Y4MIDBN4ETCDDX2Z3LEWCPFV
-  Organización (organizer, gratis): CALFVYFRQCKNIED5TJGHTEQ73XS74MTROZIMK3M4X4YNT3BBFIU2F6AP
-    https://stellar.expert/explorer/testnet/contract/CALFVYFRQCKNIED5TJGHTEQ73XS74MTROZIMK3M4X4YNT3BBFIU2F6AP
-  Auspiciante (sponsor, gratis): CDJRXTC24W4NTXUZE7DJZH2VTYMTGJO3NIU2PQUGBRA7CMMZ5ACSZ66O
-    https://stellar.expert/explorer/testnet/contract/CDJRXTC24W4NTXUZE7DJZH2VTYMTGJO3NIU2PQUGBRA7CMMZ5ACSZ66O
+  ok    publicado: 6 contratos creados en 77 s
+  Asistente (attendee, gratis): CBD5QETO26MCZ74JW2DR3UDYI2KKDZRRFOW34PNLMBV5ZRDMTVXSFJ6A
+    https://stellar.expert/explorer/testnet/contract/CBD5QETO26MCZ74JW2DR3UDYI2KKDZRRFOW34PNLMBV5ZRDMTVXSFJ6A
+  Oradora u orador (speaker, gratis): CCQU6U5MPBWZQYSSEKMPUGIFVLWGFAO3ATWX3KRJV3NQQBKU6LYGBSOV
+    https://stellar.expert/explorer/testnet/contract/CCQU6U5MPBWZQYSSEKMPUGIFVLWGFAO3ATWX3KRJV3NQQBKU6LYGBSOV
+  Mentora o mentor (mentor, gratis): CATMMFEFDJEQVE6MMK3NP62XIVSYR3GPVT2XZ73BQX4MSYWSCXXR5X7J
+    https://stellar.expert/explorer/testnet/contract/CATMMFEFDJEQVE6MMK3NP62XIVSYR3GPVT2XZ73BQX4MSYWSCXXR5X7J
+  Voluntaria o voluntario (volunteer, gratis): CCXKIMPA3RCJN36HNL3JIB25CE7FTQRZ4QSECK6LOGOL5ZGV5JKBOSKE
+    https://stellar.expert/explorer/testnet/contract/CCXKIMPA3RCJN36HNL3JIB25CE7FTQRZ4QSECK6LOGOL5ZGV5JKBOSKE
+  Organización (organizer, gratis): CBJU5PJ7DEDFXX5BO7P5ZUJOT53WUDFNKVNTCXG5SSMWCFXGKLCSIZN4
+    https://stellar.expert/explorer/testnet/contract/CBJU5PJ7DEDFXX5BO7P5ZUJOT53WUDFNKVNTCXG5SSMWCFXGKLCSIZN4
+  Auspiciante (sponsor, gratis): CDBD44B3ZEN6DGA4IRSWLYPKPXT53RM5JMILKANZ3DDOPEXFA5XH7KYH
+    https://stellar.expert/explorer/testnet/contract/CDBD44B3ZEN6DGA4IRSWLYPKPXT53RM5JMILKANZ3DDOPEXFA5XH7KYH
   ok    get_event ya sin clave: publicado, con su inscripción gratis ("Asistente")
   ok    la página /e/build-with-ai-santa-cruz se ve
   ok    publicar de nuevo no crea nada
 
-> Desde la máquina de quien organiza: el puente por stdio (pnpm mcp) apuntando a ese servidor, con la clave en su entorno  (237.0 s)
+> Desde la máquina de quien organiza: el puente por stdio (pnpm mcp) apuntando a ese servidor, con la clave en su entorno  (92.3 s)
   ok    el puente arrancó ([rumbo-mcp] listo: las herramientas de http://127.0.0.1:3250/api/mcp, con la clave de organizador de la sesión) y expone las 11 herramientas
-  ok    import_guest_list, la vista previa: lista de luma, 16 filas, entrarían 9 ({"valid":9,"invalidEmail":3,"duplicatesInFile":1,"alreadyHere":0})
+  ok    import_guest_list, la vista previa: lista de luma, 16 filas, entrarían 9 ({"valid":9,"invalidEmail":3,"duplicatesInFile":1,"alreadyHere":0,"resumable":0})
   columnas: {"name":"name","email":"email","status":"approval_status","ticket":"ticket_name","diet":"¿Tenés alguna restricción alimentaria?"}; entradas: General (8) a Asistente, Speaker (1) a Oradora u orador, Jurado (1) a Asistente, Mentor (1) a Mentora o mentor, Volunteer (1) a Voluntaria o voluntario
   ok    la vista previa no creó nada
 
-> Confirmar la importación: credencial, cuenta en la red de prueba, inscripción en el contrato y correo, de a cinco  (256.1 s)
-  ok    creadas 9 (por tipo: {"Asistente":6,"Oradora u orador":1,"Mentora o mentor":1,"Voluntaria o voluntario":1}); la primera tanda preparó 5 en 77 s y faltan 4
-  transacción: e77708978c93261cef562ea48de10e87fb85c980d1a394c0d333927487b4ee6f
-  transacción: 812e22f84f36acc4b704d970eb947ac9f36c84922f3939e7e335b5db401d9868
-  transacción: f315b7101cd8a75e5156240f8515c5b338bf21974487127f3e76292642197a91
-  transacción: 0c9b3f5cc65f23096e1a634331de27cf26a5c4d6840b349c279dd68b305df497
-  transacción: a0eb233d552fef6e2922b3232a0e0246e6c4f1891f7b2e87737154c9b2c008f6
-  ok    continue_import: la segunda tanda preparó 4 en 61 s; 9 activadas, 0 pendientes
-  transacción: 0d794220d3e392c9ae33db113613f88fc132fabb257db8cc9e27fec669ec4d97
-  transacción: 36f4e1643589ab1489bca7a5ecde63092c56aed1edfd43efbbbcf9316e20ca70
-  transacción: 02e01f29f0cb3a66d8e5d92b18c773d393cafef47ca314dd7d65f91b0e27b063
-  transacción: 02cdbe8001245cd6b23db921e6bfb3ecb454679e5137e499e84e149475f8cc8c
+> Confirmar la importación: credencial, cuenta en la red de prueba, inscripción en el contrato y correo, de a cinco  (92.8 s)
+  ok    creadas 9 (por tipo: {"Asistente":6,"Oradora u orador":1,"Mentora o mentor":1,"Voluntaria o voluntario":1}); la primera tanda preparó 5 en 191 s y faltan 4
+  transacción: 32ecf67ab02f42f3ce8b0aa4a8a2166b9ae7e7342d1ccd4a09ab4a40a2df0efb
+  transacción: 7120995b69c721e03b5eb9e8ca8630d9ee78cc42aa8ac5fcabdc41a7e645745e
+  transacción: 63aa7e2584ac60b2c9dc702dd42c0bff9632a8c3a7f6b9e4134cf5be71e2e9ad
+  transacción: 3c1f848eaf4c577c5281973c3df2a746424ef9c89ab38c5decace29dc4d68b7a
+  transacción: b8f827ed2b5a4fe540515af4a25b2ae6bc4943a56985c95da33ec33d9f35798e
+  ok    continue_import: la segunda tanda preparó 4 en 136 s; 9 activadas, 0 pendientes
+  transacción: 6c8c0c31f052d6475abf89b0b8019a1ead59567e7306bccf0d5a9a8470aca86e
+  transacción: 445a16b0e174c0ab45d0e36852f2b746bd90fde0e82784f9fb8f734256c45e6b
+  transacción: 41ea461d5b9365eb920389722437b699579d2f570906ff903038f642dda83ea1
+  transacción: 877dc22444b78186988c37308de916ec21b911ac8a9e87c89f769b337a3d8475
   ok    los 9 pases quedaron activos, cada uno con su cuenta en la red de prueba
   ok    9 correos con el enlace personal quedaron en ./data/mcp/correos
   ok    ningún correo lleva una llave secreta
 
-> El recordatorio: reenviar el enlace a quienes todavía no entraron, con el freno de diez minutos  (394.4 s)
+> El recordatorio: reenviar el enlace a quienes todavía no entraron, con el freno de diez minutos  (420.4 s)
   ok    resend_links: 9 reenviados de 9
   ok    otra vez enseguida: 0 reenviados, 9 frenados (hace menos de diez minutos)
   ok    en el disco hay 18 correos: los 9 de la importación y los 9 del recordatorio
 
-> El estado antes del evento, por el puente  (394.6 s)
+> El estado antes del evento, por el puente  (420.5 s)
   ok    event_status: 9 credenciales, 0 entraron, por sincronizar 0
-  ok    códigos de puesto: Puerta C2BP-GG7D-GLCZ, Almuerzo VXCG-HX3C-HLRV, Refrigerio CILN-IFQG-SVQD, Cena 6MYR-5Y5D-MBMJ, Polera P7DI-WJU3-BFIT, Polera de staff 6MO2-2D2W-F22P, Café del auspiciante AY7J-5E7Z-QN2A, Premio del sorteo KP5R-MMGD-JJZ2
+  ok    códigos de puesto (tapados): Puerta PUGR..., Almuerzo IANF..., Refrigerio KKFW..., Cena V5AI..., Polera AY2D..., Polera de staff C5SY..., Café del auspiciante LJFM..., Premio del sorteo GPZU...
   ok    el estado no trae nombres ni correos
 
-> Dos personas entran por la puerta (la API del escáner con el código C2BP-GG7D-GLCZ): check_in en el contrato  (394.8 s)
+> Dos personas entran por la puerta (la API del escáner con el código de la puerta, PUGR...): check_in en el contrato  (424.5 s)
   ok    la puerta abre y baja 9 pases
-  ok    las dos entradas llegaron al contrato en 10 s
-  transacción: 37c900f0b096c506bb31121b3afe81cdb928296e08919db639628eceee5543b1
-  transacción: a0589f08087c6d42ef0194c35bddaf35b5f7fd66bf68c680223217ac76a057b6
+  ok    las dos entradas llegaron al contrato en 19 s
+  transacción: ee5c8f781b105538972c5f839e744838b267de87292bf0650cfdb420a0264ba9
+  transacción: 331148b633f8acbfe17342d59171c54bdf885b8d34488fa5e00321fcf7798133
 
-> Después: el estado, la lista del sorteo, el informe para quien auspicia y el resumen para el capítulo  (408.4 s)
+> Después: el estado, la lista del sorteo, el informe para quien auspicia y el resumen para el capítulo  (444.5 s)
   ok    event_status: 2 entraron, 9 credenciales, almuerzos 0 de 9, dobles 0
-  ok    draw_list: 2 participantes (2D76EI4K, KNTFOOE6), huella 83224ca4b4ca745a0affa6afeb2c0b971f23ed0d607a55830b37d07dc88787b4
+  ok    draw_list: 2 participantes (BGOBE2BN, OPC7H4Z4), huella 21d9b5b45a4060e963e204ef8e68ca464b01770b53da735b6efc628fe87502ba
   ok    la lista del sorteo son códigos, sin nombres ni correos
   ok    sponsor_report: 9 credenciales, 2 entraron, titular "Almuerzo: 0 de 9", ruta de stands: 0 stands
   ok    el informe no trae nombres ni correos
@@ -87,28 +87,28 @@ Servidor: http://127.0.0.1:3250 (levantado por este script, con la clave de la c
   ok    el resumen enlaza los 6 contratos del evento
   ok    con otra clave, la lista del sorteo no se entrega
 
-TODO BIEN: 39 de 39 comprobaciones en 409.9 s.
+TODO BIEN: 39 de 39 comprobaciones en 449.5 s.
 
 Las transacciones de esta corrida en la red de prueba (11):
-  inscripción importada, pase KNTFOOE6 (register, número 1)
-    https://stellar.expert/explorer/testnet/tx/e77708978c93261cef562ea48de10e87fb85c980d1a394c0d333927487b4ee6f
-  inscripción importada, pase 2D76EI4K (register, número 2)
-    https://stellar.expert/explorer/testnet/tx/812e22f84f36acc4b704d970eb947ac9f36c84922f3939e7e335b5db401d9868
-  inscripción importada, pase CQDZG2LH (register, número 3)
-    https://stellar.expert/explorer/testnet/tx/f315b7101cd8a75e5156240f8515c5b338bf21974487127f3e76292642197a91
-  inscripción importada, pase K244U6FK (register, número 4)
-    https://stellar.expert/explorer/testnet/tx/0c9b3f5cc65f23096e1a634331de27cf26a5c4d6840b349c279dd68b305df497
-  inscripción importada, pase DZ5TLVTI (register, número 1)
-    https://stellar.expert/explorer/testnet/tx/a0eb233d552fef6e2922b3232a0e0246e6c4f1891f7b2e87737154c9b2c008f6
-  inscripción importada, pase QFZAFARB (register, número 5)
-    https://stellar.expert/explorer/testnet/tx/0d794220d3e392c9ae33db113613f88fc132fabb257db8cc9e27fec669ec4d97
-  inscripción importada, pase EGQ53FLD (register, número 1)
-    https://stellar.expert/explorer/testnet/tx/36f4e1643589ab1489bca7a5ecde63092c56aed1edfd43efbbbcf9316e20ca70
-  inscripción importada, pase 3P7FQHFT (register, número 1)
-    https://stellar.expert/explorer/testnet/tx/02e01f29f0cb3a66d8e5d92b18c773d393cafef47ca314dd7d65f91b0e27b063
-  inscripción importada, pase P25ZC4IO (register, número 6)
-    https://stellar.expert/explorer/testnet/tx/02cdbe8001245cd6b23db921e6bfb3ecb454679e5137e499e84e149475f8cc8c
-  entrada por la puerta, pase KNTFOOE6 (check_in, firma la puerta)
-    https://stellar.expert/explorer/testnet/tx/37c900f0b096c506bb31121b3afe81cdb928296e08919db639628eceee5543b1
-  entrada por la puerta, pase 2D76EI4K (check_in, firma la puerta)
-    https://stellar.expert/explorer/testnet/tx/a0589f08087c6d42ef0194c35bddaf35b5f7fd66bf68c680223217ac76a057b6
+  inscripción importada, pase BGOBE2BN (register, número 1)
+    https://stellar.expert/explorer/testnet/tx/32ecf67ab02f42f3ce8b0aa4a8a2166b9ae7e7342d1ccd4a09ab4a40a2df0efb
+  inscripción importada, pase OPC7H4Z4 (register, número 2)
+    https://stellar.expert/explorer/testnet/tx/7120995b69c721e03b5eb9e8ca8630d9ee78cc42aa8ac5fcabdc41a7e645745e
+  inscripción importada, pase ZX6JE5M3 (register, número 3)
+    https://stellar.expert/explorer/testnet/tx/63aa7e2584ac60b2c9dc702dd42c0bff9632a8c3a7f6b9e4134cf5be71e2e9ad
+  inscripción importada, pase SJDANYWI (register, número 4)
+    https://stellar.expert/explorer/testnet/tx/3c1f848eaf4c577c5281973c3df2a746424ef9c89ab38c5decace29dc4d68b7a
+  inscripción importada, pase RLT3BZGO (register, número 1)
+    https://stellar.expert/explorer/testnet/tx/b8f827ed2b5a4fe540515af4a25b2ae6bc4943a56985c95da33ec33d9f35798e
+  inscripción importada, pase ZL2FP6WR (register, número 5)
+    https://stellar.expert/explorer/testnet/tx/6c8c0c31f052d6475abf89b0b8019a1ead59567e7306bccf0d5a9a8470aca86e
+  inscripción importada, pase OE7OOGI4 (register, número 1)
+    https://stellar.expert/explorer/testnet/tx/445a16b0e174c0ab45d0e36852f2b746bd90fde0e82784f9fb8f734256c45e6b
+  inscripción importada, pase WDKDRI34 (register, número 1)
+    https://stellar.expert/explorer/testnet/tx/41ea461d5b9365eb920389722437b699579d2f570906ff903038f642dda83ea1
+  inscripción importada, pase JALDMD4G (register, número 6)
+    https://stellar.expert/explorer/testnet/tx/877dc22444b78186988c37308de916ec21b911ac8a9e87c89f769b337a3d8475
+  entrada por la puerta, pase BGOBE2BN (check_in, firma la puerta)
+    https://stellar.expert/explorer/testnet/tx/ee5c8f781b105538972c5f839e744838b267de87292bf0650cfdb420a0264ba9
+  entrada por la puerta, pase OPC7H4Z4 (check_in, firma la puerta)
+    https://stellar.expert/explorer/testnet/tx/331148b633f8acbfe17342d59171c54bdf885b8d34488fa5e00321fcf7798133

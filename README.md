@@ -102,7 +102,7 @@ The MCP server gives the assistant you already use the same functions, over HTTP
 
 Signing in with Google or with your email, with an account of your own through Pollar, is in the code and ran on testnet with a local key; it still needs a run with a real Google account, and it is switched on with `RUMBO_ACCOUNTS=pollar`. Without it, the server creates the account in test mode. Passkeys come next.
 
-[A video of just over a minute](site/assets/mvp-en.mp4), recorded on November 3, shows the real MVP at work on testnet, no mockups (its sign-up screens still say the pass is emailed; that comes next): the free sign-up, the pass with its changing QR code, the volunteer's camera reading that code at the door, an offline redemption that syncs by itself when the network is back, the dashboard and the sign-up transaction on stellar.expert (it is recorded by [app/scripts/grabar-recorrido.mjs](app/scripts/grabar-recorrido.mjs)).
+[A video of just over a minute](site/assets/mvp-en.mp4), recorded on November 4, shows the real MVP at work on testnet, no mockups: the free sign-up, the pass with its changing QR code, the volunteer's camera reading that code at the door, an offline redemption that syncs by itself when the network is back, the dashboard and the sign-up transaction on stellar.expert (it is recorded by [app/scripts/grabar-recorrido.mjs](app/scripts/grabar-recorrido.mjs)).
 
 Without installing anything: the [landing page](https://rumbo-eventos.vercel.app) with a 31-second animation of the whole flow, and a [clickable mock-up](https://rumbo-eventos.vercel.app/#probar) (nothing is saved) where you sign up, get your pass, scan it as a volunteer (offline too) and see how the draw would run.
 
