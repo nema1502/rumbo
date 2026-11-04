@@ -531,10 +531,12 @@ try {
   check((await pagina.eval(`__esc.filas().length`)) === 0, "con menos de tres letras no busca");
   await pagina.eval(`__esc.set("#esc-buscar", "CAMILA")`);
   check(await pagina.waitFor(`__esc.filas().some((f) => f.includes(${JSON.stringify(manual.nombre)}))`, 15_000), `busca "CAMILA" (en mayúsculas) y encuentra a ${manual.nombre}`);
-  // Si la prueba ya corrió antes sobre esta base, hay otras Camila que ya entraron: la nuestra es la única con la acción.
-  const filas = await pagina.eval(`__esc.filas()`);
-  const nuestra = filas.filter((f) => f.includes("Marcar la entrada"));
-  check(nuestra.length === 1 && nuestra[0].includes("e***@e***.com") && !nuestra[0].includes(manual.person.email) && !nuestra[0].includes("example"), `la fila muestra el correo tapado (también el dominio) y la acción: ${nuestra[0]}`);
+  // Si la prueba ya corrió antes sobre esta base hay otras Camila, con o sin entrada: la nuestra se busca por su correo
+  // entero, que es de esta corrida (la búsqueda por correo es por igualdad del correo completo), y es la única fila.
+  await pagina.eval(`__esc.set("#esc-buscar", ${JSON.stringify(manual.person.email)})`);
+  check(await pagina.waitFor(`__esc.filas().length === 1 && __esc.filas()[0].includes(${JSON.stringify(manual.nombre)})`, 15_000), "por su correo entero aparece ella sola");
+  const [nuestra] = await pagina.eval(`__esc.filas()`);
+  check(Boolean(nuestra) && nuestra.includes("Marcar la entrada") && nuestra.includes("e***@e***.com") && !nuestra.includes(manual.person.email) && !nuestra.includes("example"), `la fila muestra el correo tapado (también el dominio) y la acción: ${nuestra}`);
   await pagina.captura("puerta-buscar-1440x900");
   await pagina.eval(`__esc.clickText("Marcar la entrada")`);
   await pagina.waitFor(`document.querySelector(".esc-veredicto")`, 10_000);
@@ -551,7 +553,7 @@ try {
   check((await stellar.rumboPass.status(manual.contract, manual.account)).checked_in === true, `en la cadena, ${manual.nombre} figura como entrada`);
   await pagina.eval(`__esc.clickText("Buscar o agregar a alguien")`);
   await pagina.waitFor(`document.querySelector("#esc-buscar")`, 10_000);
-  await pagina.eval(`__esc.set("#esc-buscar", ${JSON.stringify(`escaner-${stamp}-camila`)})`); // por correo, que es único de esta corrida
+  await pagina.eval(`__esc.set("#esc-buscar", ${JSON.stringify(manual.person.email)})`); // por el correo entero, que es único de esta corrida
   check(await pagina.waitFor(`__esc.filas().length === 1 && __esc.filas()[0].includes("Entró a las")`, 15_000), "buscada otra vez (por correo), ya figura como entrada con la hora");
   check(!(await pagina.eval(`__esc.filas().some((f) => f.includes("Marcar la entrada"))`)), "y ya no ofrece marcarla de nuevo");
 
