@@ -3,7 +3,7 @@
 // la mesa (el servidor las rechazaría para siempre) sino con el de la puerta.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { entornoDePrueba, eventoDePrueba, paseDePrueba } from "./lib/entorno.mjs";
+import { entornoDePrueba, eventoDePrueba, paseDePrueba, qrImpreso } from "./lib/entorno.mjs";
 
 entornoDePrueba();
 const { abrirCola, agruparParaSincronizar, nuevaEntrada } = await import("../src/lib/cola.ts");
@@ -13,8 +13,8 @@ const { authorizeScanRequest, processScanItems, stationOf } = await import("../s
 const { ensureStationCodes } = await import("../src/server/panel.ts");
 const { formatStationCode } = await import("../src/lib/station-code.ts");
 
-const entrada = (eventId, stationId, code, passId) =>
-  nuevaEntrada({ eventId, stationId, code, action: stationId === "gate" ? "checkin" : "redeem", passId, benefitId: stationId === "gate" ? null : stationId, scannerId: "celu-1" });
+const entrada = (eventId, stationId, code, passId, qr) =>
+  nuevaEntrada({ eventId, stationId, code, action: stationId === "gate" ? "checkin" : "redeem", passId, benefitId: stationId === "gate" ? null : stationId, scannerId: "celu-1", ...(qr ? { qr } : {}) });
 
 test("lo pendiente se agrupa por el código de su puesto, y el puesto abierto va primero", () => {
   const puerta = entrada("ev", "gate", "PUERTAPUERTA", "AAAAAAAA");
@@ -59,8 +59,8 @@ test("de punta a punta en el servidor: la entrada de la puerta con el código de
   const mesa = codigos.find((c) => c.kind === "benefit").code;
   stellar.rumboPass.checkIn = async () => ({ hash: "h-puerta", ledger: 1, returnValue: 1, arrival: 1 });
 
-  // la puerta registró una entrada sin conexión, y el voluntario cerró la puerta y abrió la mesa
-  const pendiente = entrada(datos.event.id, "gate", puerta, pass.id);
+  // la puerta registró una entrada sin conexión (con el QR leído), y el voluntario cerró la puerta y abrió la mesa
+  const pendiente = entrada(datos.event.id, "gate", puerta, pass.id, await qrImpreso(datos.event.id, pass.id));
   const [grupo] = agruparParaSincronizar([pendiente], { code: formatStationCode(mesa), eventId: datos.event.id, stationId: datos.lunch.id });
   assert.equal(grupo.code, puerta);
   assert.equal(grupo.actual, false);

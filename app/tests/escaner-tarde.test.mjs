@@ -3,7 +3,7 @@
 // contrato dice "ya estaba hecho" se mira primero si lo hecho era lo propio.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { entornoDePrueba, eventoDePrueba, paseDePrueba } from "./lib/entorno.mjs";
+import { entornoDePrueba, eventoDePrueba, paseDePrueba, qrImpreso } from "./lib/entorno.mjs";
 
 entornoDePrueba();
 const { getRepo } = await import("../src/server/repo.ts");
@@ -65,13 +65,16 @@ function redDeMentira() {
 }
 
 const ahora = () => new Date().toISOString();
-const entrada = (clientId, passId) => ({ clientId, action: "checkin", passId, benefitId: null, scannedAt: ahora(), scannerId: "puerta-1" });
-const canje = (clientId, passId, benefitId) => ({ clientId, action: "redeem", passId, benefitId, scannedAt: ahora(), scannerId: "mesa-1" });
+// Cada lectura viaja con el QR de su pase (el impreso de la prueba): el servidor lo vuelve a comprobar antes de registrar.
+let qr = "";
+const entrada = (clientId, passId) => ({ clientId, action: "checkin", passId, benefitId: null, scannedAt: ahora(), scannerId: "puerta-1", qr });
+const canje = (clientId, passId, benefitId) => ({ clientId, action: "redeem", passId, benefitId, scannedAt: ahora(), scannerId: "mesa-1", qr });
 const hace = (ms) => new Date(Date.now() - ms).toISOString();
 
 async function preparar() {
   const datos = await eventoDePrueba(repo);
   const { pass } = await paseDePrueba(repo, datos);
+  qr = await qrImpreso(datos.event.id, pass.id);
   return { ...datos, pass };
 }
 

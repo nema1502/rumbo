@@ -107,7 +107,8 @@ test("la meta de la ruta: al llegar, el premio pasa a la credencial y se canjea 
 
   // en el puesto de Premios (sin pasar por el contrato)
   const puesto = { id: premio, kind: "benefit", name: "Premio de la ruta", place: "Premios" };
-  const canje = (clientId) => ({ clientId, action: "redeem", passId: pass.id, benefitId: premio, scannedAt: ahora(), scannerId: "premios-1" });
+  const qr = await qrImpreso(d.event.id, pass.id);
+  const canje = (clientId) => ({ clientId, action: "redeem", passId: pass.id, benefitId: premio, scannedAt: ahora(), scannerId: "premios-1", qr });
   const [primero] = await processScanItems(repo, d.event, puesto, [canje("p-1")], noHayRed);
   assert.equal(primero.status, "synced");
   const [segundo] = await processScanItems(repo, d.event, puesto, [canje("p-2")], noHayRed);
@@ -123,7 +124,7 @@ test("el premio de la ruta no se canjea sin haberlo ganado", async () => {
   await visita(d.stands[0], pass);
   const premio = (await stands.getRouteGoal(d.event.id)).prizeBenefitId;
   const puesto = { id: premio, kind: "benefit", name: "Premio de la ruta", place: "Premios" };
-  const [r] = await processScanItems(repo, d.event, puesto, [{ clientId: "sin-premio", action: "redeem", passId: pass.id, benefitId: premio, scannedAt: ahora(), scannerId: "x" }], noHayRed);
+  const [r] = await processScanItems(repo, d.event, puesto, [{ clientId: "sin-premio", action: "redeem", passId: pass.id, benefitId: premio, scannedAt: ahora(), scannerId: "x", qr: await qrImpreso(d.event.id, pass.id) }], noHayRed);
   assert.deepEqual([r.status, r.error], ["rejected", "la credencial todavía no ganó este premio"]);
   assert.equal((await repo.listRedemptionsForPass(pass.id)).length, 0, "no queda ningún canje");
 });

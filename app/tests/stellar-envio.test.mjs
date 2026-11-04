@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Account, Networks, Operation, TransactionBuilder, rpc } from "@stellar/stellar-sdk";
-import { entornoDePrueba, eventoDePrueba, paseDePrueba } from "./lib/entorno.mjs";
+import { entornoDePrueba, eventoDePrueba, paseDePrueba, qrImpreso } from "./lib/entorno.mjs";
 
 entornoDePrueba();
 const stellar = await import("../src/server/stellar.ts");
@@ -163,7 +163,7 @@ test("el escáner deja pendiente un registro cuando la red está ocupada, y olvi
   const repo = getRepo();
   const datos = await eventoDePrueba(repo);
   const ana = await paseDePrueba(repo, datos);
-  const item = { clientId: "ocupada-1", action: "checkin", passId: ana.pass.id, benefitId: null, scannedAt: new Date().toISOString(), scannerId: "prueba" };
+  const item = { clientId: "ocupada-1", action: "checkin", passId: ana.pass.id, benefitId: null, scannedAt: new Date().toISOString(), scannerId: "prueba", qr: await qrImpreso(datos.event.id, ana.pass.id) };
 
   let intento = 0;
   const cadena = {

@@ -207,19 +207,19 @@ test("la entrada marcada a mano va por el mismo camino que una lectura y queda c
     redeem: async () => ({ hash: "no" }),
     outcome: async () => "missing",
   };
-  const scannerId = manualScannerId("abc12345");
-  assert.equal(scannerId, "manual:puerta:abc12345");
-  assert.ok(isManualScannerId(scannerId));
+  assert.equal(manualScannerId("abc12345"), "manual:puerta:abc12345");
+  assert.ok(isManualScannerId("manual:puerta:abc12345"));
   assert.ok(!isManualScannerId("abc12345"));
-  // Una lectura de hace veinte minutos (el servidor solo acepta horas de hasta un año atrás y una hora adelante).
+  // Una lectura de hace veinte minutos, sin QR y marcada como manual: el escáner manda su id tal cual, el prefijo lo pone el servidor.
   const hace = new Date(Date.now() - 20 * 60 * 1000).toISOString();
-  const item = { clientId: "manual-1", action: "checkin", passId: anita.pass.id, benefitId: null, scannedAt: hace, scannerId };
+  const item = { clientId: "manual-1", action: "checkin", passId: anita.pass.id, benefitId: null, scannedAt: hace, scannerId: "abc12345", via: "manual" };
   const [resultado] = await processScanItems(repo, datos.event, GATE_STATION, [item], cadena);
   assert.equal(resultado.status, "synced");
   assert.deepEqual(llamadas, [anita.pass.account]);
 
   const [fila] = await repo.listCheckInsForPass(anita.pass.id);
   assert.equal(fila.scannerId, "manual:puerta:abc12345", "queda con su puesto");
+  assert.equal(fila.via, "manual", "y como marcada a mano");
   assert.equal(Date.parse(fila.scannedAt), Date.parse(hace), "y con su hora");
   assert.ok(fila.synced);
   assert.equal((await repo.getPass(anita.pass.id)).status, "checked_in");
@@ -229,11 +229,22 @@ test("la entrada marcada a mano va por el mismo camino que una lectura y queda c
   const [otra] = await processScanItems(repo, datos.event, GATE_STATION, [item], cadena);
   assert.equal(otra.status, "synced");
   assert.equal(llamadas.length, 1);
+
+  // El prefijo que mande el cliente no vale nada: sin "via: manual" y sin QR, no es una lectura; con "manual", se saca y se vuelve a poner.
+  const disfraz = { clientId: "manual-3", action: "checkin", passId: ana.pass.id, benefitId: null, scannedAt: hace, scannerId: "manual:puerta:manual:puerta:zzz" };
+  assert.equal((await processScanItems(repo, datos.event, GATE_STATION, [disfraz], cadena))[0].status, "rejected");
+  assert.equal((await repo.listCheckInsForPass(ana.pass.id)).length, 0);
+  await processScanItems(repo, datos.event, GATE_STATION, [{ ...disfraz, via: "manual" }], cadena);
+  assert.equal((await repo.listCheckInsForPass(ana.pass.id))[0].scannerId, "manual:puerta:zzz");
 });
 
 test("el escáner de una mesa no puede marcar entradas, ni a mano", async () => {
   const mesa = { id: datos.lunch.id, kind: "benefit", name: "Almuerzo", place: null };
-  const item = { clientId: "manual-2", action: "checkin", passId: ana.pass.id, benefitId: null, scannedAt: new Date().toISOString(), scannerId: manualScannerId("zzz") };
+  const item = { clientId: "manual-2", action: "checkin", passId: jose.pass.id, benefitId: null, scannedAt: new Date().toISOString(), scannerId: "zzz", via: "manual" };
   const [resultado] = await processScanItems(repo, datos.event, mesa, [item], { checkIn: async () => assert.fail("no debería llegar"), redeem: async () => ({ hash: "x" }), outcome: async () => "missing" });
   assert.equal(resultado.status, "rejected");
+  // Ni un canje "a mano": sin el QR, en una mesa no se registra nada.
+  const canje = { clientId: "manual-4", action: "redeem", passId: jose.pass.id, benefitId: datos.lunch.id, scannedAt: new Date().toISOString(), scannerId: "zzz", via: "manual" };
+  const [sinQr] = await processScanItems(repo, datos.event, mesa, [canje], { checkIn: async () => ({ hash: "x" }), redeem: async () => assert.fail("no debería llegar"), outcome: async () => "missing" });
+  assert.equal(sinQr.status, "rejected");
 });

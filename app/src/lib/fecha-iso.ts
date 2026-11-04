@@ -29,3 +29,12 @@ export function isRealIsoDate(text: string): boolean {
 export function isReadableDate(text: unknown): text is string {
   return typeof text === "string" && Number.isFinite(Date.parse(text));
 }
+
+/** El más temprano de dos instantes (el que no se puede leer pierde): la hora de la lectura, o la de llegada si el escáner iba adelantado. */
+export function earliestIso(a: string, b: string): string {
+  const ta = Date.parse(a);
+  const tb = Date.parse(b);
+  if (!Number.isFinite(ta)) return b;
+  if (!Number.isFinite(tb)) return a;
+  return tb < ta ? b : a;
+}

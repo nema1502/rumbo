@@ -13,7 +13,7 @@
 // Las tablas viven en la base de siempre (src/server/base): SQLite en desarrollo, Postgres en producción.
 import { randomUUID } from "node:crypto";
 import { translate, type Lang } from "../i18n/index.ts";
-import type { ConsentState, ScanStandVisit } from "../lib/escaner-api.ts";
+import type { ConsentState, ScanStandVisit, ScanVia } from "../lib/escaner-api.ts";
 import { isLocalLogoPath, localLogoOrNull } from "../lib/logo.ts";
 import { getDb, type Row, type SqlValue } from "./base/index.ts";
 import { isFoodBenefit } from "./kit/plantillas.ts";
@@ -333,6 +333,10 @@ export interface StandVisit {
   passId: string;
   scannerId: string | null;
   scannedAt: string;
+  /** Cuándo llegó al servidor (la pone el servidor). */
+  receivedAt: string;
+  /** Cómo se leyó la credencial: el QR del celular o el impreso. Null en las visitas de antes. */
+  via: ScanVia | null;
   consent: ConsentState;
   consentAt: string | null;
   rating: number | null;
@@ -347,6 +351,8 @@ const rowToVisit = (r: Row): StandVisit => ({
   scannerId: strOrNull(r.scanner_id),
   // Una fila con una hora que no se puede leer (de antes de validarla) no tumba la credencial: vale la de llegada.
   scannedAt: isReadableDate(r.scanned_at) ? r.scanned_at : str(r.created_at),
+  receivedAt: isReadableDate(r.received_at) ? r.received_at : str(r.created_at),
+  via: r.via === "live" || r.via === "printed" || r.via === "manual" ? r.via : null,
   consent: str(r.consent) as ConsentState,
   consentAt: strOrNull(r.consent_at),
   rating: r.rating === null || r.rating === undefined ? null : num(r.rating),
@@ -372,7 +378,7 @@ export interface VisitResult {
  * pasa a la credencial en el mismo acto. El permiso para compartir el contacto empieza sin responder.
  */
 export async function recordVisit(
-  input: { standId: string; passId: string; clientId?: string | null; scannerId?: string | null; scannedAt?: string },
+  input: { standId: string; passId: string; clientId?: string | null; scannerId?: string | null; scannedAt?: string; via?: ScanVia | null },
   repo: Repo = getRepo(),
 ): Promise<VisitResult> {
   const scannedAt = checkedScannedAt(input.scannedAt);
@@ -386,9 +392,10 @@ export async function recordVisit(
     if (prior && (str(prior.stand_id) !== stand.id || str(prior.pass_id) !== pass.id)) throw new ClientIdTaken(input.clientId);
   }
   const before = await visitCount(pass.id);
+  const at = now();
   await run(
-    `INSERT INTO stand_visits (id, client_id, stand_id, event_id, pass_id, scanner_id, scanned_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
+    `INSERT INTO stand_visits (id, client_id, stand_id, event_id, pass_id, scanner_id, scanned_at, received_at, via, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
     randomUUID(),
     input.clientId ?? null,
     stand.id,
@@ -396,7 +403,9 @@ export async function recordVisit(
     pass.id,
     input.scannerId ?? null,
     scannedAt,
-    now(),
+    at,
+    input.via ?? null,
+    at,
   );
   const visit = rowToVisit((await one("SELECT * FROM stand_visits WHERE stand_id = ? AND pass_id = ?", stand.id, pass.id)) as Row);
   const visited = await visitCount(pass.id);

@@ -241,7 +241,9 @@ export async function abrirCola(): Promise<ColaLocal> {
 
 /**
  * Una entrada nueva para la cola, lista para registrar, con el código del puesto en que se hizo. `qr` es el
- * texto leído: en un stand viaja con la visita, para que el servidor vuelva a comprobar la firma.
+ * texto leído: viaja con cada lectura, para que el servidor vuelva a comprobar la firma; solo falta en una
+ * entrada marcada a mano en la puerta (`via: "manual"`). `at` es la hora de la lectura: el reloj de este celular
+ * corregido con la hora del servidor, si se la conoce.
  */
 export function nuevaEntrada(input: {
   eventId: string;
@@ -252,8 +254,10 @@ export function nuevaEntrada(input: {
   benefitId: string | null;
   scannerId: string;
   qr?: string;
+  via?: "manual";
+  at?: number;
 }): QueueEntry {
-  const at = now();
+  const at = input.at === undefined || !Number.isFinite(input.at) ? now() : new Date(input.at).toISOString();
   return {
     clientId: nuevoId(),
     eventId: input.eventId,
@@ -265,11 +269,13 @@ export function nuevaEntrada(input: {
     scannedAt: at,
     scannerId: input.scannerId,
     ...(input.qr ? { qr: input.qr } : {}),
+    ...(input.via ? { via: input.via } : {}),
     status: "pending",
     attempts: 0,
     lastError: null,
     txHash: null,
-    updatedAt: at,
+    // Con el reloj de este celular, sin corregir: la espera entre reintentos se mide con ese mismo reloj.
+    updatedAt: now(),
   };
 }
 

@@ -6,6 +6,7 @@
 import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { translate, type Lang } from "../i18n/index.ts";
 import type { CredentialKind } from "../lib/credential-kinds.ts";
+import type { ScanVia } from "../lib/escaner-api.ts";
 import { localLogoOrNull } from "../lib/logo.ts";
 import { base32Encode, bytesToBase64url } from "../lib/qr-codec.ts";
 import { STATION_CODE_LENGTH, isValidStationCode, normalizeStationCode } from "../lib/station-code.ts";
@@ -230,6 +231,8 @@ export interface PanelDuplicate {
   scannerId: string | null;
   /** El puesto donde se registró (la mesa del beneficio); null si no se sabe. La puerta la pone la pantalla. */
   station: string | null;
+  /** Cómo se leyó la credencial (el QR del celular, el impreso, a mano); null si el registro es de antes o vino de la cadena. */
+  via: ScanVia | null;
 }
 
 export interface Tally {
@@ -382,7 +385,7 @@ async function collect(event: EventRecord, repo: Repo): Promise<Collected> {
   const duplicates: PanelDuplicate[] = [
     ...checkIns
       .filter((c) => c.duplicate)
-      .map((c) => ({ id: c.id, kind: "checkin" as const, passId: c.passId, name: nameOf(c.passId), benefitName: null, scannedAt: c.scannedAt, scannerId: c.scannerId, station: null })),
+      .map((c) => ({ id: c.id, kind: "checkin" as const, passId: c.passId, name: nameOf(c.passId), benefitName: null, scannedAt: c.scannedAt, scannerId: c.scannerId, station: null, via: c.via })),
     ...redemptions
       .filter((r) => r.duplicate)
       .map((r) => ({
@@ -394,6 +397,7 @@ async function collect(event: EventRecord, repo: Repo): Promise<Collected> {
         scannedAt: r.scannedAt,
         scannerId: r.scannerId,
         station: benefitById.get(r.benefitId)?.station ?? null,
+        via: r.via,
       })),
   ].sort((a, b) => b.scannedAt.localeCompare(a.scannedAt));
 

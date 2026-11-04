@@ -69,6 +69,8 @@ export const panel = {
     "panel.dobles.puesto": "en {puesto}",
     "panel.dobles.aMano": "marcada a mano en la puerta",
     "panel.dobles.otroEscaner": "en otro escáner",
+    "panel.dobles.via.live": "con el QR del celular",
+    "panel.dobles.via.printed": "con la credencial impresa",
 
     "panel.acceso.titulo": "Esta puerta tiene llave",
     "panel.acceso.bajada": "El panel de {evento} es para quien organiza. Entrá con tu clave.",
@@ -176,6 +178,8 @@ export const panel = {
     "panel.dobles.puesto": "at {puesto}",
     "panel.dobles.aMano": "marked by hand at the gate",
     "panel.dobles.otroEscaner": "at another scanner",
+    "panel.dobles.via.live": "with the QR code on the phone",
+    "panel.dobles.via.printed": "with the printed pass",
 
     "panel.acceso.titulo": "This door has a key",
     "panel.acceso.bajada": "The panel for {evento} is for the organizer. Enter with your key.",

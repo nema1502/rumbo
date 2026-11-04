@@ -111,15 +111,13 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
   const lugar = formatEventWhere(event);
 
   // Dónde se registró un doble: el puesto, no el id del celular. Un canje trae la mesa de su beneficio; una
-  // entrada es la puerta, con el escáner o marcada a mano; si no se sabe, "en otro escáner".
-  const dondeDoble = (d: PanelDuplicate) =>
-    isManualScannerId(d.scannerId)
-      ? t("panel.dobles.aMano")
-      : d.kind === "checkin"
-        ? t("panel.dobles.puesto", { puesto: t("panel.puestos.puerta") })
-        : d.station
-          ? t("panel.dobles.puesto", { puesto: d.station })
-          : t("panel.dobles.otroEscaner");
+  // entrada es la puerta, con el escáner o marcada a mano; si no se sabe, "en otro escáner". Y con qué se leyó
+  // la credencial (el QR del celular o el impreso), si el servidor lo comprobó.
+  const dondeDoble = (d: PanelDuplicate) => {
+    if (d.via === "manual" || isManualScannerId(d.scannerId)) return t("panel.dobles.aMano");
+    const donde = d.kind === "checkin" ? t("panel.dobles.puesto", { puesto: t("panel.puestos.puerta") }) : d.station ? t("panel.dobles.puesto", { puesto: d.station }) : t("panel.dobles.otroEscaner");
+    return d.via ? `${donde}, ${t(`panel.dobles.via.${d.via}`)}` : donde;
+  };
 
   return (
     <section className="panel">

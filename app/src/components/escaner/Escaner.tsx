@@ -23,7 +23,6 @@ import {
   STOCK_EXCEEDED,
   SYNC_BATCH_SIZE,
   decideVerdict,
-  manualScannerId,
   whoIs,
   type DoorMatch,
   type LocalUsage,
@@ -205,7 +204,11 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
       const enviar = async (code: string, lote: QueueEntry[], conFoto: boolean): Promise<"ok" | "cerrado"> => {
         const { status, data } = await postJson<SyncResponse>(
           "/api/scan/sync",
-          { code, snapshot: conFoto, items: lote.map(({ clientId, action, passId, benefitId, scannedAt, scannerId, qr }) => ({ clientId, action, passId, benefitId, scannedAt, scannerId, ...(qr ? { qr } : {}) })) },
+          {
+            code,
+            snapshot: conFoto,
+            items: lote.map(({ clientId, action, passId, benefitId, scannedAt, scannerId, qr, via }) => ({ clientId, action, passId, benefitId, scannedAt, scannerId, ...(qr ? { qr } : {}), ...(via ? { via } : {}) })),
+          },
           SYNC_TIMEOUT_MS,
         );
         if (status === 401 || status === 404) return "cerrado";
@@ -423,8 +426,10 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
               passId: resultado.passId,
               benefitId: station.kind === "benefit" ? station.id : null,
               scannerId: s.scannerId,
-              // En un stand, la visita viaja con el QR leído: el servidor vuelve a comprobar la firma antes de contarla.
-              ...(resultado.action === "visit" ? { qr: limpio } : {}),
+              // Cada lectura viaja con el QR leído: el servidor vuelve a comprobar la firma antes de registrarla.
+              qr: limpio,
+              // La hora de la lectura, con el reloj corregido por el del servidor.
+              at: Date.now() + (s.clockOffsetMs ?? 0),
             }),
           );
           await refrescarLocal();
@@ -449,9 +454,9 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
   }
 
   /**
-   * Marca la entrada de alguien a mano, desde el buscador de la puerta: entra a la misma cola que una lectura
-   * (con el id de escáner "manual:puerta:<celular>", que la deja marcada como manual en el espejo) y se
-   * sincroniza igual. Quien ya había entrado no se marca otra vez.
+   * Marca la entrada de alguien a mano, desde el buscador de la puerta: entra a la misma cola que una lectura,
+   * sin QR y marcada como manual (el servidor le pone el id de escáner "manual:puerta:<celular>", que la deja
+   * marcada como manual en el espejo) y se sincroniza igual. Quien ya había entrado no se marca otra vez.
    */
   const marcarAMano = useCallback(
     async (match: DoorMatch) => {
@@ -478,7 +483,9 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
           action: "checkin",
           passId: match.passId,
           benefitId: null,
-          scannerId: manualScannerId(s.scannerId),
+          scannerId: s.scannerId,
+          via: "manual",
+          at: Date.now() + (s.clockOffsetMs ?? 0),
         }),
       );
       await refrescarLocal();

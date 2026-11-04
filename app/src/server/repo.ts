@@ -3,6 +3,7 @@
 // producción. Nombres y correos viven acá, nunca en la cadena.
 import { randomUUID } from "node:crypto";
 import { CREDENTIAL_KINDS, isCredentialKind, type CredentialKind } from "../lib/credential-kinds.ts";
+import type { ScanVia } from "../lib/escaner-api.ts";
 import { isReadableDate, isRealIsoDate } from "../lib/fecha-iso.ts";
 import { getDb, jsonParam, readJson, type Db, type Row, type SqlValue } from "./base/index.ts";
 import { plainSecrets } from "./base/cifrado.ts";
@@ -238,7 +239,12 @@ export interface CheckIn {
   eventId: string;
   passId: string;
   scannerId: string | null;
+  /** La hora de la lectura, como la puso el escáner. */
   scannedAt: string;
+  /** Cuándo llegó al servidor: la pone el servidor, y la constancia de asistencia muestra la menor de las dos. */
+  receivedAt: string;
+  /** Cómo se leyó la credencial, según lo comprobó el servidor. Null en lo que trajo el contraste con la cadena y en lo de antes. */
+  via: ScanVia | null;
   synced: boolean;
   duplicate: boolean;
   /** La transacción que lo llevó al contrato. Sin `synced`, la que se mandó y todavía no se sabe cómo terminó. */
@@ -256,6 +262,7 @@ export interface NewCheckIn {
   passId: string;
   scannerId?: string | null;
   scannedAt?: string;
+  via?: ScanVia | null;
 }
 
 export interface Redemption extends CheckIn {
@@ -498,6 +505,9 @@ export function checkedScannedAt(value: string | undefined): string {
  */
 const readableOr = (value: unknown, fallback: unknown): string => (isReadableDate(value) ? value : str(fallback));
 
+const VIAS: readonly ScanVia[] = ["live", "printed", "manual"];
+const viaOf = (v: unknown): ScanVia | null => (VIAS.includes(v as ScanVia) ? (v as ScanVia) : null);
+
 function rowToEvent(row: Row): EventRecord {
   return {
     id: str(row.id),
@@ -597,6 +607,8 @@ function rowToCheckIn(row: Row): CheckIn {
     passId: str(row.pass_id),
     scannerId: strOrNull(row.scanner_id),
     scannedAt: readableOr(row.scanned_at, row.created_at),
+    receivedAt: readableOr(row.received_at, row.created_at),
+    via: viaOf(row.via),
     synced: bool(row.synced),
     duplicate: bool(row.duplicate),
     txHash: strOrNull(row.tx_hash),
@@ -1041,9 +1053,10 @@ export class SqlRepo implements Repo {
       const existing = await this.db.one("SELECT * FROM checkins WHERE client_id = ?", [input.clientId]);
       if (existing) return this.sameCheckIn(existing, input);
     }
+    const at = now();
     const inserted = await this.db.one(
-      "INSERT INTO checkins (id, client_id, event_id, pass_id, scanner_id, scanned_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (client_id) DO NOTHING RETURNING *",
-      [randomUUID(), input.clientId ?? null, input.eventId, input.passId, input.scannerId ?? null, scannedAt, now()],
+      "INSERT INTO checkins (id, client_id, event_id, pass_id, scanner_id, scanned_at, received_at, via, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (client_id) DO NOTHING RETURNING *",
+      [randomUUID(), input.clientId ?? null, input.eventId, input.passId, input.scannerId ?? null, scannedAt, at, input.via ?? null, at],
     );
     if (inserted) return rowToCheckIn(inserted);
     // Otro pedido con el mismo clientId llegó entre la lectura y la escritura: se devuelve el suyo.
@@ -1079,9 +1092,10 @@ export class SqlRepo implements Repo {
       const existing = await this.db.one("SELECT * FROM redemptions WHERE client_id = ?", [input.clientId]);
       if (existing) return this.sameRedemption(existing, input);
     }
+    const at = now();
     const inserted = await this.db.one(
-      "INSERT INTO redemptions (id, client_id, event_id, pass_id, benefit_id, scanner_id, scanned_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (client_id) DO NOTHING RETURNING *",
-      [randomUUID(), input.clientId ?? null, input.eventId, input.passId, input.benefitId, input.scannerId ?? null, scannedAt, now()],
+      "INSERT INTO redemptions (id, client_id, event_id, pass_id, benefit_id, scanner_id, scanned_at, received_at, via, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (client_id) DO NOTHING RETURNING *",
+      [randomUUID(), input.clientId ?? null, input.eventId, input.passId, input.benefitId, input.scannerId ?? null, scannedAt, at, input.via ?? null, at],
     );
     if (inserted) return rowToRedemption(inserted);
     return this.sameRedemption((await this.db.one("SELECT * FROM redemptions WHERE client_id = ?", [input.clientId as string]))!, input);
