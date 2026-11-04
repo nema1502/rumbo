@@ -16,6 +16,7 @@ Qué piezas lleva, por qué esas y qué hace falta para levantarlo. Es el plan d
 | **Los pagos** | USDC de la red de prueba primero; mainnet y bolivianos por el QR del banco después | El contrato de USDC (SAC); una rampa con licencia para los bolivianos | Rumbo nunca custodia: `buy` reparte en la misma operación |
 | **El sorteo** | Elegir entre quienes de verdad entraron, y que el premio entre a la credencial | Tinkazo, como cualquier integrador: recibe `attendees()` y devuelve el comprobante | Son productos distintos: uno elige con justicia, el otro opera el evento |
 | **Lo que se mide** | Credenciales, entradas y canjes, por evento y en total | Un script sobre Supabase y sobre los eventos del contrato, por RPC | Los números con sus transacciones, para quien auspicia y para quien evalúa |
+| **El asistente** | Armar el evento desde una plantilla contándolo en palabras, cargar la lista, reenviar los enlaces y leer los números, el informe y la lista del sorteo desde el asistente que ya usa quien organiza | Un servidor MCP con las mismas funciones del servidor que usan las pantallas: por HTTP en la misma app, sin sesiones, y por stdio en la máquina de quien organiza, como puente hacia su propio Rumbo | Una sola lógica que mantener, y la clave de quien organiza viaja solo entre su máquina y su servidor |
 
 ## Las decisiones que importan
 

@@ -79,6 +79,7 @@ Cada parte tiene su guía: [la inscripción y la credencial](src/server/evento/R
 | `GET /api/stand/<código>`, `POST .../contacto`, `GET .../csv` | El panel del stand en JSON, la calificación y la nota de un contacto, y el CSV |
 | `GET /api/vivo/<evento>` y `GET .../sorteo` | La pantalla en vivo en JSON, y la lista del sorteo (JSON con huella, o `?formato=csv`) |
 | `POST /api/admin/<evento>/importar` y `GET .../asistencia` | Importar una lista (vista, importar y tandas de correos) y bajar la asistencia en la forma de Bevy |
+| `POST /api/mcp` | El servidor MCP por HTTP, con las mismas herramientas para el asistente (abajo, "El servidor MCP") |
 
 ## El kit listo
 
@@ -137,7 +138,73 @@ Los CSV de ejemplo, inventados, están en `tests/fixtures/` como `luma-invitados
 - **Asistencia.** `GET /api/admin/<evento>/asistencia` baja un CSV con la forma de una lista de Bevy (`First Name`, `Last Name`, `Email`, `Ticket Type`) y la columna `Attended` (`Yes` o `No`) que piden las ligas de hackatones, más `Checked In At`, `Credential Type` y `Team`. Los GDG pueden devolverla a su plataforma.
 - **Equipos.** La hackatón se inscribe en `/e/<evento>/equipo`: nombre del equipo y hasta cinco integrantes; cada uno recibe su propia credencial por correo. El equipo se ve en la credencial, en el panel y en el escáner.
 
-Lo que el kit **no** hace todavía: cambiar el tope de un canje o los precios después de publicar, desplegar el contrato de cada entrada probado contra la red (`networkProvisioner` está escrito y revisado por tipos, pero no se corrió), importar a una entrada de pago, ni leer un `.xlsx` (hay que exportar CSV).
+Lo que el kit **no** hace todavía: cambiar el tope de un canje o los precios después de publicar, importar a una entrada de pago, ni leer un `.xlsx` (hay que exportar CSV).
+
+## El servidor MCP
+
+El asistente que ya usás puede operar tu evento con las mismas funciones que usan las pantallas: armarlo desde una plantilla contándolo en palabras, cargar la lista de Luma o de Bevy, reenviar los enlaces de las credenciales y leer los números, el informe para quien auspicia y la lista del sorteo. Es gratis para tus propios eventos, igual que la API; el pago por uso queda para las plataformas y agentes que crean eventos a volumen. Todo vive en `src/server/mcp/`: `herramientas.ts` hace cada cosa con el código del servidor (nunca una copia) y `servidor.ts` las registra con su esquema y su descripción, en inglés, que es lo que lee el modelo. Las pruebas están en `tests/mcp.test.mjs`.
+
+Hay dos maneras de conectarlo, y las dos llegan al mismo servidor:
+
+- **Por HTTP**, contra tu Rumbo (`pnpm dev`, o el desplegado): `POST /api/mcp`, Streamable HTTP sin sesiones (cada pedido se contesta en JSON, así en Vercel da lo mismo en qué instancia caiga). La clave de organizador va en la cabecera `Authorization: Bearer <clave>`; la clave de la casa, si hace falta para crear eventos, en `X-Rumbo-Create-Key`. Sin cabeceras sirve igual para descubrir las herramientas y para lo público.
+- **Por stdio**, en tu máquina: `pnpm mcp` (`scripts/mcp.mjs`) es un puente que el asistente levanta como proceso y que habla con `/api/mcp` del Rumbo que diga `RUMBO_BASE_URL` (`http://localhost:3000` si no se dice), con `RUMBO_ORGANIZER_KEY` y, si ese servidor la pide para crear eventos, `RUMBO_CREATE_KEY`. La clave viaja solo entre tu máquina y tu servidor, y las herramientas siguen en un solo lugar.
+
+La configuración es la misma en el asistente de escritorio, en el de la terminal y en el del editor: una entrada en `mcpServers` del archivo de servidores MCP de cada uno (el archivo de configuración de la app de escritorio; `.mcp.json` en la carpeta del proyecto, o el comando `mcp add`, en la terminal; el `mcp.json` del editor):
+
+```json
+{
+  "mcpServers": {
+    "rumbo": {
+      "command": "node",
+      "args": ["C:/ruta/a/rumbo/app/scripts/mcp.mjs"],
+      "env": {
+        "RUMBO_BASE_URL": "http://localhost:3000",
+        "RUMBO_ORGANIZER_KEY": "LA-CLAVE-DEL-PANEL-DE-TU-EVENTO"
+      }
+    }
+  }
+}
+```
+
+Los clientes que hablan HTTP directo (el de la terminal y el del editor, entre otros) pueden saltear el puente:
+
+```json
+{
+  "mcpServers": {
+    "rumbo": {
+      "type": "http",
+      "url": "https://<tu-rumbo>/api/mcp",
+      "headers": { "Authorization": "Bearer LA-CLAVE-DEL-PANEL-DE-TU-EVENTO" }
+    }
+  }
+}
+```
+
+Las herramientas, y qué clave pide cada una (la de organizador es la del enlace del panel, `?k=`; también se puede pasar en cada llamada como `organizer_key`):
+
+| Herramienta | Qué hace | Clave |
+|---|---|---|
+| `list_templates` | Las seis plantillas con lo que trae cada una: credenciales, canjes, puestos, el premio del sorteo | Ninguna |
+| `create_event_draft` | Crea el borrador desde una plantilla con lo básico (nombre, día y hora, ciudad y lugar, quién organiza, cupo) y devuelve el borrador, la clave de organizador del evento nuevo y el enlace para revisarlo en `/admin/<evento>/armar` | La de la casa (`RUMBO_CREATE_KEY`), como el formulario |
+| `publish_event` | Publica el borrador: un contrato por tipo de credencial en la red de prueba, y la página pública abierta | La de organizador |
+| `get_event` | Lo público del evento, sus entradas, canjes y puestos; con la clave, también un borrador, las credenciales por invitación y los contratos | Ninguna; la de organizador para un borrador |
+| `import_guest_list` | Recibe el CSV como texto. Sin `confirm`, la vista previa: qué plataforma parece, qué columnas leyó, cuántas personas entran por estado y qué credencial recibe cada entrada. Con `confirm: true`, crea las credenciales y prepara la primera tanda (cuenta, contrato y correo, de a cinco) | La de organizador |
+| `continue_import` | La siguiente tanda de una importación, hasta que `remaining` sea 0 | La de organizador |
+| `resend_links` | Reenvía el enlace a quienes todavía no entraron, de a veinte, con el freno que ya existe: uno cada diez minutos por persona | La de organizador |
+| `event_status` | Los números del panel: credenciales, quiénes entraron (cuántos), canjes por beneficio y por franja con su stock, dobles por código, los códigos de puesto y el último contraste con la cadena | La de organizador |
+| `sponsor_report` | El informe para quien auspicia, del evento o de un stand: solo números | La de organizador |
+| `draw_list` | La lista del sorteo: los códigos de quienes entraron, ordenados, con su huella SHA-256, igual que la pantalla en vivo | La de organizador |
+| `chapter_package_summary` | El sí o el no de cada requisito del programa de embajadores: asistentes verificados, minutos de Stellar (se le pasan), comida por persona (se le pasa el gasto), y cuántos contactos se compartieron | La de organizador |
+
+El prompt `describe_your_event` guía al asistente para armar un evento desde una frase: pedir lo básico que falte, elegir la plantilla, crear el borrador, mostrar el enlace para revisarlo y publicar recién cuando la persona aprueba.
+
+Lo que conviene saber:
+
+- **Ninguna herramienta devuelve nombres ni correos.** La lista de personas sigue en el panel, en el navegador. Y a la cadena no va nada personal, como siempre.
+- **Una llamada, una tanda.** Importar y reenviar van de a tandas, como la pantalla; cada respuesta dice cuánto falta. En la red de prueba cada credencial importada tarda unos segundos (la cuenta, la inscripción en el contrato); si el asistente corta la llamada antes, bajá `batch_size`.
+- **Publicar es real:** crea un contrato por tipo de credencial en la red de prueba, y tarda. El prompt y las descripciones le piden al asistente que pregunte antes.
+- **La clave del evento nuevo** la devuelve `create_event_draft`; el asistente la usa en las llamadas que siguen, y después la podés dejar en `RUMBO_ORGANIZER_KEY` para no pasarla cada vez.
+- `pnpm e2e:mcp` (`scripts/prueba-mcp.mjs`) corre el flujo entero contra la red de prueba con su propio servidor: por HTTP arma y publica un Build with AI, y por el puente de stdio importa el CSV de ejemplo, reenvía los enlaces, hace entrar a dos personas por la puerta y lee el estado, la lista del sorteo, el informe y el resumen para el capítulo. Deja la transcripción con los ids reales en [demo/mcp.txt](demo/mcp.txt).
 
 ## Probarlo
 
@@ -148,6 +215,7 @@ pnpm test:pg                       # las mismas, con la base en Postgres: en PGl
 pnpm build                         # la app entera compila
 pnpm e2e                           # el flujo entero contra la red de prueba, con su propio servidor (abajo)
 pnpm e2e -- --motor postgres       # lo mismo, con la base en Postgres
+pnpm e2e:mcp                       # el flujo entero por el servidor MCP (HTTP y stdio) contra la red de prueba, con su propio servidor; deja demo/mcp.txt
 node scripts/inscribir-prueba.mjs [--pago] [--api http://localhost:3000]   # una inscripción, con todas sus comprobaciones
 node scripts/prueba-escaner.mjs --base http://localhost:3000               # el escáner en Chrome sin interfaz, con y sin red
 node scripts/smoke-contrato.mjs    # los helpers del contrato, de punta a punta
@@ -167,13 +235,13 @@ src/app/api/        las rutas de la API: evento, pase, scan, admin
 src/app/globals.css los tokens de la marca (día y noche) y los componentes base
 src/components/     Marca, SelectorIdioma, BotonTema, ui.tsx (Boton, BotonEnlace, Tarjeta, Chip, Campo, Pantalla, Aviso) y los de cada área: evento/, escaner/, panel/
 src/i18n/           los diccionarios por área (comun, evento, escaner, panel) y el helper t(clave)
-src/server/         lo que corre solo en el servidor: base/ (la base de datos, con SQLite y Postgres), repo, compartido (los turnos entre instancias), accounts, stellar, mailer, qr, qr-keys, env, evento/, escaner, puerta, panel, stands, informe, verificacion, kit/ (plantillas, borrador, publicar, importar, csv, equipos, asistencia)
+src/server/         lo que corre solo en el servidor: base/ (la base de datos, con SQLite y Postgres), repo, compartido (los turnos entre instancias), accounts, stellar, mailer, qr, qr-keys, env, pedido, evento/, escaner, puerta, panel, stands, informe, embajadores, verificacion, kit/ (plantillas, borrador, publicar, importar, csv, equipos, asistencia), mcp/ (las herramientas y el servidor MCP)
 src/lib/            lo que comparten servidor y navegador: la forma del QR, Ed25519 y la verificación, el QR que rota, el veredicto del escáner, la cola local, la búsqueda, los códigos de puesto, los tipos de credencial
 public/             el service worker del escáner (sw.js) y su manifiesto
-scripts/            setup-dev, seed, e2e-testnet, capturas, informe, certificados, paquete-embajadores, las pruebas de cada área y lib/ (env, browser, latex)
+scripts/            setup-dev, seed, e2e-testnet, mcp (el puente por stdio), prueba-mcp, capturas, informe, certificados, paquete-embajadores, las pruebas de cada área y lib/ (env, browser, latex)
 informes/           las plantillas de XeLaTeX del informe y del certificado, sus textos, las fuentes, la marca y los ejemplos
-tests/              las pruebas sin red (pnpm test): el CSV, los frenos, el escáner y su cola, la firma del QR y su ventana de tiempo, el respaldo de la puerta, el envío de transacciones, los stands, el informe, los errores, los textos, y las del kit (kit-*.test.mjs, con los CSV de ejemplo en fixtures/) y las de Postgres (base-postgres.test.mjs); lib/ arma una base vacía por archivo, con el motor que diga RUMBO_TEST_ENGINE
-demo/               la transcripción del flujo entero en la red de prueba
+tests/              las pruebas sin red (pnpm test): el CSV, los frenos, el escáner y su cola, la firma del QR y su ventana de tiempo, el respaldo de la puerta, el envío de transacciones, los stands, el informe, los errores, los textos, las del kit (kit-*.test.mjs, con los CSV de ejemplo en fixtures/), las del servidor MCP (mcp.test.mjs) y las de Postgres (base-postgres.test.mjs); lib/ arma una base vacía por archivo, con el motor que diga RUMBO_TEST_ENGINE
+demo/               las transcripciones del flujo entero en la red de prueba: por la API (e2e-testnet.txt) y por el servidor MCP (mcp.txt)
 ```
 
 ### El idioma

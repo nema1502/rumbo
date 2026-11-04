@@ -8,11 +8,9 @@ import { INFORMES_DIR, TexData, compileTemplate, tex } from "./latex.mjs";
 const TEXTOS = JSON.parse(readFileSync(join(INFORMES_DIR, "textos.json"), "utf8"));
 const LOCALES = { es: "es-BO", en: "en-US" };
 
-/** Lo que pide el programa de embajadores de Stellar a cada evento que cuenta. */
-export const MIN_ATTENDEES = 20;
-export const MIN_STELLAR_MINUTES = 20;
-/** El tope de comida por persona del programa, en dólares. */
-export const FOOD_CAP_USD = 25;
+/** Lo que pide el programa de embajadores de Stellar a cada evento que cuenta, y el tope de comida por persona: los mismos números que usa el servidor MCP (src/server/embajadores.ts). */
+import { CHAPTER_FOOD_CAP_USD as FOOD_CAP_USD, CHAPTER_MIN_ATTENDEES as MIN_ATTENDEES, CHAPTER_MIN_STELLAR_MINUTES as MIN_STELLAR_MINUTES } from "../../src/server/embajadores.ts";
+export { FOOD_CAP_USD, MIN_ATTENDEES, MIN_STELLAR_MINUTES };
 
 const NBSP = "\u00A0";
 
