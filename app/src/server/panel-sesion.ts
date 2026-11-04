@@ -1,9 +1,13 @@
 // Lo que depende del pedido HTTP para entrar al panel: la cookie con la clave de organizador, cómo se
-// lee en las páginas y en las rutas de la API, y la comprobación que usan las rutas.
+// lee en las páginas y en las rutas de la API, y la comprobación que usan las páginas y las rutas. Al panel
+// de un evento se entra de dos maneras: con la clave del evento (el enlace ?k=, que queda en su cookie; sirve
+// para compartirla con quien coorganiza y para el servidor MCP) o con la sesión de la cuenta de organizador
+// que lo creó (organizador.ts).
 import { cookies, headers } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
+import { canManageEvent, organizerFromCookies, organizerFromRequest } from "./organizador.ts";
 import { verifyOrganizerKey } from "./panel.ts";
-import { getRepo, type EventRecord } from "./repo.ts";
+import { getRepo, type EventRecord, type Organizer } from "./repo.ts";
 
 /** El parámetro con el que la clave llega en el enlace: /admin/<evento>?k=... */
 export const PANEL_KEY_QUERY = "k";
@@ -51,14 +55,34 @@ export function seeOther(path: string): NextResponse {
   return new NextResponse(null, { status: 303, headers: { Location: path } });
 }
 
-type Authorized = { event: EventRecord; response?: undefined } | { event?: undefined; response: NextResponse };
+/** Cómo se entró al panel: con la clave del evento, o con la sesión de la cuenta que lo creó. */
+export type PanelVia = "key" | "organizer";
 
-/** Para las rutas de la API: el evento si la clave sirve, o la respuesta que corresponde (404 o 401). */
+export interface PanelAccess {
+  via: PanelVia;
+  /** La cuenta de organizador, cuando se entró con ella. */
+  organizer: Organizer | null;
+}
+
+/**
+ * Para las páginas de /admin/<evento>: cómo entra este pedido al panel del evento, o null si no tiene con qué.
+ * Primero la clave del evento (su cookie), después la sesión de organizador si el evento es de esa cuenta.
+ */
+export async function panelAccess(event: EventRecord): Promise<PanelAccess | null> {
+  if (await verifyOrganizerKey(event.id, await panelKeyFromCookies(event.slug))) return { via: "key", organizer: null };
+  const organizer = await organizerFromCookies();
+  if (organizer && canManageEvent(organizer, event)) return { via: "organizer", organizer };
+  return null;
+}
+
+type Authorized = { event: EventRecord; via: PanelVia; response?: undefined } | { event?: undefined; via?: undefined; response: NextResponse };
+
+/** Para las rutas de la API: el evento si la clave o la sesión sirven, o la respuesta que corresponde (404 o 401). */
 export async function authorizePanelRequest(request: NextRequest, slug: string): Promise<Authorized> {
   const event = await getRepo().getEventBySlug(slug);
   if (!event) return { response: NextResponse.json({ error: "not_found" }, { status: 404 }) };
-  if (!(await verifyOrganizerKey(event.id, panelKeyFromRequest(request, slug)))) {
-    return { response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
-  }
-  return { event };
+  if (await verifyOrganizerKey(event.id, panelKeyFromRequest(request, slug))) return { event, via: "key" };
+  const organizer = await organizerFromRequest(request);
+  if (organizer && canManageEvent(organizer, event)) return { event, via: "organizer" };
+  return { response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
 }
