@@ -261,7 +261,8 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
           const estado = await enviar(sesionActual, lote.slice(0, SYNC_BATCH_SIZE), conFoto);
           if (estado !== "ok") {
             // Este puesto ya no se puede sincronizar: se avisa y no se insiste solo. Lo pendiente queda en este
-            // celular y sale la próxima vez que se abra el puesto con su código.
+            // celular y sale la próxima vez que se abra este mismo puesto con su código (el nuevo, si se cambió:
+            // agruparParaSincronizar lo manda con la sesión del mismo evento y puesto).
             setSesionInvalida(estado);
             detenidoRef.current = true;
             break;
@@ -278,7 +279,9 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
           while (pendientes.length > 0 && enLineaRef.current) {
             const estado = await enviar(grupo, pendientes.slice(0, SYNC_BATCH_SIZE), false);
             if (estado === "cerrado") {
-              // Ese puesto ya no existe: lo suyo no va a entrar nunca, y queda a la vista para revisar.
+              // Ese código ya no es de ningún puesto (se cambió, o el puesto no existe) y este celular tiene abierto
+              // otro: con ese código lo suyo no va a entrar nunca, y queda a la vista para revisar. Si el puesto
+              // sigue existiendo, abrirlo acá con su código nuevo antes que otro lo habría mandado.
               for (const e of grupo.entries) await c.update(e.clientId, { status: "rejected", lastError: "puesto cerrado" });
               break;
             }

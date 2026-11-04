@@ -16,7 +16,7 @@ export const escaner = {
     "escaner.errorRed": "No se pudo hablar con el servidor. Probá de nuevo.",
     "escaner.demasiadosIntentos": "Demasiados intentos. Esperá unos minutos y probá de nuevo.",
     "escaner.codigoVencido": "Este código venció: el evento terminó hace más de un día.",
-    "escaner.puestoCerrado": "Este código ya no vale: volvé a abrir el puesto. Lo que registraste queda guardado acá.",
+    "escaner.puestoCerrado": "Este código ya no vale. Lo que registraste queda guardado acá: volvé a abrir este mismo puesto con su código nuevo y se manda solo. Si abrís otro puesto antes, queda sin registrar.",
     "escaner.sesionVencida": "La sesión de este puesto venció: volvé a abrirlo con su código. Lo que registraste queda guardado acá.",
     "escaner.volverAAbrir": "Volver a abrir el puesto",
 
@@ -38,7 +38,7 @@ export const escaner = {
     "escaner.sincronizando": "Sincronizando",
     "escaner.simular": "Simular sin conexión",
     "escaner.salir": "Cerrar el puesto",
-    "escaner.salirConPendientes": "Hay {n} registros que todavía no llegaron al servidor. Quedan guardados en este celular y se mandan solos, con el código de su puesto, la próxima vez que abras un puesto acá. ¿Cerrás igual?",
+    "escaner.salirConPendientes": "Hay {n} registros que todavía no llegaron al servidor. Quedan guardados en este celular y se mandan solos la próxima vez que abras un puesto acá; si el código de su puesto cambió, solo al abrir ese mismo puesto con el nuevo. ¿Cerrás igual?",
     "escaner.sinPersistencia": "Este navegador no guarda la cola: si cerrás la página, lo que falte sincronizar se pierde.",
 
     "escaner.entro": "Entró",
@@ -103,7 +103,7 @@ export const escaner = {
     "escaner.errorRed": "Could not reach the server. Try again.",
     "escaner.demasiadosIntentos": "Too many attempts. Wait a few minutes and try again.",
     "escaner.codigoVencido": "This code has expired: the event ended more than a day ago.",
-    "escaner.puestoCerrado": "This code is no longer valid: open the station again. What you recorded stays saved here.",
+    "escaner.puestoCerrado": "This code is no longer valid. What you recorded stays saved here: open this same station again with its new code and it goes out on its own. If you open another station first, it stays unrecorded.",
     "escaner.sesionVencida": "This station's session has expired: open it again with its code. What you recorded stays saved here.",
     "escaner.volverAAbrir": "Open the station again",
 
@@ -125,7 +125,7 @@ export const escaner = {
     "escaner.sincronizando": "Syncing",
     "escaner.simular": "Simulate offline",
     "escaner.salir": "Close the station",
-    "escaner.salirConPendientes": "{n} records have not reached the server yet. They stay on this phone and go out on their own, with their station code, the next time you open a station here. Close anyway?",
+    "escaner.salirConPendientes": "{n} records have not reached the server yet. They stay on this phone and go out on their own the next time you open a station here; if their station's code changed, only when you open that same station with the new one. Close anyway?",
     "escaner.sinPersistencia": "This browser does not keep the queue: if you close the page, anything left to sync is lost.",
 
     "escaner.entro": "Checked in",

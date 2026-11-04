@@ -321,16 +321,18 @@ export interface GrupoParaSincronizar {
 /**
  * Agrupa lo pendiente por el código del puesto en que se registró: cada registro viaja con su propio
  * código, porque el servidor solo acepta de un código de puerta entradas y de uno de mesa canjes de su
- * beneficio. Mandar lo de un puesto con el código de otro haría que se rechace para siempre. Un registro
- * sin código (de una versión anterior) va con el de la sesión si es de su mismo evento y puesto; si no,
- * espera a que se vuelva a abrir ese puesto. El grupo del puesto abierto va primero, con la ficha de la sesión.
+ * beneficio. Mandar lo de un puesto con el código de otro haría que se rechace para siempre. Lo que es del
+ * mismo evento y puesto que la sesión abierta va con ella, con su código y su ficha, aunque se haya registrado
+ * con otro código de ese puesto (quien organiza lo cambió desde el panel: el puesto es el mismo, y el servidor
+ * vuelve a comprobar el QR de cada lectura) o sin código (una versión anterior). Lo de otros puestos espera con
+ * su propio código y la última ficha con que se registró algo. El grupo del puesto abierto va primero.
  */
 export function agruparParaSincronizar(pendientes: QueueEntry[], sesion: { code: string; token?: string | null; eventId: string; stationId: string }): GrupoParaSincronizar[] {
   const grupos = new Map<string, GrupoParaSincronizar>();
   const codigoSesion = normalizeStationCode(sesion.code);
   for (const entry of pendientes) {
     const esDeLaSesion = entry.eventId === sesion.eventId && entry.stationId === sesion.stationId;
-    const code = entry.code ? normalizeStationCode(entry.code) : esDeLaSesion ? codigoSesion : null;
+    const code = esDeLaSesion ? codigoSesion : entry.code ? normalizeStationCode(entry.code) : null;
     if (!code) continue;
     const actual = code === codigoSesion;
     const grupo = grupos.get(code) ?? { code, token: actual ? (sesion.token ?? null) : null, actual, entries: [] };

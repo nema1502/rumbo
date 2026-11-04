@@ -161,7 +161,7 @@ test("una ficha con la forma correcta de un evento que no existe contesta 401 en
 });
 
 test("la cola agrupa lo pendiente por puesto con la ficha de cada uno: la de la sesión para el puesto abierto, la última guardada para los otros, y el código si no hay", () => {
-  const entrada = (code, token, passId) => nuevaEntrada({ eventId: "ev", stationId: code === "PUERTAPUERTA" ? "gate" : "almuerzo", code, token, action: "checkin", passId, benefitId: null, scannerId: "celu" });
+  const entrada = (code, token, passId, extra = {}) => nuevaEntrada({ eventId: "ev", stationId: code === "PUERTAPUERTA" ? "gate" : "almuerzo", code, token, action: "checkin", passId, benefitId: null, scannerId: "celu", ...extra });
   const vieja = entrada("MESAMESAMESA", undefined, "AAAAAAAA");
   const mesa1 = entrada("MESAMESAMESA", "ficha-vieja", "BBBBBBBB");
   const mesa2 = entrada("MESAMESAMESA", "ficha-nueva", "CCCCCCCC");
@@ -177,6 +177,21 @@ test("la cola agrupa lo pendiente por puesto con la ficha de cada uno: la de la 
   const soloViejas = agruparParaSincronizar([vieja], { code: "PUERTAPUERTA", token: "ficha", eventId: "ev", stationId: "gate" });
   assert.deepEqual(soloViejas.map((g) => [g.code, g.token]), [["MESAMESAMESA", null]], "sin ficha, viaja con el código");
   assert.equal(vieja.token, undefined, "una entrada sin ficha no la inventa");
+
+  // Quien organiza cambió el código de la puerta: lo que se registró con el viejo es del mismo evento y puesto, así que
+  // viaja con la sesión abierta, con el código y la ficha nuevos (el servidor vuelve a comprobar el QR de cada lectura).
+  // Lo de la puerta de OTRO evento, con el mismo id de puesto, no: espera con su código y su ficha.
+  const conElViejo = entrada("VIEJOVIEJOVI", "ficha-del-viejo", "EEEEEEEE", { stationId: "gate" });
+  const ajena = entrada("AJENOAJENOAJ", "ficha-ajena", "FFFFFFFF", { stationId: "gate", eventId: "otro" });
+  const tras = agruparParaSincronizar([conElViejo, mesa1, ajena], { code: "NUEVONUEVONU", token: "ficha-nueva-de-la-puerta", eventId: "ev", stationId: "gate" });
+  assert.deepEqual(
+    tras.map((g) => [g.code, g.actual, g.token, g.entries.map((e) => e.passId)]),
+    [
+      ["NUEVONUEVONU", true, "ficha-nueva-de-la-puerta", ["EEEEEEEE"]],
+      ["MESAMESAMESA", false, "ficha-vieja", ["BBBBBBBB"]],
+      ["AJENOAJENOAJ", false, "ficha-ajena", ["FFFFFFFF"]],
+    ],
+  );
 });
 
 test("un cuerpo JSON que es null, una lista o un texto contesta 400 en las cuatro rutas del escáner, nunca 500", async () => {
