@@ -33,11 +33,7 @@ export default async function VerificationPage({ params, searchParams }: { param
       <Pantalla
         titulo={t("verificacion.noHay.titulo")}
         bajada={t("verificacion.noHay.texto")}
-        accion={
-          <BotonEnlace href="/" variante="secundario">
-            {t("verificacion.volver")}
-          </BotonEnlace>
-        }
+        accion={<BotonEnlace href="/">{t("verificacion.volver")}</BotonEnlace>}
       />
     );
   }
