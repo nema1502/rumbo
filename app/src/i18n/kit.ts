@@ -146,7 +146,7 @@ export const kit = {
 
     // Importar la lista
     "kit.importar.titulo": "Importar tu lista",
-    "kit.importar.bajada": "Traé a tus invitadas e invitados de Luma o de Bevy. Cada persona recibe su credencial por correo.",
+    "kit.importar.bajada": "Traé a tus invitadas e invitados de Luma o de Bevy. Cada persona queda con su credencial y su enlace personal.",
     "kit.importar.archivo": "Archivo CSV",
     "kit.importar.archivoAyuda": "En Luma: Invitados, Descargar la lista. En Bevy: la lista de asistentes, Exportar.",
     "kit.importar.revisar": "Revisar la lista",
@@ -183,7 +183,7 @@ export const kit = {
     "kit.importar.importarUna": "Importar 1 credencial",
     "kit.importar.ninguna": "No hay a quién importar con esa elección",
     "kit.importar.enviando": "Mandando credenciales: {hechas} de {total}",
-    "kit.importar.enviandoNota": "Cada persona recibe su enlace por correo, de a poco. Podés dejar esta pantalla abierta.",
+    "kit.importar.enviandoNota": "Se preparan de a poco: la cuenta, el registro en la cadena y el enlace de cada persona. Podés dejar esta pantalla abierta.",
     "kit.importar.reintentar": "Reintentar: faltan {n}",
     "kit.importar.faltan": "Credenciales por preparar: {n}. Se pueden reintentar.",
     "kit.importar.listo": "Listo",
@@ -395,7 +395,7 @@ export const kit = {
 
     // Importing the list
     "kit.importar.titulo": "Import your list",
-    "kit.importar.bajada": "Bring your guests from Luma or Bevy. Each person gets their pass by email.",
+    "kit.importar.bajada": "Bring your guests from Luma or Bevy. Each person ends up with their pass and a personal link.",
     "kit.importar.archivo": "CSV file",
     "kit.importar.archivoAyuda": "In Luma: Guests, Download the list. In Bevy: the attendee list, Export.",
     "kit.importar.revisar": "Review the list",
@@ -432,7 +432,7 @@ export const kit = {
     "kit.importar.importarUna": "Import 1 pass",
     "kit.importar.ninguna": "Nobody to import with that choice",
     "kit.importar.enviando": "Sending passes: {hechas} of {total}",
-    "kit.importar.enviandoNota": "Each person gets their link by email, a few at a time. You can leave this screen open.",
+    "kit.importar.enviandoNota": "They are prepared a few at a time: each person's account, chain registration and link. You can leave this screen open.",
     "kit.importar.reintentar": "Retry: {n} left",
     "kit.importar.faltan": "Passes still to be prepared: {n}. You can retry them.",
     "kit.importar.listo": "Done",

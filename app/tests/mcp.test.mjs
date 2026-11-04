@@ -46,8 +46,8 @@ const csvLuma = readFileSync(join(APP_DIR, "tests", "fixtures", "luma-invitados.
 const csvBevy = readFileSync(join(APP_DIR, "tests", "fixtures", "bevy-asistentes.csv.txt"), "utf8");
 
 /** Un cliente MCP conectado en memoria a un servidor con las claves de esa sesión. */
-async function cliente({ organizerKey = null, createKey = null } = {}) {
-  const server = createRumboMcpServer({ repo, lang: "es", origin: "http://localhost:3999", organizerKey, createKey, provisioner });
+async function cliente({ organizerKey = null, createKey = null, mailer = undefined } = {}) {
+  const server = createRumboMcpServer({ repo, lang: "es", origin: "http://localhost:3999", organizerKey, createKey, provisioner, mailer });
   const [lado, otro] = InMemoryTransport.createLinkedPair();
   await server.connect(lado);
   const client = new Client({ name: "prueba-mcp", version: "0" });
@@ -294,6 +294,26 @@ test("resend_links reenvía a quien no entró y respeta el freno de diez minutos
   assert.deepEqual([tercera.datos.sent, tercera.datos.skipped], [0, 7], "diez minutos después, recién, se les manda otro");
   assert.equal(correos.length - antes, 7);
   sinPersonas(tercera.texto, "el resultado del reenvío");
+  await cerrar();
+});
+
+test("resend_links en un servidor sin servicio de correo no cuenta nada como enviado y no frena a nadie", async () => {
+  const { slug, key } = await borrador("Recordatorio sin correo");
+  let intentos = 0;
+  const sinCorreo = { send: async () => (intentos++, { id: null, outcome: "not_configured" }) };
+  const { llamar, cerrar } = await cliente({ organizerKey: key, mailer: sinCorreo });
+  await llamar("publish_event", { event: slug });
+  await llamar("import_guest_list", { event: slug, csv: csvLuma, confirm: true, batch_size: 20 });
+
+  const primera = await llamar("resend_links", { event: slug, batch_size: 4 });
+  assert.equal(primera.error, false, primera.texto);
+  assert.deepEqual([primera.datos.eligible, primera.datos.sent, primera.datos.notConfigured, primera.datos.remaining], [9, 0, 9, 0]);
+  assert.equal(intentos, 1, "al primer correo que no sale deja de intentar");
+  assert.match(primera.datos.next, /no email service/);
+  // Como nadie recibió nada, nadie queda frenado: la próxima vez dice lo mismo, no "skipped".
+  const segunda = await llamar("resend_links", { event: slug });
+  assert.deepEqual([segunda.datos.sent, segunda.datos.skipped, segunda.datos.notConfigured], [0, 0, 9]);
+  sinPersonas(segunda.texto, "el resultado del reenvío sin correo");
   await cerrar();
 });
 

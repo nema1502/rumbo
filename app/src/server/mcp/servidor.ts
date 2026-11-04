@@ -210,7 +210,7 @@ export function createRumboMcpServer(options: RumboMcpOptions = {}): McpServer {
     {
       title: "Resend credential links to people who have not checked in",
       description:
-        "Emails again the personal credential link to everyone who has a credential and has not checked in yet: the reminder before the event. Respects the existing brake: one resend per person and event every ten minutes (those get skipped, not emailed). Twenty people per call by default; call again while remaining is more than 0. Needs the event's organizer key. Returns counts only.",
+        "Emails again the personal credential link to everyone who has a credential and has not checked in yet: the reminder before the event. Respects the existing brake: one resend per person and event every ten minutes (those get skipped, not emailed). Twenty people per call by default; call again while remaining is more than 0. Where the server has no email service, nothing goes out: it answers with notConfigured and counts no email as sent. Needs the event's organizer key. Returns counts only.",
       inputSchema: { event: eventSlug, organizer_key: organizerKey, batch_size: batchSize(RESEND_MAX_BATCH_SIZE, 20), lang },
       annotations: writes(false),
     },

@@ -508,11 +508,13 @@ export async function resendLinks(ctx: McpContext, args: EventArgs & { batch_siz
   return {
     ...result,
     next:
-      result.remaining > 0
-        ? `${result.remaining} people are left for the next batch: call resend_links again.`
-        : result.skipped > 0
-          ? `${result.skipped} people got their link less than ten minutes ago and were not emailed again.`
-          : "Everyone who has not checked in yet got their link again.",
+      result.notConfigured > 0
+        ? `This server has no email service yet: ${result.notConfigured} people have their credential and link, but no email went out. Each person can get their link again from the event page with their email, and an imported list has its links CSV in the organizer panel.`
+        : result.remaining > 0
+          ? `${result.remaining} people are left for the next batch: call resend_links again.`
+          : result.skipped > 0
+            ? `${result.skipped} people got their link less than ten minutes ago and were not emailed again.`
+            : "Everyone who has not checked in yet got their link again.",
   };
 }
 
