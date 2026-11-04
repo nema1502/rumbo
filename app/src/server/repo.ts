@@ -972,7 +972,6 @@ export class SqlRepo implements Repo {
     if (patch.diet !== undefined) columns.diet = patch.diet;
     if (patch.status !== undefined) {
       columns.status = patch.status;
-      if (patch.status !== "pending" && patch.activatedAt === undefined) columns.activated_at = now();
       if (patch.status === "checked_in" && patch.checkedInAt === undefined) columns.checked_in_at = now();
     }
     if (patch.txHash !== undefined) columns.tx_hash = patch.txHash;
@@ -984,6 +983,11 @@ export class SqlRepo implements Repo {
       columns.contact_consent_at = patch.contactConsent ? now() : null;
     }
     await this.update("passes", id, columns);
+    // La hora de activación se fija una sola vez: al pasar a entrada no se vuelve a escribir, o la credencial
+    // cambiaba de lugar entre las del evento justo delante de la persona.
+    if (patch.status !== undefined && patch.status !== "pending" && patch.activatedAt === undefined) {
+      await this.db.run("UPDATE passes SET activated_at = COALESCE(activated_at, ?) WHERE id = ?", [now(), id]);
+    }
     const pass = await this.getPass(id);
     if (!pass) throw new Error(`No existe el pase ${id}`);
     return pass;

@@ -52,7 +52,7 @@ export default async function DonePage({ params, searchParams }: { params: Param
       nota={view.paid ? t("evento.listo.pago", { monto: formatAmount(lang, view.ticketType.priceUsdc) }) : t("evento.credencial.mostra")}
     >
       <Tarjeta>
-        <Chip estado="listo">{t("evento.credencial.numero", { n: view.number, total: view.total })}</Chip>
+        <Chip estado="listo">{view.number !== null ? t("evento.credencial.numero", { n: view.number, total: view.total }) : t("evento.credencial.sinNumero")}</Chip>
         <h2>{view.event.name}</h2>
         <p>
           {when.date}, {when.time}

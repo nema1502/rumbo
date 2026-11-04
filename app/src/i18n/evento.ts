@@ -101,6 +101,7 @@ export const evento = {
     // La credencial
     "evento.credencial.titulo": "Tu credencial",
     "evento.credencial.numero": "Credencial {n} de {total}",
+    "evento.credencial.sinNumero": "Credencial",
     "evento.credencial.inscripta": "Inscripción lista",
     "evento.credencial.paga": "Entrada paga",
     "evento.credencial.mostra": "Mostrá el QR en la puerta y en cada canje.",
@@ -232,6 +233,7 @@ export const evento = {
 
     "evento.credencial.titulo": "Your pass",
     "evento.credencial.numero": "Pass {n} of {total}",
+    "evento.credencial.sinNumero": "Pass",
     "evento.credencial.inscripta": "Registered",
     "evento.credencial.paga": "Ticket paid",
     "evento.credencial.mostra": "Show the QR code at the door and at every redemption.",

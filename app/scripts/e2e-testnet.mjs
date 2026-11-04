@@ -330,6 +330,7 @@ try {
   paso("La credencial de cada persona: la página, los datos y el SVG");
   const c1 = await pedir(`/api/pase/${paseGratis.id}?k=${encodeURIComponent(claveGratis)}`);
   check(c1.status === 200 && c1.cuerpo.person?.name === gratis.nombre && c1.cuerpo.paid === false && c1.cuerpo.checkedIn === false, `GET /api/pase/${paseGratis.id}: "${c1.cuerpo.person?.name}", credencial ${c1.cuerpo.number} de ${c1.cuerpo.total}, inscripción lista`);
+  check(c1.cuerpo.number === paseGratis.chainNumber && c1.cuerpo.number > 0, `el número de la credencial es el que dio el contrato (${paseGratis.chainNumber}): el que se puede comprobar, y no cambia`);
   const c2 = await pedir(`/api/pase/${pasePago.id}?k=${encodeURIComponent(clavePago)}`);
   check(c2.status === 200 && c2.cuerpo.paid === true && c2.cuerpo.benefits.some((b) => b.id === lunch.id && b.state === "pendiente"), `GET /api/pase/${pasePago.id}: entrada paga, lo que le toca: ${c2.cuerpo.benefits.map((b) => `${b.name} (${b.state})`).join(", ")}`);
   // Quien se inscribió gratis muestra el QR que rota (lo arma su celular con lo que le dio la credencial); quien pagó, la credencial impresa.
