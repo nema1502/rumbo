@@ -53,6 +53,20 @@
 .form-resumen h2 { font-size: 1.2rem; margin: 0; }
 .form-resumen .entrada-precio { margin-left: auto; }
 .tarjeta.form-resumen p { width: 100%; font-size: 0.95rem; margin: 0; }
+/* Entrar con la cuenta propia: el correo y el código, quién entró con su "Salir" al lado, y lo que está pasando
+   junto a los botones (en la franja fija de abajo, a la vista también en el celular) */
+.cuenta-correo { display: grid; gap: 12px; }
+.cuenta-correo .boton { width: 100%; }
+.cuenta-correo .fila .boton { width: auto; flex: 1 1 160px; }
+.form-inscripcion button.enlace { background: none; border: 0; font: inherit; font-weight: 600; cursor: pointer; }
+.form-inscripcion button.enlace:disabled { cursor: default; opacity: 0.6; }
+.cuenta-entro { align-items: center; }
+.cuenta-entro::before { margin-top: 0; }
+.cuenta-entro > span { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px 12px; }
+.cuenta-entro > span > span { min-width: 0; overflow-wrap: anywhere; }
+.cuenta-entro .enlace { min-height: 32px; margin: -6px 0; }
+.cuenta-estado:empty { display: none; }
+.cuenta-estado .aviso { background: var(--tarjeta); }
 
 /* La credencial */
 .credencial-titulo h1 { font-size: clamp(1.5rem, 3vw, 2rem); }

@@ -1,11 +1,14 @@
 "use client";
 // El formulario de inscripción: nombre y correo, y una sola acción. Mientras la red confirma (unos
 // segundos) el botón espera y lo dice. Los errores vuelven de la acción del servidor, ya traducidos.
+// Con Pollar prendido (llega su clave publicable), es FormularioConCuenta: primero se entra con Google o con el
+// correo, y la credencial queda en la cuenta propia de la persona.
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import type { FormState } from "@/app/e/[slug]/inscripcion/actions.ts";
-import { Aviso, Boton, BotonEnlace, Campo, Tarjeta } from "@/components/ui.tsx";
+import { Aviso, Boton, Campo, Tarjeta } from "@/components/ui.tsx";
 import { useT } from "@/i18n/client.tsx";
+import { FormularioConCuenta, YaTenias } from "./FormularioConCuenta.tsx";
 
 export interface ResumenEntrada {
   id: string;
@@ -27,6 +30,8 @@ interface Props {
   monto: string;
   /** Quien organiza, para la casilla opcional de contacto. */
   comunidad: string;
+  /** La clave publicable de Pollar, si está prendido: entonces se entra con Google o con el correo. */
+  pollarKey?: string | null;
 }
 
 function Campos({ state, comunidad }: { state: FormState; comunidad: string }) {
@@ -75,26 +80,17 @@ function Enviar({ label }: { label: string }) {
   );
 }
 
-export function FormularioInscripcion({ action, slug, eventName, when, ticket, paid, monto, comunidad }: Props) {
+export function FormularioInscripcion(props: Props) {
+  if (props.pollarKey) return <FormularioConCuenta {...props} pollarKey={props.pollarKey} />;
+  return <FormularioDePrueba {...props} />;
+}
+
+/** El modo de prueba: la cuenta la crea y la guarda el servidor. */
+function FormularioDePrueba({ action, slug, eventName, when, ticket, paid, monto, comunidad }: Props) {
   const t = useT();
   const [state, formAction] = useActionState(action, {} as FormState);
 
-  if (state.existing) {
-    return (
-      <section className="pantalla">
-        <header className="pantalla-cabecera">
-          <h1>{t("evento.existente.titulo")}</h1>
-          <p className="bajada">{t("evento.existente.texto", { correo: state.existing.email })}</p>
-        </header>
-        <div className="pantalla-cuerpo" />
-        <div className="pantalla-accion">
-          <BotonEnlace href={`/e/${slug}`} grande>
-            {t("evento.form.volver")}
-          </BotonEnlace>
-        </div>
-      </section>
-    );
-  }
+  if (state.existing) return <YaTenias slug={slug} correo={state.existing.email} />;
 
   return (
     <form action={formAction} className="pantalla form-inscripcion" noValidate>

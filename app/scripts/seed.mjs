@@ -3,6 +3,9 @@
 // (contracts/rumbo-pass/deploy/testnet.json: el gratis y el pago). Se puede correr las veces que haga falta.
 //   --demo      agrega a una persona de ejemplo con su pase, su cuenta de prueba y su inscripción en el contrato
 //   --refresh   vuelve a apuntar las entradas a los contratos del despliegue actual (si se volvió a desplegar)
+//   --contratos-nuevos   despliega un contrato gratis y uno pago para el evento de muestra (el mismo WASM, las mismas
+//               cuentas y el mismo USDC de prueba del despliegue) y apunta las entradas a esos: por si los de muestra
+//               se llenan con las corridas de prueba (cada inscripción gasta cupo)
 import { APP_DIR, loadEnv } from "./lib/env.mjs";
 
 process.chdir(APP_DIR);
@@ -58,6 +61,22 @@ for (const [ticket, contract] of [[freeTicket, freeContract], [paidTicket, paidC
   if (ticket && contract && (!ticket.contractId || refresh) && ticket.contractId !== contract) {
     await repo.updateTicketType(ticket.id, { contractId: contract });
     console.log(`La entrada "${ticket.name}" apunta ahora al contrato ${contract}`);
+  }
+}
+
+if (process.argv.includes("--contratos-nuevos")) {
+  const { networkProvisioner } = await import("../src/server/kit/publicar.ts");
+  for (const [ticket, muestra] of [[freeTicket, deploy?.events.free], [paidTicket, deploy?.events.paid]]) {
+    if (!ticket) continue;
+    const contract = await networkProvisioner.deploy({
+      price: ticket.priceUsdc,
+      capacity: muestra?.capacity ?? 50,
+      benefits: muestra?.benefits ?? (ticket.priceUsdc > 0 ? 2 : 1),
+      organizerAccount: event.organizerAccount,
+    });
+    await repo.updateTicketType(ticket.id, { contractId: contract });
+    if (ticket === freeTicket) event = await repo.updateEvent(event.id, { contractId: contract });
+    console.log(`La entrada "${ticket.name}" tiene un contrato nuevo: ${contract} (${ticket.priceUsdc} USDC de prueba)`);
   }
 }
 

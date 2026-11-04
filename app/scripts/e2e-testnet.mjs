@@ -7,7 +7,12 @@
 //      del almuerzo canjea el de quien lo pagó, el segundo canje no pasa (ni en el escáner ni en el contrato)
 //      y la inscripción gratis no lo incluye,
 //   5. status(), attendees() e info() en la cadena, y el panel (contadores, dobles, contraste con la cadena,
-//      el informe sin nombres y el CSV) dicen lo mismo.
+//      el informe sin nombres y el CSV) dicen lo mismo,
+//   6. la cuenta propia (Pollar): una llave local hace de la billetera de Pollar, sin cuenta en la red todavía.
+//      Pide el desafío, lo firma según SEP-53, se inscribe gratis (la patrocinadora crea la cuenta), firma la
+//      autorización de register en su "dispositivo" y el servidor la manda pagando la comisión; otra compra la
+//      entrada con almuerzo (acepta el USDC de prueba, recibe saldo de prueba y autoriza buy), y la puerta deja
+//      entrar a la primera. Un desafío, una autorización de otra llave y un pedido de firma usado no sirven.
 // Deja la transcripción, con los ids de las transacciones, en demo/e2e-testnet.txt.
 //
 //   node scripts/e2e-testnet.mjs                  levanta su propio servidor (next dev) con una base nueva en data/e2e
@@ -20,11 +25,15 @@
 //                          script con RUMBO_REPO=postgres y el driver de producción. Con --base, el servidor ya levantado
 //                          tiene que usar la misma DATABASE_URL.
 //   --puerto-pg 4411       el puerto de ese Postgres local
+//   --contratos nuevos     despliega para la corrida un contrato gratis y uno pago con el mismo WASM, las mismas cuentas y
+//                          el mismo USDC de prueba que el despliegue de muestra, y apunta las entradas a esos: por si los de
+//                          muestra (contracts/rumbo-pass/deploy/testnet.json, lo de siempre) se llenan, porque cada corrida
+//                          gasta cupo. Solo con el servidor propio (con --base, el evento es el del servidor que ya está).
 //
 // Tarda entre dos y seis minutos según la red de prueba: cada inscripción, entrada y canje es una transacción.
 import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { APP_DIR, loadEnv } from "./lib/env.mjs";
 
@@ -44,7 +53,9 @@ const BASE = (baseDada ?? `http://127.0.0.1:${PORT}`).replace(/\/+$/, "");
 const DATOS = option("--datos", servidorPropio ? "./data/e2e" : "./data");
 const MOTOR = option("--motor", "sqlite");
 const PUERTO_PG = Number(option("--puerto-pg", PORT + 1));
+const CONTRATOS = servidorPropio ? option("--contratos", "muestra") : "muestra";
 if (MOTOR !== "sqlite" && MOTOR !== "postgres") throw new Error(`--motor ${MOTOR}: tiene que ser sqlite o postgres`);
+if (CONTRATOS !== "nuevos" && CONTRATOS !== "muestra") throw new Error(`--contratos ${CONTRATOS}: tiene que ser nuevos o muestra`);
 
 // La base y los correos del servidor y los de este script tienen que ser los mismos: se fija antes de cargar nada.
 process.env.RUMBO_DATA_DIR = DATOS;
@@ -61,7 +72,9 @@ const { verifyQrPayload, base64urlToBytes, bytesToBase64url } = await import("..
 const { getEventQrKeys } = await import("../src/server/qr-keys.ts");
 const { buildLivePayload } = await import("../src/lib/qr-live.ts");
 const { WINDOW_SECONDS } = await import("../src/lib/qr-codec.ts");
-const { rumboPass, getBalance, getTestAsset, readDeployInfo, fromStroops } = await import("../src/server/stellar.ts");
+const { rumboPass, getBalance, getTestAsset, readDeployInfo, fromStroops, accountExists, submitClassic } = await import("../src/server/stellar.ts");
+const { sep53Digest } = await import("../src/server/cuenta-propia.ts");
+const { Keypair, Networks, Operation, authorizeEntry, inspectAuthEntry, xdr } = await import("@stellar/stellar-sdk");
 
 // ---------- La transcripción ----------
 
@@ -133,15 +146,17 @@ function levantarServidor() {
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
   });
-  const salida = [];
-  for (const stream of [proc.stdout, proc.stderr]) stream.on("data", (chunk) => salida.push(chunk.toString()));
-  proc.on("exit", () => {
-    try {
-      writeFileSync(logServidor, salida.join(""), "utf8");
-    } catch {
-      /* la carpeta ya no está */
-    }
-  });
+  // Se escribe mientras corre: al apagarlo con taskkill /F el proceso no llega a avisar que terminó.
+  writeFileSync(logServidor, "", "utf8");
+  for (const stream of [proc.stdout, proc.stderr]) {
+    stream.on("data", (chunk) => {
+      try {
+        appendFileSync(logServidor, chunk.toString(), "utf8");
+      } catch {
+        /* la carpeta ya no está */
+      }
+    });
+  }
   return proc;
 }
 
@@ -232,8 +247,24 @@ try {
   for (const linea of `${seed.stdout}${seed.stderr}`.split(/\r?\n/).filter((l) => l.trim())) log(`  ${linea}`);
   check(seed.status === 0, "el seed terminó bien");
   const repo = getRepo();
-  const event = await repo.getEventBySlug(SLUG);
+  let event = await repo.getEventBySlug(SLUG);
   if (!event) throw new Error(`no existe el evento ${SLUG}`);
+
+  if (CONTRATOS === "nuevos") {
+    paso("Dos contratos nuevos para esta corrida: el mismo WASM, las mismas cuentas y el mismo USDC de prueba que el despliegue de muestra");
+    const { networkProvisioner } = await import("../src/server/kit/publicar.ts");
+    const muestra = { gratis: deploy?.events.free, pago: deploy?.events.paid };
+    const nuevos = {
+      gratis: await networkProvisioner.deploy({ price: 0, capacity: 50, benefits: muestra.gratis?.benefits ?? 1, organizerAccount: event.organizerAccount }),
+      pago: await networkProvisioner.deploy({ price: fromStroops(muestra.pago?.price ?? "100000000"), capacity: 50, benefits: muestra.pago?.benefits ?? 2, organizerAccount: event.organizerAccount }),
+    };
+    for (const ticket of await repo.listTicketTypes(event.id)) {
+      const nuevo = ticket.contractId === muestra.gratis?.contract ? nuevos.gratis : ticket.contractId === muestra.pago?.contract ? nuevos.pago : null;
+      if (nuevo) await repo.updateTicketType(ticket.id, { contractId: nuevo });
+    }
+    if (event.contractId === muestra.gratis?.contract) event = await repo.updateEvent(event.id, { contractId: nuevos.gratis });
+    check(true, `contrato gratis ${nuevos.gratis} y pago ${nuevos.pago}; las entradas del evento apuntan a esos`);
+  }
   const evento = await pedir(`/api/evento/${SLUG}`);
   check(evento.status === 200 && Array.isArray(evento.cuerpo.tickets), `GET /api/evento/${SLUG} devuelve el evento "${evento.cuerpo.event?.name}"`);
   const entradaGratis = evento.cuerpo.tickets.find((t) => t.free);
@@ -452,6 +483,84 @@ try {
   check(!informe.cuerpo.includes(gratis.nombre) && !informe.cuerpo.includes(almuerzo.nombre) && !informe.cuerpo.includes("@example.com"), "el informe no trae nombres ni correos");
   const csv = await pedir(`/api/admin/${SLUG}/csv`, { headers: { cookie } });
   check(csv.status === 200 && csv.cuerpo.includes(gratis.correo) && csv.cuerpo.includes(almuerzo.correo) && csv.cuerpo.includes("Entró"), `el CSV para quien organiza sí lleva a las ${csv.cuerpo.trim().split(/\r?\n/).length - 1} personas con su correo y su estado`);
+
+  // 9. La cuenta propia: una llave local hace de la billetera de Pollar (lo que en el navegador firma Pollar)
+  const propia = { nombre: "Lucía Prueba", correo: `e2e-${stamp}-propia@example.com`, llave: Keypair.random() };
+  const propiaPaga = { nombre: "Tomás Prueba", correo: `e2e-${stamp}-propia-paga@example.com`, llave: Keypair.random() };
+  /** El desafío del servidor, firmado según SEP-53 por la llave: lo que hace client.stellar.sep53.signMessage. */
+  const probarCuenta = async (llave) => {
+    const d = await json("/api/cuenta/desafio", { publicKey: llave.publicKey(), lang: "es" });
+    const firma = d.cuerpo.message ? Buffer.from(llave.sign(sep53Digest(d.cuerpo.message))).toString("base64") : "";
+    return { status: d.status, wallet: { provider: "pollar", publicKey: llave.publicKey(), challengeId: d.cuerpo.challengeId, signature: firma } };
+  };
+  /** La autorización firmada por la llave: lo que hace client.signAuthEntry(entry, { validUntilLedger }). */
+  const autorizar = async (cuerpo, llave) => (await authorizeEntry(xdr.SorobanAuthorizationEntry.fromXdr(cuerpo.authEntry, "base64"), llave, cuerpo.validUntilLedger, Networks.TESTNET)).toXdr("base64");
+  const inscribirPropia = (persona, entrada, wallet) => json(`/api/evento/${SLUG}/inscripcion`, { ticketTypeId: entrada.id, name: persona.nombre, email: persona.correo, lang: "es", wallet });
+  const firmar = (requestId, signedAuthEntry) => json(`/api/evento/${SLUG}/inscripcion/firma`, { requestId, signedAuthEntry, lang: "es" });
+
+  paso(`Inscripción gratis de ${propia.nombre} con su cuenta propia: una llave local hace de la billetera de Pollar, y la cuenta todavía no existe en la red`);
+  check(!(await accountExists(propia.llave.publicKey())), `la cuenta ${propia.llave.publicKey()} no existe en la red`);
+  const prueba1 = await probarCuenta(propia.llave);
+  check(prueba1.status === 201 && Boolean(prueba1.wallet.challengeId), "POST /api/cuenta/desafio da un desafío de un solo uso, y la llave lo firma según SEP-53");
+  inicio = Date.now();
+  const w1 = await inscribirPropia(propia, entradaGratis, prueba1.wallet);
+  check(w1.status === 202 && w1.cuerpo.status === "needs_signature" && w1.cuerpo.fn === "register", `la inscripción devuelve la autorización de register para firmar en el dispositivo (${w1.status}, en ${((Date.now() - inicio) / 1000).toFixed(0)} s)`);
+  check(await accountExists(propia.llave.publicKey()), "la patrocinadora creó la cuenta en la red, porque Pollar todavía no lo había hecho");
+  const tipoCredencial = w1.cuerpo.authEntry ? inspectAuthEntry(xdr.SorobanAuthorizationEntry.fromXdr(w1.cuerpo.authEntry, "base64")).credentialType : null;
+  check(tipoCredencial === "address", `lo que se da a firmar usa las credenciales de antes de CAP-71 (${tipoCredencial}), las que entiende cualquier billetera`);
+  check(!JSON.stringify(w1.cuerpo).includes("@example.com") && !JSON.stringify(w1.cuerpo).includes(propia.nombre), "lo que se da a firmar no lleva ni el nombre ni el correo");
+  const otraVez = await inscribirPropia(propia, entradaGratis, prueba1.wallet);
+  check(otraVez.status === 401 && otraVez.cuerpo.error === "wallet_invalid", `el mismo desafío otra vez no sirve (${otraVez.status} ${otraVez.cuerpo.error})`);
+  const ajena = await firmar(w1.cuerpo.requestId, await autorizar(w1.cuerpo, Keypair.random()));
+  check(ajena.status === 400 && ajena.cuerpo.error === "signature_invalid", `una autorización firmada por otra llave no se manda (${ajena.status} ${ajena.cuerpo.error})`);
+  const usada = await firmar(w1.cuerpo.requestId, await autorizar(w1.cuerpo, propia.llave));
+  check(usada.status === 410 && usada.cuerpo.error === "signature_expired", `y ese pedido de firma ya no sirve: se empieza de nuevo (${usada.status} ${usada.cuerpo.error})`);
+  const w1b = await inscribirPropia(propia, entradaGratis, (await probarCuenta(propia.llave)).wallet);
+  check(w1b.status === 202 && w1b.cuerpo.status === "needs_signature", "de nuevo, con otro desafío: otra autorización para firmar");
+  inicio = Date.now();
+  const f1 = await firmar(w1b.cuerpo.requestId, await autorizar(w1b.cuerpo, propia.llave));
+  check(f1.status === 201 && f1.cuerpo.status === "created", `con la firma de su llave, la credencial quedó creada (${f1.status}) en ${((Date.now() - inicio) / 1000).toFixed(0)} s`);
+  const pasePropio = f1.cuerpo.passId ? await repo.getPass(f1.cuerpo.passId) : null;
+  check(pasePropio?.status === "active" && pasePropio.account === propia.llave.publicKey(), `el pase ${pasePropio?.id} quedó activo en la cuenta propia ${pasePropio?.account}`);
+  if (pasePropio?.txHash) tx(`inscripción gratis de ${propia.nombre} con su cuenta propia (register, autoriza su llave, paga el servidor, pase número ${pasePropio.chainNumber})`, pasePropio.txHash);
+  const ligada = pasePropio ? await repo.getWalletLink(pasePropio.personId) : null;
+  check(ligada?.provider === "pollar" && ligada.publicKey === propia.llave.publicKey(), "la persona quedó ligada a esa cuenta, con el proveedor pollar");
+  check(pasePropio !== null && (await repo.getDevAccount(pasePropio.personId)) === null, "el servidor no guardó ninguna llave de esta persona");
+  const enCadena = await rumboPass.status(contratoGratis, propia.llave.publicKey());
+  check(enCadena.has_pass && enCadena.number === pasePropio?.chainNumber, `status() de la cuenta propia: pase ${enCadena.number}`);
+  const firmaRepetida = await firmar(w1b.cuerpo.requestId, await autorizar(w1b.cuerpo, propia.llave));
+  check(firmaRepetida.status === 410, "mandar la misma autorización otra vez no hace nada");
+
+  paso(`Entrada con almuerzo de ${propiaPaga.nombre} con su cuenta propia: acepta el USDC de prueba, recibe saldo de prueba y autoriza buy`);
+  const w2 = await inscribirPropia(propiaPaga, entradaPaga, (await probarCuenta(propiaPaga.llave)).wallet);
+  check(w2.status === 202 && w2.cuerpo.status === "needs_trustline" && w2.cuerpo.asset?.issuer === activo.issuer, `primero la cuenta tiene que aceptar el USDC de prueba (${w2.cuerpo.status} ${w2.cuerpo.asset?.code})`);
+  // Lo que en el navegador hace client.setTrustline: la cuenta firma su línea de confianza; acá la comisión la paga la patrocinadora.
+  const linea = await submitClassic([Operation.changeTrust({ asset: activo.asset, source: propiaPaga.llave.publicKey() })], [propiaPaga.llave]);
+  tx(`${propiaPaga.nombre} acepta el USDC de prueba (changeTrust, firma su llave)`, linea.hash);
+  const antesPropia = { organizador: organizador ? await saldo(organizador) : null, tesoreria: tesoreria ? await saldo(tesoreria) : null };
+  inicio = Date.now();
+  const w3 = await inscribirPropia(propiaPaga, entradaPaga, (await probarCuenta(propiaPaga.llave)).wallet);
+  check(w3.status === 202 && w3.cuerpo.status === "needs_signature" && w3.cuerpo.fn === "buy", `con la línea, la autorización de buy para firmar (${w3.cuerpo.status}, en ${((Date.now() - inicio) / 1000).toFixed(0)} s)`);
+  check((await saldo(propiaPaga.llave.publicKey())) === inicial, `la cuenta recibió ${inicial} USDC de prueba para pagar`);
+  inicio = Date.now();
+  const f2 = await firmar(w3.cuerpo.requestId, await autorizar(w3.cuerpo, propiaPaga.llave));
+  check(f2.status === 201 && f2.cuerpo.paid === true, `se pagó y se creó la credencial (${f2.status}) en ${((Date.now() - inicio) / 1000).toFixed(0)} s`);
+  const pasePropioPago = f2.cuerpo.passId ? await repo.getPass(f2.cuerpo.passId) : null;
+  check(pasePropioPago?.status === "active" && pasePropioPago.account === propiaPaga.llave.publicKey(), `el pase ${pasePropioPago?.id} quedó activo en la cuenta propia`);
+  if (pasePropioPago?.txHash) tx(`entrada paga de ${propiaPaga.nombre} con su cuenta propia (buy, autoriza su llave, pase número ${pasePropioPago.chainNumber})`, pasePropioPago.txHash);
+  const despuesPropia = { organizador: organizador ? await saldo(organizador) : null, tesoreria: tesoreria ? await saldo(tesoreria) : null, comprador: await saldo(propiaPaga.llave.publicKey()) };
+  if (antesPropia.organizador !== null) check(Math.abs(despuesPropia.organizador - antesPropia.organizador - (precio - comision)) < 1e-6, `quien organiza recibió ${precio - comision} USDC de prueba en la misma transacción`);
+  if (antesPropia.tesoreria !== null) check(Math.abs(despuesPropia.tesoreria - antesPropia.tesoreria - comision) < 1e-6, `Rumbo recibió la comisión de ${comision} USDC de prueba`);
+  check(Math.abs(despuesPropia.comprador - (inicial - precio)) < 1e-6, `a ${propiaPaga.nombre} le quedan ${despuesPropia.comprador} USDC de prueba`);
+
+  paso(`La puerta deja entrar a ${propia.nombre}: check_in lo firma la puerta, como con cualquier credencial`);
+  inicio = Date.now();
+  const entradaPropia = { clientId: `e2e-${stamp}-entrada-propia`, action: "checkin", passId: pasePropio?.id, benefitId: null, scannedAt: new Date().toISOString(), scannerId: "e2e-puerta" };
+  const sync3 = await json("/api/scan/sync", { code: puertaCode, items: [entradaPropia] });
+  const entro = sync3.cuerpo.results?.[0];
+  check(sync3.status === 200 && entro?.status === "synced" && entro.txHash, `la entrada llegó al contrato en ${((Date.now() - inicio) / 1000).toFixed(0)} s`);
+  if (entro?.txHash) tx(`entrada por la puerta de ${propia.nombre} (check_in, firma la puerta)`, entro.txHash);
+  check((await rumboPass.status(contratoGratis, propia.llave.publicKey())).checked_in, "status() dice que la cuenta propia entró");
 } catch (error) {
   fallas.push(`la corrida se cortó: ${error instanceof Error ? error.message : String(error)}`);
   log(`\nLa corrida se cortó: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);

@@ -289,6 +289,42 @@ export interface DevAccount {
   createdAt: string;
 }
 
+/** Quién custodia la cuenta propia de una persona. Hoy, solo Pollar (Google o correo). */
+export type WalletProvider = "pollar";
+
+/** La cuenta de Stellar que es de la persona: la llave la tiene ella (o quien la custodia), nunca el servidor. */
+export interface WalletLink {
+  personId: string;
+  provider: WalletProvider;
+  publicKey: string;
+  linkedAt: string;
+}
+
+/** Un desafío SEP-53: el mensaje que la cuenta firma para probar que es de quien dice. Sirve una sola vez. */
+export interface WalletChallenge {
+  id: string;
+  publicKey: string;
+  message: string;
+  createdAt: string;
+  expiresAt: string;
+  usedAt: string | null;
+}
+
+/** Lo que el contrato le pide autorizar a una cuenta propia, mientras el navegador lo firma. Se usa una sola vez. */
+export interface WalletAuthRequest {
+  id: string;
+  passId: string;
+  publicKey: string;
+  contractId: string;
+  fn: "register" | "buy";
+  /** La autorización sin firmar, en XDR (base64), tal como salió de la simulación. */
+  entryXdr: string;
+  validUntilLedger: number;
+  createdAt: string;
+  expiresAt: string;
+  usedAt: string | null;
+}
+
 export interface EventStats {
   passes: number;
   active: number;
@@ -369,6 +405,18 @@ export interface Repo {
   getDevAccount(personId: string): Promise<DevAccount | null>;
   saveDevAccount(input: Omit<DevAccount, "createdAt">): Promise<DevAccount>;
   markDevAccountFunded(personId: string): Promise<void>;
+
+  // Cuentas propias (Pollar): la cuenta ligada a cada persona, los desafíos y las autorizaciones por firmar
+  getWalletLink(personId: string): Promise<WalletLink | null>;
+  getWalletLinkByAccount(publicKey: string): Promise<WalletLink | null>;
+  /** Liga la cuenta a la persona. Si la persona ya tenía una o la cuenta ya era de otra, no cambia nada y devuelve false. */
+  linkWallet(input: { personId: string; provider: WalletProvider; publicKey: string }): Promise<boolean>;
+  createWalletChallenge(input: { id: string; publicKey: string; message: string; expiresAt: string }): Promise<WalletChallenge>;
+  /** Lo marca usado y lo devuelve, solo si es de esa cuenta, no se usó y no venció. Si no, null. */
+  useWalletChallenge(id: string, publicKey: string, at?: string): Promise<WalletChallenge | null>;
+  createWalletAuthRequest(input: Omit<WalletAuthRequest, "createdAt" | "usedAt">): Promise<WalletAuthRequest>;
+  /** Lo marca usado y lo devuelve, solo si no se usó y no venció. Si no, null. */
+  useWalletAuthRequest(id: string, at?: string): Promise<WalletAuthRequest | null>;
 
   // Equipos (la inscripción de la hackatón)
   /** Crea el equipo, o devuelve el que ya tenía ese nombre en el evento (sin importar mayúsculas). */
@@ -462,6 +510,10 @@ function rowToImportRun(row: Row): ImportRun {
     summary: readJson<Record<string, unknown>>(row.summary),
     createdAt: str(row.created_at),
   };
+}
+
+function rowToWalletLink(row: Row): WalletLink {
+  return { personId: str(row.person_id), provider: "pollar", publicKey: str(row.public_key), linkedAt: str(row.linked_at) };
 }
 
 function rowToPerson(row: Row): Person {
@@ -938,6 +990,86 @@ export class SqlRepo implements Repo {
 
   async markDevAccountFunded(personId: string): Promise<void> {
     await this.db.run("UPDATE dev_accounts SET funded = TRUE WHERE person_id = ?", [personId]);
+  }
+
+  // Cuentas propias
+
+  async getWalletLink(personId: string): Promise<WalletLink | null> {
+    const row = await this.db.one("SELECT * FROM wallet_links WHERE person_id = ?", [personId]);
+    return row ? rowToWalletLink(row) : null;
+  }
+
+  async getWalletLinkByAccount(publicKey: string): Promise<WalletLink | null> {
+    const row = await this.db.one("SELECT * FROM wallet_links WHERE public_key = ?", [publicKey]);
+    return row ? rowToWalletLink(row) : null;
+  }
+
+  async linkWallet(input: { personId: string; provider: WalletProvider; publicKey: string }): Promise<boolean> {
+    // Cualquiera de las dos claves (la persona o la cuenta) que ya exista deja todo como estaba.
+    const changed = await this.db.run("INSERT INTO wallet_links (person_id, provider, public_key, linked_at) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING", [
+      input.personId,
+      input.provider,
+      input.publicKey,
+      now(),
+    ]);
+    return changed === 1;
+  }
+
+  async createWalletChallenge(input: { id: string; publicKey: string; message: string; expiresAt: string }): Promise<WalletChallenge> {
+    const at = now();
+    // Los vencidos hace más de un día ya no sirven para nada.
+    await this.db.run("DELETE FROM wallet_challenges WHERE expires_at < ?", [new Date(Date.now() - 24 * 3600_000).toISOString()]);
+    await this.db.run("INSERT INTO wallet_challenges (id, public_key, message, created_at, expires_at) VALUES (?, ?, ?, ?, ?)", [
+      input.id,
+      input.publicKey,
+      input.message,
+      at,
+      input.expiresAt,
+    ]);
+    return { ...input, createdAt: at, usedAt: null };
+  }
+
+  async useWalletChallenge(id: string, publicKey: string, at: string = now()): Promise<WalletChallenge | null> {
+    // Una sola sentencia: dos pedidos a la vez con el mismo desafío, y solo uno lo usa.
+    const row = await this.db.one(
+      "UPDATE wallet_challenges SET used_at = ? WHERE id = ? AND public_key = ? AND used_at IS NULL AND expires_at > ? RETURNING *",
+      [at, id, publicKey, at],
+    );
+    if (!row) return null;
+    return {
+      id: str(row.id),
+      publicKey: str(row.public_key),
+      message: str(row.message),
+      createdAt: str(row.created_at),
+      expiresAt: str(row.expires_at),
+      usedAt: strOrNull(row.used_at),
+    };
+  }
+
+  async createWalletAuthRequest(input: Omit<WalletAuthRequest, "createdAt" | "usedAt">): Promise<WalletAuthRequest> {
+    const at = now();
+    await this.db.run(
+      "INSERT INTO wallet_auth_requests (id, pass_id, public_key, contract_id, fn, entry_xdr, valid_until_ledger, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [input.id, input.passId, input.publicKey, input.contractId, input.fn, input.entryXdr, input.validUntilLedger, at, input.expiresAt],
+    );
+    return { ...input, createdAt: at, usedAt: null };
+  }
+
+  async useWalletAuthRequest(id: string, at: string = now()): Promise<WalletAuthRequest | null> {
+    const row = await this.db.one("UPDATE wallet_auth_requests SET used_at = ? WHERE id = ? AND used_at IS NULL AND expires_at > ? RETURNING *", [at, id, at]);
+    if (!row) return null;
+    return {
+      id: str(row.id),
+      passId: str(row.pass_id),
+      publicKey: str(row.public_key),
+      contractId: str(row.contract_id),
+      fn: str(row.fn) === "buy" ? "buy" : "register",
+      entryXdr: str(row.entry_xdr),
+      validUntilLedger: num(row.valid_until_ledger),
+      createdAt: str(row.created_at),
+      expiresAt: str(row.expires_at),
+      usedAt: strOrNull(row.used_at),
+    };
   }
 
   // Equipos

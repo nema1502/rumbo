@@ -1,4 +1,5 @@
 // El formulario para una entrada: nombre y correo. Se llega desde el botón de la entrada, con ?entrada=<id>.
+// Con Pollar prendido, antes se entra con Google o con el correo (la clave publicable va al navegador).
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import "@/components/evento/evento.css";
@@ -6,6 +7,7 @@ import { FormularioInscripcion } from "@/components/evento/FormularioInscripcion
 import { formatAmount } from "@/i18n/index.ts";
 import { getLang, getT } from "@/i18n/server.ts";
 import { isPublicKind } from "@/lib/credential-kinds.ts";
+import { pollarPublishableKey } from "@/server/accounts.ts";
 import { formatEventWhen, joinList } from "@/server/evento/fecha.ts";
 import { getRepo } from "@/server/repo.ts";
 import { registerAction } from "./actions.ts";
@@ -47,6 +49,7 @@ export default async function RegistrationPage({ params, searchParams }: { param
       paid={paid}
       monto={monto}
       comunidad={event.organizerName}
+      pollarKey={pollarPublishableKey()}
       ticket={{
         id: ticket.id,
         name: ticket.name,

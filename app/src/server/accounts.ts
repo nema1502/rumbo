@@ -1,6 +1,7 @@
 // Las cuentas de las personas. Debajo de cada persona hay una cuenta de Stellar que nunca ve.
-// AccountProvider es la interfaz; DevAccountProvider la implementación de hoy (SOLO RED DE PRUEBA);
-// Pollar (Google) y passkeys quedan como esqueletos con TODO.
+// AccountProvider es la interfaz; DevAccountProvider la del modo de prueba (SOLO RED DE PRUEBA: el servidor
+// guarda la llave); PollarAccountProvider la de la cuenta propia, con Google o con el correo (RUMBO_ACCOUNTS=pollar
+// y la clave publicable de Pollar). Las passkeys quedan como esqueleto con TODO.
 import { Keypair, Operation, type Transaction } from "@stellar/stellar-sdk";
 import { assertTestnet, getEnv } from "./env.ts";
 import { getRepo, type Repo } from "./repo.ts";
@@ -87,20 +88,59 @@ export class DevAccountProvider implements AccountProvider {
   }
 }
 
+/** La persona tiene su cuenta propia (Pollar): lo que el contrato le pide lo firma su dispositivo, no el servidor. */
+export class SignsOnDevice extends Error {
+  constructor(personId: string) {
+    super(`La cuenta de la persona ${personId} es suya (Pollar): la autorización la firma su dispositivo, con el paso de firma de la inscripción`);
+    this.name = "SignsOnDevice";
+  }
+}
+
+/** Pollar está prendido: RUMBO_ACCOUNTS=pollar y la clave publicable de la app de Pollar. Sin las dos, el modo de prueba. */
+export function pollarEnabled(): boolean {
+  return getEnv("RUMBO_ACCOUNTS") === "pollar" && Boolean(getEnv("NEXT_PUBLIC_POLLAR_PUBLISHABLE_KEY"));
+}
+
+/** La clave publicable de Pollar, para el navegador, o null si Pollar no está prendido. */
+export function pollarPublishableKey(): string | null {
+  return pollarEnabled() ? (getEnv("NEXT_PUBLIC_POLLAR_PUBLISHABLE_KEY") ?? null) : null;
+}
+
 /**
- * TODO: la cuenta con Google, a través de Pollar, con las comisiones patrocinadas por ellos.
- * getOrCreateForPerson pide la cuenta a Pollar con el id de la app; authSigner devuelve un firmante
- * que manda la autorización a Pollar para que la firme la persona. Ver docs/stack.md.
+ * La cuenta con Google o con el correo, a través de Pollar: la persona entra en el navegador, Pollar crea su
+ * cuenta de Stellar y custodia la llave, y la persona prueba que es suya (SEP-53, src/server/cuenta-propia.ts).
+ * Ahí queda ligada (wallet_links). El servidor no puede firmar por ella: register y buy van en dos pasos, el
+ * servidor prepara la autorización y el navegador la firma con Pollar (src/server/evento/inscripcion.ts).
+ *
+ * Quien no entró con Pollar (una lista importada por quien organiza, el evento de muestra) sigue, SOLO EN LA RED
+ * DE PRUEBA, con la cuenta de prueba que guarda el servidor: para esas personas este proveedor es el de prueba.
  */
 export class PollarAccountProvider implements AccountProvider {
   readonly kind = "pollar" as const;
-  private todo(): never {
-    throw new Error("TODO: PollarAccountProvider todavía no está implementado. Usá RUMBO_ACCOUNTS=dev.");
+  private readonly repo: Repo;
+  private readonly fallback: AccountProvider;
+
+  constructor(repo: Repo, fallback: AccountProvider = new DevAccountProvider(repo)) {
+    this.repo = repo;
+    this.fallback = fallback;
   }
-  getOrCreateForPerson(): Promise<string> { return this.todo(); }
-  getForPerson(): Promise<string | null> { return this.todo(); }
-  authSigner(): Promise<AuthSigner> { return this.todo(); }
-  signAndSubmit(): Promise<TxResult> { return this.todo(); }
+
+  async getForPerson(personId: string): Promise<string | null> {
+    return (await this.repo.getWalletLink(personId))?.publicKey ?? (await this.fallback.getForPerson(personId));
+  }
+
+  async getOrCreateForPerson(personId: string): Promise<string> {
+    return (await this.repo.getWalletLink(personId))?.publicKey ?? (await this.fallback.getOrCreateForPerson(personId));
+  }
+
+  async authSigner(personId: string): Promise<AuthSigner> {
+    if (await this.repo.getWalletLink(personId)) throw new SignsOnDevice(personId);
+    return this.fallback.authSigner(personId);
+  }
+
+  async signAndSubmit(personId: string, tx: Transaction): Promise<TxResult> {
+    return submitSponsored(tx, [await this.authSigner(personId)]);
+  }
 }
 
 /**
@@ -125,7 +165,8 @@ declare global {
 export function getAccountProvider(repo: Repo = getRepo()): AccountProvider {
   if (globalThis.__rumboAccounts) return globalThis.__rumboAccounts;
   const kind = getEnv("RUMBO_ACCOUNTS", "dev");
-  const provider: AccountProvider = kind === "pollar" ? new PollarAccountProvider() : kind === "passkey" ? new PasskeyAccountProvider() : new DevAccountProvider(repo);
+  // Sin la clave publicable, Pollar no puede andar en el navegador: queda el modo de prueba.
+  const provider: AccountProvider = pollarEnabled() ? new PollarAccountProvider(repo) : kind === "passkey" ? new PasskeyAccountProvider() : new DevAccountProvider(repo);
   globalThis.__rumboAccounts = provider;
   return provider;
 }
