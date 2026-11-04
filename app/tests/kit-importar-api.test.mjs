@@ -85,7 +85,7 @@ test("de la vista a la última tanda: lo que ve la pantalla, paso por paso", asy
   const { preview } = vista.cuerpo;
   assert.equal(preview.source, "luma");
   assert.equal(preview.total, 16);
-  assert.deepEqual(preview.buckets.approved, { valid: 9, invalidEmail: 3, duplicatesInFile: 1, alreadyHere: 0 });
+  assert.deepEqual(preview.buckets.approved, { valid: 9, invalidEmail: 3, duplicatesInFile: 1, alreadyHere: 0, resumable: 0 });
   assert.equal(preview.defaultTypeId, tipos.find((t) => t.templateSlot === "attendee").id);
   assert.equal((await repo.listPasses(event.id)).length, 0, "ver no crea nada");
 
