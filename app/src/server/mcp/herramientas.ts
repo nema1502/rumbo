@@ -423,7 +423,12 @@ function describeSummary(summary: ImportSummary, preview: GuestPreview) {
 function nextAfterBatch(batch: BatchResult, runId: string): string {
   if (batch.busy) return `Another batch of this import is running right now: call continue_import with run_id "${runId}" again in a moment.`;
   if (batch.remaining > 0) return `${batch.remaining} credentials are still pending: call continue_import with run_id "${runId}" until remaining is 0. Each call prepares one batch (account, contract, email).`;
-  return batch.failed > 0 ? "No credentials left to send; some failed and were retried in this batch, see failed." : "All credentials of this import were prepared and emailed.";
+  if (batch.failed > 0) return "No credentials left to send; some failed and were retried in this batch, see failed.";
+  // Sin un servicio de correo configurado nadie recibe nada: decirlo, y decir de dónde se bajan los enlaces.
+  if (batch.linkOnly > 0) {
+    return "All credentials of this import were prepared, but this server has no email service configured, so nobody was emailed (see link_only). Download the links as CSV from the import screen, or GET /api/admin/<event>/importar?importacion=<run_id>&formato=csv with the organizer key, and send them yourself.";
+  }
+  return "All credentials of this import were prepared and emailed.";
 }
 
 async function runBatch(ctx: McpContext, event: EventRecord, runId: string, size: number | undefined, lang: Lang): Promise<BatchResult> {
@@ -489,7 +494,7 @@ export async function continueImport(ctx: McpContext, args: EventArgs & { run_id
   return {
     run_id: run.id,
     batch,
-    totals: totals ? { created: totals.created, activated: totals.activated, emailsSent: totals.emailsSent, emailsFailed: totals.emailsFailed, pending: status.remaining } : null,
+    totals: totals ? { created: totals.created, activated: totals.activated, emailsSent: totals.emailsSent, emailsFailed: totals.emailsFailed, linkOnly: totals.linkOnly ?? 0, pending: status.remaining } : null,
     next: nextAfterBatch(batch, run.id),
   };
 }

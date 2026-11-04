@@ -227,7 +227,7 @@ test("importar: la vista previa no crea nada; confirmar manda de a cinco y dice 
   assert.equal(vista.error, false, vista.texto);
   assert.equal(vista.datos.preview, true);
   assert.deepEqual([vista.datos.source, vista.datos.rows, vista.datos.wouldImport], ["luma", 16, 9]);
-  assert.deepEqual(vista.datos.byStatus.approved, { valid: 9, invalidEmail: 3, duplicatesInFile: 1, alreadyHere: 0 });
+  assert.deepEqual(vista.datos.byStatus.approved, { valid: 9, invalidEmail: 3, duplicatesInFile: 1, alreadyHere: 0, resumable: 0 });
   assert.equal(vista.datos.columnsRead.diet, "¿Tenés alguna restricción alimentaria?");
   const speaker = vista.datos.tickets.find((t) => t.label === "Speaker");
   assert.equal(speaker.credentialType.kind, "speaker", "la entrada Speaker va sugerida a la credencial de oradores");
