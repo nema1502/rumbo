@@ -128,10 +128,10 @@ export function renderCredentialSvg(view: CredentialView, lang: Lang): string {
     .join("\n  ");
 
   const qrX = center - QR_SIZE / 2;
-  const qrY = MARGIN + BAND_H + 62;
+  const qrY = MARGIN + BAND_H + 56;
 
   const name = nameLines(view.person.name);
-  const nameTop = qrY + QR_SIZE + 44;
+  const nameTop = qrY + QR_SIZE + 40;
   const nameText = name.lines
     .map((line, i) => text(center, nameTop + i * name.lineHeight, line, `font-family="${FONT_DISPLAY}" font-weight="800" font-size="${name.size}" letter-spacing="-0.6" text-anchor="middle" fill="${COLOR.tinta}"`))
     .join("\n  ");
@@ -146,13 +146,20 @@ export function renderCredentialSvg(view: CredentialView, lang: Lang): string {
   const parts = [staff ? t(kindLabelKey(view.kind)) : view.ticketType.name, view.team ? t("kit.credencial.equipo", { nombre: view.team }) : null, status].filter((p): p is string => Boolean(p));
   const ticketLine = parts.length > 1 ? `${parts.join(". ")}.` : (parts[0] ?? "");
   const bandColor = staff ? COLOR.acentoChip : COLOR.tinta;
-  const ticketY = afterName + 24;
-  const dividerY = ticketY + 16;
+  const ticketY = afterName + 22;
+  const dividerY = ticketY + 14;
 
-  const rows = view.benefits.slice(0, 4);
+  // Las filas de canjes entran entre la línea divisoria y la frase del pie, nunca encima de ella: con un nombre
+  // de dos líneas hay lugar para tres; con uno de una, para cuatro. Lo que no entra se resume en "+N", que ocupa
+  // la última fila que sí entra.
+  const footerY = H - MARGIN - 16;
+  const rowStart = dividerY + 24;
+  const rowH = 22;
+  const lastRowY = footerY - 20;
+  const slots = Math.max(1, Math.floor((lastRowY - rowStart) / rowH) + 1);
+  const shown = view.benefits.length <= slots ? view.benefits.length : Math.max(1, slots - 1);
+  const rows = view.benefits.slice(0, shown);
   const extra = view.benefits.length - rows.length;
-  const rowStart = dividerY + 26;
-  const rowH = 24;
   const benefitRows = rows
     .map((b, i) => {
       const y = rowStart + i * rowH;
@@ -194,7 +201,7 @@ export function renderCredentialSvg(view: CredentialView, lang: Lang): string {
   ${benefitRows}
   ${extraText}
   ${noBenefits}
-  ${text(center, H - MARGIN - 16, t("evento.credencial.mostra"), `font-family="${FONT_TEXT}" font-size="10.5" text-anchor="middle" fill="${COLOR.apagado}"`)}
+  ${text(center, footerY, t("evento.credencial.mostra"), `font-family="${FONT_TEXT}" font-size="10.5" text-anchor="middle" fill="${COLOR.apagado}"`)}
 </svg>
 `;
 }
