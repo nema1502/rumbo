@@ -31,7 +31,7 @@ Esto es el producto entero. La tabla de [Dónde está](#dónde-está) dice qué 
 **Para quien organiza**
 
 1. Armá el evento con un formulario, o contáselo en palabras al asistente que ya usás (por MCP) y aprobá el borrador que Rumbo te propone: tipos de credencial, beneficios, puestos del escáner y topes.
-2. Publicá la página del evento, con inscripción gratis o paga. La lista de Luma o de Bevy se importa como CSV, a las entradas gratis: cada credencial queda lista al momento, y los enlaces personales se bajan en un CSV para mandarlos a mano hasta que exista el servicio de correo.
+2. Publicá la página del evento, con inscripción gratis o paga. La lista de Luma o de Bevy se importa como CSV, a las entradas gratis: cada credencial se prepara durante la importación (unos segundos cada una en la red de prueba), y los enlaces personales se bajan en un CSV para mandarlos a mano hasta que exista el servicio de correo.
 3. Cobrá en USDC desde cualquier país o, después, en bolivianos con el QR del banco a través de una rampa con licencia. La plata llega a quien organiza (en la red de prueba, a una cuenta de organizador de muestra) en la misma operación que separa la comisión de Rumbo. Rumbo nunca tiene la plata.
 4. Después, el pago protegido opcional: la entrada va a quedar en un contrato hasta que el evento ocurra, y si se cancela el reembolso va a salir solo.
 5. Descargá cada credencial en SVG para imprimir (el PDF y la impresión en tanda vienen después), o dejala en el celular de cada persona.
@@ -46,7 +46,7 @@ Esto es el producto entero. La tabla de [Dónde está](#dónde-está) dice qué 
 
 **Para quien hace de voluntario**
 
-- Escanea el QR, ve qué le toca a esa persona y marca el canje. Queda anotado una sola vez en la cadena; si dos celulares estaban sin red, el segundo queda marcado para revisar. Sin cuenta y sin entrenamiento.
+- Escanea el QR, ve qué le toca a esa persona y marca el canje. Queda anotado una sola vez en la cadena (salvo el premio de la ruta de stands, que anota la base); si dos celulares estaban sin red, el segundo queda marcado para revisar. Sin cuenta y sin entrenamiento.
 
 **Para quien auspicia**
 

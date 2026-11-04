@@ -158,7 +158,7 @@ const EN = {
   "paga.c2.t": "If you sponsor",
   "paga.c2.p": "Per campaign: \"a coffee for every attendee\", with verified redemption, a report and the booth contacts of those who agree to share them.",
   "paga.c3.t": "Large events",
-  "paga.c3.p": "Per attendee: passes, scanners, several days and ticket types, reports. Hackathons, DevFests, conferences.",
+  "paga.c3.p": "Those that sell tickets or have sponsors: per attendee, with passes, scanners, several days and ticket types, and reports. A free community event does not pay, however big.",
   "paga.c7.t": "If you organize often",
   "paga.c7.p": "We are planning an affordable monthly plan, in USDC or bolivianos, with more capacity, your brand on the page and your people's history. Small communities stay free.",
   "paga.c4.t": "Community networks",

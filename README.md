@@ -31,7 +31,7 @@ This is the whole product. The table in [Where it stands](#where-it-stands) says
 **For the organizer**
 
 1. Create the event with a form, or describe it in plain words to the assistant you already use (over MCP) and approve the draft Rumbo proposes: pass types, benefits, scanner stations and caps.
-2. Publish the event page, with free or paid registration. Guest lists from Luma or Bevy can be imported as CSV, onto free tickets: each pass is ready at once, and the personal links come down as a CSV to send by hand until the email service exists.
+2. Publish the event page, with free or paid registration. Guest lists from Luma or Bevy can be imported as CSV, onto free tickets: each pass is prepared during the import (a few seconds each on testnet), and the personal links come down as a CSV to send by hand until the email service exists.
 3. Get paid in USDC from anywhere or, next, in bolivianos with a bank QR code through a licensed on-ramp. The money reaches the organizer (on testnet, a sample organizer account) in the same operation that separates Rumbo's fee. Rumbo never holds the money.
 4. Next, optional protected payment: the ticket will stay in a contract until the event happens, and refunds will go out on their own if it is cancelled.
 5. Download each pass as an SVG to print (PDF and printing in bulk come next), or leave it on each attendee's phone.
@@ -46,7 +46,7 @@ This is the whole product. The table in [Where it stands](#where-it-stands) says
 
 **For the volunteer**
 
-- Scan the QR code, see what this person gets, mark it as redeemed. It is recorded once on the ledger; if two phones were offline, the second one is flagged to review. No account, no training.
+- Scan the QR code, see what this person gets, mark it as redeemed. It is recorded once on the ledger (the booth-route prize is the exception: the database keeps it); if two phones were offline, the second one is flagged to review. No account, no training.
 
 **For the sponsor**
 
