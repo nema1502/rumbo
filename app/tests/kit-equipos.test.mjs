@@ -162,3 +162,34 @@ test("un equipo que quedó sin nadie se puede volver a intentar con el mismo nom
   const segunda = await equipo(event, "Los Vacíos", [{ name: "Sola Caida", email: "sola.caida@example.com" }]);
   assert.deepEqual([segunda.ok, segunda.registered], [true, 1]);
 });
+
+test("sumar gente a un equipo que ya existe pide a todos sus integrantes, y el equipo nunca pasa de cinco", async () => {
+  const event = await hackaton("Hackatón con tope");
+  const gente = [1, 2, 3, 4, 5].map(miembro);
+  assert.equal((await equipo(event, "Alfa", gente)).ok, true);
+  const alfa = (await repo.listTeams(event.id))[0];
+
+  // Quien conoce el correo de un solo integrante no mete gente: hay que escribir a todos los que ya están.
+  const colado = await equipo(event, "alfa", [gente[0], miembro(6), miembro(7), miembro(8), miembro(9)]);
+  assert.deepEqual([colado.ok, colado.reason], [false, "members_missing"]);
+  assert.equal((await repo.listTeamPasses(alfa.id)).length, 5, "el equipo sigue con cinco");
+
+  // Con los cinco de antes, un sexto no entra: el tope cuenta a quienes ya están (pedido de seis: el tope de la fila).
+  const seis = await equipo(event, "ALFA", [...gente, miembro(10)]);
+  assert.deepEqual([seis.ok, seis.reason], [false, "too_many_members"]);
+
+  // Un equipo de tres que trae a sus tres y suma dos, entra; sumar uno más después, ya no.
+  const tres = [11, 12, 13].map(miembro);
+  const dos = [14, 15].map(miembro);
+  assert.equal((await equipo(event, "Beta", tres)).ok, true);
+  const beta = (await repo.listTeams(event.id)).find((t) => t.name === "Beta");
+  const cinco = await equipo(event, "Beta", [...tres, ...dos]);
+  assert.deepEqual([cinco.ok, cinco.registered], [true, 5]);
+  assert.equal((await repo.listTeamPasses(beta.id)).length, 5);
+  const otroMas = await equipo(event, "Beta", [...tres, ...dos, miembro(16)]);
+  assert.deepEqual([otroMas.ok, otroMas.reason], [false, "too_many_members"]);
+  // Y con cuatro de los cinco más uno nuevo tampoco: falta uno de los que ya están.
+  const faltaUno = await equipo(event, "Beta", [...tres, dos[0], miembro(17)]);
+  assert.deepEqual([faltaUno.ok, faltaUno.reason], [false, "members_missing"]);
+  assert.equal((await repo.listTeamPasses(beta.id)).length, 5, "nada cambió");
+});

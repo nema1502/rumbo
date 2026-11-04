@@ -23,10 +23,11 @@ const FAILURE_KEYS: Record<TeamFailure, string> = {
   no_teams: "kit.equipo.errorSinEquipos",
   name: "kit.equipo.errorNombre",
   no_members: "kit.equipo.errorSinIntegrantes",
-  too_many_members: "kit.equipo.errorGeneral",
+  too_many_members: "kit.equipo.errorTope",
   member: "kit.equipo.errorFila",
   repeated: "kit.equipo.errorRepetido",
   team_exists: "kit.equipo.errorNombreEnUso",
+  members_missing: "kit.equipo.errorIntegrantesFaltan",
   other_team: "kit.equipo.errorOtro",
   no_ticket: "kit.equipo.errorGeneral",
 };
