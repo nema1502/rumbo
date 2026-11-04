@@ -97,6 +97,8 @@ test("un QR del celular sin una hora que valga no se acepta: comparar con una ve
   // La impresa no depende de la hora.
   assert.equal((await verifyQrPayloadInBrowser(qr.buildPrintedPayload(pass, keys), keys.publicKey, NaN)).ok, true);
   assert.equal(clockOffset(NaN, Date.now()), 0, "una medida que no vale no corrige nada");
+  assert.equal(clockOffset(Infinity, 0), 0);
+  assert.equal(clockOffset(Date.now(), -Infinity), 0);
 });
 
 test("la hora del servidor se mide con el viaje de ida y vuelta, y un salto del reloj de pared se nota", async () => {
