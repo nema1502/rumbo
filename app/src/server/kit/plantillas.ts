@@ -381,13 +381,6 @@ async function uniqueSlug(repo: Repo, base: string): Promise<string> {
   return slug;
 }
 
-/** Si el INSERT chocó con otro evento que se llevó el mismo slug entre que se miró y se escribió. En los tres motores. */
-function slugTaken(error: unknown): boolean {
-  const e = error as { message?: unknown; constraint_name?: unknown; constraint?: unknown } | null;
-  const said = [e?.message, e?.constraint_name, e?.constraint].filter((v) => typeof v === "string").join(" ");
-  return /UNIQUE constraint failed: events\.slug|events_slug_key/.test(said);
-}
-
 /** Cuántas veces se prueba otro slug si dos creaciones a la vez eligieron el mismo. */
 const SLUG_TRIES = 4;
 
@@ -401,31 +394,30 @@ export async function createEventFromTemplate(repo: Repo, input: NewEventFromTem
   const checked = checkTemplateInput(input);
   const { spec, lang, name } = checked;
   // uniqueSlug mira y después se escribe: dos creaciones a la vez con el mismo nombre eligen el mismo slug y la
-  // segunda choca con la restricción única. Esa vuelve a probar con un sufijo al azar, nunca termina en un error.
+  // segunda choca con la restricción única. Esa no entra (createEventIfSlugFree) y vuelve a probar con un sufijo al
+  // azar: nunca termina en un error.
   for (let attempt = 0; ; attempt++) {
     const base = attempt === 0 ? slugify(name) : `${slugify(name).slice(0, 34) || "evento"}-${randomBytes(3).toString("hex")}`;
-    let event: EventRecord;
-    try {
-      event = await repo.createEvent({
-        slug: await uniqueSlug(repo, base),
-        name,
-        description: translate(lang, spec.descriptionKey),
-        startsAt: checked.startsAt,
-        endsAt: checked.endsAt,
-        timezone: checked.timezone,
-        place: checked.place,
-        venue: input.venue?.trim() || null,
-        organizerName: checked.organizerName,
-        organizerAccount: input.organizerAccount ?? null,
-        organizerId: input.organizerId ?? null,
-        capacity: checked.capacity,
-        template: spec.id,
-        published: false,
-        teamSignup: spec.teamSignup,
-      });
-    } catch (error) {
-      if (attempt + 1 < SLUG_TRIES && slugTaken(error)) continue;
-      throw error;
+    const event = await repo.createEventIfSlugFree({
+      slug: await uniqueSlug(repo, base),
+      name,
+      description: translate(lang, spec.descriptionKey),
+      startsAt: checked.startsAt,
+      endsAt: checked.endsAt,
+      timezone: checked.timezone,
+      place: checked.place,
+      venue: input.venue?.trim() || null,
+      organizerName: checked.organizerName,
+      organizerAccount: input.organizerAccount ?? null,
+      organizerId: input.organizerId ?? null,
+      capacity: checked.capacity,
+      template: spec.id,
+      published: false,
+      teamSignup: spec.teamSignup,
+    });
+    if (!event) {
+      if (attempt + 1 < SLUG_TRIES) continue;
+      throw new Error(`No quedó un slug libre para ${name} en ${SLUG_TRIES} vueltas`);
     }
     await saveDraft(repo, event, defaultDraft(spec, lang), lang);
     return event;

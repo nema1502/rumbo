@@ -390,6 +390,8 @@ export interface Repo {
   getEventBySlug(slug: string): Promise<EventRecord | null>;
   getEventById(id: string): Promise<EventRecord | null>;
   createEvent(input: NewEvent): Promise<EventRecord>;
+  /** Lo mismo, pero si ese slug ya lo tiene otro evento devuelve null en vez de fallar (crear desde una plantilla prueba otro). */
+  createEventIfSlugFree(input: NewEvent): Promise<EventRecord | null>;
   updateEvent(id: string, patch: EventPatch): Promise<EventRecord>;
 
   // Tipos de entrada
@@ -742,11 +744,25 @@ export class SqlRepo implements Repo {
   }
 
   async createEvent(input: NewEvent): Promise<EventRecord> {
+    const event = await this.insertEvent(input, false);
+    if (!event) throw new Error(`Ya hay un evento con el slug ${input.slug}`);
+    return event;
+  }
+
+  async createEventIfSlugFree(input: NewEvent): Promise<EventRecord | null> {
+    return this.insertEvent(input, true);
+  }
+
+  /**
+   * Con ifSlugFree, el choque con otro evento que se llevó el mismo slug entre que se miró y se escribió no es un
+   * error de la base sino una fila que no entró: ON CONFLICT DO NOTHING, igual en SQLite y en Postgres.
+   */
+  private async insertEvent(input: NewEvent, ifSlugFree: boolean): Promise<EventRecord | null> {
     const id = randomUUID();
-    await this.db.run(
+    const inserted = await this.db.run(
       `INSERT INTO events (id, slug, name, description, starts_at, ends_at, timezone, place, venue, organizer_name,
          organizer_account, contract_id, capacity, created_at, template, published, team_signup, organizer_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)${ifSlugFree ? " ON CONFLICT (slug) DO NOTHING" : ""}`,
       [
         id,
         input.slug,
@@ -768,6 +784,7 @@ export class SqlRepo implements Repo {
         input.organizerId ?? null,
       ],
     );
+    if (ifSlugFree && inserted === 0) return null;
     return (await this.getEventById(id))!;
   }
 
