@@ -15,10 +15,14 @@ const { GATE_STATION } = await import("../src/lib/escaner-api.ts");
 
 const { sendAndWait, SEND_RETRY_DELAYS_MS, ContractError, isContractError } = stellar;
 
-/** Una transacción cualquiera, armada pero no mandada a ninguna parte (solo hace falta su hash). */
+/**
+ * Una transacción cualquiera, armada pero no mandada a ninguna parte (solo hace falta su hash). Sin vencimiento,
+ * para que dos llamadas den el mismo hash: con setTimeout(60) el tope de tiempo sale de "ahora" y el hash
+ * cambia si la prueba cruza un segundo (pasó con la máquina cargada).
+ */
 function transaccion() {
   const cuenta = new Account("GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF", "100");
-  return new TransactionBuilder(cuenta, { fee: "100", networkPassphrase: Networks.TESTNET }).addOperation(Operation.bumpSequence({ bumpTo: "200" })).setTimeout(60).build();
+  return new TransactionBuilder(cuenta, { fee: "100", networkPassphrase: Networks.TESTNET }).addOperation(Operation.bumpSequence({ bumpTo: "200" })).setTimeout(0).build();
 }
 const HASH = Buffer.from(transaccion().hash()).toString("hex");
 
