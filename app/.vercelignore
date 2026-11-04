@@ -1,0 +1,10 @@
+# Lo que no viaja a Vercel cuando se despliega desde esta carpeta con la CLI (pnpm dlx vercel deploy --prod).
+# Con este archivo la CLI deja de mirar .gitignore, así que deploy/testnet.json (ignorado en git y copiado por
+# pnpm build desde contracts/rumbo-pass/deploy/) sí viaja; data/ (bases locales, correos y capturas) no.
+node_modules
+.next
+.vercel
+data
+.env.local
+.env.*.local
+*.tsbuildinfo
