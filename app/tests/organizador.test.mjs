@@ -235,3 +235,36 @@ test("con Pollar apagado, entrar como organizador contesta 503 y lo dice; el pan
     process.env.RUMBO_ACCOUNTS = antes;
   }
 });
+
+test("entrar y salir desde otro sitio no tocan la sesión: un formulario ajeno contesta 403 y no pone ni borra la cookie", async () => {
+  const llave = Keypair.random();
+  const wallet = await probar(llave);
+  // Lo que manda un <form method=post enctype=text/plain> de otro sitio con un solo campo (nombre, "=", valor): un JSON válido.
+  const cuerpo = `${JSON.stringify({ wallet, name: "Nicolás", x: "=" })}\r\n`;
+  const { NextRequest } = await import("next/server");
+  const ajeno = (url, headers, body) => new NextRequest(url, { method: "POST", headers: new Headers({ "x-real-ip": "190.0.0.7", ...headers }), body });
+  const formAjeno = await entrar(ajeno("https://rum.bo/api/organizador/entrar", { "content-type": "text/plain", origin: "https://otro-sitio.example", "sec-fetch-site": "cross-site" }, cuerpo));
+  assert.equal(formAjeno.status, 403);
+  assert.equal(formAjeno.cookies.get(org.ORGANIZER_COOKIE), undefined, "sin cookie");
+  // Sin Origin pero con Sec-Fetch-Site de otro sitio, tampoco; un Origin que no se entiende, tampoco.
+  assert.equal((await entrar(ajeno("https://rum.bo/api/organizador/entrar", { "content-type": "application/json", "sec-fetch-site": "cross-site" }, JSON.stringify({ wallet })))).status, 403);
+  assert.equal((await entrar(ajeno("https://rum.bo/api/organizador/entrar", { "content-type": "application/json", origin: "null" }, JSON.stringify({ wallet })))).status, 403);
+  // El mismo desafío sigue sin usar: desde la app (Origin propio, o el del host que puso la plataforma) entra.
+  const propio = await entrar(ajeno("https://rum.bo/api/organizador/entrar", { "content-type": "application/json", origin: "https://rum.bo", "sec-fetch-site": "same-origin" }, JSON.stringify({ wallet })));
+  assert.equal(propio.status, 200);
+  const token = propio.cookies.get(org.ORGANIZER_COOKIE)?.value;
+  assert.ok(token);
+  const detrasDelProxy = await entrar(
+    ajeno("http://10.0.0.5:3000/api/organizador/entrar", { "content-type": "application/json", origin: "https://rum.bo", host: "rum.bo", "x-forwarded-proto": "https" }, JSON.stringify({ wallet: await probar(llave) })),
+  );
+  assert.equal(detrasDelProxy.status, 200, "el host que puso la plataforma cuenta como propio");
+
+  // Salir desde otro sitio: 403, sin borrar la cookie ni la sesión.
+  const salirAjeno = await salir(ajeno("https://rum.bo/api/organizador/salir", { origin: "https://otro-sitio.example", cookie: `${org.ORGANIZER_COOKIE}=${token}` }));
+  assert.equal(salirAjeno.status, 403);
+  assert.equal(salirAjeno.cookies.get(org.ORGANIZER_COOKIE), undefined);
+  assert.ok(await repo.getOrganizerSession(org.sessionIdOf(token)), "la sesión sigue");
+  const salirPropio = await salir(ajeno("https://rum.bo/api/organizador/salir", { origin: "https://rum.bo", cookie: `${org.ORGANIZER_COOKIE}=${token}` }));
+  assert.equal(salirPropio.status, 303);
+  assert.equal(await repo.getOrganizerSession(org.sessionIdOf(token)), null);
+});
