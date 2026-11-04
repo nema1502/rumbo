@@ -7,8 +7,8 @@ if (!raiz || !guia || !escenario) return;
 const es = {
   ante: "Probalo", ir: "Ahora probalo vos",
   titulo: "Hacé de cuenta que estás en el evento.",
-  bajada: "Tocá y recorré el flujo entero: te inscribís, te llega la credencial, un voluntario la escanea y el panel se entera. Es una maqueta: nada se guarda ni toca la red.",
-  real: "Y no es solo una maqueta: así anda el MVP real, grabado en la red de prueba de Stellar.", realVer: "Ver el video, 1 minuto",
+  bajada: "Tocá y recorré el flujo entero: te inscribís, te llega la credencial, un voluntario la escanea y el panel se entera. Es una maqueta del recorrido que buscamos: nada se guarda ni toca la red, y el QR del banco, el sorteo y el premio en la credencial todavía no están en el producto.",
+  real: "Y no es solo una maqueta: así anda el MVP real, grabado en la red de prueba de Stellar.", realVer: "Ver el video",
   realAria: "El MVP de Rumbo andando en la red de prueba de Stellar, de la inscripción a la transacción",
   rolesL: "Elegí un rol", asiste: "Quien asiste", voluntario: "Voluntario", organiza: "Quien organiza",
   evento: "Hackatón de la comunidad", fecha: "Domingo 22 de noviembre", nombreL: "Tu nombre",
@@ -62,8 +62,8 @@ const es = {
 const en = {
   ante: "Try it", ir: "Now try it yourself",
   titulo: "Pretend you are at the event.",
-  bajada: "Tap your way through the whole flow: you sign up, your pass arrives, a volunteer scans it and the dashboard finds out. It is a mock-up: nothing is saved and nothing touches the network.",
-  real: "And it is not just a mock-up: this is the real MVP at work, recorded on the Stellar testnet.", realVer: "Watch the video, 1 minute",
+  bajada: "Tap your way through the whole flow: you sign up, your pass arrives, a volunteer scans it and the dashboard finds out. It is a mock-up of the flow we are building: nothing is saved and nothing touches the network, and the bank QR code, the draw and the prize on the pass are not in the product yet.",
+  real: "And it is not just a mock-up: this is the real MVP at work, recorded on the Stellar testnet.", realVer: "Watch the video",
   realAria: "Rumbo's MVP running on the Stellar testnet, from sign-up to the transaction",
   rolesL: "Choose a role", asiste: "Attendee", voluntario: "Volunteer", organiza: "Organizer",
   evento: "Community hackathon", fecha: "Sunday, November 22", nombreL: "Your name",

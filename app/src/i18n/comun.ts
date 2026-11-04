@@ -39,7 +39,7 @@ export const comun = {
     "campo.obligatorio": "Este dato hace falta",
     "campo.correoInvalido": "Ese correo no parece bien escrito",
 
-    "cuenta.modoPrueba": "Modo de prueba: la cuenta la guarda el servidor; en producción es tuya, con Google o con una passkey.",
+    "cuenta.modoPrueba": "Modo de prueba: la cuenta la guarda el servidor; con Google o con tu correo, la cuenta es tuya.",
     "pago.usdcPrueba": "USDC de prueba",
     "pago.gratis": "Gratis",
     "pago.precio": "{monto} USDC de prueba",
@@ -99,7 +99,7 @@ export const comun = {
     "campo.obligatorio": "This one is required",
     "campo.correoInvalido": "That email does not look right",
 
-    "cuenta.modoPrueba": "Test mode: the server keeps your account; in production it is yours, with Google or a passkey.",
+    "cuenta.modoPrueba": "Test mode: the server keeps your account; signing in with Google or your email makes it yours.",
     "pago.usdcPrueba": "test USDC",
     "pago.gratis": "Free",
     "pago.precio": "{monto} test USDC",
