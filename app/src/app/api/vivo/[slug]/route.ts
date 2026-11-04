@@ -1,12 +1,12 @@
 // La pantalla en vivo, en JSON. Nunca lleva correos: el ranking usa el nombre de pila o el alias que cada persona eligió.
-//   GET  /api/vivo/<evento>   lo que muestra la pantalla. La abre la clave de organizador (la cookie del panel, o ?k=)
-//                             o la clave del enlace del proyector (?pantalla=), que no abre ninguna otra ruta
+//   GET  /api/vivo/<evento>   lo que muestra la pantalla. La abre lo mismo que abre el panel (la clave del evento en
+//                             la cookie o en ?k=, o la sesión de la cuenta de organizador) o la clave del enlace del
+//                             proyector (?pantalla=), que no abre ninguna otra ruta
 //   POST /api/vivo/<evento>   { action: "screen-link" }  un enlace de proyector nuevo; el viejo deja de servir en el
-//                             acto. Pide la clave de organizador
+//                             acto. Pide lo mismo que el panel
 import { NextResponse, type NextRequest } from "next/server";
 import { SCREEN_KEY_QUERY } from "@/lib/pantalla.ts";
-import { verifyOrganizerKey } from "@/server/panel.ts";
-import { authorizePanelRequest, panelKeyFromRequest } from "@/server/panel-sesion.ts";
+import { authorizePanelRequest } from "@/server/panel-sesion.ts";
 import { getRepo } from "@/server/repo.ts";
 import { getLiveState, regenerateScreenKey, verifyScreenKey } from "@/server/vivo.ts";
 
@@ -17,12 +17,12 @@ const NO_STORE = { "Cache-Control": "no-store" };
 
 export async function GET(request: NextRequest, { params }: Context) {
   const { slug } = await params;
+  // Lo que abre el panel abre la pantalla; si no, el proyector con su propio enlace, de solo lectura.
+  const auth = await authorizePanelRequest(request, slug);
+  if (auth.event) return NextResponse.json(await getLiveState(auth.event), { headers: NO_STORE });
+  if (auth.response.status !== 401) return auth.response;
   const event = await getRepo().getEventBySlug(slug);
-  if (!event) return NextResponse.json({ error: "not_found" }, { status: 404 });
-  // El proyector entra con su propio enlace, de solo lectura: abre esta ruta y ninguna otra.
-  const allowed =
-    (await verifyOrganizerKey(event.id, panelKeyFromRequest(request, slug))) || (await verifyScreenKey(event.id, request.nextUrl.searchParams.get(SCREEN_KEY_QUERY)));
-  if (!allowed) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!event || !(await verifyScreenKey(event.id, request.nextUrl.searchParams.get(SCREEN_KEY_QUERY)))) return auth.response;
   return NextResponse.json(await getLiveState(event), { headers: NO_STORE });
 }
 

@@ -22,6 +22,8 @@ const { POST: pedirDesafio } = await import("../src/app/api/cuenta/desafio/route
 const { POST: entrar } = await import("../src/app/api/organizador/entrar/route.ts");
 const { POST: salir } = await import("../src/app/api/organizador/salir/route.ts");
 const { GET: panelJson } = await import("../src/app/api/admin/[slug]/route.ts");
+const { GET: vivoJson } = await import("../src/app/api/vivo/[slug]/route.ts");
+const { getOrCreateScreenKey } = await import("../src/server/vivo.ts");
 
 const repo = getRepo();
 const b64 = (bytes) => Buffer.from(bytes).toString("base64");
@@ -130,6 +132,17 @@ test("el panel del evento propio entra con la cookie de sesión y sin clave; el 
   const json = await panelJson(await pedido(url, { method: "GET", headers: conCookie(sesionDueña) }), enRuta(slug));
   assert.equal(json.status, 200);
   assert.equal((await json.json()).event.slug, slug);
+
+  // La pantalla en vivo (que el navegador pide cada tres segundos) entra con la sesión, con la clave del evento y
+  // con el enlace del proyector; con la sesión de otra cuenta o sin nada, no.
+  const vivoUrl = `http://localhost/api/vivo/${slug}`;
+  const enVivo = async (q, headers) => (await vivoJson(await pedido(`${vivoUrl}${q}`, { method: "GET", headers }), enRuta(slug))).status;
+  assert.equal(await enVivo("", conCookie(sesionDueña)), 200, "la sesión de la dueña abre la pantalla en vivo");
+  assert.equal(await enVivo("", conCookie(sesionAjena)), 401);
+  assert.equal(await enVivo("", {}), 401);
+  assert.equal(await enVivo(`?k=${clave}`, {}), 200);
+  assert.equal(await enVivo(`?pantalla=${await getOrCreateScreenKey(creado.event.id)}`, {}), 200);
+  assert.equal((await vivoJson(await pedido("http://localhost/api/vivo/no-existe", { method: "GET", headers: conCookie(sesionDueña) }), enRuta("no-existe"))).status, 404);
 });
 
 test("una sesión vencida no entra, y la viva anota que se usó como mucho una vez por hora", async () => {
