@@ -571,7 +571,7 @@ function rowToOrganizer(row: Row): Organizer {
   return {
     id: str(row.id),
     publicKey: str(row.public_key),
-    provider: "pollar",
+    provider: str(row.provider) as WalletProvider,
     name: str(row.name ?? ""),
     createdAt: str(row.created_at),
     lastLoginAt: str(row.last_login_at),

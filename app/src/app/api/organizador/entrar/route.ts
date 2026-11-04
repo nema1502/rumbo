@@ -32,8 +32,8 @@ export async function POST(request: NextRequest) {
   if ((await organizerSessionAttempts().take(requester)) > 0) return NextResponse.json({ error: "too_many" }, { status: 429 });
 
   const proof = readWalletProof(body.wallet);
-  const name = typeof body.name === "string" ? body.name : undefined;
-  const result = proof ? await loginOrganizer(getRepo(), proof, name) : null;
+  // El nombre llega como lo mande el navegador: loginOrganizer lo limpia (y lo descarta si es un correo).
+  const result = proof ? await loginOrganizer(getRepo(), proof, body.name) : null;
   if (!result || !result.ok) {
     await attempts.note(requester);
     return NextResponse.json({ error: "wallet" }, { status: 401 });

@@ -337,3 +337,22 @@ test("entrar como organizador también tiene su freno por IP, aunque las pruebas
   assert.deepEqual([frenada.status, frenada.cuerpo, frenada.token], [429, { error: "too_many" }, null]);
   assert.equal((await entrarCon(Keypair.random(), { ip: "190.0.0.61" })).status, 200, "otra IP sigue");
 });
+
+test("el nombre que manda el navegador se limpia: sin caracteres de control ni NUL, hasta ochenta, y nunca un correo", async () => {
+  assert.equal(org.cleanOrganizerName("  Ana\u0000 Organiza\u0007\u202E  "), "Ana Organiza");
+  assert.equal(org.cleanOrganizerName("ana@ejemplo.com"), "", "un correo no se guarda");
+  assert.equal(org.cleanOrganizerName(42), "");
+  const largo = "😀".repeat(100);
+  assert.equal(Array.from(org.cleanOrganizerName(largo)).length, 80);
+  assert.ok(!org.cleanOrganizerName(`${"a".repeat(79)}😀😀`).includes("\uFFFD"), "no parte un carácter");
+
+  // Por la ruta: el NUL no llega a la base (en Postgres tiraría), el correo tampoco, y el proveedor es el que se guardó.
+  const llave = Keypair.random();
+  assert.equal((await entrarCon(llave, { name: "Bea\u0000 Correa" })).status, 200);
+  assert.equal((await repo.getOrganizerByAccount(llave.publicKey())).name, "Bea Correa");
+  const conCorreo = Keypair.random();
+  assert.equal((await entrarCon(conCorreo, { name: "bea@ejemplo.com" })).status, 200);
+  const guardado = await repo.getOrganizerByAccount(conCorreo.publicKey());
+  assert.deepEqual([guardado.name, guardado.provider], ["", "pollar"]);
+  assert.equal((await entrarCon(conCorreo, { name: { no: "texto" } })).status, 200, "un nombre que no es texto no rompe nada");
+});

@@ -32,16 +32,33 @@ export function sessionIdOf(token: string): string {
   return createHash("sha256").update(token, "utf8").digest("hex");
 }
 
+/** Cuánto puede medir el nombre de una cuenta de organizador, en caracteres (no en unidades de UTF-16). */
+export const MAX_ORGANIZER_NAME = 80;
+
+/**
+ * El nombre lo manda el navegador (lo que dio Pollar), así que se limpia acá: sin caracteres de control ni NUL (que
+ * Postgres no guarda), sin los invisibles que dan vuelta el texto, recortado a ochenta sin partir un carácter, y
+ * vacío si parece un correo: en la tabla organizers no hay correos.
+ */
+export function cleanOrganizerName(raw: unknown): string {
+  if (typeof raw !== "string") return "";
+  const name = Array.from(raw.replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g, "").replace(/\s+/g, " ").trim())
+    .slice(0, MAX_ORGANIZER_NAME)
+    .join("")
+    .trim();
+  return name.includes("@") ? "" : name;
+}
+
 export type LoginResult = { ok: true; organizer: Organizer; token: string } | { ok: false; why: Extract<ProofCheck, { ok: false }>["why"] };
 
 /**
  * Entra con la prueba de la cuenta (el desafío de /api/cuenta/desafio, firmado): crea o actualiza la cuenta de
  * organizador y abre una sesión. Devuelve la ficha para la cookie; en la base queda solo su huella.
  */
-export async function loginOrganizer(repo: Repo, proof: WalletProof, name?: string, now: number = Date.now()): Promise<LoginResult> {
+export async function loginOrganizer(repo: Repo, proof: WalletProof, name?: unknown, now: number = Date.now()): Promise<LoginResult> {
   const check = await verifyWalletProof(repo, proof);
   if (!check.ok) return check;
-  const organizer = await repo.upsertOrganizer({ publicKey: check.publicKey, provider: check.provider, name });
+  const organizer = await repo.upsertOrganizer({ publicKey: check.publicKey, provider: check.provider, name: cleanOrganizerName(name) });
   const token = randomBytes(16).toString("base64url");
   await repo.createOrganizerSession({ id: sessionIdOf(token), organizerId: organizer.id, expiresAt: new Date(now + SESSION_TTL_MS).toISOString() });
   return { ok: true, organizer, token };
