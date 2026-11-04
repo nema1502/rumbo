@@ -12,7 +12,10 @@ import { isManualScannerId } from "@/lib/escaner-api.ts";
 import { formatStationCode, stationCodesExpired } from "@/lib/station-code.ts";
 import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
 import type { ChainSyncSummary, PanelDuplicate, PanelPass, PanelState } from "@/server/panel.ts";
+import type { PanelVia } from "@/server/panel-sesion.ts";
 import { BotonCopiar } from "./BotonCopiar.tsx";
+import { CerrarSesion } from "./CerrarSesion.tsx";
+import { CompartirPanel } from "./CompartirPanel.tsx";
 import { Contador } from "./Contador.tsx";
 
 const POLL_MS = 5000;
@@ -39,7 +42,20 @@ function fechaHora(lang: Lang, timeZone: string, iso: string): string {
   return new Intl.DateTimeFormat(LOCALES[lang], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: lang === "es" ? "h23" : "h12", timeZone }).format(new Date(iso));
 }
 
-export function PanelCliente({ slug, initial, publicado = false }: { slug: string; initial: PanelState; publicado?: boolean }) {
+export function PanelCliente({
+  slug,
+  initial,
+  publicado = false,
+  via = "key",
+  pollarKey = null,
+}: {
+  slug: string;
+  initial: PanelState;
+  publicado?: boolean;
+  via?: PanelVia;
+  /** Con la cuenta: la clave publicable de Pollar, para cerrar también su sesión en este navegador. */
+  pollarKey?: string | null;
+}) {
   const t = useT();
   const lang = useLang();
   const [state, setState] = useState<PanelState>(initial);
@@ -145,6 +161,11 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
   return (
     <section className="panel">
       <header className="panel-cabecera">
+        {via === "organizer" && (
+          <Link className="enlace panel-mis-eventos" href="/admin">
+            {t("panel.cuenta.misEventos")}
+          </Link>
+        )}
         <p className="panel-sobre">
           <span>{t("panel.titulo")}</span>
           {conexion === "ok" && <Chip estado="listo">{t("panel.enVivo")}</Chip>}
@@ -164,9 +185,10 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
       {publicado && <Aviso tono="listo">{t("kit.armar.publicado")}</Aviso>}
       {conexion === "vencida" && (
         <Aviso tono="alerta">
-          {t("panel.sesionVencida")}{" "}
-          <Link className="enlace" href={`/admin/${slug}`}>
-            {t("panel.volverAEntrar")}
+          {via === "organizer" ? t("panel.sesionVencidaCuenta") : t("panel.sesionVencida")}{" "}
+          {/* Con la cuenta, la vuelta es entrar como organizador y caer de nuevo acá; con la clave, la puerta del panel. */}
+          <Link className="enlace" href={via === "organizer" ? `/admin?volver=${encodeURIComponent(`/admin/${slug}`)}` : `/admin/${slug}`}>
+            {via === "organizer" ? t("panel.cuenta.titulo") : t("panel.volverAEntrar")}
           </Link>
         </Aviso>
       )}
@@ -291,6 +313,8 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
         </Tarjeta>
       </div>
 
+      {via === "organizer" && <CompartirPanel slug={slug} />}
+
       <section className="panel-seccion">
         <div className="pases-cabecera">
           <h2>
@@ -336,11 +360,16 @@ export function PanelCliente({ slug, initial, publicado = false }: { slug: strin
         )}
       </section>
 
-      <form className="panel-salir" method="post" action={`/api/admin/${slug}/salir`}>
-        <button type="submit" className="enlace">
-          {t("panel.acceso.salir")}
-        </button>
-      </form>
+      {/* Con la clave se sale de este panel; con la cuenta se cierra la sesión en este navegador (Mis eventos queda arriba). */}
+      {via === "organizer" ? (
+        <CerrarSesion pollarKey={pollarKey} />
+      ) : (
+        <form className="panel-salir" method="post" action={`/api/admin/${slug}/salir`}>
+          <button type="submit" className="enlace">
+            {t("panel.acceso.salir")}
+          </button>
+        </form>
+      )}
 
       <div className="panel-accion">
         <p className="panel-accion-estado" suppressHydrationWarning>

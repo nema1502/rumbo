@@ -6,7 +6,9 @@
 
 Cada evento tiene una clave de organizador, al azar, guardada en la base. Se entra con el enlace `/admin/<evento>?k=<clave>`: la ruta `/api/admin/<evento>/entrar` la comprueba, la deja en una cookie (`rumbo.panel.<evento>`, treinta días) y vuelve al panel con la dirección limpia. Sin cookie, el panel muestra la puerta con llave, donde se pega la clave. "Salir del panel" borra la cookie.
 
-El enlace con la clave lo imprime `node scripts/panel-clave.mjs [slug]`, junto con los códigos de puesto. Todavía no hay cuentas de organizador: la clave es la forma de entrar del MVP.
+El enlace con la clave lo imprime `node scripts/panel-clave.mjs [slug]`, junto con los códigos de puesto.
+
+Con Pollar prendido hay además la cuenta de organizador: en `/admin` se entra con Google o con el correo, y el panel de cada evento creado con esa cuenta entra con la sesión (`src/server/organizador.ts`; `panelAccess` en `panel-sesion.ts` acepta la clave o la sesión). La clave del evento sigue valiendo, para quien coorganiza (quien entró con la cuenta la pide en "Compartir el panel", que la arma recién ahí) y para el servidor MCP. Con Pollar, la puerta con llave ofrece primero "Entrar como organizador", que después de entrar vuelve al panel, y la clave queda plegada. Está contado en [la guía de la app](../../../README.md), "La cuenta de organizador".
 
 ## Qué muestra
 

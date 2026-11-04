@@ -67,8 +67,11 @@
 .cuenta-entro::before { margin-top: 0; }
 .cuenta-entro > span { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px 12px; }
 .cuenta-entro > span > span { min-width: 0; overflow-wrap: anywhere; }
-.cuenta-entro .enlace { min-height: 32px; margin: -6px 0; }
+/* Compacto a la vista, pero con el blanco de toque de 44 px */
+.cuenta-entro .enlace { min-height: 44px; margin: -12px 0; }
 .cuenta-estado:empty { display: none; }
+.cuenta-acciones { display: grid; gap: 10px; }
+.cuenta-acciones .boton { width: 100%; }
 .cuenta-estado .aviso { background: var(--tarjeta); }
 
 /* La credencial */

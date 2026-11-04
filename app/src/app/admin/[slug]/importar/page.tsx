@@ -5,8 +5,8 @@ import { notFound, redirect } from "next/navigation";
 import { Importador } from "@/components/kit/Importador.tsx";
 import { AccesoPanel } from "@/components/panel/AccesoPanel.tsx";
 import { getT } from "@/i18n/server.ts";
-import { verifyOrganizerKey } from "@/server/panel.ts";
-import { PANEL_KEY_QUERY, panelKeyFromCookies } from "@/server/panel-sesion.ts";
+import { pollarEnabled } from "@/server/accounts.ts";
+import { PANEL_KEY_QUERY, panelAccess } from "@/server/panel-sesion.ts";
 import { getRepo } from "@/server/repo.ts";
 
 export const dynamic = "force-dynamic";
@@ -28,8 +28,8 @@ export default async function ImportPage({ params, searchParams }: { params: Par
   if (typeof key === "string" && key) redirect(`/api/admin/${encodeURIComponent(slug)}/entrar?k=${encodeURIComponent(key)}&next=importar`);
 
   const t = await getT();
-  if (!(await verifyOrganizerKey(event.id, await panelKeyFromCookies(slug)))) {
-    return <AccesoPanel slug={slug} eventName={event.name} t={t} error={query.error === "clave"} next="importar" />;
+  if (!(await panelAccess(event))) {
+    return <AccesoPanel slug={slug} eventName={event.name} t={t} error={query.error === "clave"} next="importar" conCuenta={pollarEnabled()} />;
   }
   if (!event.published) redirect(`/admin/${encodeURIComponent(slug)}/armar`);
 

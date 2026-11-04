@@ -12,6 +12,9 @@
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0;
   color: var(--tinta-2); font-weight: 600; font-size: 0.95rem;
 }
+/* Con la cuenta: la vuelta a Mis eventos, arriba del nombre del evento (con el blanco de toque entero) */
+.panel-mis-eventos { justify-self: start; display: inline-flex; align-items: center; min-height: 44px; margin: -8px 0 -6px; font-weight: 600; }
+.panel-mis-eventos::before { content: "←"; margin-right: 6px; }
 .panel-cabecera h1 { font-size: clamp(1.7rem, 4vw, 2.5rem); }
 .panel-cabecera .bajada { color: var(--tinta-2); }
 .panel h2 { font-size: 1.25rem; }
@@ -95,10 +98,27 @@
 .panel .panel-accion { position: static; }
 .panel-accion-estado { color: var(--tinta-2); font-size: 0.95rem; flex: 1 1 260px; margin: 0; }
 .panel-accion .boton { margin-left: auto; }
-.panel-salir { display: flex; justify-content: flex-end; }
+.panel-salir { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px 16px; }
+.panel-salir button.enlace { min-height: 44px; }
+/* Compartir el panel: el enlace con la clave, en un campo que se puede seleccionar, y copiar */
+.compartir-panel { display: grid; gap: 10px; justify-items: start; }
+.compartir-enlace { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+.compartir-enlace input {
+  flex: 1 1 260px; min-width: 0; min-height: 44px; padding: 8px 12px; border-radius: var(--radio-chico);
+  border: 1px solid var(--linea); background: var(--papel); color: var(--tinta); font-family: ui-monospace, monospace; font-size: 0.9rem;
+}
+.panel-salir button.enlace, .mis-eventos button.enlace { background: none; border: 0; font: inherit; font-weight: 600; cursor: pointer; }
+/* Mis eventos: "Crear evento" al pie, con "Salir" al lado */
+.mis-eventos .pantalla-accion { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.mis-eventos .pantalla-accion .boton { flex: 1 1 260px; }
 
 /* Entrar con la clave */
 .acceso-form { display: grid; gap: 16px; }
+.acceso-form .boton { justify-self: start; }
+/* Con cuentas de organizador, la clave es el camino secundario: plegada debajo de la bajada */
+.acceso-con-clave { display: grid; gap: 12px; }
+.acceso-con-clave summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; font-weight: 600; color: var(--acento-texto); }
+.acceso-con-clave[open] summary { margin-bottom: 4px; }
 
 /* El informe para quien auspicia. Ninguna tarjeta puede ensanchar la página: una tabla más ancha que
    el celular se desplaza dentro de su tarjeta. */
@@ -163,3 +183,8 @@
   .solo-impresion { display: block; }
   @page { margin: 18mm; }
 }
+
+/* Lo que viene, en Mis eventos: una tarjeta más callada que las de los eventos, con su etiqueta */
+.mis-eventos .proximamente { margin-top: 16px; border-style: dashed; background: transparent; display: grid; gap: 6px; justify-items: start; }
+.mis-eventos .proximamente h2 { font-size: 1.1rem; }
+.mis-eventos .proximamente p { margin: 0; color: var(--tinta-2); max-width: 60ch; }

@@ -44,6 +44,8 @@ export interface EventRecord {
   published: boolean;
   /** Si se inscribe por equipos (la hackatón). */
   teamSignup: boolean;
+  /** La cuenta de organizador que lo creó (organizers.id), o null: los de muestra y los del servidor MCP no tienen dueño. */
+  organizerId: string | null;
   createdAt: string;
 }
 
@@ -63,6 +65,7 @@ export interface NewEvent {
   template?: string | null;
   published?: boolean;
   teamSignup?: boolean;
+  organizerId?: string | null;
 }
 
 export type EventPatch = Partial<Omit<NewEvent, "slug">>;
@@ -350,6 +353,25 @@ export interface WalletAuthRequest {
   usedAt: string | null;
 }
 
+/** Quien organiza, con su cuenta propia (Pollar). Sin correo: solo la clave pública, quién la custodia y el nombre que dio Pollar. */
+export interface Organizer {
+  id: string;
+  publicKey: string;
+  provider: WalletProvider;
+  name: string;
+  createdAt: string;
+  lastLoginAt: string;
+}
+
+/** Una sesión de organizador. El id es la huella (SHA-256 en hex) de la ficha que viaja en la cookie, nunca la ficha. */
+export interface OrganizerSession {
+  id: string;
+  organizerId: string;
+  createdAt: string;
+  expiresAt: string;
+  lastSeenAt: string;
+}
+
 export interface EventStats {
   passes: number;
   active: number;
@@ -368,6 +390,8 @@ export interface Repo {
   getEventBySlug(slug: string): Promise<EventRecord | null>;
   getEventById(id: string): Promise<EventRecord | null>;
   createEvent(input: NewEvent): Promise<EventRecord>;
+  /** Lo mismo, pero si ese slug ya lo tiene otro evento devuelve null en vez de fallar (crear desde una plantilla prueba otro). */
+  createEventIfSlugFree(input: NewEvent): Promise<EventRecord | null>;
   updateEvent(id: string, patch: EventPatch): Promise<EventRecord>;
 
   // Tipos de entrada
@@ -456,6 +480,22 @@ export interface Repo {
   /** Lo marca usado y lo devuelve, solo si no se usó y no venció. Si no, null. */
   useWalletAuthRequest(id: string, at?: string): Promise<WalletAuthRequest | null>;
 
+  // Cuentas de organizador y sus sesiones (src/server/organizador.ts)
+  getOrganizerById(id: string): Promise<Organizer | null>;
+  getOrganizerByAccount(publicKey: string): Promise<Organizer | null>;
+  /** Crea la cuenta de organizador, o actualiza la que ya tiene esa cuenta de Stellar: la última entrada y el nombre, si vino uno. */
+  upsertOrganizer(input: { publicKey: string; provider: WalletProvider; name?: string }): Promise<Organizer>;
+  createOrganizerSession(input: { id: string; organizerId: string; expiresAt: string }): Promise<OrganizerSession>;
+  getOrganizerSession(id: string): Promise<OrganizerSession | null>;
+  touchOrganizerSession(id: string, at: string): Promise<void>;
+  deleteOrganizerSession(id: string): Promise<void>;
+  /** Los eventos de esa cuenta, los más nuevos primero. */
+  listEventsByOrganizer(organizerId: string): Promise<EventRecord[]>;
+  /** Cuántos eventos creó esa cuenta desde `since` (ISO 8601): el tope de creación por día. */
+  countEventsByOrganizerSince(organizerId: string, since: string): Promise<number>;
+  /** Cuándo se creó cada evento con cuenta (de cualquier cuenta) desde `since`, de más viejo a más nuevo: el techo de todo Rumbo. */
+  listAccountEventTimesSince(since: string): Promise<string[]>;
+
   // Equipos (la inscripción de la hackatón)
   /** Crea el equipo, o devuelve el que ya tenía ese nombre en el evento (sin importar mayúsculas). */
   createTeam(eventId: string, name: string): Promise<{ team: Team; created: boolean }>;
@@ -526,8 +566,24 @@ function rowToEvent(row: Row): EventRecord {
     template: strOrNull(row.template),
     published: bool(row.published),
     teamSignup: bool(row.team_signup),
+    organizerId: strOrNull(row.organizer_id),
     createdAt: str(row.created_at),
   };
+}
+
+function rowToOrganizer(row: Row): Organizer {
+  return {
+    id: str(row.id),
+    publicKey: str(row.public_key),
+    provider: str(row.provider) as WalletProvider,
+    name: str(row.name ?? ""),
+    createdAt: str(row.created_at),
+    lastLoginAt: str(row.last_login_at),
+  };
+}
+
+function rowToOrganizerSession(row: Row): OrganizerSession {
+  return { id: str(row.id), organizerId: str(row.organizer_id), createdAt: str(row.created_at), expiresAt: str(row.expires_at), lastSeenAt: str(row.last_seen_at) };
 }
 
 function rowToTicketType(row: Row): TicketType {
@@ -690,11 +746,25 @@ export class SqlRepo implements Repo {
   }
 
   async createEvent(input: NewEvent): Promise<EventRecord> {
+    const event = await this.insertEvent(input, false);
+    if (!event) throw new Error(`Ya hay un evento con el slug ${input.slug}`);
+    return event;
+  }
+
+  async createEventIfSlugFree(input: NewEvent): Promise<EventRecord | null> {
+    return this.insertEvent(input, true);
+  }
+
+  /**
+   * Con ifSlugFree, el choque con otro evento que se llevó el mismo slug entre que se miró y se escribió no es un
+   * error de la base sino una fila que no entró: ON CONFLICT DO NOTHING, igual en SQLite y en Postgres.
+   */
+  private async insertEvent(input: NewEvent, ifSlugFree: boolean): Promise<EventRecord | null> {
     const id = randomUUID();
-    await this.db.run(
+    const inserted = await this.db.run(
       `INSERT INTO events (id, slug, name, description, starts_at, ends_at, timezone, place, venue, organizer_name,
-         organizer_account, contract_id, capacity, created_at, template, published, team_signup)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         organizer_account, contract_id, capacity, created_at, template, published, team_signup, organizer_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)${ifSlugFree ? " ON CONFLICT (slug) DO NOTHING" : ""}`,
       [
         id,
         input.slug,
@@ -713,8 +783,10 @@ export class SqlRepo implements Repo {
         input.template ?? null,
         input.published !== false,
         input.teamSignup === true,
+        input.organizerId ?? null,
       ],
     );
+    if (ifSlugFree && inserted === 0) return null;
     return (await this.getEventById(id))!;
   }
 
@@ -734,6 +806,7 @@ export class SqlRepo implements Repo {
     if (patch.template !== undefined) columns.template = patch.template;
     if (patch.published !== undefined) columns.published = patch.published;
     if (patch.teamSignup !== undefined) columns.team_signup = patch.teamSignup;
+    if (patch.organizerId !== undefined) columns.organizer_id = patch.organizerId;
     await this.update("events", id, columns);
     const event = await this.getEventById(id);
     if (!event) throw new Error(`No existe el evento ${id}`);
@@ -1233,6 +1306,73 @@ export class SqlRepo implements Repo {
       expiresAt: str(row.expires_at),
       usedAt: strOrNull(row.used_at),
     };
+  }
+
+  // Cuentas de organizador
+
+  async getOrganizerById(id: string): Promise<Organizer | null> {
+    const row = await this.db.one("SELECT * FROM organizers WHERE id = ?", [id]);
+    return row ? rowToOrganizer(row) : null;
+  }
+
+  async getOrganizerByAccount(publicKey: string): Promise<Organizer | null> {
+    const row = await this.db.one("SELECT * FROM organizers WHERE public_key = ?", [publicKey]);
+    return row ? rowToOrganizer(row) : null;
+  }
+
+  async upsertOrganizer(input: { publicKey: string; provider: WalletProvider; name?: string }): Promise<Organizer> {
+    const at = now();
+    const name = (input.name ?? "").trim().slice(0, 80);
+    // Una sola sentencia: dos pedidos a la vez con la misma cuenta no crean dos organizadores. Un nombre vacío no
+    // pisa el que ya había: Pollar lo tiene solo en memoria y no siempre lo manda.
+    await this.db.run(
+      `INSERT INTO organizers (id, public_key, provider, name, created_at, last_login_at) VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT (public_key) DO UPDATE SET last_login_at = excluded.last_login_at,
+         name = CASE WHEN excluded.name = '' THEN organizers.name ELSE excluded.name END`,
+      [randomUUID(), input.publicKey, input.provider, name, at, at],
+    );
+    return (await this.getOrganizerByAccount(input.publicKey))!;
+  }
+
+  async createOrganizerSession(input: { id: string; organizerId: string; expiresAt: string }): Promise<OrganizerSession> {
+    const at = now();
+    // Las sesiones vencidas hace más de un día ya no abren nada.
+    await this.db.run("DELETE FROM organizer_sessions WHERE expires_at < ?", [new Date(Date.now() - 24 * 3600_000).toISOString()]);
+    await this.db.run("INSERT INTO organizer_sessions (id, organizer_id, created_at, expires_at, last_seen_at) VALUES (?, ?, ?, ?, ?)", [
+      input.id,
+      input.organizerId,
+      at,
+      input.expiresAt,
+      at,
+    ]);
+    return { ...input, createdAt: at, lastSeenAt: at };
+  }
+
+  async getOrganizerSession(id: string): Promise<OrganizerSession | null> {
+    const row = await this.db.one("SELECT * FROM organizer_sessions WHERE id = ?", [id]);
+    return row ? rowToOrganizerSession(row) : null;
+  }
+
+  async touchOrganizerSession(id: string, at: string): Promise<void> {
+    await this.db.run("UPDATE organizer_sessions SET last_seen_at = ? WHERE id = ?", [at, id]);
+  }
+
+  async deleteOrganizerSession(id: string): Promise<void> {
+    await this.db.run("DELETE FROM organizer_sessions WHERE id = ?", [id]);
+  }
+
+  async listEventsByOrganizer(organizerId: string): Promise<EventRecord[]> {
+    return (await this.db.all("SELECT * FROM events WHERE organizer_id = ? ORDER BY created_at DESC", [organizerId])).map(rowToEvent);
+  }
+
+  async countEventsByOrganizerSince(organizerId: string, since: string): Promise<number> {
+    const row = await this.db.one("SELECT COUNT(*) AS n FROM events WHERE organizer_id = ? AND created_at >= ?", [organizerId, since]);
+    return num(row?.n ?? 0);
+  }
+
+  async listAccountEventTimesSince(since: string): Promise<string[]> {
+    const rows = await this.db.all("SELECT created_at FROM events WHERE organizer_id IS NOT NULL AND created_at >= ? ORDER BY created_at", [since]);
+    return rows.map((row) => str(row.created_at));
   }
 
   // Equipos

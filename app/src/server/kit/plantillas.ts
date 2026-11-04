@@ -3,6 +3,7 @@
 // tipos de credencial con lo que le toca a cada uno y los puestos del escáner, que salen de los beneficios.
 // Todo es solo una propuesta: el evento nace como borrador y se edita en /admin/<evento>/armar (borrador.ts).
 // Los eventos son gratis por defecto; lo pago (entrada con polera, kit del taller) es opcional y viene apagado.
+import { randomBytes } from "node:crypto";
 import { translate, type Lang } from "../../i18n/index.ts";
 import type { CredentialKind } from "../../lib/credential-kinds.ts";
 import type { Benefit, BenefitKind, EventRecord, Repo } from "../repo.ts";
@@ -347,6 +348,8 @@ export interface NewEventFromTemplate {
   timezone?: string;
   /** La cuenta de quien organiza, a donde van los pagos. En la red de prueba, la del despliegue. */
   organizerAccount?: string | null;
+  /** La cuenta de organizador que lo crea (src/server/organizador.ts), si entró con la suya; el MCP y la clave de la casa no la tienen. */
+  organizerId?: string | null;
 }
 
 export type TemplateError = "name" | "place" | "organizer" | "date" | "capacity";
@@ -378,6 +381,9 @@ async function uniqueSlug(repo: Repo, base: string): Promise<string> {
   return slug;
 }
 
+/** Cuántas veces se prueba otro slug si dos creaciones a la vez eligieron el mismo. */
+const SLUG_TRIES = 4;
+
 export const MAX_CAPACITY = 1000;
 
 /**
@@ -385,6 +391,44 @@ export const MAX_CAPACITY = 1000;
  * trae cada tipo. Todavía no tiene contratos ni se ve en la página pública (eso lo hace publicar, publicar.ts).
  */
 export async function createEventFromTemplate(repo: Repo, input: NewEventFromTemplate): Promise<EventRecord> {
+  const checked = checkTemplateInput(input);
+  const { spec, lang, name } = checked;
+  // uniqueSlug mira y después se escribe: dos creaciones a la vez con el mismo nombre eligen el mismo slug y la
+  // segunda choca con la restricción única. Esa no entra (createEventIfSlugFree) y vuelve a probar con un sufijo al
+  // azar: nunca termina en un error.
+  for (let attempt = 0; ; attempt++) {
+    const base = attempt === 0 ? slugify(name) : `${slugify(name).slice(0, 34) || "evento"}-${randomBytes(3).toString("hex")}`;
+    const event = await repo.createEventIfSlugFree({
+      slug: await uniqueSlug(repo, base),
+      name,
+      description: translate(lang, spec.descriptionKey),
+      startsAt: checked.startsAt,
+      endsAt: checked.endsAt,
+      timezone: checked.timezone,
+      place: checked.place,
+      venue: input.venue?.trim() || null,
+      organizerName: checked.organizerName,
+      organizerAccount: input.organizerAccount ?? null,
+      organizerId: input.organizerId ?? null,
+      capacity: checked.capacity,
+      template: spec.id,
+      published: false,
+      teamSignup: spec.teamSignup,
+    });
+    if (!event) {
+      if (attempt + 1 < SLUG_TRIES) continue;
+      throw new Error(`No quedó un slug libre para ${name} en ${SLUG_TRIES} vueltas`);
+    }
+    await saveDraft(repo, event, defaultDraft(spec, lang), lang);
+    return event;
+  }
+}
+
+/**
+ * Revisa los datos de la plantilla sin escribir nada y los devuelve limpios, o tira TemplateInputError con el campo
+ * que está mal. Crear con la cuenta lo llama antes de gastar un turno de su tope.
+ */
+export function checkTemplateInput(input: NewEventFromTemplate) {
   const spec = TEMPLATES[input.template];
   const lang = input.lang;
   const timezone = input.timezone ?? "America/La_Paz";
@@ -402,25 +446,7 @@ export async function createEventFromTemplate(repo: Repo, input: NewEventFromTem
   // La hora de fin: los días que dura la plantilla, y las horas del último.
   const endLocal = addHours(input.startsAtLocal, (spec.days - 1) * 24 + spec.hours);
   const endsAt = localToIso(endLocal, timezone);
-
-  const event = await repo.createEvent({
-    slug: await uniqueSlug(repo, slugify(name)),
-    name,
-    description: translate(lang, spec.descriptionKey),
-    startsAt,
-    endsAt,
-    timezone,
-    place,
-    venue: input.venue?.trim() || null,
-    organizerName,
-    organizerAccount: input.organizerAccount ?? null,
-    capacity,
-    template: spec.id,
-    published: false,
-    teamSignup: spec.teamSignup,
-  });
-  await saveDraft(repo, event, defaultDraft(spec, lang), lang);
-  return event;
+  return { spec, lang, timezone, name, place, organizerName, startsAt, endsAt, capacity };
 }
 
 function addHours(local: string, hours: number): string {

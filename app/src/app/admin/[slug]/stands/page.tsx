@@ -6,8 +6,8 @@ import { AccesoPanel } from "@/components/panel/AccesoPanel.tsx";
 import { AdminStands } from "@/components/stands/AdminStands.tsx";
 import "@/components/stands/stands.css";
 import { getT } from "@/i18n/server.ts";
-import { verifyOrganizerKey } from "@/server/panel.ts";
-import { PANEL_KEY_QUERY, panelKeyFromCookies } from "@/server/panel-sesion.ts";
+import { pollarEnabled } from "@/server/accounts.ts";
+import { PANEL_KEY_QUERY, panelAccess } from "@/server/panel-sesion.ts";
 import { getRepo } from "@/server/repo.ts";
 import { getAdminStands } from "@/server/stands.ts";
 
@@ -31,8 +31,8 @@ export default async function StandsAdminPage({ params, searchParams }: { params
   if (typeof key === "string" && key) redirect(`/api/admin/${slug}/entrar?k=${encodeURIComponent(key)}&next=stands`);
 
   const t = await getT();
-  if (!(await verifyOrganizerKey(event.id, await panelKeyFromCookies(slug)))) {
-    return <AccesoPanel slug={slug} eventName={event.name} t={t} error={query.error === "clave"} next="stands" />;
+  if (!(await panelAccess(event))) {
+    return <AccesoPanel slug={slug} eventName={event.name} t={t} error={query.error === "clave"} next="stands" conCuenta={pollarEnabled()} />;
   }
   return <AdminStands slug={slug} initial={await getAdminStands(event, repo)} />;
 }

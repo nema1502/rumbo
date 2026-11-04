@@ -1,9 +1,11 @@
 // El inicio: la lista de eventos, cada uno con su página pública. Es para quien se inscribe; las puertas de
-// operación (el panel, el escáner, armar un evento) van en una línea chica al pie, y armar solo si este
-// servidor lo tiene abierto.
+// operación (el panel, el escáner, armar un evento) van en una línea chica al pie. Con cuentas de organizador
+// (Pollar), las dos primeras llevan a /admin, que es donde se entra y se crea; sin ellas, al panel de cada evento
+// con su clave, y armar solo si este servidor lo tiene abierto.
 import Link from "next/link";
 import { Aviso, BotonEnlace, Chip, Tarjeta } from "@/components/ui.tsx";
 import { getLang, getT } from "@/i18n/server.ts";
+import { pollarEnabled } from "@/server/accounts.ts";
 import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
 import { createGate } from "@/server/kit/acceso.ts";
 import { getRepo } from "@/server/repo.ts";
@@ -17,6 +19,7 @@ export default async function HomePage() {
   const events = (await repo.listEvents()).filter((event) => event.published);
   const cards = await Promise.all(events.map(async (event) => ({ event, tickets: await repo.listTicketTypes(event.id) })));
   const gate = createGate();
+  const conCuenta = pollarEnabled();
   // La pista para quien desarrolla va a la consola del servidor, no a la pantalla de la gente.
   if (cards.length === 0 && process.env.NODE_ENV !== "production") {
     console.info("[inicio] Todavía no hay eventos. Para crear el de muestra: pnpm seed");
@@ -56,22 +59,14 @@ export default async function HomePage() {
       </div>
       <p className="inicio-operacion">
         <span>{t("inicio.operacion")}</span>
-        {events.length === 1 ? (
-          <Link className="enlace" href={`/admin/${events[0]!.slug}`}>
-            {t("inicio.panel")}
-          </Link>
-        ) : (
-          events.map((event) => (
-            <Link key={event.id} className="enlace" href={`/admin/${event.slug}`}>
-              {t("inicio.panelDe", { evento: event.name })}
-            </Link>
-          ))
-        )}
+        <Link className="enlace" href="/admin">
+          {conCuenta ? t("inicio.organizador") : t("inicio.panel")}
+        </Link>
         <Link className="enlace" href="/scan">
           {t("inicio.escaner")}
         </Link>
-        {gate.open && (
-          <Link className="enlace" href="/admin/nuevo">
+        {(conCuenta || gate.open) && (
+          <Link className="enlace" href={conCuenta ? "/admin" : "/admin/nuevo"}>
             {t("kit.inicio.armar")}
           </Link>
         )}

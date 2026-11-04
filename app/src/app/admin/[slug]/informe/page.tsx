@@ -9,9 +9,10 @@ import { Contador } from "@/components/panel/Contador.tsx";
 import { Aviso, Tarjeta } from "@/components/ui.tsx";
 import { formatDate, makeT } from "@/i18n/index.ts";
 import { getLang } from "@/i18n/server.ts";
+import { pollarEnabled } from "@/server/accounts.ts";
 import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
-import { getSponsorReport, verifyOrganizerKey } from "@/server/panel.ts";
-import { PANEL_KEY_QUERY, panelKeyFromCookies } from "@/server/panel-sesion.ts";
+import { getSponsorReport } from "@/server/panel.ts";
+import { PANEL_KEY_QUERY, panelAccess } from "@/server/panel-sesion.ts";
 import { getRepo } from "@/server/repo.ts";
 
 export const dynamic = "force-dynamic";
@@ -37,8 +38,8 @@ export default async function InformePage({ params, searchParams }: { params: Pa
 
   const lang = await getLang();
   const t = makeT(lang);
-  if (!(await verifyOrganizerKey(event.id, await panelKeyFromCookies(slug)))) {
-    return <AccesoPanel slug={slug} eventName={event.name} t={t} error={query.error === "clave"} next="informe" />;
+  if (!(await panelAccess(event))) {
+    return <AccesoPanel slug={slug} eventName={event.name} t={t} error={query.error === "clave"} next="informe" conCuenta={pollarEnabled()} />;
   }
 
   const report = await getSponsorReport(event, repo);

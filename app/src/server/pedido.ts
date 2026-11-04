@@ -16,3 +16,40 @@ export function originOfRequest(request: NextRequest): string | null {
   const proto = request.headers.get("x-forwarded-proto") ?? (/^(localhost|127\.0\.0\.1)(:|$)/.test(host) ? "http" : "https");
   return `${proto}://${host}`;
 }
+
+/**
+ * Si un POST viene de la propia app y no de un formulario de otro sitio. Las rutas que ponen o borran una cookie de
+ * sesión lo piden: SameSite=Lax frena que el navegador mande las cookies de Rumbo desde otro sitio, no que guarde
+ * la que trae la respuesta. Con Origin, tiene que ser el de la app: el del pedido (como lo resuelve
+ * originOfRequest, o la URL que vio el servidor) o el de NEXT_PUBLIC_BASE_URL. Sin Origin (curl, las pruebas, un
+ * navegador viejo), vale si Sec-Fetch-Site dice same-origin o no viene.
+ */
+export function fromOwnSite(request: NextRequest): boolean {
+  const origin = request.headers.get("origin");
+  if (!origin) {
+    const site = request.headers.get("sec-fetch-site");
+    return site === null || site === "same-origin";
+  }
+  // Las páginas de /admin van con Referrer-Policy: no-referrer, y con esa política el navegador manda
+  // "Origin: null" en los POST de la propia app (un formulario o un fetch al mismo sitio). Se acepta solo si
+  // Sec-Fetch-Site, que lo pone el navegador y una página no puede falsificar, dice same-origin.
+  if (origin === "null") return request.headers.get("sec-fetch-site") === "same-origin";
+  let claimed: string;
+  try {
+    claimed = new URL(origin).origin;
+  } catch {
+    return false;
+  }
+  const own = new Set<string>([request.nextUrl.origin]);
+  const fromHeaders = originOfRequest(request);
+  if (fromHeaders) own.add(fromHeaders);
+  const base = process.env.NEXT_PUBLIC_BASE_URL;
+  if (base) {
+    try {
+      own.add(new URL(base).origin);
+    } catch {
+      /* una NEXT_PUBLIC_BASE_URL mal escrita no abre nada */
+    }
+  }
+  return own.has(claimed);
+}

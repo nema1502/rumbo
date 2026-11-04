@@ -22,7 +22,26 @@ export function clientKey(headers: { get(name: string): string | null }): string
   if (!header) return "local";
   const value = headers.get(header);
   const ip = value?.split(",").at(-1)?.trim();
-  return ip ? ip.slice(0, 64) : "local";
+  return ip ? networkOf(ip).slice(0, 64) : "local";
+}
+
+/**
+ * Una IPv6 se cuenta por su /64: es lo que suele tener una sola máquina o una sola red, y con la dirección entera
+ * cada una de sus miles de direcciones era una conexión nueva para los frenos. Una IPv4 (también escrita como
+ * ::ffff:1.2.3.4) queda entera. Lo que no se entiende como IPv6 queda como vino.
+ */
+export function networkOf(ip: string): string {
+  if (!ip.includes(":")) return ip;
+  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(ip);
+  if (mapped) return mapped[1]!;
+  const sinZona = ip.split("%")[0]!.toLowerCase();
+  const partes = sinZona.split("::");
+  if (partes.length > 2) return ip;
+  const cabeza = partes[0] ? partes[0].split(":") : [];
+  const cola = partes.length === 2 && partes[1] ? partes[1].split(":") : [];
+  const grupos = partes.length === 2 ? [...cabeza, ...Array(Math.max(0, 8 - cabeza.length - cola.length)).fill("0"), ...cola] : cabeza;
+  if (grupos.length !== 8 || !grupos.slice(0, 4).every((g) => /^[0-9a-f]{1,4}$/.test(g))) return ip;
+  return `${grupos.slice(0, 4).map((g) => parseInt(g, 16).toString(16)).join(":")}::/64`;
 }
 
 // ---------- El freno de intentos ----------
@@ -295,6 +314,41 @@ export function registrationAttempts(): Limiter {
  */
 export function walletChallengeAttempts(): Limiter {
   return limiter("wallet-challenge", { windowMs: 10 * MINUTE, perKey: 60, global: 1200, lockMs: 10 * MINUTE, maxLockMs: 6 * HOUR, forgetMs: 6 * HOUR });
+}
+
+/**
+ * Las entradas como organizador que fallan (una prueba que no vale): diez por IP en diez minutos y después una
+ * espera que crece. Cada intento gasta además un desafío, que ya tiene su propio freno (walletChallengeAttempts).
+ */
+export function organizerLoginAttempts(): Limiter {
+  return limiter("organizer-login", { windowMs: 10 * MINUTE, perKey: 10, global: 200, lockMs: 10 * MINUTE, maxLockMs: 6 * HOUR, forgetMs: 6 * HOUR });
+}
+
+/**
+ * Las entradas como organizador, todas (las que salen bien también): veinte por IP por hora, y mil en total. Una
+ * cuenta es cualquier llave que firme el desafío, así que sin esto una IP abriría cuentas nuevas en serie, cada una
+ * con su propio tope de eventos por día.
+ */
+export function organizerSessionAttempts(): Limiter {
+  return limiter("organizer-session", { windowMs: HOUR, perKey: 20, global: 1000, lockMs: HOUR, maxLockMs: 6 * HOUR, forgetMs: 6 * HOUR });
+}
+
+/** Cuántos eventos se crean con cuenta desde una misma IP en veinticuatro horas si RUMBO_EVENTS_PER_IP_PER_DAY no dice otra cosa. */
+export const DEFAULT_EVENTS_PER_IP_PER_DAY = 10;
+
+export function eventsPerIpPerDay(): number {
+  const n = Number(getEnv("RUMBO_EVENTS_PER_IP_PER_DAY", String(DEFAULT_EVENTS_PER_IP_PER_DAY)));
+  return Number.isInteger(n) && n > 0 ? n : DEFAULT_EVENTS_PER_IP_PER_DAY;
+}
+
+/**
+ * Los eventos creados con la cuenta de organizador, por IP: RUMBO_EVENTS_PER_IP_PER_DAY en veinticuatro horas (diez),
+ * y quinientos en total. El tope de cada cuenta (organizador.ts) frena a una cuenta, no a una persona: las cuentas
+ * son gratis. El número se lee al armar el freno, una vez por proceso. Sin una IP de fiar (next dev) todos los
+ * pedidos cuentan como uno solo, y el tope es de la máquina entera.
+ */
+export function eventCreateAttempts(): Limiter {
+  return limiter("event-create", { windowMs: 24 * HOUR, perKey: eventsPerIpPerDay(), global: 500, lockMs: 24 * HOUR, maxLockMs: 24 * HOUR, forgetMs: 24 * HOUR });
 }
 
 /** El reenvío del enlace a un correo que ya tenía su credencial: uno cada diez minutos por correo y evento. */
