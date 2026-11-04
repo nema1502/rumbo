@@ -44,7 +44,28 @@ test("el contrato se lee una vez por minuto, aunque lo pidan varias pantallas a 
     stellar.rumboPass.info = async () => {
       throw new Error("sin red");
     };
-    assert.equal(await readContractCapacity("COTRO"), null, "si la red no contesta, no se sabe");
+    assert.equal(await readContractCapacity("COTRO"), null, "si la red falla, no se sabe");
+  } finally {
+    stellar.rumboPass.info = original;
+    forgetContractCapacities();
+  }
+});
+
+test("si la red tarda, la pantalla no espera, pero la lectura termina y la próxima carga la encuentra", async () => {
+  forgetContractCapacities();
+  const original = stellar.rumboPass.info;
+  let lecturas = 0;
+  stellar.rumboPass.info = () =>
+    new Promise((resolve) => {
+      lecturas++;
+      setTimeout(() => resolve({ capacity: 1, issued: 1 }), 150);
+    });
+  try {
+    assert.equal(await readContractCapacity("CLENTO", 20), null, "a los 20 ms la pantalla sigue con la base");
+    assert.equal(await readContractCapacity("CLENTO", 20), null, "y no empieza otra lectura mientras la primera sigue");
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    assert.deepEqual(await readContractCapacity("CLENTO", 20), { capacity: 1, issued: 1 }, "la lectura terminó sola y quedó recordada");
+    assert.equal(lecturas, 1);
   } finally {
     stellar.rumboPass.info = original;
     forgetContractCapacities();
