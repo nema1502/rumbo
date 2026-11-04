@@ -347,6 +347,8 @@ export interface NewEventFromTemplate {
   timezone?: string;
   /** La cuenta de quien organiza, a donde van los pagos. En la red de prueba, la del despliegue. */
   organizerAccount?: string | null;
+  /** La cuenta de organizador que lo crea (src/server/organizador.ts), si entró con la suya; el MCP y la clave de la casa no la tienen. */
+  organizerId?: string | null;
 }
 
 export type TemplateError = "name" | "place" | "organizer" | "date" | "capacity";
@@ -414,6 +416,7 @@ export async function createEventFromTemplate(repo: Repo, input: NewEventFromTem
     venue: input.venue?.trim() || null,
     organizerName,
     organizerAccount: input.organizerAccount ?? null,
+    organizerId: input.organizerId ?? null,
     capacity,
     template: spec.id,
     published: false,
