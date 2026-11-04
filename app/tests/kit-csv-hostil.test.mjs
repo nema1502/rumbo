@@ -81,6 +81,31 @@ test("una coma final en cada fila (o también en la cabecera) no corre las colum
   assert.deepEqual(coma.rows.map((r) => r.email), ["rod@example.com", "ana1@example.com"]);
 });
 
+test("un encabezado con la última celda vacía y filas que sí la llenan no se rechaza entero: la columna existe, sin nombre", () => {
+  const tabla = csv.parseTable("Name,Email,\nAna Uno,ana1@example.com,approved\nBeto Dos,beto2@example.com,approved\nCaro Tres,caro3@example.com,\n");
+  assert.deepEqual(tabla.columns, ["Name", "Email", "Columna 3"]);
+  assert.deepEqual(tabla.rows.map((r) => r[2]), ["approved", "approved", ""]);
+  assert.deepEqual(tabla.skipped, []);
+  const datos = imp.parseGuests("Name,Email,\nAna Uno,ana1@example.com,approved\nBeto Dos,beto2@example.com,approved\n");
+  assert.deepEqual(datos.rows.map((r) => [r.name, r.email]), [["Ana Uno", "ana1@example.com"], ["Beto Dos", "beto2@example.com"]]);
+  // Si las filas tampoco la llenan, la coma final del encabezado sigue sin ser una columna.
+  assert.deepEqual(csv.parseTable("Name,Email,\nAna Uno,ana1@example.com\nBeto Dos,beto2@example.com,\n").columns, ["Name", "Email"]);
+});
+
+test("el tope de la celda se mide mientras se arma, y una línea larga leída con el separador equivocado no cuenta como celda enorme", () => {
+  // Una celda de dos megas: se corta apenas pasa el tope, sin recorrerla entera.
+  const enorme = medir(() => imp.parseGuests(`Name,Email\nPedro,"${"a".repeat(2 * MIB)}"\n`));
+  assert.equal(codigo(enorme), "cell_too_long");
+  assert.ok(enorme.ms < 1500, `tardó ${enorme.ms.toFixed(0)} ms`);
+  // Un archivo con tabulaciones cuyas líneas pasan de mil letras: leído con comas sería una celda enorme, y no es el separador.
+  const nombre = "Ana ".repeat(150).trim();
+  const estado = "aprobada ".repeat(70).trim();
+  const tabulado = ["Name\tEmail\tStatus", `${nombre}\tana@example.com\t${estado}`, `${nombre}\tbeto@example.com\t${estado}`].join("\n");
+  const tabla = csv.parseTable(tabulado);
+  assert.deepEqual(tabla.columns, ["Name", "Email", "Status"]);
+  assert.deepEqual(tabla.rows.map((r) => r[1]), ["ana@example.com", "beto@example.com"]);
+});
+
 test("un archivo UTF-8 con un solo byte suelto de Latin-1 no se lee entero como Windows-1252; uno en Windows-1252 de verdad, sí", () => {
   const mezcla = new Uint8Array(Buffer.concat([Buffer.from("Name,Email\nMaría Pérez,maria@example.com\nJos"), Buffer.from([0xe9]), Buffer.from(" Ñandú,jose@example.com\n")]));
   const leido = imp.parseGuestFile(mezcla);
