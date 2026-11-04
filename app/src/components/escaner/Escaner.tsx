@@ -34,6 +34,7 @@ import {
 } from "@/lib/escaner-api.ts";
 import { OPEN_TIMEOUT_MS, READ_REFRESH_TIMEOUT_MS, SYNC_TIMEOUT_MS, postJson } from "@/lib/http.ts";
 import { clockOffset } from "@/lib/qr-live.ts";
+import { measureClockOffset } from "@/lib/reloj.ts";
 import { importEventKey, verifyQrPayloadInBrowser } from "@/lib/qr-verify.ts";
 import { STATION_CODE_LENGTH, normalizeStationCode } from "@/lib/station-code.ts";
 import { Camara, type CameraProblem } from "./Camara.tsx";
@@ -67,6 +68,16 @@ function deviceId(): string {
   } catch {
     return nuevoId().slice(0, 8);
   }
+}
+
+/**
+ * Cuánto hay que sumarle al reloj de este celular para tener la hora del servidor, medido con el viaje de ida y
+ * vuelta a /api/hora cada vez que llega una foto (hay red). Si esa medida no sale, vale la hora de la foto, que
+ * llegó recién, sin compensar el viaje: mejor que nada.
+ */
+async function medirDesfase(generatedAt: string): Promise<number> {
+  const medida = await measureClockOffset();
+  return medida !== 0 ? medida : clockOffset(Date.parse(generatedAt), Date.now());
 }
 
 function vibrar(kind: Verdict["kind"]): void {
@@ -170,10 +181,10 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
   const actualizarSnapshot = useCallback(async (snapshot: ScanSnapshot) => {
     const s = sesionRef.current;
     if (!s) return;
-    // La foto acaba de llegar del servidor: su hora sirve para corregir un reloj desfasado. Si vino de abrir el
-    // puesto, trae una ficha de sesión nueva (vale otras treinta y seis horas); si no, queda la de antes.
+    // La foto acaba de llegar del servidor: hay red, y es el momento de volver a medir el reloj. Si vino de abrir
+    // el puesto, trae una ficha de sesión nueva (vale otras treinta y seis horas); si no, queda la de antes.
     const { session, ...foto } = snapshot;
-    const nueva: ScanSession = { ...s, snapshot: foto, token: session?.token ?? s.token, savedAt: new Date().toISOString(), clockOffsetMs: clockOffset(Date.parse(snapshot.generatedAt), Date.now()) };
+    const nueva: ScanSession = { ...s, snapshot: foto, token: session?.token ?? s.token, savedAt: new Date().toISOString(), clockOffsetMs: await medirDesfase(snapshot.generatedAt) };
     sesionRef.current = nueva;
     setSesion(nueva);
     await colaRef.current?.saveSession(nueva);
@@ -348,7 +359,7 @@ export function Escaner({ demo = false }: { demo?: boolean }) {
         scannerId,
         snapshot: foto,
         savedAt: new Date().toISOString(),
-        clockOffsetMs: clockOffset(Date.parse(data.generatedAt), Date.now()),
+        clockOffsetMs: await medirDesfase(data.generatedAt),
       };
       await colaRef.current?.saveSession(nueva);
       if (!(await adoptarSesion(nueva))) return setErrorAbrir(t("escaner.errorRed"));

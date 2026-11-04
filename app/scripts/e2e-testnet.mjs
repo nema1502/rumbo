@@ -423,6 +423,8 @@ try {
   const mesa = await json("/api/scan/open", { code: almuerzoCode, scannerId: "e2e-mesa" });
   check(mesa.status === 200 && mesa.cuerpo.station?.kind === "benefit" && mesa.cuerpo.station.id === lunch.id, `la mesa abre con su puesto "${mesa.cuerpo.station?.name}"`);
   const sesionMesa = mesa.cuerpo.session?.token;
+  const enLaMesa = paseEn(mesa.cuerpo, paseGratis.id);
+  check(enLaMesa?.benefits.length === 0 && (enLaMesa.diet ?? null) === null && !("prize" in JSON.stringify(mesa.cuerpo.passes)), "la foto de la mesa trae de cada pase solo lo que necesita: su beneficio y su canje, sin la dieta de quien no come ahí ni los demás beneficios");
   const v3 = decideVerdict(await verifica(await qrGratis()), mesa.cuerpo.station, paseEn(mesa.cuerpo, paseGratis.id), undefined);
   check(v3.kind === "no" && v3.reason === "not_included", `${gratis.nombre} (inscripción gratis): no corresponde, la entrada no incluye el almuerzo`);
   const v4 = decideVerdict(await verifica(qrPago), mesa.cuerpo.station, paseEn(mesa.cuerpo, pasePago.id), undefined);

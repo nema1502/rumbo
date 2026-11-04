@@ -4,7 +4,7 @@ La página `/scan`: el voluntario escribe el código de su puesto (la puerta, la
 
 ## Cómo decide sin red
 
-Al abrir el puesto, con red, el escáner baja la foto del evento (`POST /api/scan/open`): su puesto, la clave pública del evento (la privada no sale del servidor) y cada pase activo con el nombre, los beneficios que trae, si ya entró y qué ya canjeó. Con eso decide solo:
+Al abrir el puesto, con red, el escáner baja la foto del evento (`POST /api/scan/open`): su puesto, la clave pública del evento (la privada no sale del servidor) y cada pase activo con lo que ese puesto necesita para decidir: el nombre, quién es (jurado, mentoría...), si ya entró y, en una mesa, si trae el beneficio de esa mesa y si ya lo canjeó. La puerta no recibe beneficios ni canjes (ni quién ganó un sorteo), una mesa no recibe los canjes de las otras, y la dieta baja solo a una mesa de comida y solo de quien come ahí. Con eso decide solo:
 
 1. Verifica la firma del QR (Ed25519, con WebCrypto o, si el navegador no lo sabe, `@noble/ed25519`; `src/lib/qr-verify.ts`). Si no cierra, no corresponde: la credencial no es de este evento. El QR del celular rota cada 20 segundos: se acepta la ventana de tiempo actual, la anterior y la siguiente, con la hora corregida por la del servidor si este celular la tiene desfasada; uno más viejo (una captura de pantalla) da "este QR venció", con el nombre de quien es. La credencial impresa lleva un QR fijo, que se acepta pero se muestra con la etiqueta "Credencial impresa".
 2. Mira el pase en la foto y en su propia cola (lo que este mismo escáner registró y todavía no subió).

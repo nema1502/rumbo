@@ -14,6 +14,7 @@ import { getDb, jsonParam, readJson, type Db } from "./base/index.ts";
 import { describeForLog } from "./log.ts";
 import { getEventPublicKey } from "./qr-keys.ts";
 import {
+  ClientIdTaken,
   getRepo,
   type Benefit,
   type BenefitKind,
@@ -185,6 +186,8 @@ export async function resolveStationCode(input: string, repo: Repo = getRepo()):
   if (!event) return null;
   const benefits = await repo.listBenefits(event.id);
   const benefit = station.benefitId ? (benefits.find((b) => b.id === station.benefitId) ?? null) : null;
+  // Un código de mesa sin su beneficio (o de la mesa de un beneficio de otro evento) no abre nada: nunca cae a la puerta.
+  if (station.kind === "benefit" && !benefit) return null;
   let stand: StationStand | null = null;
   if (station.kind === "stand") {
     const standRow = await db.one("SELECT id, name, logo_url FROM stands WHERE id = ?", [station.standId]);
@@ -701,9 +704,15 @@ async function reconcilePass(pass: Pass, status: PassStatusOnChain, repo: Repo, 
   if (status.checked_in) {
     const real = checkIns.filter((c) => !c.duplicate);
     if (real.length === 0) {
-      const added = await repo.recordCheckIn({ clientId: `chain:${pass.id}:checkin`, eventId: pass.eventId, passId: pass.id, scannerId: CHAIN_SCANNER_ID });
-      await repo.markCheckIn(added.id, { synced: true });
-      summary.checkInsAdded++;
+      try {
+        const added = await repo.recordCheckIn({ clientId: `chain:${pass.id}:checkin`, eventId: pass.eventId, passId: pass.id, scannerId: CHAIN_SCANNER_ID });
+        await repo.markCheckIn(added.id, { synced: true });
+        summary.checkInsAdded++;
+      } catch (error) {
+        // El id reservado ya es de otro registro (una base de antes de que el escáner los rechazara): se anota y se sigue con el resto.
+        if (!(error instanceof ClientIdTaken)) throw error;
+        summary.errors.push(`${pass.id}: ${CHAIN_UNAVAILABLE}`);
+      }
     } else {
       for (const c of real.filter((c) => !c.synced)) await repo.markCheckIn(c.id, { synced: true });
     }
@@ -722,15 +731,20 @@ async function reconcilePass(pass: Pass, status: PassStatusOnChain, repo: Repo, 
     const mine = realRedemptions.filter((r) => r.benefitId === benefit.id);
     if (mine.length === 0) {
       await repo.grantBenefit(pass.id, benefit.id, "ticket");
-      const added = await repo.recordRedemption({
-        clientId: `chain:${pass.id}:${benefit.id}`,
-        eventId: pass.eventId,
-        passId: pass.id,
-        benefitId: benefit.id,
-        scannerId: CHAIN_SCANNER_ID,
-      });
-      await repo.markRedemption(added.id, { synced: true });
-      summary.redemptionsAdded++;
+      try {
+        const added = await repo.recordRedemption({
+          clientId: `chain:${pass.id}:${benefit.id}`,
+          eventId: pass.eventId,
+          passId: pass.id,
+          benefitId: benefit.id,
+          scannerId: CHAIN_SCANNER_ID,
+        });
+        await repo.markRedemption(added.id, { synced: true });
+        summary.redemptionsAdded++;
+      } catch (error) {
+        if (!(error instanceof ClientIdTaken)) throw error;
+        summary.errors.push(`${pass.id}: ${CHAIN_UNAVAILABLE}`);
+      }
     } else {
       for (const r of mine.filter((r) => !r.synced)) await repo.markRedemption(r.id, { synced: true });
     }

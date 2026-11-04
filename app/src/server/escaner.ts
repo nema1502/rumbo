@@ -30,12 +30,18 @@ import {
 
 // ---------- El puesto y lo que baja el escáner ----------
 
-/** El puesto que abre un código: la puerta, la mesa de su beneficio o el stand de quien auspicia. */
+/**
+ * El puesto que abre un código: la puerta, la mesa de su beneficio o el stand de quien auspicia. Un código de mesa
+ * o de stand cuyo beneficio o stand no está no cae a la puerta: falla cerrado (resolveStationCode ya lo da por
+ * inexistente; esto es la última puerta, por si llega igual).
+ */
 export function stationOf(access: StationAccess): ScanStation {
-  if (access.kind === "stand" && access.stand) {
+  if (access.kind === "stand") {
+    if (!access.stand) throw new Error("El código es de un stand que ya no existe");
     return { id: access.stand.id, kind: "stand", name: access.stand.name, place: null };
   }
-  if (access.kind === "benefit" && access.benefit) {
+  if (access.kind === "benefit") {
+    if (!access.benefit) throw new Error("El código es de una mesa cuyo beneficio ya no existe");
     return { id: access.benefit.id, kind: "benefit", name: access.benefit.name, place: access.benefit.station, food: isFoodBenefit(access.benefit) };
   }
   return GATE_STATION;
@@ -72,8 +78,8 @@ function toScanEvent(event: EventRecord, stations: ScanStation[]): ScanEvent {
 
 /**
  * Todo lo que el escáner necesita para decidir sin red: la clave pública del evento, su puesto y cada pase
- * activo con su nombre, sus beneficios, si ya entró y qué ya canjeó (según el espejo: lo que algún
- * escáner ya subió, aunque todavía no haya llegado al contrato).
+ * activo con su nombre, si ya entró y, en una mesa, si trae el beneficio de esa mesa y si ya lo canjeó (según el
+ * espejo: lo que algún escáner ya subió, aunque todavía no haya llegado al contrato).
  */
 export async function buildSnapshot(repo: Repo, access: StationAccess): Promise<ScanSnapshot> {
   const event = access.event;
@@ -105,19 +111,27 @@ export async function buildSnapshot(repo: Repo, access: StationAccess): Promise<
   const kindOfType = new Map(types.map((t) => [t.id, t.credentialKind] as const));
   const teamOf = new Map(teams.map((t) => [t.passId, t.team.name] as const));
 
+  // Cada puesto baja de cada pase solo lo que necesita para decidir: la puerta, si entró; una mesa, si trae su
+  // beneficio y si ya lo canjeó. Ni los demás beneficios (quién ganó un sorteo), ni los demás canjes con su hora,
+  // ni la dieta de quien no come en esa mesa viajan a un celular que no los necesita.
+  const mesa = station.kind === "benefit" ? station.id : null;
   const infos: ScanPassInfo[] = [];
   for (const { pass, person } of passes) {
     if (pass.status === "pending") continue;
+    const granted = (benefitsOf.get(pass.id) ?? []).map((b) => b.id);
+    const benefits = mesa ? granted.filter((id) => id === mesa) : [];
+    const redeemedAll = redeemed.get(pass.id) ?? {};
+    const redeemedHere = mesa && redeemedAll[mesa] ? { [mesa]: redeemedAll[mesa] } : {};
     infos.push({
       id: pass.id,
       name: person.name,
-      benefits: (benefitsOf.get(pass.id) ?? []).map((b) => b.id),
+      benefits,
       checkedInAt: pass.checkedInAt ?? checkedIn.get(pass.id) ?? null,
-      redeemed: redeemed.get(pass.id) ?? {},
+      redeemed: redeemedHere,
       credential: kindOfType.get(pass.ticketTypeId) ?? "attendee",
       team: teamOf.get(pass.id) ?? null,
-      // La dieta solo baja a los puestos de comida: la puerta y las demás mesas no la necesitan.
-      diet: station.kind === "benefit" && station.food ? pass.diet : null,
+      // La dieta solo baja a un puesto de comida, y solo de quien come en esa mesa.
+      diet: mesa && station.food && benefits.length > 0 ? pass.diet : null,
     });
   }
 
@@ -164,15 +178,18 @@ async function buildStandSnapshot(access: StationAccess): Promise<ScanSnapshot> 
 /** Los errores del contrato con los que no tiene sentido volver a intentar (el panel los cuenta como rechazados, no como pendientes). */
 const PERMANENT_ERRORS: ReadonlySet<string> = PERMANENT_CONTRACT_ERRORS;
 
+const URL_RE = /\bhttps?:\/\/\S+/gi;
+
 /**
- * Lo que se guarda en el espejo y se le dice al escáner de un error: el del contrato tal cual (es parte de la
- * interfaz), y de cualquier otro (la base, el servidor) un texto genérico. El detalle va al registro del
- * servidor: el texto de la base no es para la pantalla de un voluntario ni para quedar en una fila.
+ * Lo que se guarda en el espejo y se le dice al escáner de un error: el nombre del error del contrato, si lo tiene
+ * (es parte de la interfaz: el escáner lo cuenta y el panel lo reconoce), y de cualquier otro (la red, la base, el
+ * servidor) un texto genérico. El detalle va al registro del servidor, sin correos ni enlaces: el texto crudo del
+ * nodo o de la base no es para la pantalla de un voluntario ni para quedar en una fila.
  */
 function describe(error: unknown): string {
-  if (isContractError(error)) return error.message.slice(0, 200);
-  console.error(`[escaner] No se pudo sincronizar un registro: ${describeForLog(error)}`);
-  return "no se pudo registrar en el servidor, se reintenta";
+  if (isContractError(error) && error.errorName) return error.errorName;
+  console.error(`[escaner] No se pudo sincronizar un registro: ${describeForLog(error).replace(URL_RE, "[enlace]").slice(0, 500)}`);
+  return isContractError(error) ? "la red no confirmó el registro, se reintenta" : "no se pudo registrar en el servidor, se reintenta";
 }
 
 /**
@@ -595,6 +612,9 @@ const clean = (text: string): string => text.replace(/[\u0000-\u001f\u007f]/g, "
 /** El QR del celular tiene 274 letras y el impreso 112: nada más largo es un QR. */
 const QR_MAX_LENGTH = 320;
 
+/** Los ids que el contraste con la cadena usa para lo que trae del contrato ("chain:<pase>:..."): un escáner no los puede ocupar. */
+const RESERVED_CLIENT_ID = /^chain:/i;
+
 /** Los registros del pedido, con su forma comprobada. Devuelve null si alguno no tiene la forma esperada. */
 export function parseScanItems(raw: unknown): ScanItem[] | null {
   if (!Array.isArray(raw) || raw.length > MAX_ITEMS_PER_SYNC) return null;
@@ -609,7 +629,7 @@ export function parseScanItems(raw: unknown): ScanItem[] | null {
     const scannedAt = typeof v.scannedAt === "string" ? v.scannedAt : "";
     const scannerId = typeof v.scannerId === "string" ? clean(v.scannerId).slice(0, 64) : "";
     const qr = typeof v.qr === "string" ? clean(v.qr).trim().toUpperCase() : "";
-    if (!clientId || clientId.length > 64 || !ACTIONS.has(action) || !isValidPassId(passId) || !isRealIsoDate(scannedAt)) return null;
+    if (!clientId || clientId.length > 64 || RESERVED_CLIENT_ID.test(clientId) || !ACTIONS.has(action) || !isValidPassId(passId) || !isRealIsoDate(scannedAt)) return null;
     if (benefitId !== null && benefitId.length > 64) return null;
     if (qr.length > QR_MAX_LENGTH) return null;
     // "manual" es lo único que el cliente puede decir de cómo leyó; lo demás lo decide el servidor con el QR.

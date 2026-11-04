@@ -56,12 +56,14 @@ export async function verifyQrSignature(payload: string, eventKey: Uint8Array): 
 /**
  * Devuelve el pase si el QR es auténtico, o por qué no lo es. `nowMs` es la hora del escáner (corregida con
  * la del servidor, si la sabe). El QR impreso vale siempre; el del celular, solo en su ventana de tiempo,
- * la anterior y la siguiente.
+ * la anterior y la siguiente. Sin una hora que valga (NaN, infinito), el del celular no vale: comparar con
+ * una ventana de NaN aceptaba cualquier captura, por vieja que fuera.
  */
 export async function verifyQrPayloadInBrowser(payload: string, eventKey: Uint8Array, nowMs: number = Date.now()): Promise<QrVerification> {
   const signed = await verifyQrSignature(payload, eventKey);
   if (!signed.ok) return signed;
   if (signed.window !== null) {
+    if (!Number.isFinite(nowMs)) return { ok: false, reason: "expired", passId: signed.passId };
     const current = windowOf(nowMs);
     if (signed.window < current - WINDOWS_BEHIND || signed.window > current + WINDOWS_AHEAD) return { ok: false, reason: "expired", passId: signed.passId };
   }
