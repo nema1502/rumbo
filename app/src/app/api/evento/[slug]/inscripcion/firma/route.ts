@@ -9,6 +9,8 @@ import { completeRegistration, type RegistrationResult } from "@/server/evento/i
 import { registrationResponse } from "@/server/evento/inscripcion-respuesta.ts";
 
 export const dynamic = "force-dynamic";
+// Mandar la transacción y esperar su confirmación tarda. Con Fluid en Vercel el tope por omisión alcanza; se declara igual.
+export const maxDuration = 300;
 
 type Params = Promise<{ slug: string }>;
 
@@ -20,6 +22,8 @@ export async function POST(request: NextRequest, { params }: { params: Params })
   } catch {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
+  // Un cuerpo que es JSON pero no es un objeto ("null", una lista) tampoco sirve.
+  if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   const text = (value: unknown) => (typeof value === "string" ? value.trim() : "");
   const requestId = text(body.requestId);
   const signedAuthEntry = text(body.signedAuthEntry);

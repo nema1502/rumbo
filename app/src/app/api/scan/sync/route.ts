@@ -7,6 +7,8 @@ import { getRepo } from "@/server/repo.ts";
 import type { SyncResponse } from "@/lib/escaner-api.ts";
 
 export const dynamic = "force-dynamic";
+// Cada registro es una transacción en la red de prueba, de a una: un lote tarda. Con Fluid en Vercel el tope por omisión alcanza; se declara igual.
+export const maxDuration = 300;
 
 export async function POST(request: Request): Promise<Response> {
   const repo = getRepo();
