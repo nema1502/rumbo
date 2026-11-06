@@ -232,13 +232,21 @@ test("publicar prepara el contrato de cada entrada y deja el evento a la vista; 
   await assert.rejects(() => saveDraft(repo, publicado, defaultDraft(TEMPLATES.devfest, "es"), "es"), (e) => e instanceof DraftError && e.code === "published");
 });
 
-test("si un contrato falla al publicar, el evento sigue en borrador y lo ya creado queda guardado", async () => {
+test("si un contrato falla al publicar, lo ya creado queda guardado y el siguiente intento sigue desde ahí", async () => {
+  // Falla el primero (el del asistente): el evento sigue en borrador.
+  const borrador = await createEventFromTemplate(repo, datos("meetup", { name: "Meetup que falla de entrada" }));
+  const roto = { deploy: async () => { throw new Error("sin saldo"); } };
+  assert.deepEqual(await publishEvent(repo, borrador, roto), { ok: false, reason: "deploy_failed", detail: "sin saldo" });
+  assert.equal((await repo.getEventById(borrador.id)).published, false);
+  assert.equal((await repo.listTicketTypes(borrador.id)).filter((t) => t.contractId).length, 0);
+
+  // Falla uno del equipo: el del asistente ya estaba, así que la página ya abrió, y lo del equipo queda pendiente.
   const event = await createEventFromTemplate(repo, datos("meetup", { name: "Meetup que falla" }));
   let n = 0;
   const fragil = { deploy: async () => { if (++n === 3) throw new Error("sin saldo"); return `CFRAGIL${n}`; } };
   const primero = await publishEvent(repo, event, fragil);
   assert.deepEqual(primero, { ok: false, reason: "deploy_failed", detail: "sin saldo" });
-  assert.equal((await repo.getEventById(event.id)).published, false);
+  assert.equal((await repo.getEventById(event.id)).published, true, "con el asistente listo, el evento abre");
   assert.equal((await repo.listTicketTypes(event.id)).filter((t) => t.contractId).length, 2);
   // El segundo intento sigue desde donde quedó.
   const segundo = await publishEvent(repo, event, fragil);

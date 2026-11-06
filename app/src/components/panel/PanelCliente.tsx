@@ -12,11 +12,13 @@ import { isManualScannerId } from "@/lib/escaner-api.ts";
 import { formatStationCode, stationCodesExpired } from "@/lib/station-code.ts";
 import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
 import type { ChainSyncSummary, PanelDuplicate, PanelPass, PanelState } from "@/server/panel.ts";
+import type { EventTeam } from "@/server/coorganizar.ts";
 import type { PanelVia } from "@/server/panel-sesion.ts";
 import { BotonCopiar } from "./BotonCopiar.tsx";
 import { CerrarSesion } from "./CerrarSesion.tsx";
 import { CompartirPanel } from "./CompartirPanel.tsx";
 import { Contador } from "./Contador.tsx";
+import { TuEquipo } from "./TuEquipo.tsx";
 
 const POLL_MS = 5000;
 const LOCALES: Record<Lang, string> = { es: "es-BO", en: "en-US" };
@@ -46,15 +48,21 @@ export function PanelCliente({
   slug,
   initial,
   publicado = false,
+  porPreparar = 0,
   via = "key",
   pollarKey = null,
+  equipo = null,
 }: {
   slug: string;
   initial: PanelState;
   publicado?: boolean;
+  /** Cuántas credenciales del equipo quedan por preparar (se cerró la pestaña de publicar antes de terminar). */
+  porPreparar?: number;
   via?: PanelVia;
   /** Con la cuenta: la clave publicable de Pollar, para cerrar también su sesión en este navegador. */
   pollarKey?: string | null;
+  /** Para la dueña del evento: su equipo, con lo que hace falta para sumar y sacar personas. Para el resto, null. */
+  equipo?: EventTeam | null;
 }) {
   const t = useT();
   const lang = useLang();
@@ -183,6 +191,14 @@ export function PanelCliente({
       </header>
 
       {publicado && <Aviso tono="listo">{t("kit.armar.publicado")}</Aviso>}
+      {porPreparar > 0 && (
+        <div className="aviso panel-por-preparar" role="status">
+          <span>{porPreparar === 1 ? t("kit.panel.faltaUna") : t("kit.panel.faltan", { n: porPreparar })}</span>
+          <BotonEnlace href={`/admin/${encodeURIComponent(slug)}/publicando`} variante="secundario" className="boton-chico">
+            {t("kit.panel.terminar")}
+          </BotonEnlace>
+        </div>
+      )}
       {conexion === "vencida" && (
         <Aviso tono="alerta">
           {via === "organizer" ? t("panel.sesionVencidaCuenta") : t("panel.sesionVencida")}{" "}
@@ -313,7 +329,9 @@ export function PanelCliente({
         </Tarjeta>
       </div>
 
-      {via === "organizer" && <CompartirPanel slug={slug} />}
+      {/* Sumar o sacar personas es de la dueña: quien coorganiza o entró con la clave no ve esto. */}
+      {equipo && <TuEquipo slug={slug} initial={equipo} />}
+      {equipo && <CompartirPanel slug={slug} />}
 
       <section className="panel-seccion">
         <div className="pases-cabecera">

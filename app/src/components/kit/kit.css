@@ -115,3 +115,20 @@
   .importar-tipos li { grid-template-columns: 1fr; }
   .equipo-integrante .kit-form-par { grid-template-columns: 1fr; }
 }
+
+/* Publicar: el avance de a una credencial, y el enlace para compartir apenas abre */
+.publicando { width: min(620px, 100%); }
+.publicando-avance { display: grid; gap: 10px; }
+.publicando-cifra { font-family: var(--display); font-weight: 800; font-size: clamp(1.3rem, 3vw, 1.7rem); line-height: 1.2; font-variant-numeric: tabular-nums; }
+.publicando-enlace input { font-size: 0.95rem; }
+.publicando-equipo { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid var(--linea); }
+.publicando-equipo p { margin: 0; }
+.publicando-equipo .boton { margin-left: 8px; }
+
+/* El borrador: la dirección del evento, con el comienzo fijo y el final editable */
+.direccion-campo { display: flex; align-items: stretch; width: 100%; border: 1px solid var(--linea); border-radius: var(--radio-chico); background: var(--papel); overflow: hidden; }
+.direccion-campo:focus-within { outline: 2px solid var(--acento); outline-offset: 1px; }
+.direccion-prefijo { display: flex; align-items: center; padding: 0 4px 0 12px; color: var(--apagado); font-family: ui-monospace, monospace; font-size: 0.9rem; white-space: nowrap; max-width: 55%; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; }
+.direccion-campo input { flex: 1 1 auto; min-width: 0; min-height: 46px; border: 0; outline: 0; padding: 8px 12px 8px 0; background: transparent; color: var(--tinta); font-family: ui-monospace, monospace; font-size: 0.95rem; }
+.armar-vista { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+

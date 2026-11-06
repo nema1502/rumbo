@@ -52,7 +52,7 @@ import {
   type TemplateId,
   type TemplateSpec,
 } from "../kit/plantillas.ts";
-import { publishEvent, type ContractProvisioner, type PublishFailure } from "../kit/publicar.ts";
+import { isPublishPending, publishEvent, publishProgress, type ContractProvisioner, type PublishFailure } from "../kit/publicar.ts";
 import { getMailer, type Mailer } from "../mailer.ts";
 import { ensureStationCodes, getOrCreateOrganizerKey, getPanelState, getSponsorReport, listChapterContacts, verifyOrganizerKey } from "../panel.ts";
 import type { EventRecord, Repo } from "../repo.ts";
@@ -300,7 +300,8 @@ async function contractsOf(ctx: McpContext, event: EventRecord) {
 export async function publishDraft(ctx: McpContext, args: EventArgs) {
   const { event, key } = await resolveEvent(ctx, args.event, args.organizer_key);
   const network = reportNetwork();
-  if (event.published) {
+  // Publicado desde la pantalla, puede quedar por terminar alguna credencial del equipo: eso lo completa publishEvent.
+  if (event.published && !isPublishPending(await publishProgress(ctx.repo, event))) {
     return { ok: true, alreadyPublished: true, deployed: 0, network, contracts: await contractsOf(ctx, event), event: eventSummary(event), links: adminLinks(ctx, event, key) };
   }
   const result = await publishEvent(ctx.repo, event, ctx.provisioner);
@@ -432,7 +433,9 @@ function nextAfterBatch(batch: BatchResult, runId: string): string {
 }
 
 async function runBatch(ctx: McpContext, event: EventRecord, runId: string, size: number | undefined, lang: Lang): Promise<BatchResult> {
-  const deps = ctx.importDeps ? ctx.importDeps(lang) : defaultImportDeps(lang, ctx.origin, ctx.repo);
+  const base = ctx.importDeps ? ctx.importDeps(lang) : defaultImportDeps(lang, ctx.origin, ctx.repo);
+  // El contrato de un tipo del equipo que falte lo crea el mismo desplegador con el que se publicó.
+  const deps = { provisioner: ctx.provisioner, ...base };
   return activateBatch(ctx.repo, event, runId, size ?? BATCH_SIZE, deps);
 }
 

@@ -132,7 +132,11 @@ export async function saveDraft(repo: Repo, event: EventRecord, input: DraftInpu
     keep.add(w.slot);
     const current = existingTypes.get(w.slot);
     let type: TicketType;
-    if (current) type = await repo.updateTicketType(current.id, { name: w.name, priceUsdc: w.price, sortOrder: index, credentialKind: SLOT_KIND[w.slot] });
+    // Un publicar que quedó a medias pudo crearle el contrato a este tipo: el precio y cuántos canjes trae son fijos
+    // en el contrato, así que si cambian, ese contrato (todavía sin nadie inscripto: es un borrador) se deja y al
+    // publicar se crea otro.
+    const stale = current?.contractId ? current.priceUsdc !== w.price || (await repo.listTicketTypeBenefits(current.id)).length !== w.benefits.filter((key) => benefitByKey.has(key)).length : false;
+    if (current) type = await repo.updateTicketType(current.id, { name: w.name, priceUsdc: w.price, sortOrder: index, credentialKind: SLOT_KIND[w.slot], ...(stale ? { contractId: null } : {}) });
     else type = await repo.createTicketType({ eventId: event.id, name: w.name, priceUsdc: w.price, sortOrder: index, credentialKind: SLOT_KIND[w.slot], templateSlot: w.slot });
     await repo.clearTicketTypeBenefits(type.id);
     for (const [chainIndex, key] of w.benefits.entries()) {
