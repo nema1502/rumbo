@@ -152,7 +152,7 @@ export function Publicando({ slug, eventName, initial }: { slug: string; eventNa
             </p>
             {equipoHechos < equipoTotal && (
               <div className="barra" role="progressbar" aria-valuemin={0} aria-valuemax={equipoTotal} aria-valuenow={equipoHechos} aria-label={t("kit.publicando.equipo", { hechos: equipoHechos, total: equipoTotal })}>
-                <span style={{ width: `${Math.round((equipoHechos / equipoTotal) * 100)}%` }} />
+                <span style={{ width: `${Math.max(Math.round((equipoHechos / equipoTotal) * 100), corriendo ? 4 : 0)}%` }} />
               </div>
             )}
             {problema === "fallo" && (

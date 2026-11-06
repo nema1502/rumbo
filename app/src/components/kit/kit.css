@@ -128,7 +128,13 @@
 /* El borrador: la dirección del evento, con el comienzo fijo y el final editable */
 .direccion-campo { display: flex; align-items: stretch; width: 100%; border: 1px solid var(--linea); border-radius: var(--radio-chico); background: var(--papel); overflow: hidden; }
 .direccion-campo:focus-within { outline: 2px solid var(--acento); outline-offset: 1px; }
-.direccion-prefijo { display: flex; align-items: center; padding: 0 4px 0 12px; color: var(--apagado); font-family: ui-monospace, monospace; font-size: 0.9rem; white-space: nowrap; max-width: 55%; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; }
+.direccion-prefijo { flex: none; max-width: 60%; display: flex; align-items: center; padding: 0 2px 0 12px; color: var(--apagado); font-family: ui-monospace, monospace; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .direccion-campo input { flex: 1 1 auto; min-width: 0; min-height: 46px; border: 0; outline: 0; padding: 8px 12px 8px 0; background: transparent; color: var(--tinta); font-family: ui-monospace, monospace; font-size: 0.95rem; }
+/* En el celular el comienzo va arriba, entero, y el final que se edita tiene todo el ancho */
+@media (max-width: 560px) {
+  .direccion-campo { flex-wrap: wrap; }
+  .direccion-prefijo { max-width: none; width: 100%; padding: 8px 12px 0; }
+  .direccion-campo input { padding-left: 12px; }
+}
 .armar-vista { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
 

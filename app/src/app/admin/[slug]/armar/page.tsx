@@ -47,13 +47,11 @@ const ERRORS: Record<string, string> = {
   "direccion-publicado": "kit.armar.direccionPublicado",
 };
 
-/** El comienzo de la dirección pública, como la va a ver quien la reciba: el origen de este pedido y /e/. */
+/** El comienzo fijo del enlace público, como se lee: el sitio de este pedido (sin https://) y /e/. */
 async function publicPrefix(): Promise<string> {
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host");
-  if (!host) return "/e/";
-  const proto = h.get("x-forwarded-proto") ?? (/^(localhost|127.0.0.1)(:|$)/.test(host) ? "http" : "https");
-  return `${proto}://${host}/e/`;
+  return host ? `${host}/e/` : "/e/";
 }
 
 export default async function DraftPage({ params, searchParams }: { params: Params; searchParams: Search }) {
@@ -101,6 +99,10 @@ export default async function DraftPage({ params, searchParams }: { params: Para
       </header>
       <div className="pantalla-cuerpo">
         <input type="hidden" name="evento" value={slug} />
+        {/* Enter en un campo manda el primer botón del formulario: que sea guardar, no la vista previa (abre otra pestaña) ni publicar. */}
+        <button type="submit" name="accion" value="guardar" className="oculto-visual" tabIndex={-1} aria-hidden="true">
+          {t("kit.armar.guardar")}
+        </button>
         {query.guardado === "1" && <Aviso tono="listo">{t("kit.armar.guardado")}</Aviso>}
         {errorKey && !slugError && <Aviso tono="alerta">{t(errorKey)}</Aviso>}
 

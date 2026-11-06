@@ -134,5 +134,5 @@
 .credencial-ayuda { text-align: center; }
 
 /* La vista previa de un borrador: el aviso de arriba */
-.vista-previa { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 10px 16px; background: var(--amarillo-suave, var(--acento-suave)); color: var(--tinta); border-bottom: 1px solid var(--linea); font-weight: 600; }
+.vista-previa { grid-column: 1 / -1; border-radius: var(--radio-chico, 12px); position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 10px 16px; background: var(--amarillo-suave, var(--acento-suave)); color: var(--tinta); border-bottom: 1px solid var(--linea); font-weight: 600; }
 .vista-previa a { font-weight: 700; }
