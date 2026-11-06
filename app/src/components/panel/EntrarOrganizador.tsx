@@ -13,7 +13,7 @@ import { useLang, useT } from "@/i18n/client.tsx";
 
 type Paso = "prueba" | "entrando";
 
-export function EntrarOrganizador({ pollarKey, volver = null }: { pollarKey: string; volver?: string | null }) {
+export function EntrarOrganizador({ pollarKey, volver = null, bajada }: { pollarKey: string; volver?: string | null; /** Lo que dice debajo del título, si no es lo de siempre (la invitación a un equipo). */ bajada?: string }) {
   const t = useT();
   const lang = useLang();
   const router = useRouter();
@@ -73,7 +73,7 @@ export function EntrarOrganizador({ pollarKey, volver = null }: { pollarKey: str
     <section className="pantalla form-inscripcion cuenta-organizador">
       <header className="pantalla-cabecera">
         <h1>{t("panel.cuenta.titulo")}</h1>
-        <p className="bajada">{volver ? t("panel.cuenta.bajadaVolver") : t("panel.cuenta.bajada")}</p>
+        <p className="bajada">{bajada ?? (volver ? t("panel.cuenta.bajadaVolver") : t("panel.cuenta.bajada"))}</p>
       </header>
       <div className="pantalla-cuerpo">
         {wallet ? (
