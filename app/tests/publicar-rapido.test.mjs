@@ -367,7 +367,7 @@ test("cambiar la dirección de un borrador: cambia, no choca con otro evento, y 
 });
 
 test("crear desde una plantilla con un nombre corto o reservado le pone un sufijo a la dirección", async () => {
-  const corto = await borrador("meetup", { name: "¡IA!" });
+  const corto = await borrador("meetup", { name: "¡Go!" });
   assert.equal(checkSlugFormat(corto.slug).ok, true, corto.slug);
   const reservado = await borrador("meetup", { name: "Nuevo" });
   assert.notEqual(reservado.slug, "nuevo");
