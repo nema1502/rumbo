@@ -17,6 +17,8 @@ interface Props {
   soldOut?: boolean;
   /** La entrada paga de un evento que también tiene una gratis: va en el botón secundario, así la inscripción gratis es la única acción naranja. */
   secondary?: boolean;
+  /** La vista previa de un borrador: el botón se ve como va a quedar, pero apagado. */
+  preview?: boolean;
 }
 
 /** Hasta tres cosas, y "y 6 más" si hay más: un evento de varios días trae una comida por franja y la lista no entra en la tarjeta. */
@@ -25,7 +27,7 @@ function listaCorta(lang: Lang, names: string[], t: T): string {
   return `${names.slice(0, 3).join(", ")} ${t("kit.evento.yMas", { n: names.length - 3 })}`;
 }
 
-export function FilaEntrada({ ticket, benefits, href, lang, t, soldOut = false, secondary = false }: Props) {
+export function FilaEntrada({ ticket, benefits, href, lang, t, soldOut = false, secondary = false, preview = false }: Props) {
   const free = ticket.priceUsdc === 0;
   const accion = free ? t("evento.entrada.inscribirme") : t("evento.entrada.comprar");
   return (
@@ -44,6 +46,10 @@ export function FilaEntrada({ ticket, benefits, href, lang, t, soldOut = false, 
       {soldOut ? (
         <Boton grande disabled variante={secondary ? "secundario" : "primario"}>
           {t("evento.entrada.agotada")}
+        </Boton>
+      ) : preview ? (
+        <Boton grande disabled variante={secondary ? "secundario" : "primario"}>
+          {accion}
         </Boton>
       ) : (
         <BotonEnlace href={href} grande variante={secondary ? "secundario" : "primario"}>

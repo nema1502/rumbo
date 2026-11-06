@@ -3,15 +3,19 @@
 // común, sin JavaScript en el navegador: las casillas apagan y encienden cada credencial.
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { AccesoPanel } from "@/components/panel/AccesoPanel.tsx";
 import { CompartirPanel } from "@/components/panel/CompartirPanel.tsx";
+import { TuEquipo } from "@/components/panel/TuEquipo.tsx";
 import { Aviso, Boton, Campo, Chip, Tarjeta } from "@/components/ui.tsx";
 import type { T } from "@/i18n/index.ts";
 import { getLang, getT } from "@/i18n/server.ts";
 import { kindLabelKey } from "@/lib/credential-kinds.ts";
 import { pollarEnabled } from "@/server/accounts.ts";
+import { listTeam } from "@/server/coorganizar.ts";
 import { readDraft, type DraftSlotView } from "@/server/kit/borrador.ts";
+import { SLUG_MAX, SLUG_MIN } from "@/server/kit/direccion.ts";
 import { templateStations } from "@/server/kit/plantillas.ts";
 import { PANEL_KEY_QUERY, panelAccess } from "@/server/panel-sesion.ts";
 import { getRepo } from "@/server/repo.ts";
@@ -36,7 +40,21 @@ const ERRORS: Record<string, string> = {
   publicar: "kit.armar.errorPublicar",
   publicando: "kit.armar.errorPublicando",
   general: "kit.armar.errorGeneral",
+  name: "kit.armar.errorGeneral",
+  "direccion-formato": "kit.armar.direccionFormato",
+  "direccion-reservada": "kit.armar.direccionReservada",
+  "direccion-ocupada": "kit.armar.direccionOcupada",
+  "direccion-publicado": "kit.armar.direccionPublicado",
 };
+
+/** El comienzo de la dirección pública, como la va a ver quien la reciba: el origen de este pedido y /e/. */
+async function publicPrefix(): Promise<string> {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  if (!host) return "/e/";
+  const proto = h.get("x-forwarded-proto") ?? (/^(localhost|127.0.0.1)(:|$)/.test(host) ? "http" : "https");
+  return `${proto}://${host}/e/`;
+}
 
 export default async function DraftPage({ params, searchParams }: { params: Params; searchParams: Search }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
@@ -63,6 +81,8 @@ export default async function DraftPage({ params, searchParams }: { params: Para
   const used = new Set(draft.slots.filter((s) => s.included).flatMap((s) => s.benefits));
   const stations = templateStations(draft.template, lang);
   const errorKey = typeof query.error === "string" ? ERRORS[query.error] : undefined;
+  const slugError = typeof query.error === "string" && query.error.startsWith("direccion-") ? errorKey : undefined;
+  const prefix = await publicPrefix();
 
   return (
     <form className="pantalla armar" action={guardarBorrador}>
@@ -82,7 +102,49 @@ export default async function DraftPage({ params, searchParams }: { params: Para
       <div className="pantalla-cuerpo">
         <input type="hidden" name="evento" value={slug} />
         {query.guardado === "1" && <Aviso tono="listo">{t("kit.armar.guardado")}</Aviso>}
-        {errorKey && <Aviso tono="alerta">{t(errorKey)}</Aviso>}
+        {errorKey && !slugError && <Aviso tono="alerta">{t(errorKey)}</Aviso>}
+
+        <section className="armar-seccion" aria-labelledby="armar-direccion">
+          <h2 id="armar-direccion">{t("kit.armar.direccion")}</h2>
+          <div className={slugError ? "campo con-error" : "campo"}>
+            <label className="campo-etiqueta" htmlFor="direccion">
+              {t("kit.armar.direccionEtiqueta")}
+            </label>
+            <div className="direccion-campo">
+              <span className="direccion-prefijo" aria-hidden="true">
+                <bdi>{prefix}</bdi>
+              </span>
+              <input
+                id="direccion"
+                name="direccion"
+                defaultValue={slug}
+                required
+                minLength={SLUG_MIN}
+                maxLength={SLUG_MAX}
+                pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                autoCapitalize="none"
+                autoComplete="off"
+                spellCheck={false}
+                aria-describedby={slugError ? "direccion-ayuda direccion-error" : "direccion-ayuda"}
+                aria-invalid={slugError ? true : undefined}
+              />
+            </div>
+            <p className="campo-ayuda" id="direccion-ayuda">
+              {t("kit.armar.direccionAyuda", { min: SLUG_MIN, max: SLUG_MAX })}
+            </p>
+            {slugError && (
+              <p className="campo-error" id="direccion-error" role="alert">
+                {t(slugError)}
+              </p>
+            )}
+          </div>
+          <div className="armar-vista">
+            <Boton type="submit" name="accion" value="vista" variante="secundario" formTarget="_blank" className="boton-chico">
+              {t("kit.armar.verComoQueda")}
+            </Boton>
+            <span className="chico apagado">{t("kit.armar.verComoQuedaAyuda")}</span>
+          </div>
+        </section>
 
         <section className="armar-seccion" aria-labelledby="armar-credenciales">
           <h2 id="armar-credenciales">{t("kit.armar.credenciales")}</h2>
@@ -131,8 +193,9 @@ export default async function DraftPage({ params, searchParams }: { params: Para
           </label>
         </section>
 
-        {/* Quien entró con la cuenta no tiene clave: si quiere sumar a alguien que coorganiza, el enlace se pide acá. */}
-        {access.via === "organizer" && <CompartirPanel slug={slug} />}
+        {/* La dueña suma a su equipo desde acá también: con un enlace de invitación, autorizando una cuenta, o con el enlace de la clave para quien no tiene cuenta. */}
+        {access.role === "owner" && <TuEquipo slug={slug} initial={await listTeam(event)} />}
+        {access.role === "owner" && <CompartirPanel slug={slug} />}
       </div>
       <div className="pantalla-accion">
         <div className="armar-acciones">
