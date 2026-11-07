@@ -62,13 +62,15 @@ export default async function EventPage({ params, searchParams }: { params: Para
   // Si el contrato de una entrada ya no emite más, la tarjeta dice "Agotada" (se lee una vez por minuto, no en cada carga).
   const cupos = await Promise.all(tickets.map((ticket) => readContractCapacity(ticket.contractId ?? event.contractId)));
 
-  // Qué incluye el evento y con qué entrada viene cada cosa (si no viene con todas).
-  const included = catalog.map((benefit) => {
+  // Qué incluye el evento y con qué entrada viene cada cosa (si no viene con todas). Lo que solo trae una credencial
+  // del equipo (la polera del voluntariado) no se promete a quien se inscribe; el premio del sorteo, sí.
+  const included = catalog.flatMap((benefit) => {
     const withTickets = tickets.filter((ticket) => benefitsByTicket.get(ticket.id)?.some((b) => b.id === benefit.id));
     let detail: string | null = null;
     if (withTickets.length === 0) detail = benefit.kind === "prize" ? t("evento.incluye.sorteo") : null;
     else if (withTickets.length < tickets.length) detail = t("evento.incluye.con", { entrada: joinList(lang, withTickets.map((ticket) => ticket.name)) });
-    return { benefit, detail };
+    if (withTickets.length === 0 && benefit.kind !== "prize") return [];
+    return [{ benefit, detail }];
   });
 
   const visibles = included.length > INCLUIDOS_ENTEROS ? INCLUIDOS_A_LA_VISTA : included.length;

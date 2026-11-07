@@ -27,6 +27,8 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       ...PRIVATE_PATHS.map((source) => ({ source, headers: PRIVATE_HEADERS })),
+      // La vista previa de un borrador (/e/<evento>?vista=1) es solo para quien organiza: como las páginas privadas.
+      { source: "/e/:slug", has: [{ type: "query" as const, key: "vista" }], headers: PRIVATE_HEADERS },
       // La credencial solo muestra imágenes propias (el QR va dibujado, el logo de un stand es una ruta de la app):
       // ningún servidor ajeno se entera de quién la abre ni cuándo.
       { source: "/p/:path*", headers: [{ key: "Content-Security-Policy", value: "img-src 'self' data:" }] },
