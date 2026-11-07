@@ -1,76 +1,91 @@
-/* Probalo: la maqueta clickeable. La pantalla va siempre clara, como una de verdad. */
+/* Probalo: la maqueta clickeable. La pantalla va siempre clara, como una de verdad.
+   Todo lo que se mueve usa transform y opacity, así corre a 60 cuadros. */
 
-.pb-ir { margin-top: 28px; }
+#probar { position: relative; }
 
-/* El MVP real, grabado: una línea y un botón que abre el video */
-.pb-real { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-top: 40px; }
-.pb-real p { margin: 0; font-weight: 600; text-wrap: balance; }
+/* La app real, grabada: una línea y dos botones que van juntos */
+.pb-real { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-top: 40px; }
+.pb-real p { flex-basis: 100%; margin: 0; font-weight: 600; text-wrap: balance; }
 .pb-real-video { flex-basis: 100%; width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: var(--radio); border: 1px solid var(--linea); background: #0b1626; }
 .pb-real [hidden] { display: none; }
-.pb { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 28px; }
+.pb { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 24px; }
 .pb > .encabezado { margin-bottom: 0; }
 /* El escenario reserva su alto antes de que demo.js lo arme, para que la página no salte: las pestañas, el
-   aire y el aparato ya achicado si la ventana es baja. Lo que sobre (la tableta queda más baja que el teléfono
-   cuando la columna la achica) va abajo: las pestañas no se mueven bajo el dedo al cambiar de rol. */
-.pb-escenario { --pb-k-alto: 1; --pb-arriba: 210px; --pb-aire: 12px; order: 1; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: start; gap: var(--pb-aire); min-height: calc(54px + var(--pb-aire) + 640px * var(--pb-k-alto)); }
-/* En escritorio, el encabezado y la guía quedan centrados a la altura del aparato: las dos filas se reparten
-   por igual lo que sobra, y cada uno se pega al borde que comparten. */
+   aire, el aparato ya achicado si la ventana es baja y la línea de la maqueta. Lo que sobre (la tableta queda
+   más baja que el teléfono cuando la columna la achica) va abajo: las pestañas no se mueven bajo el dedo. */
+.pb-escenario {
+  --pb-k-alto: 1; --pb-arriba: 210px; --pb-aire: 12px; --pb-alto: 640px; --pb-lado: 0px;
+  order: 1; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: start; gap: var(--pb-aire);
+  min-height: calc(54px + 2 * var(--pb-aire) + 22px + var(--pb-alto) * var(--pb-k-alto));
+}
+/* En escritorio, el encabezado y la guía quedan a la altura del aparato, y al costado del aparato van los
+   otros dos roles en chico: --pb-lado es lo que ocupan. Con la tableta adelante, las miniaturas son más finas. */
 @media (min-width: 1001px) {
-  .pb { grid-template-columns: minmax(0, 1fr) minmax(0, 48%); grid-template-rows: auto auto; column-gap: 56px; }
+  .pb { grid-template-columns: minmax(0, 1fr) minmax(0, 56%); grid-template-rows: auto auto; column-gap: 48px; }
   .pb > .encabezado { align-self: end; }
   .pb-guia { align-self: start; }
-  /* Si la columna de texto es más alta que el aparato (ventanas angostas y bajas), el aparato se queda arriba,
-     donde se lo ve entero; si no, las dos filas lo abrazan y el texto queda centrado a su altura. */
-  .pb-escenario { grid-column: 2; grid-row: 1 / 3; align-self: start; }
+  .pb-escenario { --pb-lado: 166px; grid-column: 2; grid-row: 1 / 3; align-self: start; }
+  .pb-escenario:has(.pb-mesa > .pb-ancho) { --pb-lado: 136px; }
 }
+@media (min-width: 1001px) and (max-width: 1200px) { .pb { column-gap: 36px; } }
 
-/* El aparato entra entero en la pantalla. Cuando la ventana es baja (una laptop de 768 px), se achica hasta un
-   40 % como mucho; cuando la columna es angosta, lo que haga falta. tan(atan2(a, b)) divide dos largos y deja
-   un número, que calc() no sabe hacer solo. El teléfono adentro mide siempre lo mismo y se escala entero.
-   --pb-arriba es lo que hay sobre el aparato con la sección al tope: cabecera, relleno, pestañas y aire. */
-.pb-aparato { --pb-ancho: 370px; --pb-alto: 640px; --pb-k: 1; position: relative; width: var(--pb-ancho); max-width: 100%; height: var(--pb-alto); }
-.pb-aparato:has(> .pb-ancho) { --pb-ancho: 600px; }
+/* El aparato entra entero en la pantalla. Cuando la ventana es baja, el teléfono es más bajo (560 en vez de
+   640, lo que sobra era aire) y recién después se achica, hasta un 20 % como mucho: así la letra se lee.
+   tan(atan2(a, b)) divide dos largos y deja un número, que calc() no sabe hacer solo. Adentro de .pb-mesa todo
+   mide siempre lo mismo y se escala entero. --pb-arriba es lo que hay sobre el aparato con la sección al tope. */
+.pb-aparato { --pb-ancho: 370px; --pb-k: 1; position: relative; width: var(--pb-ancho); max-width: 100%; height: var(--pb-alto); }
+.pb-aparato:has(> .pb-mesa > .pb-ancho) { --pb-ancho: 560px; }
 @media (min-width: 561px) {
-  .pb-escenario { --pb-k-alto: clamp(.6, tan(atan2(100dvh - var(--pb-arriba), 640px)), 1); container-type: inline-size; }
+  .pb-escenario { --pb-k-alto: clamp(.8, tan(atan2(100dvh - var(--pb-arriba), var(--pb-alto))), 1); container-type: inline-size; }
   .pb-aparato {
-    --pb-k: min(var(--pb-k-alto), tan(atan2(100cqw, var(--pb-ancho))), 1);
-    width: calc(var(--pb-ancho) * var(--pb-k)); max-width: none; height: calc(var(--pb-alto) * var(--pb-k));
+    --pb-total: calc(var(--pb-ancho) + var(--pb-lado));
+    --pb-k: min(var(--pb-k-alto), tan(atan2(100cqw, var(--pb-total))), 1);
+    width: calc(var(--pb-total) * var(--pb-k)); max-width: none; height: calc(var(--pb-alto) * var(--pb-k));
   }
-  .pb-aparato > .pb-tel { width: var(--pb-ancho); max-width: none; height: var(--pb-alto); transform: scale(var(--pb-k)); transform-origin: 0 0; }
+  .pb-mesa { display: flex; align-items: center; gap: 16px; width: var(--pb-total); height: var(--pb-alto); transform: scale(var(--pb-k)); transform-origin: 0 0; }
+  .pb-mesa > .pb-tel { flex: none; width: var(--pb-ancho); max-width: none; height: var(--pb-alto); }
 }
+@media (min-width: 561px) and (max-height: 800px) { .pb-escenario { --pb-alto: 560px; } }
 /* En una laptop de 768 px, Chrome y la barra de tareas dejan unos 600 a 635 px de ventana: menos relleno y
    menos aire sobre el aparato, y la cuenta de arriba lo sabe. */
+@media (min-width: 1001px) and (max-height: 800px) { #probar { padding-top: 28px; } .pb-escenario { --pb-arriba: calc(var(--pb-cab, 69px) + 132px); } }
+/* En una ventana de 650 px o menos, el teléfono baja a 520 en vez de achicarse más: la letra queda en un 85 %
+   y la línea de la maqueta entra también. --pb-cab es el alto de la cabecera, que demo.js mide (una o dos filas). */
 @media (min-width: 1001px) and (max-height: 700px) {
-  #probar { padding-top: 28px; }
-  .pb-escenario { --pb-arriba: 180px; --pb-aire: 8px; }
+  .pb-escenario { --pb-aire: 8px; --pb-alto: 520px; }
 }
-/* Con la columna de texto angosta, la bajada en una línea menos para que la guía no caiga bajo el pliegue */
-@media (min-width: 1001px) and (max-width: 1200px) {
-  .pb > .encabezado p { font-size: 1rem; }
-}
+@media (min-width: 1001px) and (max-width: 1200px) { .pb > .encabezado p { font-size: 1rem; } }
 
 /* Lo que se repite */
 .pb-fila, .pb-btn, .pb-ok, .pb-correo, .pb-cont, .pb-off, .pb-switch, .pb-guia-paso, .pb-estado, .pb-vivo,
-.pb-pagado, .pb-linea, .pb-toast, .pb-chip, .pb-iconos, .pb-comp, .pb-atras { display: flex; align-items: center; gap: 8px; }
+.pb-pagado, .pb-linea, .pb-toast, .pb-chip, .pb-iconos, .pb-comp, .pb-atras, .pb-sinred, .pb-renueva, .pb-cumple { display: flex; align-items: center; gap: 8px; }
 .pb-cont, .pb-off, .pb-cab, .pb-persona, .pb-comp { justify-content: space-between; }
-.pb-guia-paso::before, .pb-estado::before, .pb-vivo::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
-.pb-tag, .pb-pend, .pb-vivo { padding: 3px 9px; border-radius: 999px; font-size: .78rem; font-weight: 700; white-space: nowrap; }
+.pb-guia-paso::before, .pb-estado::before, .pb-vivo::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.pb-tag, .pb-pend, .pb-vivo, .pb-pronto { padding: 3px 9px; border-radius: 999px; font-size: .78rem; font-weight: 700; white-space: nowrap; }
+.pb-pronto { flex: none; width: fit-content; padding: 2px 8px; background: #f5c451; color: #0f1c2e; font-size: .78rem; }
 .pb-guia, .pb-roles, .pb-correo, .pb-cont, .pb-fil li, .pb-carta, .pb-qr { border: 1px solid var(--linea); border-radius: 14px; background: var(--tarjeta); }
-.pb-rol, .pb-seg, .pb-switch, .pb-atras { border: 0; background: none; color: var(--tinta-2); font: 600 .9rem var(--texto); cursor: pointer; }
+.pb-rol, .pb-seg, .pb-switch, .pb-atras, .pb-mini-btn { border: 0; background: none; color: var(--tinta-2); font: 600 .9rem var(--texto); cursor: pointer; }
 .pb-i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .pb-anuncio { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .pb :focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
-.pb-sug { box-shadow: 0 0 0 4px #e8541e66; }
+.pb-sug { position: relative; box-shadow: 0 0 0 3px #e8541e66; }
+.pb-maqueta { margin: 0; color: var(--apagado, var(--tinta-2)); font-size: .85rem; text-align: center; }
 
 /* La guía */
-.pb-guia { order: 2; align-self: start; display: grid; gap: 10px; min-height: 285px; padding: 24px; border-radius: var(--radio); }
+.pb-guia { order: 2; align-self: start; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-height: 285px; padding: 24px; border-radius: var(--radio); }
 .pb-guia-paso { color: var(--acento-texto); font-size: .9rem; font-weight: 600; }
 .pb-guia-texto { min-height: 2.3em; font: 800 1.55rem/1.15 var(--display); letter-spacing: -.02em; text-wrap: balance; }
 .pb-guia-sub { min-height: 3.1em; color: var(--tinta-2); }
 .pb-progreso { display: flex; gap: 4px; margin: 4px 0 8px; padding: 0; list-style: none; }
 .pb-progreso li { flex: 1; height: 5px; border-radius: 3px; background: var(--linea); }
 .pb-progreso .si { background: var(--acento); }
-.pb-guia .boton { justify-self: start; min-height: 46px; }
+.pb-guia-botones { display: flex; flex-wrap: wrap; gap: 10px; }
+.pb-guia .boton { min-height: 46px; }
+.pb-auto { border-color: var(--acento); color: var(--acento-texto); }
+.pb-auto .pb-i { fill: currentColor; stroke-width: 1.6; }
+/* La tira En vivo: en el celular dice lo que pasó en los otros roles; en escritorio lo muestran las miniaturas */
+.pb-tira { display: none; align-items: flex-start; gap: 8px; min-height: 2.7em; margin: 0; color: var(--tinta-2); font-size: .84rem; line-height: 1.35; }
+.pb-tira b { flex: none; padding: 1px 8px; border-radius: 999px; background: var(--verde-suave, #0b7a681f); color: var(--verde-chip, #0a7060); font-size: .74rem; }
 
 /* Las pestañas de rol */
 .pb-roles { display: grid; grid-auto-flow: column; gap: 4px; max-width: 100%; padding: 4px; border-radius: 999px; }
@@ -80,7 +95,7 @@
 
 /* El aparato: teléfono, o tableta en el panel */
 .pb-tel { width: 370px; max-width: 100%; height: 640px; padding: 10px; border: 1px solid #2c3b53; border-radius: 52px; background: #0f1a2b; box-shadow: var(--sombra); }
-.pb-tel.pb-ancho { width: 600px; border-radius: 38px; }
+.pb-tel.pb-ancho { width: 560px; border-radius: 38px; }
 .pb-pantalla {
   --papel: #f7f2e8; --tarjeta: #fff; --tinta: #0f1c2e; --tinta-2: #3d4b5f; --apagado: #5b6675; --linea: #0f1c2e1f;
   --acento: #e8541e; --acento-texto: #c2410c; --acento-chip: #b43a0a; --acento-suave: #e8541e1f;
@@ -95,12 +110,33 @@
 .pb-bat { width: 24px; fill: none; stroke: currentColor; stroke-width: 1.6; }
 .pb-bat rect + rect { fill: currentColor; stroke: none; }
 .pb-tacha { stroke: var(--acento); stroke-width: 2.6; }
-.pb-contenido { position: relative; flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 6px 16px 18px; scrollbar-width: thin; }
+/* Sin overscroll-behavior: con la rueda o el dedo encima del teléfono, la página sigue bajando */
+.pb-contenido { position: relative; flex: 1; overflow-y: auto; padding: 6px 16px 18px; scrollbar-width: thin; }
 .pb-capa { position: absolute; inset: 0; pointer-events: none; }
 .pb-capa > * { pointer-events: auto; }
+.pb-capa > .pb-festejo { pointer-events: none; }
+
+/* Las miniaturas vivas: los otros dos roles en chico, tocables para cambiar de rol */
+.pb-minis { --pb-mini: calc(var(--pb-lado) - 16px); flex: none; display: flex; flex-direction: column; gap: 10px; width: var(--pb-mini); }
+.pb-minis:empty { display: none; }
+.pb-minis-t { margin: 0; }
+.pb-mini { display: grid; gap: 4px; }
+.pb-mini-btn { justify-self: start; min-height: 30px; margin-left: -8px; padding: 0 8px; border-radius: 999px; color: var(--tinta); font-size: .85rem; font-weight: 700; }
+.pb-mini-btn:hover { color: var(--acento-texto); }
+.pb-mini-caja { --w: 370px; --s: tan(atan2(var(--pb-mini), var(--w))); position: relative; width: var(--pb-mini); height: calc(var(--pb-alto) * var(--s)); border-radius: calc(52px * var(--s)); cursor: pointer; }
+.pb-mini-tableta .pb-mini-caja { --w: 560px; border-radius: calc(38px * var(--s)); }
+.pb-mini-tel, .pb-mini-tel.pb-ancho { width: var(--w); max-width: none; height: var(--pb-alto); transform: scale(var(--s)); transform-origin: 0 0; box-shadow: var(--sombra-fina, var(--sombra)); }
+.pb-mini-caja::after { content: ""; position: absolute; inset: -3px; border: 3px solid var(--acento); border-radius: inherit; opacity: 0; pointer-events: none; }
+.pb-senal { position: absolute; left: 0; top: 0; z-index: 5; width: 16px; height: 16px; border-radius: 50%; background: var(--acento); box-shadow: 0 0 0 4px #e8541e40, 0 0 18px #e8541e; pointer-events: none; }
+.pb-viaja { position: absolute; left: 0; top: 0; z-index: 5; padding: 4px 10px; border-radius: 999px; background: var(--acento); color: #0f1c2e; font: 700 .8rem var(--texto); white-space: nowrap; box-shadow: var(--sombra-fina, none); pointer-events: none; }
+
+/* El dedo de Miralo solo */
+.pb-dedo { position: absolute; left: 0; top: 0; z-index: 6; width: 40px; height: 40px; margin: -20px 0 0 -20px; border: 2px solid #0f1c2e; border-radius: 50%; background: #ffffffd0; box-shadow: 0 8px 18px #0f1c2e59; opacity: 0; pointer-events: none; transition: transform .55s cubic-bezier(.45, 0, .2, 1), opacity .25s; }
+.pb-dedo.pb-ve { opacity: 1; }
+.pb-dedo::after { content: ""; position: absolute; inset: -4px; border: 3px solid var(--acento); border-radius: 50%; opacity: 0; }
 
 /* Adentro de la pantalla */
-.pb-h { font: 800 1.3rem/1.15 var(--display); letter-spacing: -.02em; }
+.pb-h { font: 800 1.3rem/1.15 var(--display); letter-spacing: -.02em; overflow-wrap: anywhere; }
 .pb-sub, .pb-chico { color: var(--apagado); font-size: .85rem; }
 .pb-chico { text-align: center; }
 .pb-precio { margin-bottom: 4px; font: 700 1.15rem var(--display); }
@@ -114,27 +150,36 @@
 /* Quien asiste */
 .pb-banner { height: 76px; margin-bottom: 12px; border-radius: 16px; overflow: hidden; background: #13223a; }
 .pb-banner svg { width: 100%; height: 100%; }
-.pb-campo { display: grid; gap: 4px; margin-top: 12px; color: var(--tinta-2); font-size: .85rem; }
-.pb-campo input { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid #0f1c2e4d; border-radius: 12px; font: 500 1rem var(--texto); }
+.pb-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.pb-campo { display: grid; gap: 4px; color: var(--tinta-2); font-size: .85rem; }
+.pb-campo input { width: 100%; min-width: 0; min-height: 44px; padding: 8px 12px; border: 1px solid #0f1c2e4d; border-radius: 12px; background: #fff; color: var(--tinta); font: 500 1rem var(--texto); }
+.pb-campo input::placeholder { color: #6b7684; }
 .pb-item { display: grid; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--linea); }
 .pb-correo { padding: 10px 12px; font-size: .88rem; font-weight: 600; }
 .pb-correo .pb-i { color: var(--acento-texto); }
 .pb-fondo { position: absolute; inset: 0; background: #0f1c2e6b; }
 .pb-hoja { position: absolute; inset: auto 0 0; display: grid; gap: 10px; padding: 20px 16px; border-radius: 24px 24px 0 0; background: var(--tarjeta); }
-.pb-opcion { justify-content: space-between; min-height: 54px; border-radius: 14px; }
-.pb-opcion small { color: var(--apagado); font: 500 .82rem var(--texto); }
+.pb-opcion { justify-content: space-between; min-height: 54px; border-radius: 14px; text-align: left; }
+.pb-opcion small { display: block; color: var(--apagado); font: 500 .82rem var(--texto); }
 .pb-btn.pb-quieto { border-color: #0000; background: none; color: var(--tinta-2); }
 .pb-pagado { color: var(--verde-chip); }
 .pb-reparto { display: flex; gap: 3px; height: 14px; margin: 4px 0 2px; }
-.pb-reparto i { width: 95%; border-radius: 4px; background: var(--acento); }
+.pb-reparto i { width: 95%; border-radius: 4px; background: var(--acento); transform-origin: left; }
 .pb-reparto i + i { width: 5%; background: var(--tinta); }
 .pb-linea { font-weight: 600; }
 .pb-linea::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--acento); }
 .pb-linea + .pb-linea::before { background: var(--tinta); }
 
-/* La credencial */
-.pb-atras { gap: 4px; min-height: 36px; margin-bottom: 6px; padding: 0; color: var(--acento-texto); }
-.pb-qr { width: 132px; margin: 12px auto; padding: 6px; background: #fff; }
+/* La credencial: el QR cambia solo, y el anillo dice cuándo */
+.pb-atras { gap: 4px; min-height: 44px; margin-bottom: 2px; padding: 0; color: var(--acento-texto); }
+.pb-qr { width: 132px; margin: 10px auto 8px; padding: 6px; background: #fff; }
+.pb-qr img { display: block; }
+.pb-renueva { justify-content: center; margin: 0 0 10px; color: var(--apagado); font-size: .78rem; line-height: 1.25; text-align: center; }
+.pb-anillo { position: relative; flex: none; width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 3px var(--linea); }
+.pb-anillo i { position: absolute; inset: 0; clip-path: inset(0 0 0 50%); }
+.pb-anillo i + i { clip-path: inset(0 50% 0 0); }
+.pb-anillo i::before { content: ""; position: absolute; inset: 0; border-radius: 50%; box-shadow: inset 0 0 0 3px var(--acento); clip-path: inset(0 50% 0 0); }
+.pb-anillo i + i::before { clip-path: inset(0 0 0 50%); }
 .pb-persona { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; }
 .pb-nombre { font: 700 1.4rem/1.2 var(--display); letter-spacing: -.02em; overflow-wrap: anywhere; }
 .pb-estado { width: fit-content; margin-top: 2px; color: var(--apagado); font-size: .88rem; font-weight: 600; }
@@ -144,17 +189,24 @@
 
 /* El escáner del voluntario */
 .pb-tag { background: var(--linea); color: var(--tinta-2); }
+.pb-sinred { display: grid; gap: 6px; margin-top: 8px; padding: 8px 12px; border-radius: 12px; background: #f5c4514d; font-size: .82rem; font-weight: 600; line-height: 1.25; }
+.pb-sinred p { display: flex; align-items: center; gap: 8px; }
+.pb-sinred i { position: relative; flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--acento); }
+.pb-sinred i::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--acento); opacity: 0; }
 .pb-puestos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; margin-top: 10px; padding: 3px; border-radius: 12px; background: var(--linea); }
-.pb-seg { min-height: 38px; padding: 0 2px; border-radius: 9px; font-size: .8rem; }
+.pb-seg { min-height: 44px; padding: 0 2px; border-radius: 9px; font-size: .8rem; }
 .pb-seg[aria-pressed="true"] { background: var(--tarjeta); color: var(--tinta); }
-.pb-visor { position: relative; display: grid; place-items: center; width: min(100%, 196px); aspect-ratio: 1; margin: 12px auto 0; border-radius: 20px; overflow: hidden; background: #13223a; }
+.pb-visor { position: relative; display: grid; place-items: center; width: min(100%, 168px); aspect-ratio: 1; margin: 12px auto 0; border-radius: 20px; overflow: hidden; background: #13223a; }
+/* Sin red, el aviso y la cola ocupan lugar: el visor se achica y el interruptor sigue a la vista */
+.pb-contenido:has(.pb-sinred) .pb-visor { --raya: 80px; width: min(100%, 128px); margin-top: 8px; }
 .pb-visor svg { position: absolute; width: 100%; height: 100%; fill: none; stroke: var(--acento); stroke-width: 2.4; stroke-linecap: round; }
 .pb-visor img { width: 54%; padding: 4px; border-radius: 8px; background: #fff; opacity: 0; rotate: -6deg; }
 .pb-lee img { opacity: 1; }
 .pb-visor i { position: absolute; inset: 16% 12% auto; height: 3px; background: var(--acento); box-shadow: 0 0 12px var(--acento); opacity: 0; }
 .pb-apunta { margin: 6px 0 10px; color: var(--apagado); font-size: .86rem; text-align: center; }
 .pb-cont { margin-bottom: 10px; padding: 6px 14px; color: var(--tinta-2); font-size: .9rem; }
-.pb-cont b, .pb-cifras b { color: var(--tinta); font: 800 1.45rem/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.pb-cont b, .pb-cifras b { position: relative; color: var(--tinta); font: 800 1.45rem/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.pb-mas { position: absolute; right: 0; bottom: 100%; color: var(--verde-chip); font: 700 .8rem var(--texto); opacity: 0; }
 .pb-off { margin-top: 6px; }
 .pb-switch { min-height: 44px; padding: 0 10px 0 0; border-radius: 999px; color: var(--tinta); }
 .pb-perilla { position: relative; flex: none; width: 44px; height: 26px; border-radius: 13px; background: #0f1c2e47; }
@@ -162,13 +214,17 @@
 [aria-checked="true"] > .pb-perilla { background: var(--acento); }
 [aria-checked="true"] > .pb-perilla::after { translate: 18px; }
 .pb-pend { background: var(--acento-suave); color: var(--acento-chip); }
+.pb-cola { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.pb-cola li { padding: 3px 10px; border: 1.5px dashed var(--acento); border-radius: 999px; background: #fff; font-weight: 500; }
 /* Abajo, donde el escáner tiene aire debajo del interruptor: arriba tapaba el título y pisaba los puestos */
 .pb-toast { position: absolute; inset: auto 16px 18px; padding: 12px 14px; border-radius: 14px; background: var(--tinta); color: var(--papel); font-weight: 600; }
 
 /* El veredicto, a pantalla entera */
-.pb-ver { position: absolute; inset: 40px 0 0; display: grid; place-content: center; justify-items: center; gap: 4px; padding: 20px; background: var(--papel); color: var(--tinta-2); text-align: center; }
+.pb-ver { position: absolute; inset: 40px 0 0; display: grid; place-content: center; justify-items: center; gap: 4px; padding: 20px; overflow: hidden; background: var(--papel); color: var(--tinta-2); text-align: center; }
+.pb-ver > :not(.pb-destello) { position: relative; }
 .pb-ver-ok { background: #d8ebe4; }
 .pb-ver-ya { background: #f5c451; }
+.pb-destello { position: absolute; inset: 0; background: radial-gradient(circle at 50% 42%, #ffffff 0, #ffffffb3 22%, #fff0 60%); opacity: 0; pointer-events: none; }
 .pb-ver-ic { display: grid; place-items: center; width: 84px; height: 84px; margin-bottom: 10px; border-radius: 50%; background: var(--tinta-2); color: #fff; }
 .pb-ver-ok .pb-ver-ic { background: var(--verde); }
 .pb-ver-ya .pb-ver-ic { background: var(--tinta); color: #f5c451; }
@@ -180,54 +236,157 @@
 
 /* El panel: en la tableta, dos columnas */
 .pb-panel, .pb-izq, .pb-der { display: grid; gap: 12px; align-content: start; }
-@container (min-width: 560px) { .pb-panel { grid-template-columns: 1fr 1fr; gap: 22px; padding-top: 12px; } }
+@container (min-width: 500px) { .pb-panel { grid-template-columns: 1fr 1fr; gap: 20px; padding-top: 12px; } }
 .pb-cab { align-items: flex-start; }
-.pb-vivo { background: var(--verde-suave); color: var(--verde-chip); }
-.pb-cifras { display: grid; gap: 12px; margin: 4px 0 0; padding: 0; list-style: none; }
+.pb-vivo { width: fit-content; background: var(--verde-suave, #0b7a681f); color: var(--verde-chip, #0a7060); }
+.pb-cifras { display: grid; gap: 10px; margin: 4px 0 0; padding: 0; list-style: none; }
 .pb-cifras li { display: grid; grid-template-columns: 1fr auto; align-items: baseline; column-gap: 8px; color: var(--tinta-2); font-size: .9rem; }
 .pb-cifras i, .pb-barrita { position: relative; grid-column: 1 / -1; height: 6px; margin: 2px 0 4px; border-radius: 3px; background: var(--linea); overflow: hidden; }
-.pb-cifras i::before, .pb-barrita::before { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--p); background: var(--c, var(--verde)); }
-.pb-carta { display: grid; gap: 4px; padding: 14px; font-size: .9rem; }
+.pb-cifras i::before, .pb-barrita::before { content: ""; position: absolute; inset: 0; background: var(--c, var(--verde)); transform: scaleX(var(--p)); transform-origin: left; }
+.pb-feed { display: grid; gap: 6px; }
+.pb-feed ul { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.pb-feed li { display: flex; gap: 8px; font-size: .82rem; line-height: 1.3; }
+.pb-feed li span { flex: none; color: var(--apagado); font-variant-numeric: tabular-nums; }
+.pb-btn-cierre { flex-wrap: wrap; row-gap: 3px; }
+.pb-carta { position: relative; display: grid; gap: 4px; padding: 14px; font-size: .9rem; }
 .pb-carta .pb-chico { text-align: left; }
 .pb-ruleta, .pb-cuanto b { justify-self: start; color: var(--tinta); font: 800 1.35rem/1.2 var(--display); overflow-wrap: anywhere; }
 .pb-comp { margin-top: 4px; }
 .pb-comp b { color: var(--tinta); letter-spacing: .06em; }
+.pb-festejo { position: absolute; inset: 0; overflow: hidden; }
+.pb-festejo i { position: absolute; top: -14px; left: var(--x); width: 8px; height: 13px; border-radius: 2px; opacity: 0; }
 
-/* El celular */
+/* El cierre del evento (próximamente): el informe para el programa de embajadores, armándose */
+.pb-cierre { position: absolute; inset: 40px 0 0; display: grid; gap: 10px; align-content: start; padding: 10px 20px 20px; overflow-y: auto; background: var(--papel); }
+.pb-cierre .pb-fila { justify-content: space-between; }
+.pb-hojas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 4px; }
+.pb-pag { display: grid; gap: 6px; align-content: start; min-height: 168px; padding: 12px; border: 1px solid var(--linea); border-top: 4px solid var(--acento); border-radius: 8px; background: #fff; box-shadow: 0 10px 20px -14px #0f1c2e80; font-size: .8rem; line-height: 1.3; }
+.pb-pag:nth-child(2) { border-top-color: var(--verde); }
+.pb-pag:nth-child(3) { border-top-color: #f5c451; }
+.pb-pag-t { font-weight: 700; }
+.pb-pag-n { color: var(--tinta-2); }
+.pb-pag-n b, .pb-pag li b { color: var(--tinta); font: 800 1.5rem/1 var(--display); font-variant-numeric: tabular-nums; }
+.pb-pag li b { font-size: 1.05rem; }
+.pb-pag ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.pb-pag li { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.pb-pag .pb-chico { text-align: left; }
+.pb-cumple { color: var(--verde-chip); font-weight: 700; }
+.pb-tilde { width: 16px; height: 16px; stroke-width: 3; }
+.pb-casillas li { justify-content: flex-start; align-items: flex-start; }
+.pb-casillas i { flex: none; width: 14px; height: 14px; margin-top: 1px; border: 2px solid var(--apagado); border-radius: 4px; }
+.pb-cierre-pie { display: flex; align-items: center; gap: 10px; margin: 2px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--linea); font-size: .85rem; font-weight: 600; }
+@container (max-width: 480px) {
+  .pb-hojas { grid-template-columns: minmax(0, 1fr); }
+  .pb-pag { min-height: 0; }
+}
+
+/* De 1000 px para abajo: un solo aparato, y arriba una barra pegada bajo la cabecera con las pestañas de rol,
+   la instrucción, la tira En vivo y el avance: lo que hay que hacer y dónde tocarlo se ven juntos */
+@media (max-width: 1000px) {
+  .pb-guia {
+    order: 0; position: sticky; top: var(--pb-cab, 0px); z-index: 4; grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "roles roles roles" "texto texto botones" "tira tira tira" "paso prog prog"; align-items: center; gap: 8px 10px;
+    min-height: 0; padding: 8px 10px 10px; box-shadow: var(--sombra-fina, var(--sombra));
+  }
+  .pb-guia > .pb-roles { grid-area: roles; width: 100%; grid-auto-columns: 1fr; background: var(--papel); }
+  .pb-guia-paso { grid-area: paso; font-size: .78rem; }
+  .pb-guia-botones { grid-area: botones; flex-wrap: nowrap; gap: 6px; }
+  .pb-guia .boton { min-width: 44px; min-height: 44px; padding: 0 12px; font-size: .88rem; }
+  .pb-reset { padding: 0; }
+  .pb-reset span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .pb-guia-texto { grid-area: texto; min-height: 2.3em; padding-left: 4px; font-size: 1.1rem; }
+  .pb-guia-sub { display: none; }
+  .pb-tira { grid-area: tira; display: flex; padding-left: 4px; }
+  .pb-progreso { grid-area: prog; margin: 0; }
+  .pb-progreso li { height: 4px; }
+}
+
+/* El celular: el teléfono crece con lo que tiene adentro, sin scroll propio, así el dedo mueve la página */
 @media (max-width: 560px) {
-  .pb-escenario { gap: 16px; min-height: 630px; }
+  .pb-escenario { gap: 12px; min-height: 600px; }
   .pb-aparato { width: 100%; height: auto; }
-  .pb-tel, .pb-tel.pb-ancho { width: 100%; height: 560px; border-radius: 46px; }
+  .pb-tel, .pb-tel.pb-ancho { width: 100%; height: auto; min-height: 560px; border-radius: 46px; }
+  .pb-pantalla { height: auto; min-height: 538px; }
+  .pb-contenido { overflow: visible; }
+  .pb-pantalla:has(.pb-cierre) .pb-contenido { display: none; }
+  .pb-pantalla:has(.pb-cierre) .pb-capa, .pb-pantalla .pb-cierre { position: static; }
   /* 1fr es minmax(auto, 1fr): la pestaña cuyo texto no entra ("Quien organiza" a 360 px) toma su ancho mínimo */
-  .pb-roles { width: 100%; grid-auto-columns: 1fr; }
   .pb-rol { padding: 0 6px; font-size: .86rem; }
-  .pb-guia { min-height: 0; padding: 20px; }
-  .pb-guia-texto { min-height: 3.45em; font-size: 1.35rem; }
-  .pb-guia-sub { min-height: 4.65em; }
+  .pb-auto span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .pb-guia .pb-auto { padding: 0; }
+  .pb-guia-texto { font-size: 1.02rem; }
 }
 @media (max-width: 340px) {
   .pb-rol { padding: 0 4px; font-size: .82rem; }
 }
 
-/* Movimiento */
-@keyframes pb-subir { from { opacity: 0; translate: 0 14px; } }
-@keyframes pb-pop { from { scale: .6; } 60% { scale: 1.12; } }
-@keyframes pb-crece { from { width: var(--d); } }
-@keyframes pb-hoja { from { translate: 0 100%; } }
-@keyframes pb-ancho { from { width: 0; } }
-@keyframes pb-raya { to { top: 82%; } }
-@keyframes pb-latido { from { box-shadow: 0 0 0 0 #e8541e8c; } 70%, to { box-shadow: 0 0 0 12px #e8541e00; } }
+/* Movimiento: solo transform y opacity */
+@keyframes pb-subir { from { opacity: 0; transform: translateY(14px); } }
+@keyframes pb-pop { from { transform: scale(.6); } 60% { transform: scale(1.12); } }
+@keyframes pb-crece { from { transform: scaleX(var(--d)); } }
+@keyframes pb-crece0 { from { transform: scaleX(0); } }
+@keyframes pb-hoja { from { transform: translateY(100%); } }
+@keyframes pb-ancho { from { transform: scaleX(0); } }
+@keyframes pb-raya { to { transform: translateY(var(--raya, 108px)); } }
+@keyframes pb-latido { from { opacity: .75; transform: scale(1); } to { opacity: 0; transform: scale(1.06, 1.3); } }
+@keyframes pb-onda { from { opacity: 1; transform: scale(.6); } to { opacity: 0; transform: scale(1.6); } }
+@keyframes pb-aprieta { 50% { scale: .82; } }
+@keyframes pb-destello { from { opacity: 1; transform: scale(.3); } to { opacity: 0; transform: scale(1.5); } }
+@keyframes pb-mas { from { opacity: 1; transform: translateY(6px); } 70% { opacity: 1; } to { opacity: 0; transform: translateY(-14px); } }
+@keyframes pb-irse { to { opacity: 0; transform: translateY(-12px) scale(.9); } }
+@keyframes pb-parpadeo { 50% { opacity: .35; } }
+@keyframes pb-sonar { from { opacity: .7; transform: scale(1); } to { opacity: 0; transform: scale(2.6); } }
+@keyframes pb-confeti { 0% { opacity: 1; transform: translate(0, 0) rotate(0); } 85% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), 600px) rotate(var(--r)); } }
+@keyframes pb-medio1 { from { transform: rotate(0); } 50%, to { transform: rotate(180deg); } }
+@keyframes pb-medio2 { from, 50% { transform: rotate(0); } to { transform: rotate(180deg); } }
+@keyframes pb-qr {
+  0% { opacity: 0; transform: scale(.88); } 4%, 46% { opacity: 1; transform: none; }
+  49.9% { opacity: 0; transform: scale(.88); } 50% { opacity: 0; transform: rotate(-90deg) scaleX(-1) scale(.88); }
+  54%, 96% { opacity: 1; transform: rotate(-90deg) scaleX(-1); } 100% { opacity: 0; transform: rotate(-90deg) scaleX(-1) scale(.88); }
+}
+@keyframes pb-pagina { from { opacity: 0; transform: translateY(24px) rotate(-2deg); } }
+@keyframes pb-late { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(1.08); } }
+
 @media (prefers-reduced-motion: no-preference) {
-  .pb-tel { transition: width .45s var(--suave), border-radius .45s, transform .45s var(--suave); }
+  .pb-tel:not(.pb-mini-tel) { transition: width .45s var(--suave), border-radius .45s, transform .45s var(--suave); }
   .pb-aparato { transition: width .45s var(--suave), height .45s var(--suave); }
-  .pb-sug { animation: pb-latido 1.8s ease-out infinite; }
+  .pb-sug::after { content: ""; position: absolute; inset: -3px; border: 3px solid #e8541e; border-radius: inherit; pointer-events: none; animation: pb-latido 1.6s ease-out infinite; }
   .pb-entra { animation: pb-subir .45s var(--suave) backwards; }
   .pb-pop, .pb-ver.pb-entra .pb-ver-ic { animation: pb-pop .55s cubic-bezier(.3, 1.5, .5, 1) backwards; }
-  .pb-ruleta.pb-pop { animation-delay: .45s; }
   .pb-crece::before { animation: pb-crece .9s var(--suave) .15s backwards; }
+  .pb-corre .pb-cifras i::before { animation: pb-crece0 .9s var(--suave) backwards; }
   .pb-sube { animation: pb-hoja .35s var(--suave); }
   .pb-reparte .pb-reparto i { animation: pb-ancho .7s var(--suave) .15s backwards; }
   .pb-reparte .pb-reparto i + i { animation-delay: .55s; }
   .pb-lee i { opacity: 1; animation: pb-raya .8s ease-in-out .2s both; }
   .pb-perilla, .pb-perilla::after { transition: .2s; }
+  .pb-destello { animation: pb-destello .7s ease-out; }
+  .pb-mas { animation: pb-mas 1.1s ease-out .2s backwards; }
+  .pb-sale li { animation: pb-irse .55s var(--suave) forwards; }
+  .pb-sale li + li { animation-delay: .1s; }
+  .pb-sinred i::after { animation: pb-sonar 1.4s ease-out infinite; }
+  .pb-sinred i { animation: pb-parpadeo 1.4s ease-in-out infinite; }
+  .pb-vivo::before { animation: pb-parpadeo 1.6s ease-in-out infinite; }
+  .pb-anillo i::before { animation: pb-medio1 6s linear var(--fase, 0s) infinite; }
+  .pb-anillo i + i::before { animation-name: pb-medio2; }
+  .pb-qr img { animation: pb-qr 12s var(--fase, 0s) infinite; }
+  .pb-mini.pb-late .pb-mini-caja::after { animation: pb-late .9s ease-out .55s backwards; }
+  .pb-festejo i { animation: pb-confeti var(--t) var(--w) cubic-bezier(.25, .6, .4, 1) forwards; }
+  .pb-dedo.pb-toca { animation: pb-aprieta .3s ease-in-out; }
+  .pb-dedo.pb-toca::after { animation: pb-onda .5s ease-out; }
+  .pb-pag { animation: pb-pagina .55s var(--suave) backwards; }
+  .pb-pag:nth-child(2) { animation-delay: .2s; }
+  .pb-pag:nth-child(3) { animation-delay: .4s; }
+  .pb-pag > * { animation: pb-subir .4s var(--suave) backwards; }
+  .pb-pag:nth-child(2) > * { --k: .2s; }
+  .pb-pag:nth-child(3) > * { --k: .4s; }
+  .pb-pag > :nth-child(2) { --j: 1; } .pb-pag > :nth-child(3) { --j: 2; } .pb-pag > :nth-child(4) { --j: 3; }
+  .pb-pag > * { animation-delay: calc(.35s + var(--k, 0s) + var(--j, 0) * .15s); }
+  .pb-cumple .pb-tilde { animation: pb-pop .5s cubic-bezier(.3, 1.5, .5, 1) 1s backwards; }
+}
+/* Con movimiento reducido el anillo queda entero y quieto */
+@media (prefers-reduced-motion: reduce) {
+  .pb-anillo { box-shadow: inset 0 0 0 3px var(--acento); }
+  .pb-anillo i { display: none; }
+  .pb-dedo { display: none; }
 }
