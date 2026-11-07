@@ -72,6 +72,21 @@ export function Publicando({ slug, eventName, initial, autoStart }: { slug: stri
     }
   }, [initial, slug]);
 
+  // Se llega desde "Publicar el evento", al pie de un borrador largo, y la navegación conserva ese scroll: arriba,
+  // donde está el título. Y cuando el evento abre, la pantalla cambia entera: arriba otra vez, con el foco en el
+  // título para que el lector de pantalla diga que ya está publicado.
+  const titulo = useRef<HTMLHeadingElement>(null);
+  const abierto = useRef(initial.published);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+  useEffect(() => {
+    if (!avance.published || abierto.current) return;
+    abierto.current = true;
+    window.scrollTo(0, 0);
+    titulo.current?.focus({ preventScroll: true });
+  }, [avance.published]);
+
   useEffect(() => {
     vivo.current = true;
     if (autoStart && pendiente(initial)) void seguir();
@@ -140,7 +155,9 @@ export function Publicando({ slug, eventName, initial, autoStart }: { slug: stri
           <Chip estado="listo">{t("panel.cuenta.publicado")}</Chip>
           <span>{eventName}</span>
         </p>
-        <h1>{t("kit.publicando.listo")}</h1>
+        <h1 ref={titulo} tabIndex={-1} className="a-la-vista">
+          {t("kit.publicando.listo")}
+        </h1>
         <p className="bajada">{t("kit.publicando.listoBajada")}</p>
       </header>
       <div className="pantalla-cuerpo">

@@ -1,10 +1,12 @@
 // El borrador de un evento que salió de una plantilla: qué credenciales hay, qué trae cada una, cómo se llama
 // cada canje, dónde se canjea y cuántos hay. Una sola acción principal: "Publicar el evento". Es un formulario
 // común, sin JavaScript en el navegador: las casillas apagan y encienden cada credencial.
+import { randomUUID } from "node:crypto";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { AlaVista } from "@/components/kit/AlaVista.tsx";
 import { AccesoPanel } from "@/components/panel/AccesoPanel.tsx";
 import { CompartirPanel } from "@/components/panel/CompartirPanel.tsx";
 import { TuEquipo } from "@/components/panel/TuEquipo.tsx";
@@ -86,6 +88,8 @@ export default async function DraftPage({ params, searchParams }: { params: Para
   const tried = slugError && typeof query.direccion === "string" ? query.direccion.slice(0, 80) : null;
   const prefix = await publicPrefix();
   const version = await draftVersion(repo, event);
+  // Cada vez que se llega con un aviso (de guardar, de un cambio que no se guardó), uno nuevo: el aviso se vuelve a poner a la vista.
+  const llegada = `${new URLSearchParams(Object.entries(query).filter((e): e is [string, string] => typeof e[1] === "string")).toString()}:${randomUUID()}`;
 
   return (
     <form className="pantalla armar" action={guardarBorrador}>
@@ -109,9 +113,15 @@ export default async function DraftPage({ params, searchParams }: { params: Para
         <button type="submit" name="accion" value="guardar" className="oculto-visual" tabIndex={-1} aria-hidden="true">
           {t("kit.armar.guardar")}
         </button>
-        {query.equipo === "1" && <Aviso tono="listo">{t("panel.equipo.yaSos", { evento: event.name })}</Aviso>}
-        {query.guardado === "1" && <Aviso tono="listo">{query.movida === "1" ? t("kit.armar.direccionCambiada") : t("kit.armar.guardado")}</Aviso>}
-        {errorKey && !slugError && <Aviso tono="alerta">{t(errorKey)}</Aviso>}
+        {(query.equipo === "1" || query.guardado === "1" || (errorKey && !slugError)) && (
+          // Se vuelve acá con el scroll de donde estaba el botón, al pie: el aviso se pone a la vista. La key cambia en
+          // cada llegada, así se pone a la vista también al guardar dos veces seguidas.
+          <AlaVista key={llegada}>
+            {query.equipo === "1" && <Aviso tono="listo">{t("panel.equipo.yaSos", { evento: event.name })}</Aviso>}
+            {query.guardado === "1" && <Aviso tono="listo">{query.movida === "1" ? t("kit.armar.direccionCambiada") : t("kit.armar.guardado")}</Aviso>}
+            {errorKey && !slugError && <Aviso tono="alerta">{t(errorKey)}</Aviso>}
+          </AlaVista>
+        )}
 
         <section className="armar-seccion" aria-labelledby="armar-direccion">
           <h2 id="armar-direccion">{t("kit.armar.direccion")}</h2>
@@ -142,9 +152,11 @@ export default async function DraftPage({ params, searchParams }: { params: Para
               {t("kit.armar.direccionAyuda", { min: SLUG_MIN, max: SLUG_MAX })}
             </p>
             {slugError && (
-              <p className="campo-error" id="direccion-error" role="alert">
-                {t(slugError, { valor: tried ?? "" })}
-              </p>
+              <AlaVista key={llegada}>
+                <p className="campo-error" id="direccion-error" role="alert">
+                  {t(slugError, { valor: tried ?? "" })}
+                </p>
+              </AlaVista>
             )}
           </div>
           <div className="armar-vista">

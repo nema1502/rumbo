@@ -127,6 +127,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .contenedor { width: min(var(--ancho), 100% - 32px); margin-inline: auto; }
 .principal { padding: 24px 0 48px; }
 .oculto-visual { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* Un aviso que recibe el foco al llegar (AlaVista): no es un control, así que sin el anillo de foco salvo con teclado. */
+.a-la-vista:focus:not(:focus-visible) { outline: none; }
+.a-la-vista { scroll-margin: 16px; }
 
 /* Cabecera */
 .cabecera {
