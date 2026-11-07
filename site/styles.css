@@ -744,8 +744,13 @@ div.plegado > p { max-width: 52rem; }
 .reproductor[hidden] { display: none; }
 .marco-video { margin-inline: auto; width: 100%; border-radius: var(--radio); overflow: hidden; border: 1px solid var(--linea); background: #0b1626; box-shadow: var(--sombra); }
 .marco-video video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: contain; background: #0b1626; }
+/* Después del salto del menú quedan unos 325 px arriba del video (la cabecera, el aire, el título y las
+   pestañas): el video toma el alto que sobra, así su borde de abajo entra en la pantalla */
 @media (min-width: 861px) {
-  .marco-video { width: min(100%, max(640px, calc((100vh - 280px) * 16 / 9))); }
+  .marco-video { width: min(100%, max(520px, calc((100svh - 345px) * 16 / 9))); }
+}
+@media (min-width: 861px) and (max-width: 1140px) {
+  .marco-video { width: min(100%, max(520px, calc((100svh - 380px) * 16 / 9))); }
 }
 .video-pie { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 18px; margin-top: 10px; text-align: center; }
 .video-nota { color: var(--apagado); font-size: 0.9rem; }
