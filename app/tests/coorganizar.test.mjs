@@ -24,6 +24,7 @@ const { POST: entrar } = await import("../src/app/api/organizador/entrar/route.t
 const { GET: equipoGet, POST: equipoPost } = await import("../src/app/api/admin/[slug]/equipo/route.ts");
 const { POST: compartir } = await import("../src/app/api/admin/[slug]/compartir/route.ts");
 const { POST: aceptarRuta } = await import("../src/app/api/organizador/invitacion/route.ts");
+const { POST: estadoRuta } = await import("../src/app/api/organizador/invitacion/estado/route.ts");
 const { panelCookieName } = await import("../src/server/panel-sesion.ts");
 
 const repo = getRepo();
@@ -53,7 +54,7 @@ async function eventoDe(dueña) {
   return r.event;
 }
 
-const tokenDe = (path) => decodeURIComponent(path.split("/").pop());
+const tokenDe = (path) => decodeURIComponent(path.split("#").pop());
 
 /** Llama a la ruta del equipo como la dueña (o quien sea) desde la propia app. */
 async function equipo(event, quien, body, extra = {}) {
@@ -61,10 +62,17 @@ async function equipo(event, quien, body, extra = {}) {
   return { status: res.status, cuerpo: await res.json() };
 }
 
-/** Lo que hace el formulario de la invitación: POST con la ficha, desde la IP dada. */
+/** Lo que hace "Sumarme al equipo" en la página de la invitación: POST con la ficha en el cuerpo, desde la IP dada. */
 async function aceptar(token, quien, ip = "190.0.0.5") {
   const res = await aceptarRuta(await pedido("http://localhost/api/organizador/invitacion", { ip, body: { token }, headers: quien ? conCookie(quien.token) : {} }));
-  return { status: res.status, location: res.headers.get("location") };
+  const cuerpo = await res.json();
+  return { status: res.status, location: res.headers.get("location"), path: cuerpo.path ?? null, error: cuerpo.error ?? null, cuerpo, headers: [...res.headers.entries()] };
+}
+
+/** Lo que pregunta la página de la invitación al abrirse. */
+async function estado(token, quien, ip = "190.0.0.6") {
+  const res = await estadoRuta(await pedido("http://localhost/api/organizador/invitacion/estado", { ip, body: { token }, headers: quien ? conCookie(quien.token) : {} }));
+  return { status: res.status, cuerpo: await res.json(), headers: [...res.headers.entries()] };
 }
 
 test("la invitación: la dueña la crea, en la base queda solo la huella, y quien la acepta entra al panel con su sesión", async () => {
@@ -74,7 +82,8 @@ test("la invitación: la dueña la crea, en la base queda solo la huella, y quie
 
   const creada = await equipo(event, dueña, { accion: "invitar" });
   assert.equal(creada.status, 201, JSON.stringify(creada.cuerpo));
-  assert.match(creada.cuerpo.path, /^\/admin\/invitacion\/[A-Za-z0-9_-]{20,}$/);
+  // La ficha va en el fragmento (después de #): el navegador no la manda al servidor y no queda en sus registros.
+  assert.match(creada.cuerpo.path, /^\/admin\/invitacion#[A-Za-z0-9_-]{20,}$/);
   const token = tokenDe(creada.cuerpo.path);
   const filas = await getDb().all("SELECT * FROM event_invites WHERE event_id = ?", [event.id]);
   assert.equal(filas.length, 1);
@@ -89,8 +98,9 @@ test("la invitación: la dueña la crea, en la base queda solo la huella, y quie
   assert.equal((await co.lookupInvite(token)).state, "open");
 
   const r = await aceptar(token, ana);
-  assert.equal(r.status, 303);
-  assert.equal(r.location, `/admin/${event.slug}/armar?equipo=1`, "un borrador lleva a armarlo");
+  assert.equal(r.status, 200);
+  assert.equal(r.path, `/admin/${event.slug}/armar?equipo=1`, "un borrador lleva a armarlo");
+  assert.equal(r.location, null, "sin redirecciones");
   const dentro = await authorizePanelRequest(await pedido(url, { method: "GET", headers: conCookie(ana.token) }), event.slug);
   assert.deepEqual([dentro.event?.id, dentro.via, dentro.role], [event.id, "organizer", "coorganizer"]);
   assert.equal(await org.canManageEvent(ana.organizer, event), true);
@@ -113,9 +123,9 @@ test("una invitación sirve una sola vez, vence a los siete días y la dueña la
 
   // Un solo uso: Beto no entra con la de Ana.
   const primera = await co.createInvite(event, dueña.organizer);
-  assert.equal((await aceptar(primera.token, ana)).status, 303);
+  assert.equal((await aceptar(primera.token, ana)).status, 200);
   const segunda = await aceptar(primera.token, beto);
-  assert.match(segunda.location, /\?error=used$/);
+  assert.equal(segunda.error, "used");
   assert.equal(await org.canManageEvent(beto.organizer, event), false);
   // Quien ya está en el equipo y la vuelve a abrir no la gasta ni falla.
   const otra = await co.createInvite(event, dueña.organizer);
@@ -125,7 +135,7 @@ test("una invitación sirve una sola vez, vence a los siete días y la dueña la
   // Vencida.
   const vieja = await co.createInvite(event, dueña.organizer, Date.now() - co.INVITE_TTL_MS - 1000);
   assert.equal((await co.lookupInvite(vieja.token)).state, "expired");
-  assert.match((await aceptar(vieja.token, beto)).location, /\?error=expired$/);
+  assert.equal((await aceptar(vieja.token, beto)).error, "expired");
   assert.equal(await org.canManageEvent(beto.organizer, event), false);
 
   // Anulada.
@@ -134,12 +144,12 @@ test("una invitación sirve una sola vez, vence a los siete días y la dueña la
   const anular = await equipo(event, dueña, { accion: "anular", invitacion: anulada.cuerpo.invite.id });
   assert.equal(anular.status, 200);
   assert.ok(!anular.cuerpo.team.invites.some((i) => i.id === anulada.cuerpo.invite.id));
-  assert.match((await aceptar(ficha, beto)).location, /\?error=revoked$/);
+  assert.equal((await aceptar(ficha, beto)).error, "revoked");
   assert.equal((await equipo(event, dueña, { accion: "anular", invitacion: anulada.cuerpo.invite.id })).status, 404, "dos veces no");
   assert.equal(await org.canManageEvent(beto.organizer, event), false);
 
   // Una ficha que no existe, o de otra forma.
-  assert.match((await aceptar("x".repeat(24), beto)).location, /\?error=missing$/);
+  assert.equal((await aceptar("x".repeat(24), beto)).error, "missing");
   assert.equal((await co.lookupInvite("no/es/una/ficha")).state, "missing");
 });
 
@@ -148,11 +158,12 @@ test("la dueña no se invita a sí misma, y sin sesión aceptar lleva a entrar y
   const event = await eventoDe(dueña);
   const inv = await co.createInvite(event, dueña.organizer);
   assert.deepEqual(await co.acceptInvite(inv.token, dueña.organizer, event), { ok: false, reason: "owner" });
-  assert.match((await aceptar(inv.token, dueña)).location, /\?error=owner$/);
+  assert.equal((await aceptar(inv.token, dueña)).error, "owner");
   assert.equal((await co.lookupInvite(inv.token)).state, "open", "no se gastó");
 
+  // Sin sesión, la página muestra la puerta de entrar; la ficha sigue en el fragmento y no viaja a ningún lado.
   const sinSesion = await aceptar(inv.token, null);
-  assert.equal(sinSesion.location, `/admin?volver=${encodeURIComponent(co.invitePath(inv.token))}`);
+  assert.deepEqual([sinSesion.status, sinSesion.error, sinSesion.location], [401, "sesion", null]);
   // Desde otro sitio, nada.
   const ajeno = await aceptarRuta(await pedido("http://localhost/api/organizador/invitacion", { body: { token: inv.token }, headers: { ...conCookie(dueña.token), origin: "https://otro-sitio.example.com" } }));
   assert.equal(ajeno.status, 403);
@@ -164,10 +175,75 @@ test("aceptar fichas que no existen frena a esa IP como las entradas fallidas", 
   const event = await eventoDe(dueña);
   for (let i = 0; i < 12; i++) await aceptar(randomBytes(18).toString("base64url"), ana, "190.0.0.77");
   const buena = await co.createInvite(event, dueña.organizer);
-  assert.match((await aceptar(buena.token, ana, "190.0.0.77")).location, /\?error=demasiados$/, "frenada");
+  const frenada = await aceptar(buena.token, ana, "190.0.0.77");
+  assert.deepEqual([frenada.status, frenada.error], [429, "demasiados"], "frenada");
   assert.equal(await org.canManageEvent(ana.organizer, event), false);
   // Desde otra IP, entra.
-  assert.equal((await aceptar(buena.token, ana, "190.0.0.78")).location, `/admin/${event.slug}/armar?equipo=1`);
+  assert.equal((await aceptar(buena.token, ana, "190.0.0.78")).path, `/admin/${event.slug}/armar?equipo=1`);
+});
+
+test("la ficha de la invitación nunca va en una dirección: ni en el enlace (ruta o ?), ni en una redirección, ni en una respuesta", async () => {
+  const dueña = await cuenta("Dueña Prueba");
+  const ana = await cuenta("Ana Prueba");
+  const event = await eventoDe(dueña);
+  const inv = await co.createInvite(event, dueña.organizer);
+  const enlace = new URL(co.invitePath(inv.token), "http://localhost");
+  assert.equal(enlace.pathname, "/admin/invitacion");
+  assert.equal(enlace.search, "");
+  assert.equal(decodeURIComponent(enlace.hash.slice(1)), inv.token);
+
+  // Lo que pregunta la página: cómo está, de qué evento y quién invita. Sin sesión, también, sin gastarla.
+  const sinSesion = await estado(inv.token, null);
+  assert.equal(sinSesion.status, 200);
+  assert.deepEqual(sinSesion.cuerpo, { signedIn: false, state: "open", eventName: event.name, ownerName: "Dueña Prueba", role: null, panelPath: null });
+  const conSesion = await estado(inv.token, ana);
+  assert.deepEqual([conSesion.cuerpo.signedIn, conSesion.cuerpo.state, conSesion.cuerpo.role], [true, "open", null]);
+  assert.equal((await estado(inv.token, dueña)).cuerpo.panelPath, `/admin/${event.slug}/armar`, "la dueña va derecho a su borrador");
+  assert.equal((await co.lookupInvite(inv.token)).state, "open", "preguntar no la gasta");
+
+  // Cada respuesta, la de aceptar con todos sus motivos y la de preguntar: la ficha no aparece en ninguna cabecera.
+  const respuestas = [sinSesion, conSesion, await aceptar(inv.token, null), await aceptar(inv.token, dueña), await aceptar(inv.token, ana), await aceptar(inv.token, ana)];
+  for (const r of respuestas) {
+    for (const [nombre, valor] of r.headers) assert.ok(!valor.includes(inv.token), `la cabecera ${nombre} no lleva la ficha`);
+    assert.ok(!JSON.stringify(r.cuerpo).includes(inv.token), "ni el cuerpo");
+  }
+  assert.equal((await estado(inv.token, ana)).cuerpo.role, "coorganizer");
+  // Desde otro sitio, preguntar tampoco.
+  const ajeno = await estadoRuta(await pedido("http://localhost/api/organizador/invitacion/estado", { body: { token: inv.token }, headers: { origin: "https://otro-sitio.example.com" } }));
+  assert.equal(ajeno.status, 403);
+});
+
+test("preguntar por fichas que no existen frena a esa IP, como aceptarlas", async () => {
+  const dueña = await cuenta("Dueña Prueba");
+  const event = await eventoDe(dueña);
+  for (let i = 0; i < 12; i++) await estado(randomBytes(18).toString("base64url"), null, "190.0.0.88");
+  const buena = await co.createInvite(event, dueña.organizer);
+  assert.equal((await estado(buena.token, null, "190.0.0.88")).status, 429);
+  assert.equal((await estado(buena.token, null, "190.0.0.89")).cuerpo.state, "open");
+});
+
+test("la dueña cambia la clave del panel: el enlace para compartir de antes deja de abrir, y quien coorganiza no puede cambiarla", async () => {
+  const dueña = await cuenta("Dueña Prueba");
+  const ana = await cuenta("Ana Prueba");
+  const event = await eventoDe(dueña);
+  const vieja = await getOrCreateOrganizerKey(event.id);
+  const url = `http://localhost/api/admin/${event.slug}`;
+  const conClave = (clave) => ({ cookie: `${panelCookieName(event.slug)}=${clave}` });
+  assert.equal((await authorizePanelRequest(await pedido(url, { method: "GET", headers: conClave(vieja) }), event.slug)).via, "key");
+
+  await co.acceptInvite((await co.createInvite(event, dueña.organizer)).token, ana.organizer, event);
+  assert.equal((await equipo(event, ana, { accion: "cambiarClave" })).status, 403);
+  assert.equal(await getOrCreateOrganizerKey(event.id), vieja);
+
+  const r = await equipo(event, dueña, { accion: "cambiarClave" });
+  assert.equal(r.status, 200);
+  assert.equal(r.cuerpo.rotated, true);
+  const nueva = await getOrCreateOrganizerKey(event.id);
+  assert.notEqual(nueva, vieja);
+  assert.equal((await authorizePanelRequest(await pedido(url, { method: "GET", headers: conClave(vieja) }), event.slug)).response?.status, 401, "la vieja ya no abre");
+  assert.equal((await authorizePanelRequest(await pedido(url, { method: "GET", headers: conClave(nueva) }), event.slug)).via, "key");
+  // Quien coorganiza sigue entrando con su cuenta.
+  assert.equal((await authorizePanelRequest(await pedido(url, { method: "GET", headers: conCookie(ana.token) }), event.slug)).role, "coorganizer");
 });
 
 test("autorizar una cuenta: quien entra como organizador con ella queda en el equipo la primera vez, y se queda", async () => {

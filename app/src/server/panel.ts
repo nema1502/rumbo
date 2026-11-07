@@ -52,6 +52,15 @@ export async function getOrCreateOrganizerKey(eventId: string): Promise<string> 
   return (await select()) as string;
 }
 
+/**
+ * Una clave nueva para el panel del evento: la de antes deja de abrirlo en el acto (los enlaces para compartir el
+ * panel que ya se pasaron, y las cookies que dejaron). La sesión de quienes entran con su cuenta no depende de ella.
+ */
+export async function rotateOrganizerKey(eventId: string): Promise<string> {
+  await getDb().run("DELETE FROM organizer_keys WHERE event_id = ?", [eventId]);
+  return getOrCreateOrganizerKey(eventId);
+}
+
 /** Si la clave abre el panel de ese evento. Se compara sin que el tiempo delate en qué letra difiere. */
 export async function verifyOrganizerKey(eventId: string, key: string | null | undefined): Promise<boolean> {
   if (!key) return false;

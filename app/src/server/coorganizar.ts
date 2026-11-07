@@ -1,9 +1,11 @@
 // Coorganizar: la dueña de un evento (la cuenta de organizador que lo creó) suma a otras personas a su equipo, y
 // cada una entra con su propia cuenta de organizador. Quien coorganiza puede todo lo del panel y el borrador salvo
 // sumar o sacar a otras personas, que es de la dueña. Se suma de dos maneras:
-//   - un enlace de invitación (/admin/invitacion/<ficha>): de un solo uso, vence a los siete días, y en la base
+//   - un enlace de invitación (/admin/invitacion#<ficha>): de un solo uso, vence a los siete días, y en la base
 //     queda solo la huella SHA-256 de la ficha (event_invites.token_hash), así quien lea la base no tiene con qué
-//     sumarse. Quien lo abre con su sesión toca "Sumarme al equipo" y queda.
+//     sumarse. La ficha va en el fragmento (después de #), que el navegador nunca le manda al servidor: no queda en
+//     los registros de pedidos ni en las redirecciones. La página la lee en el navegador y la manda en el cuerpo de
+//     un POST. Quien la abre con su sesión toca "Sumarme al equipo" y queda.
 //   - autorizar una cuenta: la dueña pega la cuenta de Stellar (G...) de la otra persona, y quien entra como
 //     organizador con esa cuenta queda como coorganizador la primera vez (event_account_grants pasa a
 //     event_coorganizers).
@@ -12,7 +14,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { StrKey } from "@stellar/stellar-sdk";
 import { getDb } from "./base/index.ts";
-import type { EventRecord, Organizer } from "./repo.ts";
+import type { EventRecord, Organizer, Repo } from "./repo.ts";
 
 /** Cuánto vive un enlace de invitación sin usarse. */
 export const INVITE_TTL_MS = 7 * 24 * 3600_000;
@@ -133,8 +135,11 @@ export async function createInvite(event: EventRecord, owner: Organizer, now: nu
   return { ok: true, token, invite };
 }
 
-/** La dirección relativa de la invitación, para el enlace: /admin/invitacion/<ficha>. */
-export const invitePath = (token: string): string => `/admin/invitacion/${encodeURIComponent(token)}`;
+/** La página de las invitaciones, sin la ficha. */
+export const INVITE_PAGE = "/admin/invitacion";
+
+/** La dirección relativa de la invitación, para el enlace: /admin/invitacion#<ficha>. La ficha nunca va en la ruta ni en ?. */
+export const invitePath = (token: string): string => `${INVITE_PAGE}#${encodeURIComponent(token)}`;
 
 export type AuthorizeResult = { ok: true; publicKey: string } | { ok: false; reason: "invalid" | "self" | "already" | "limit" };
 
@@ -219,6 +224,31 @@ export async function acceptInvite(token: string, organizer: Organizer, event: E
   const by = await db.one("SELECT created_by FROM event_invites WHERE token_hash = ?", [inviteHash(token)]);
   await db.run("INSERT INTO event_coorganizers (event_id, organizer_id, added_by, created_at) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING", [event.id, organizer.id, strOrNull(by?.created_by), iso(now)]);
   return { ok: true, eventId: event.id, already: false };
+}
+
+/** Lo que la página de la invitación muestra: cómo está, de qué evento es, quién invita y, si ya es del equipo, a dónde va. */
+export interface InviteView {
+  state: InviteState;
+  eventName: string | null;
+  /** El nombre de la dueña, si lo dio al entrar. */
+  ownerName: string | null;
+  /** Qué es para el evento la cuenta que la abre (sin sesión, null). */
+  role: EventRole | null;
+  /** El panel del evento (o su borrador, si no se publicó): solo para quien ya es del equipo. */
+  panelPath: string | null;
+}
+
+/** El panel de un evento, o su borrador si todavía no se publicó. */
+export const teamLandingPath = (event: EventRecord): string => `/admin/${encodeURIComponent(event.slug)}${event.published ? "" : "/armar"}`;
+
+/** La invitación como la ve quien la abre (con su cuenta, o sin sesión). No la gasta. */
+export async function describeInvite(repo: Repo, token: string, organizer: Organizer | null, now: number = Date.now()): Promise<InviteView> {
+  const found = await lookupInvite(token, now);
+  const event = found.eventId ? await repo.getEventById(found.eventId) : null;
+  if (!event) return { state: "missing", eventName: null, ownerName: null, role: null, panelPath: null };
+  const owner = event.organizerId ? await repo.getOrganizerById(event.organizerId) : null;
+  const role = organizer ? await eventRole(organizer, event) : null;
+  return { state: found.state, eventName: event.name, ownerName: owner?.name?.trim() || null, role, panelPath: role ? teamLandingPath(event) : null };
 }
 
 /** La cuenta como se muestra: las cuatro primeras y las cuatro últimas, "GABC...WXYZ". */

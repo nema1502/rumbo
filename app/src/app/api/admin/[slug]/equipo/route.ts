@@ -7,10 +7,13 @@
 //         { accion: "sacar", organizador: "<id>" }  saca a alguien del equipo.
 //         { accion: "anular", invitacion: "<id>" }  anula una invitación abierta.
 //         { accion: "anular", cuenta: "G..." }      anula una cuenta autorizada que todavía no entró.
+//         { accion: "cambiarClave" }                cambia la clave del panel: los enlaces para compartirlo que ya se
+//                                                     pasaron dejan de abrir (sacar a alguien no los corta).
 // Cada POST contesta además el equipo como queda. Solo desde la propia app. Errores: 409 limit (veinte abiertas como
 // mucho), 422 invalid, self o already al autorizar, 404 si lo que se quiere sacar o anular no existe.
 import { NextResponse, type NextRequest } from "next/server";
 import { authorizeAccount, createInvite, invitePath, listTeam, removeCoorganizer, revokeGrant, revokeInvite } from "@/server/coorganizar.ts";
+import { rotateOrganizerKey } from "@/server/panel.ts";
 import { authorizePanelRequest } from "@/server/panel-sesion.ts";
 import { fromOwnSite } from "@/server/pedido.ts";
 
@@ -68,6 +71,10 @@ export async function POST(request: NextRequest, { params }: Context) {
       const done = body.invitacion !== undefined ? await revokeInvite(event, text(body.invitacion)) : await revokeGrant(event, text(body.cuenta).toUpperCase());
       if (!done) return json({ error: "not_found" }, 404);
       return json({ team: await listTeam(event) });
+    }
+    case "cambiarClave": {
+      await rotateOrganizerKey(event.id);
+      return json({ rotated: true, team: await listTeam(event) });
     }
     default:
       return json({ error: "invalid_action" }, 400);

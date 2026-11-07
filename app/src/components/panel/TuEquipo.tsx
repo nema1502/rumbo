@@ -24,6 +24,7 @@ export function TuEquipo({ slug, initial }: { slug: string; initial: EventTeam }
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [error, setError] = useState<ErrorEquipo | null>(null);
   const [autorizada, setAutorizada] = useState(false);
+  const [claveCambiada, setClaveCambiada] = useState(false);
 
   const fecha = (iso: string) => new Intl.DateTimeFormat(LOCALES[lang], { day: "numeric", month: "long" }).format(new Date(iso));
 
@@ -64,6 +65,12 @@ export function TuEquipo({ slug, initial }: { slug: string; initial: EventTeam }
       setCuenta("");
       setAutorizada(true);
     }
+  }
+
+  async function cambiarClave() {
+    if (ocupado !== null || !window.confirm(t("panel.equipo.confirmarClave"))) return;
+    setClaveCambiada(false);
+    if (await pedir("cambiarClave", {})) setClaveCambiada(true);
   }
 
   const vacio = equipo.members.length === 0 && equipo.invites.length === 0 && equipo.grants.length === 0;
@@ -179,6 +186,16 @@ export function TuEquipo({ slug, initial }: { slug: string; initial: EventTeam }
             ))}
           </ul>
         )}
+      </div>
+
+      {/* Sacar a alguien corta su cuenta, no el enlace con la clave: esto lo corta para todos. */}
+      <div className="tu-equipo-bloque">
+        <h3>{t("panel.equipo.cambiarClave")}</h3>
+        <p className="chico">{t("panel.equipo.cambiarClaveAyuda")}</p>
+        {claveCambiada && <Aviso tono="listo">{t("panel.equipo.claveCambiada")}</Aviso>}
+        <Boton variante="secundario" className="boton-chico" disabled={ocupado !== null} aria-busy={ocupado === "cambiarClave"} onClick={() => void cambiarClave()}>
+          {t("panel.equipo.cambiarClave")}
+        </Boton>
       </div>
     </Tarjeta>
   );
