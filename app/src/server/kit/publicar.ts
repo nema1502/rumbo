@@ -15,6 +15,7 @@ import { Address, Operation, TransactionBuilder, BASE_FEE, nativeToScVal } from 
 import { isPublicKind } from "../../lib/credential-kinds.ts";
 import { BUSY, tryExclusive } from "../compartido.ts";
 import { allowEventContractInPollar, type AllowOutcome } from "../pollar-politica.ts";
+import { MAX_DISCARDED, countEventContracts, noteEventContract } from "./contratos-del-evento.ts";
 import type { EventRecord, Repo, TicketType } from "../repo.ts";
 import { NETWORK_PASSPHRASE, TX_TIMEOUT_SECONDS, getRpc, getSponsor, getTestAsset, readDeployInfo, submitSponsored, toStroops, withSponsorLock } from "../stellar.ts";
 
@@ -39,7 +40,7 @@ export interface ContractProvisioner {
   allow?(contractId: string, label: string): Promise<AllowOutcome>;
 }
 
-export type PublishFailure = "no_attendee" | "no_free_attendee" | "no_capacity" | "deploy_failed" | "busy";
+export type PublishFailure = "no_attendee" | "no_free_attendee" | "no_capacity" | "too_many_contracts" | "deploy_failed" | "busy";
 
 export type PublishResult =
   | { ok: true; deployed: number }
@@ -111,6 +112,7 @@ export const isPublishPending = (p: PublishProgress): boolean => !p.published ||
 async function deployFor(repo: Repo, event: EventRecord, type: TicketType, provisioner: ContractProvisioner): Promise<{ contractId: string; created: boolean }> {
   const benefits = (await repo.listTicketTypeBenefits(type.id)).length;
   const contractId = await provisioner.deploy({ price: type.priceUsdc, capacity: event.capacity ?? 0, benefits, organizerAccount: event.organizerAccount });
+  await noteEventContract(event.id, type.id, contractId);
   // Solo si la entrada sigue sin contrato: el que ya tiene (con inscriptos, quizás) no se pisa nunca.
   if (await repo.setTicketTypeContractIfEmpty(type.id, contractId)) {
     // Con cuentas de Pollar, su firmante tiene que conocer el contrato; si el aviso falla, publicar sigue y
@@ -141,6 +143,11 @@ async function stepLocked(repo: Repo, eventId: string, provisioner: ContractProv
   let deployed = 0;
   const ready = (t: TicketType) => hasContract(event as EventRecord, t);
   const next = deployOrder(types).find((t) => !ready(t));
+  // El tope de un borrador: un contrato por tipo y los que guardar el borrador deja descartar (contratos-del-evento.ts).
+  // Guardar ya frena antes; esto es por si algo se le escapa: un borrador nunca crea contratos sin fin.
+  if (next && !event.published && (await countEventContracts(event.id)) >= types.length + MAX_DISCARDED) {
+    return { ok: false, reason: "too_many_contracts", detail: null };
+  }
   if (next) {
     try {
       if ((await deployFor(repo, event, next, provisioner)).created) deployed++;

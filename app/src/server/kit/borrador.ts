@@ -3,8 +3,10 @@
 // canjea y cuántos hay) y cómo se guarda. Guardar deja la base igual a lo que dice el formulario: crea lo que
 // falta, cambia lo que cambió y borra lo que se apagó. Los números de canje de cada tipo (0, 1, 2...) se
 // asignan por orden, que es como los pide el contrato de cada entrada.
+import { createHash } from "node:crypto";
 import type { Lang } from "../../i18n/index.ts";
 import type { Benefit, EventRecord, Repo, TicketType } from "../repo.ts";
+import { MAX_DISCARDED, countDiscardedContracts } from "./contratos-del-evento.ts";
 import {
   DEFAULT_PAID_PRICE,
   SLOTS,
@@ -38,7 +40,7 @@ export interface DraftInput {
   benefits: Record<string, DraftBenefitInput>;
 }
 
-export type DraftErrorCode = "published" | "template" | "price" | "stock" | "name";
+export type DraftErrorCode = "published" | "template" | "price" | "stock" | "name" | "preparadas";
 
 export class DraftError extends Error {
   readonly code: DraftErrorCode;
@@ -104,6 +106,18 @@ export async function saveDraft(repo: Repo, event: EventRecord, input: DraftInpu
     const benefits = spec.benefitOrder.filter((key) => key !== "prize" && chosen.has(key));
     wanted.push({ slot, name, price, benefits });
   }
+
+  // Un publicar que quedó a medias pudo preparar algunas credenciales (cada una con su contrato, con el precio y los
+  // canjes fijos). Cambiarles eso, o apagarlas, deja su contrato sin usar y el paso siguiente crea otro: después de
+  // MAX_DISCARDED, lo ya preparado queda como está hasta publicar.
+  let discarding = 0;
+  for (const type of await repo.listTicketTypes(event.id)) {
+    if (!type.templateSlot || !type.contractId) continue;
+    const w = wanted.find((x) => x.slot === type.templateSlot);
+    const benefitCount = w ? w.benefits.filter((key) => benefitDef(key, lang, spec.id)).length : 0;
+    if (!w || type.priceUsdc !== w.price || (await repo.listTicketTypeBenefits(type.id)).length !== benefitCount) discarding++;
+  }
+  if (discarding > 0 && (await countDiscardedContracts(event.id)) + discarding > MAX_DISCARDED) throw new DraftError("preparadas");
 
   // Los beneficios que hacen falta: los que trae algún tipo, y el premio del sorteo.
   const needed = new Set<string>(["prize"]);
@@ -221,6 +235,16 @@ export async function readDraft(repo: Repo, event: EventRecord, lang: Lang): Pro
     });
   }
   return { template: spec, teamSignup: event.teamSignup, slots, benefits: benefitViews };
+}
+
+/**
+ * La huella del borrador tal como se ve: la dirección y todo lo que el formulario edita. Va oculta en el formulario
+ * y guardar la vuelve a calcular: si no coincide, alguien del equipo guardó en el medio y no se pisa lo suyo.
+ */
+export async function draftVersion(repo: Repo, event: EventRecord, lang: Lang): Promise<string> {
+  const draft = await readDraft(repo, event, lang);
+  const snapshot = { slug: event.slug, teamSignup: event.teamSignup, slots: draft?.slots ?? null, benefits: draft?.benefits ?? null };
+  return createHash("sha256").update(JSON.stringify(snapshot), "utf8").digest("hex").slice(0, 32);
 }
 
 // ---------- El formulario ----------
