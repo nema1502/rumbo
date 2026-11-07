@@ -329,8 +329,9 @@
   .pb-guia .pb-auto { padding: 0; }
   .pb-guia-texto { font-size: 1.02rem; }
 }
+/* A 320 px "Quien organiza" no entraba en su pestaña: las etiquetas pueden partirse en dos líneas */
 @media (max-width: 340px) {
-  .pb-rol { padding: 0 4px; font-size: .82rem; }
+  .pb-rol { padding: 2px 4px; font-size: .82rem; white-space: normal; line-height: 1.1; text-wrap: balance; }
 }
 
 /* Movimiento: solo transform y opacity */
