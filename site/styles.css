@@ -836,36 +836,84 @@ div.plegado > p { max-width: 52rem; }
 .cobros .motivo .etiqueta { margin-bottom: 6px; }
 .plegado-titulo { font-size: 1.15rem; }
 
-/* Lo que viene */
-.viene { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
-.viene-item { padding: 18px; display: grid; gap: 8px; align-content: start; }
+/* Lo que viene: siete promesas con su etiqueta; los pagos de diciembre, más anchos */
+.viene { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.viene-item { padding: 18px; display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 8px 12px; align-content: start; align-items: center; }
+.viene-icono { grid-row: span 2; align-self: start; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--acento-suave); color: var(--acento-texto); }
+.viene-icono svg { width: 20px; height: 20px; }
 .viene-item .etiqueta { justify-self: start; }
-.viene-item h3 { margin: 2px 0 0; font-size: 1.05rem; line-height: 1.2; }
-.viene-item p { font-size: 0.95rem; }
+.viene-item h3 { margin: 0; font-size: 1.05rem; line-height: 1.2; }
+.viene-item p { grid-column: 2; margin: 0; font-size: 0.95rem; }
+.viene-destacado { grid-column: span 2; background: color-mix(in srgb, var(--amarillo) 14%, var(--tarjeta)); }
+.viene-destacado .viene-icono { background: color-mix(in srgb, var(--amarillo) 40%, transparent); color: var(--tinta); }
 #viene .plegable { margin-top: 10px; }
-@media (max-width: 1140px) { .viene { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 760px) { .viene { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 480px) { .viene { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 1140px) { .viene { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .viene { grid-template-columns: minmax(0, 1fr); } .viene-destacado { grid-column: auto; } }
 
-/* Hecho con Stellar */
-.seccion-stellar .contenedor { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: 24px 56px; align-items: start; }
+/* Hecho con Stellar: arriba lo que gana cada quien y la huella que se anota; abajo, lo técnico plegado */
+.seccion-stellar .contenedor { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: 28px 56px; align-items: center; }
 .stellar-cabeza h2 { margin-top: 18px; }
 .stellar-cabeza > p:not(.sello-stellar):not(.estado) { margin-top: 10px; color: var(--tinta-2); font-size: 1.05rem; max-width: 40rem; }
-.stellar-pliegues { display: grid; gap: 8px; padding-top: 6px; }
+.stellar-gana { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 10px; }
+.stellar-gana li { display: flex; align-items: flex-start; gap: 10px; font-weight: 600; color: var(--tinta); line-height: 1.4; }
+.stellar-gana svg { width: 22px; height: 22px; flex: none; padding: 4px; border-radius: 50%; background: var(--verde-suave); fill: none; stroke: var(--verde-chip); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+.huella { margin: 0; }
+.huella-hoja { max-width: 420px; margin-inline: auto; padding: 22px; border-radius: 22px; background: var(--tarjeta); border: 1px solid var(--linea); box-shadow: var(--sombra); transform: rotate(-1.2deg); }
+.huella-cabeza { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--linea); }
+.huella-titulo { font: 800 1.15rem var(--display); letter-spacing: -0.02em; }
+.huella-filas { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+.huella-filas li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--papel); color: var(--tinta); font-weight: 600; font-size: 0.95rem; line-height: 1.3; }
+.huella-filas .chip { display: inline-flex; align-items: center; gap: 4px; }
+.huella-repetido { outline: 1.5px dashed color-mix(in srgb, var(--acento) 55%, transparent); outline-offset: -1.5px; }
+.huella-pie { margin: 12px 0 0; color: var(--apagado); font-size: 0.9rem; text-align: center; }
+@keyframes anotar { from { opacity: 0; transform: translateY(10px) scale(0.98); } }
+@keyframes negar { 0%, 100% { transform: none; } 25% { transform: translateX(-5px); } 50% { transform: translateX(4px); } 75% { transform: translateX(-2px); } }
+@media screen and (prefers-reduced-motion: no-preference) {
+  .huella.espera .huella-filas li, .huella.espera .huella-pie { opacity: 0; }
+  .huella.arma .huella-filas li { animation: anotar 0.5s var(--suave) backwards; animation-delay: calc(200ms + var(--n) * 520ms); }
+  .huella.arma .huella-repetido { animation: anotar 0.5s var(--suave) 1.76s backwards, negar 0.45s ease-in-out 2.3s; }
+  .huella.arma .huella-pie { animation: anotar 0.5s var(--suave) 2.9s backwards; }
+}
+/* Lo técnico, plegado y en una fila; lo que se abre ocupa todo el ancho para que se lea */
+.stellar-pliegues { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-items: start; }
 .stellar-pliegues > .plegable { padding: 4px 14px; border-radius: 16px; background: var(--tarjeta); border: 1px solid var(--linea); }
+.stellar-pliegues > .plegable[open] { grid-column: 1 / -1; }
 .stellar-pliegues > .plegable > summary { display: flex; justify-content: space-between; width: 100%; margin: 0; color: var(--tinta); font-size: 1rem; }
 .stellar-pliegues > .plegable > summary::after { color: var(--acento-texto); }
 .stellar-pliegues > .plegable > .plegado { padding-bottom: 14px; }
 .seccion-stellar .motivos { grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .seccion-stellar .motivo { padding: 14px 16px; }
 .seccion-stellar .datos { grid-template-columns: minmax(0, 1fr); }
-/* Con algo abierto, los pliegues pasan debajo, a todo el ancho, para que el diagrama se lea */
-.seccion-stellar .contenedor:has(.stellar-pliegues > .plegable[open]) { grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 1001px) {
-  .seccion-stellar .contenedor:has(.stellar-pliegues > .plegable[open]) .datos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .seccion-stellar .contenedor:has(.stellar-pliegues > .plegable[open]) .motivos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .seccion-stellar .datos, .seccion-stellar .motivos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
-@media (max-width: 1000px) { .seccion-stellar .contenedor { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 1000px) {
+  .seccion-stellar .contenedor { grid-template-columns: minmax(0, 1fr); }
+  .huella-hoja { transform: none; }
+}
+@media (max-width: 700px) { .stellar-pliegues { grid-template-columns: minmax(0, 1fr); } }
+
+/* Para cualquier evento: seis tipos, cada uno con algo que se canjea */
+#eventos .encabezado-centro p { margin-inline: auto; }
+.eventos { list-style: none; margin: 0 auto; padding: 0; max-width: 960px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.evento { padding: 16px 18px; display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 6px 14px; align-items: center; }
+.evento h3 { margin: 0; font-size: 1.05rem; line-height: 1.25; align-self: end; }
+.evento-icono { grid-row: span 2; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; background: var(--acento-suave); color: var(--acento-texto); }
+.evento-icono svg { width: 26px; height: 26px; }
+.evento-canje { justify-self: start; align-self: start; display: inline-flex; align-items: center; gap: 4px; }
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .evento { transition: transform 0.25s var(--suave), box-shadow 0.25s var(--suave); }
+  .evento:hover { transform: translateY(-4px); box-shadow: var(--sombra-alzada); }
+  .evento:hover .evento-icono { animation: latido 0.6s var(--suave); }
+}
+@keyframes latido { 40% { transform: scale(1.12) rotate(-6deg); } }
+@media (max-width: 860px) { .eventos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) {
+  .eventos { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .evento { padding: 12px 14px; grid-template-columns: 44px minmax(0, 1fr); column-gap: 12px; }
+  .evento-icono { width: 44px; height: 44px; border-radius: 14px; }
+  .evento-icono svg { width: 22px; height: 22px; }
+}
 
 /* Equipo */
 #principios { margin-top: 12px; }
@@ -874,8 +922,9 @@ div.plegado > p { max-width: 52rem; }
 .franja-final { padding: clamp(48px, 7vw, 96px) 0; background: radial-gradient(800px 360px at 50% 0%, var(--brillo-1), transparent 70%), var(--acento-suave); border-top: 1px solid var(--linea); text-align: center; }
 .franja-final .contenedor { display: grid; justify-items: center; gap: 14px; }
 .franja-final h2 { font-size: clamp(2rem, 5vw, 3.6rem); }
+.final-lema { margin: 0; font: 800 clamp(1.05rem, 2vw, 1.3rem) var(--display); letter-spacing: -0.01em; color: var(--acento-texto); }
 .franja-final h2 em { font-style: normal; color: var(--acento-texto); }
-.franja-final .contenedor > p:not(.sello-stellar):not(.final-entrar) { color: var(--tinta-2); font-size: 1.1rem; }
+.franja-final .contenedor > p:not(.sello-stellar):not(.final-entrar):not(.final-lema) { color: var(--tinta-2); font-size: 1.1rem; }
 .franja-final .cta { margin-top: 8px; }
 .final-entrar { color: var(--tinta-2); }
 .final-entrar a { display: inline-flex; align-items: center; min-height: 44px; color: var(--acento-texto); font-weight: 700; }

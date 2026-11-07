@@ -35,6 +35,7 @@ const EN = {
   "aria.informe": "A sample report that builds itself",
   "aria.arquitectura": "How the pieces connect",
   "aria.enlaces": "Links",
+  "aria.huella": "What gets recorded on Stellar during a sample event",
 
   "sello.hecho": "Built on",
   "etiqueta.anda": "Live now",
@@ -94,6 +95,21 @@ const EN = {
   "sumar.s2": "Door",
   "sumar.s3": "Redemptions",
   "sumar.s4": "Reports",
+  "eventos.ante": "For any event",
+  "eventos.titulo": "Set your event's course.",
+  "eventos.linea": "A hackathon, a fair or a festival: the same pass, the same door.",
+  "eventos.e1": "Hackathons",
+  "eventos.e1c": "Saturday lunch",
+  "eventos.e2": "Meetups and chapters",
+  "eventos.e2c": "Verified attendance",
+  "eventos.e3": "Conferences",
+  "eventos.e3c": "Workshop kit",
+  "eventos.e4": "Fairs",
+  "eventos.e4c": "Booth route",
+  "eventos.e5": "Festivals",
+  "eventos.e5c": "Welcome drink",
+  "eventos.e6": "Theater, film and culture",
+  "eventos.e6c": "Free entry",
   "sumar.lector": "Bring your guest list or register people for free on Rumbo; Rumbo builds the QR pass, the door, the redemptions and the reports.",
 
   "informe.ante": "Reports",
@@ -142,7 +158,7 @@ const EN = {
   "problema.h6": "Sponsor report",
   "problema.h6b": "assembled from memory",
   "problema.remate.p": "In much of the world charging for tickets by card is not possible: payment gateways do not pay out in that country. Bolivia is one of them.",
-  "como.para": "Rumbo is made for events of 80 to 500 people with sponsors and several benefits: hackathons, DevFests, community conferences, bootcamps, chapter meetups.",
+  "como.para": "Rumbo is made for community events of 20 to 500 people with several benefits: hackathons, chapter meetups, conferences, fairs, festivals and theater or film nights.",
   "casos.bajada": "What you do today with a form, a group chat and a spreadsheet, in one place, with what gets handed out under control.",
   "como.r1.n": "If you organize",
   "como.r1.l": "Build the page, get paid and follow it all live.",
@@ -231,6 +247,9 @@ const EN = {
   "viene.v3.t": "Social media challenges, checked by QR",
   "viene.v4.t": "Big doors, no queue",
   "viene.v5.t": "Payments with real money",
+  "viene.v5.p": "Get paid from any country, with the money already split.",
+  "viene.v6.t": "Booths that sell with the same QR code",
+  "viene.v7.t": "Gifts with a one-of-a-kind QR code",
   "crece.porque": "Communities bring sponsors, paid events bring networks, and networks bring the platforms that want to build on top.",
   "crece.e1.tag": "First",
   "crece.e1.t": "One community",
@@ -258,8 +277,21 @@ const EN = {
   "crece.remate.t": "Open core, hosted service.",
   "crece.remate.p": "People learn Stellar by adapting the code, and Rumbo will charge for the hosted service.",
 
-  "stellar.titulo": "Payments without borders, redemptions that never repeat.",
-  "stellar.linea": "Nothing technical: people sign in with Google or their email.",
+  "stellar.titulo": "Every ticket leaves its mark.",
+  "stellar.linea": "Every ticket, redemption and sale is recorded on Stellar: nobody can erase it or count it twice.",
+  "stellar.g1": "Sponsors see what was really handed out.",
+  "stellar.g2": "Attendees sign in with Google or their email.",
+  "stellar.g3": "Organizers will get paid from any country.",
+  "huella.titulo": "Recorded on Stellar",
+  "huella.f1": "Ticket 37, Ana R.",
+  "huella.e1": "checked in",
+  "huella.f2": "Lunch",
+  "huella.e2": "redeemed",
+  "huella.f3": "T-shirt, size M",
+  "huella.e3": "sold",
+  "huella.f4": "Lunch, again",
+  "huella.e4": "already redeemed",
+  "huella.pie": "Each one, for a fraction of a cent.",
   "stellar.estado": "First version, in test mode. The code is open.",
   "stellar.ver": "Why Stellar",
   "stellar.bajada": "For counting lunches a spreadsheet would do. This is what Stellar adds.",
@@ -343,6 +375,7 @@ const EN = {
   "principios.p6.t": "Close what it opened.",
   "principios.p6.p": "The redemption contract, the scanner and the event template are open source under MIT. The hosted service is what Rumbo will charge for.",
 
+  "final.lema": "Set your event's course.",
   "final.titulo": "Your next event, <em>in one QR&nbsp;code</em>.",
   "final.linea": "Signing up is free. Set up in two minutes.",
   "final.entrar": "Already have an event?",
@@ -384,8 +417,8 @@ function aplicarIdioma(lang) {
   document.title = lang === "en" ? "Rumbo: your whole event in one QR code" : "Rumbo: tu evento entero en un QR";
   const desc = document.querySelector('meta[name="description"]');
   if (desc) desc.setAttribute("content", lang === "en"
-    ? "Register people for free or bring your guest list. The QR pass, the door, redemptions and the report, sorted. Built on Stellar."
-    : "Inscribí gratis o traé tu lista de inscriptos. La credencial con QR, la puerta, los canjes y el informe, resueltos. Hecho con Stellar.");
+    ? "For any community event: register people for free or bring your guest list. The QR pass, the door, redemptions and the report, sorted. Built on Stellar."
+    : "Para cualquier evento de comunidad: inscribí gratis o traé tu lista de inscriptos. La credencial con QR, la puerta, los canjes y el informe, resueltos. Hecho con Stellar.");
 
   // Quien llega a la app desde la landing en inglés, la ve en inglés.
   for (const a of document.querySelectorAll(`a[href^="${APP}"]`)) {
@@ -513,6 +546,7 @@ function animar() {
     () => pasosDe(document.getElementById("corte-video"), document.querySelector(".corte-pasos"), PASOS_CORTE, Infinity),
     () => clipsVivos(quieto),
     () => informeVivo(quieto),
+    () => huellaViva(quieto),
     barraMovil,
     cabeceraCompacta,
   ]) {
@@ -905,6 +939,21 @@ function informeVivo(quieto) {
       b.textContent = "0";
       requestAnimationFrame(paso);
     });
+  }, 0.45);
+}
+
+// La huella en Stellar se anota cuando entra en pantalla: la entrada, el canje, la venta y el
+// canje repetido que se frena. Una sola vez; con movimiento reducido ya está anotada.
+function huellaViva(quieto) {
+  const fig = document.querySelector(".huella");
+  if (!fig || quieto.matches) return;
+  fig.classList.add("espera");
+  let hecho = false;
+  observar(fig, (si) => {
+    if (!si || hecho) return;
+    hecho = true;
+    fig.classList.remove("espera");
+    fig.classList.add("arma");
   }, 0.45);
 }
 
