@@ -4,7 +4,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { AccesoPanel } from "@/components/panel/AccesoPanel.tsx";
 import { CompartirPanel } from "@/components/panel/CompartirPanel.tsx";
 import { TuEquipo } from "@/components/panel/TuEquipo.tsx";
@@ -14,12 +14,13 @@ import { getLang, getT } from "@/i18n/server.ts";
 import { kindLabelKey } from "@/lib/credential-kinds.ts";
 import { pollarEnabled } from "@/server/accounts.ts";
 import { listTeam } from "@/server/coorganizar.ts";
-import { readDraft, type DraftSlotView } from "@/server/kit/borrador.ts";
+import { draftVersion, readDraft, type DraftSlotView } from "@/server/kit/borrador.ts";
 import { SLUG_MAX, SLUG_MIN } from "@/server/kit/direccion.ts";
 import { templateStations } from "@/server/kit/plantillas.ts";
 import { PANEL_KEY_QUERY, panelAccess } from "@/server/panel-sesion.ts";
 import { getRepo } from "@/server/repo.ts";
 import { guardarBorrador } from "./actions.ts";
+import { panelEventBySlug } from "@/server/evento-del-panel.ts";
 
 export const dynamic = "force-dynamic";
 // La acción de publicar despliega un contrato por tipo de credencial en la red de prueba: tarda. Con Fluid en Vercel el tope por omisión alcanza; se declara igual.
@@ -40,6 +41,8 @@ const ERRORS: Record<string, string> = {
   publicar: "kit.armar.errorPublicar",
   publicando: "kit.armar.errorPublicando",
   general: "kit.armar.errorGeneral",
+  cambiado: "kit.armar.errorCambiado",
+  preparadas: "kit.armar.errorPreparadas",
   name: "kit.armar.errorGeneral",
   "direccion-formato": "kit.armar.direccionFormato",
   "direccion-reservada": "kit.armar.direccionReservada",
@@ -57,8 +60,7 @@ async function publicPrefix(): Promise<string> {
 export default async function DraftPage({ params, searchParams }: { params: Params; searchParams: Search }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
   const repo = getRepo();
-  const event = await repo.getEventBySlug(slug);
-  if (!event) notFound();
+  const event = await panelEventBySlug(slug, "/armar", query);
 
   const key = query[PANEL_KEY_QUERY];
   if (typeof key === "string" && key) redirect(`/api/admin/${encodeURIComponent(slug)}/entrar?k=${encodeURIComponent(key)}&next=armar`);
@@ -80,7 +82,10 @@ export default async function DraftPage({ params, searchParams }: { params: Para
   const stations = templateStations(draft.template, lang);
   const errorKey = typeof query.error === "string" ? ERRORS[query.error] : undefined;
   const slugError = typeof query.error === "string" && query.error.startsWith("direccion-") ? errorKey : undefined;
+  // Con un problema de la dirección, el campo vuelve con lo que se probó (y el aviso lo nombra), no con la de antes.
+  const tried = slugError && typeof query.direccion === "string" ? query.direccion.slice(0, 80) : null;
   const prefix = await publicPrefix();
+  const version = await draftVersion(repo, event, lang);
 
   return (
     <form className="pantalla armar" action={guardarBorrador}>
@@ -98,12 +103,14 @@ export default async function DraftPage({ params, searchParams }: { params: Para
         <p className="bajada">{t("kit.armar.bajada")}</p>
       </header>
       <div className="pantalla-cuerpo">
-        <input type="hidden" name="evento" value={slug} />
-        {/* Enter en un campo manda el primer botón del formulario: que sea guardar, no la vista previa (abre otra pestaña) ni publicar. */}
+        <input type="hidden" name="evento_id" value={event.id} />
+        <input type="hidden" name="version" value={version} />
+        {/* Enter en un campo manda el primer botón del formulario: que sea guardar, no la vista previa ni publicar. */}
         <button type="submit" name="accion" value="guardar" className="oculto-visual" tabIndex={-1} aria-hidden="true">
           {t("kit.armar.guardar")}
         </button>
-        {query.guardado === "1" && <Aviso tono="listo">{t("kit.armar.guardado")}</Aviso>}
+        {query.equipo === "1" && <Aviso tono="listo">{t("panel.equipo.yaSos", { evento: event.name })}</Aviso>}
+        {query.guardado === "1" && <Aviso tono="listo">{query.movida === "1" ? t("kit.armar.direccionCambiada") : t("kit.armar.guardado")}</Aviso>}
         {errorKey && !slugError && <Aviso tono="alerta">{t(errorKey)}</Aviso>}
 
         <section className="armar-seccion" aria-labelledby="armar-direccion">
@@ -119,7 +126,7 @@ export default async function DraftPage({ params, searchParams }: { params: Para
               <input
                 id="direccion"
                 name="direccion"
-                defaultValue={slug}
+                defaultValue={tried ?? slug}
                 required
                 minLength={SLUG_MIN}
                 maxLength={SLUG_MAX}
@@ -136,12 +143,12 @@ export default async function DraftPage({ params, searchParams }: { params: Para
             </p>
             {slugError && (
               <p className="campo-error" id="direccion-error" role="alert">
-                {t(slugError)}
+                {t(slugError, { valor: tried ?? "" })}
               </p>
             )}
           </div>
           <div className="armar-vista">
-            <Boton type="submit" name="accion" value="vista" variante="secundario" formTarget="_blank" className="boton-chico">
+            <Boton type="submit" name="accion" value="vista" variante="secundario" className="boton-chico">
               {t("kit.armar.verComoQueda")}
             </Boton>
             <span className="chico apagado">{t("kit.armar.verComoQuedaAyuda")}</span>

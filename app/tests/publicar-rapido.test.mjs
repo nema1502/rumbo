@@ -373,3 +373,140 @@ test("crear desde una plantilla con un nombre corto o reservado le pone un sufij
   assert.notEqual(reservado.slug, "nuevo");
   assert.equal(checkSlugFormat(reservado.slug).ok, true, reservado.slug);
 });
+
+// ---------- Lo que encontró la revisión ----------
+
+const { getDb } = await import("../src/server/base/index.ts");
+const { TEMPLATES } = await import("../src/server/kit/plantillas.ts");
+const { defaultDraft, saveDraft, draftVersion, DraftError } = await import("../src/server/kit/borrador.ts");
+const { MAX_DISCARDED, countEventContracts } = await import("../src/server/kit/contratos-del-evento.ts");
+const { PUBLISH_INTENT_COOKIE, shouldAutoStart } = await import("../src/server/kit/publicar-pedido.ts");
+const { findEventBySlug } = await import("../src/server/kit/direccion.ts");
+const { authorizePanelRequest } = await import("../src/server/panel-sesion.ts");
+const { GET: entrarRuta } = await import("../src/app/api/admin/[slug]/entrar/route.ts");
+
+const escapar = (texto) => texto.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+test("/publicando de un borrador no arranca sola por un enlace: solo con la cookie que deja Publicar el evento, de ese evento; ya publicado, sí", async () => {
+  const event = await borrador();
+  const otro = await borrador();
+  // Un enlace de otro sitio no lleva la cookie (es SameSite=Strict): la pantalla pide tocar Publicar.
+  assert.equal(shouldAutoStart(event, undefined), false);
+  assert.equal(shouldAutoStart(event, ""), false);
+  assert.equal(shouldAutoStart(event, otro.id), false, "la de otro evento no sirve");
+  assert.equal(shouldAutoStart(event, event.id), true);
+  assert.equal(shouldAutoStart({ ...event, published: true }, undefined), true, "terminar las del equipo no cambia nada que se vea");
+
+  // El primer paso la borra: volver a abrir /publicando de este borrador pide el botón.
+  const key = await getOrCreateOrganizerKey(event.id);
+  const res = await publicarRuta(await pedido(`http://localhost/api/admin/${event.slug}/publicar`, { headers: { cookie: `${panelCookieName(event.slug)}=${key}; ${PUBLISH_INTENT_COOKIE}=${event.id}` } }), enRuta(event.slug));
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get("set-cookie") ?? "", new RegExp(`${escapar(PUBLISH_INTENT_COOKIE)}=;.*Max-Age=0`, "i"));
+});
+
+test("un borrador a medias no crea contratos sin fin: cambiar lo ya preparado se frena a las MAX_DISCARDED vueltas, y después publica normal", async () => {
+  const event = await borrador();
+  const input = defaultDraft(TEMPLATES.meetup, "es");
+  input.slots.attendeePaid.included = true;
+  await saveDraft(repo, event, input, "es");
+  const original = [...input.slots.attendee.benefits];
+  assert.ok(original.length > 0, "el asistente trae algún canje");
+  const sinUno = original.slice(1);
+  const d = desplegador("CVUELTA");
+  let frenado = null;
+  for (let vuelta = 0; vuelta < 10 && !frenado; vuelta++) {
+    // El paso prepara la inscripción gratis; el evento sigue en borrador porque falta la paga.
+    const paso = await pub.publishStep(repo, await repo.getEventById(event.id), d);
+    assert.equal(paso.ok, true, JSON.stringify(paso));
+    assert.equal(paso.published, false);
+    // Sacar o poner un canje de la gratis descarta su contrato.
+    input.slots.attendee.benefits = vuelta % 2 === 0 ? sinUno : original;
+    try {
+      await saveDraft(repo, await repo.getEventById(event.id), input, "es");
+    } catch (error) {
+      frenado = error;
+    }
+  }
+  assert.ok(frenado instanceof DraftError && frenado.code === "preparadas", String(frenado));
+  assert.equal(d.creados.length, MAX_DISCARDED + 1, "un contrato por vuelta, y la vuelta frenada no descartó el suyo");
+  const gratis = (await repo.listTicketTypes(event.id)).find((t) => t.templateSlot === "attendee");
+  assert.equal(gratis.contractId, d.creados.at(-1).id, "lo preparado quedó como estaba");
+
+  // Lo demás se sigue pudiendo cambiar (el nombre no toca el contrato), y publicar termina sin crear de más.
+  input.slots.attendee.benefits = (await repo.listTicketTypeBenefits(gratis.id)).map((b) => b.templateKey);
+  input.slots.attendee.name = "Inscripción general";
+  await saveDraft(repo, await repo.getEventById(event.id), input, "es");
+  await hastaPublicar(await repo.getEventById(event.id), d);
+  const tipos = await repo.listTicketTypes(event.id);
+  assert.ok((await countEventContracts(event.id)) <= tipos.length + MAX_DISCARDED);
+  const anotados = await getDb().all("SELECT contract_id FROM event_contracts WHERE event_id = ?", [event.id]);
+  assert.deepEqual(new Set(anotados.map((r) => String(r.contract_id))), new Set(d.creados.map((c) => c.id)), "cada contrato creado quedó anotado");
+});
+
+test("aunque algo se le escape a guardar, un borrador con todos sus contratos ya creados no despliega más: la ruta contesta 422 too_many_contracts", async () => {
+  const event = await borrador();
+  const tipos = await repo.listTicketTypes(event.id);
+  for (let i = 0; i < tipos.length + MAX_DISCARDED; i++) {
+    await getDb().run("INSERT INTO event_contracts (contract_id, event_id, ticket_type_id, created_at) VALUES (?, ?, ?, ?)", [`CVIEJO${randomBytes(4).toString("hex")}`, event.id, tipos[0].id, new Date().toISOString()]);
+  }
+  const d = desplegador("CTOPE");
+  assert.deepEqual(await pub.publishStep(repo, event, d), { ok: false, reason: "too_many_contracts", detail: null });
+  const key = await getOrCreateOrganizerKey(event.id);
+  const res = await publicarRuta(await pedido(`http://localhost/api/admin/${event.slug}/publicar`, { headers: keyCookie(event.slug, key) }), enRuta(event.slug));
+  assert.equal(res.status, 422);
+  assert.deepEqual(await res.json(), { error: "too_many_contracts" });
+  assert.equal(d.creados.length + delProceso.creados.length, 0);
+});
+
+test("la huella del borrador cambia cuando alguien del equipo guarda (o cambia la dirección), y no cambia si guarda lo mismo", async () => {
+  const event = await borrador();
+  const input = defaultDraft(TEMPLATES.meetup, "es");
+  await saveDraft(repo, event, input, "es");
+  const antes = await draftVersion(repo, await repo.getEventById(event.id), "es");
+  assert.match(antes, /^[0-9a-f]{32}$/);
+  await saveDraft(repo, await repo.getEventById(event.id), input, "es");
+  assert.equal(await draftVersion(repo, await repo.getEventById(event.id), "es"), antes, "guardar lo mismo no la cambia");
+  input.benefits[Object.keys(input.benefits)[0]].stock = 77;
+  await saveDraft(repo, await repo.getEventById(event.id), input, "es");
+  const despues = await draftVersion(repo, await repo.getEventById(event.id), "es");
+  assert.notEqual(despues, antes, "el formulario de antes ya no coincide");
+  await changeEventSlug(await repo.getEventById(event.id), `otra-direccion-${randomBytes(3).toString("hex")}`);
+  assert.notEqual(await draftVersion(repo, await repo.getEventById(event.id), "es"), despues);
+});
+
+test("cambiar la dirección de un borrador no deja afuera a nadie: la vieja lleva a la nueva, la cookie de la clave con el nombre viejo sirve, y otro evento no la puede tomar", async () => {
+  const event = await borrador("meetup", { name: "Encuentro con dirección vieja" });
+  const vieja = event.slug;
+  const key = await getOrCreateOrganizerKey(event.id);
+  const nueva = `encuentro-${randomBytes(3).toString("hex")}`;
+  assert.deepEqual(await changeEventSlug(event, nueva), { ok: true, slug: nueva });
+
+  // La vieja encuentra al evento y dice que se movió.
+  const encontrado = await findEventBySlug(repo, vieja);
+  assert.deepEqual([encontrado?.event.id, encontrado?.moved], [event.id, true]);
+  assert.equal((await findEventBySlug(repo, nueva))?.moved, false);
+  assert.equal(await findEventBySlug(repo, "no-existe-nada"), null);
+
+  // Quien tenía la cookie con el nombre viejo sigue entrando, por la dirección nueva y por la vieja.
+  const conVieja = { cookie: `${panelCookieName(vieja)}=${key}` };
+  for (const slug of [nueva, vieja]) {
+    const auth = await authorizePanelRequest(await pedido(`http://localhost/api/admin/${slug}`, { method: "GET", headers: conVieja }), slug);
+    assert.deepEqual([auth.event?.id, auth.via], [event.id, "key"], slug);
+  }
+  // El enlace para compartir el panel que se pasó antes (/admin/<vieja>?k=) lleva al de ahora, con la cookie nueva.
+  const entrar = await entrarRuta(await pedido(`http://localhost/api/admin/${vieja}/entrar?k=${key}`, { method: "GET" }), enRuta(vieja));
+  assert.equal(entrar.status, 303);
+  assert.equal(entrar.headers.get("location"), `/admin/${nueva}`);
+  assert.match(entrar.headers.get("set-cookie") ?? "", new RegExp(`^${escapar(panelCookieName(nueva))}=`));
+
+  // Nadie más toma la vieja: ni cambiando la suya, ni al crearse con ese nombre.
+  const otro = await borrador();
+  assert.deepEqual(await changeEventSlug(otro, vieja), { ok: false, problem: "ocupada" });
+  const mismoNombre = await borrador("meetup", { name: "Encuentro con dirección vieja" });
+  assert.notEqual(mismoNombre.slug, vieja);
+  // Volver a la de antes, sí: es suya.
+  assert.deepEqual(await changeEventSlug(await repo.getEventById(event.id), vieja), { ok: true, slug: vieja });
+  const ahora = await findEventBySlug(repo, nueva);
+  assert.deepEqual([ahora?.event.id, ahora?.moved], [event.id, true]);
+  assert.equal((await findEventBySlug(repo, vieja))?.moved, false);
+});
