@@ -844,7 +844,8 @@ div.plegado > p { max-width: 52rem; }
 .viene-item .etiqueta { justify-self: start; }
 .viene-item h3 { margin: 0; font-size: 1.05rem; line-height: 1.2; }
 .viene-item p { grid-column: 2; margin: 0; font-size: 0.95rem; }
-.viene-destacado { grid-column: span 2; background: color-mix(in srgb, var(--amarillo) 14%, var(--tarjeta)); }
+.viene-destacado { grid-column: span 2; background: color-mix(in srgb, var(--amarillo) 14%, var(--tarjeta)); border-color: color-mix(in srgb, var(--amarillo) 70%, transparent); }
+:root[data-theme="dark"] .viene-destacado { background: color-mix(in srgb, var(--amarillo) 6%, var(--tarjeta)); }
 .viene-destacado .viene-icono { background: color-mix(in srgb, var(--amarillo) 40%, transparent); color: var(--tinta); }
 #viene .plegable { margin-top: 10px; }
 @media (max-width: 1140px) { .viene { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
