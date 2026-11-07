@@ -10,16 +10,12 @@
 import { redirect } from "next/navigation";
 import { getLang } from "@/i18n/server.ts";
 import { BUSY } from "@/server/compartido.ts";
-import { DraftError, draftVersion, parseDraftForm, saveDraft } from "@/server/kit/borrador.ts";
-import { changeEventSlug, type SlugProblem } from "@/server/kit/direccion.ts";
+import { saveDraftForm } from "@/server/kit/guardar-borrador.ts";
 import { getTemplate } from "@/server/kit/plantillas.ts";
-import { withPublishTurn } from "@/server/kit/publicar.ts";
 import { PUBLISH_INTENT_COOKIE } from "@/server/kit/publicar-pedido.ts";
 import { panelAccess, panelKeyFromCookies, rememberPanelKey } from "@/server/panel-sesion.ts";
 import { getRepo } from "@/server/repo.ts";
 import { cookies, headers } from "next/headers";
-
-type Saved = { ok: true; slug: string; moved: boolean } | { ok: false; slug: string; error: string; tried?: string };
 
 export async function guardarBorrador(formData: FormData): Promise<void> {
   const id = String(formData.get("evento_id") ?? "");
@@ -36,26 +32,7 @@ export async function guardarBorrador(formData: FormData): Promise<void> {
   const spec = getTemplate(event.template);
   if (!spec) redirect(base);
 
-  const lang = await getLang();
-  // Con el turno de publicar: si un paso está desplegando un contrato, el borrador no cambia debajo de él.
-  const saved = await withPublishTurn(event.id, async (): Promise<Saved> => {
-    const fresh = (await repo.getEventById(event.id)) ?? event;
-    if (fresh.published) return { ok: false, slug: fresh.slug, error: "yaPublicado" };
-    if (shown !== (await draftVersion(repo, fresh, lang))) return { ok: false, slug: fresh.slug, error: "cambiado" };
-    try {
-      await saveDraft(repo, fresh, parseDraftForm(formData, spec), lang);
-    } catch (error) {
-      if (error instanceof DraftError) return { ok: false, slug: fresh.slug, error: error.code };
-      console.error("[armar]", error);
-      return { ok: false, slug: fresh.slug, error: "general" };
-    }
-    // La dirección, al final: si cambia, lo demás ya quedó guardado con el evento.
-    const wanted = formData.get("direccion");
-    if (typeof wanted !== "string" || wanted.trim() === "" || wanted.trim().toLowerCase() === fresh.slug) return { ok: true, slug: fresh.slug, moved: false };
-    const changed = await changeEventSlug(fresh, wanted);
-    if (!changed.ok) return { ok: false, slug: fresh.slug, error: `direccion-${changed.problem satisfies SlugProblem}`, tried: wanted.trim().slice(0, 80) };
-    return { ok: true, slug: changed.slug, moved: changed.slug !== fresh.slug };
-  });
+  const saved = await saveDraftForm(repo, event, spec, formData, shown, await getLang());
 
   if (saved === BUSY) redirect(`${base}/armar?error=publicando`);
   const now = `/admin/${encodeURIComponent(saved.slug)}`;

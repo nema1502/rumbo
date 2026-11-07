@@ -238,12 +238,23 @@ export async function readDraft(repo: Repo, event: EventRecord, lang: Lang): Pro
 }
 
 /**
- * La huella del borrador tal como se ve: la dirección y todo lo que el formulario edita. Va oculta en el formulario
- * y guardar la vuelve a calcular: si no coincide, alguien del equipo guardó en el medio y no se pisa lo suyo.
+ * La huella del borrador: la dirección y todo lo que el formulario edita, tal como está guardado. Va oculta en el
+ * formulario y guardar la vuelve a calcular: si no coincide, alguien del equipo guardó en el medio y no se pisa lo
+ * suyo. Sale solo de lo guardado, nunca de lo que la plantilla propone para lo que está apagado (eso cambia con el
+ * idioma): cambiar el idioma entre abrir el borrador y guardarlo no es un cambio de nadie.
  */
-export async function draftVersion(repo: Repo, event: EventRecord, lang: Lang): Promise<string> {
-  const draft = await readDraft(repo, event, lang);
-  const snapshot = { slug: event.slug, teamSignup: event.teamSignup, slots: draft?.slots ?? null, benefits: draft?.benefits ?? null };
+export async function draftVersion(repo: Repo, event: EventRecord): Promise<string> {
+  const [types, benefits] = await Promise.all([repo.listTicketTypes(event.id), repo.listBenefits(event.id)]);
+  const typeRows = [];
+  for (const type of types.filter((t) => t.templateSlot).sort((a, b) => String(a.templateSlot).localeCompare(String(b.templateSlot)))) {
+    const linked = await repo.listTicketTypeBenefits(type.id);
+    typeRows.push([type.templateSlot, type.name, type.priceUsdc, linked.map((b) => b.templateKey ?? b.id)]);
+  }
+  const benefitRows = benefits
+    .filter((b) => b.templateKey)
+    .sort((a, b) => String(a.templateKey).localeCompare(String(b.templateKey)))
+    .map((b) => [b.templateKey, b.name, b.station, b.stock]);
+  const snapshot = { slug: event.slug, teamSignup: event.teamSignup, types: typeRows, benefits: benefitRows };
   return createHash("sha256").update(JSON.stringify(snapshot), "utf8").digest("hex").slice(0, 32);
 }
 

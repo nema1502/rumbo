@@ -462,16 +462,90 @@ test("la huella del borrador cambia cuando alguien del equipo guarda (o cambia l
   const event = await borrador();
   const input = defaultDraft(TEMPLATES.meetup, "es");
   await saveDraft(repo, event, input, "es");
-  const antes = await draftVersion(repo, await repo.getEventById(event.id), "es");
+  const antes = await draftVersion(repo, await repo.getEventById(event.id));
   assert.match(antes, /^[0-9a-f]{32}$/);
   await saveDraft(repo, await repo.getEventById(event.id), input, "es");
-  assert.equal(await draftVersion(repo, await repo.getEventById(event.id), "es"), antes, "guardar lo mismo no la cambia");
+  assert.equal(await draftVersion(repo, await repo.getEventById(event.id)), antes, "guardar lo mismo no la cambia");
   input.benefits[Object.keys(input.benefits)[0]].stock = 77;
   await saveDraft(repo, await repo.getEventById(event.id), input, "es");
-  const despues = await draftVersion(repo, await repo.getEventById(event.id), "es");
+  const despues = await draftVersion(repo, await repo.getEventById(event.id));
   assert.notEqual(despues, antes, "el formulario de antes ya no coincide");
   await changeEventSlug(await repo.getEventById(event.id), `otra-direccion-${randomBytes(3).toString("hex")}`);
-  assert.notEqual(await draftVersion(repo, await repo.getEventById(event.id), "es"), despues);
+  assert.notEqual(await draftVersion(repo, await repo.getEventById(event.id)), despues);
+});
+
+const { readDraft } = await import("../src/server/kit/borrador.ts");
+const { saveDraftForm } = await import("../src/server/kit/guardar-borrador.ts");
+
+/** El formulario de /admin/<evento>/armar tal como lo manda el navegador, armado con lo que muestra la página en `lang`. */
+async function formularioMostrado(event, lang) {
+  const view = await readDraft(repo, event, lang);
+  const form = new FormData();
+  form.set("evento_id", event.id);
+  form.set("version", await draftVersion(repo, event));
+  form.set("direccion", event.slug);
+  if (view.teamSignup) form.set("equipos", "on");
+  for (const slot of view.slots) {
+    if (slot.included) form.set(`tipo.${slot.slot}`, "on");
+    form.set(`nombre.${slot.slot}`, slot.name);
+    if (slot.slot === "attendeePaid") form.set(`precio.${slot.slot}`, String(slot.price));
+    for (const key of slot.benefits) form.set(`trae.${slot.slot}.${key}`, "on");
+  }
+  const used = new Set(view.slots.filter((s) => s.included).flatMap((s) => s.benefits));
+  for (const b of view.benefits.filter((b) => used.has(b.key) || !b.perCredential)) {
+    form.set(`bnombre.${b.key}`, b.name);
+    form.set(`blugar.${b.key}`, b.place);
+    form.set(`bstock.${b.key}`, b.stock === null ? "" : String(b.stock));
+  }
+  return form;
+}
+
+test("cambiar el idioma entre abrir el borrador y guardarlo no es un cambio de nadie: la huella no depende del idioma y guardar guarda", async () => {
+  const event = await borrador();
+  const ev = await repo.getEventById(event.id);
+  // Un meetup tiene tipos apagados y canjes sin crear: lo que la página propone para ellos cambia con el idioma.
+  const es = await readDraft(repo, ev, "es");
+  const en = await readDraft(repo, ev, "en");
+  assert.ok(es.slots.some((s) => !s.included), "hay tipos apagados");
+  assert.notDeepEqual(es.slots.find((s) => !s.included).name, en.slots.find((s) => !s.included).name, "lo que se propone para lo apagado sí cambia");
+  const huella = await draftVersion(repo, ev);
+  assert.equal(await draftVersion(repo, ev, "en"), huella, "la huella no mira el idioma");
+
+  // La página en castellano, el pedido de guardar en inglés (se cambió el idioma en otra pestaña): guarda.
+  const form = await formularioMostrado(ev, "es");
+  form.set(`bstock.${es.benefits.find((b) => es.slots[0].benefits.includes(b.key)).key}`, "40");
+  const saved = await saveDraftForm(repo, ev, TEMPLATES.meetup, form, String(form.get("version")), "en");
+  assert.deepEqual(saved, { ok: true, slug: ev.slug, moved: false });
+  assert.ok((await repo.listBenefits(ev.id)).some((b) => b.stock === 40), "lo editado quedó guardado");
+
+  // Y al revés: la página en inglés, el pedido en castellano.
+  const ev2 = await repo.getEventById(event.id);
+  const enForm = await formularioMostrado(ev2, "en");
+  assert.deepEqual(await saveDraftForm(repo, ev2, TEMPLATES.meetup, enForm, String(enForm.get("version")), "es"), { ok: true, slug: ev2.slug, moved: false });
+});
+
+test("un cambio de verdad de otra persona se sigue detectando: guardar con la huella vieja no pisa lo suyo y avisa", async () => {
+  const event = await borrador();
+  const ev = await repo.getEventById(event.id);
+  const mio = await formularioMostrado(ev, "es");
+  // Otra persona del equipo, en inglés, prende la entrada paga y guarda.
+  const suyo = await formularioMostrado(ev, "en");
+  suyo.set("tipo.attendeePaid", "on");
+  suyo.set("precio.attendeePaid", "12");
+  assert.deepEqual(await saveDraftForm(repo, ev, TEMPLATES.meetup, suyo, String(suyo.get("version")), "en"), { ok: true, slug: ev.slug, moved: false });
+  // Yo guardo lo que tenía abierto: no se pisa lo suyo.
+  mio.set("nombre.attendee", "Lo mío");
+  const saved = await saveDraftForm(repo, await repo.getEventById(ev.id), TEMPLATES.meetup, mio, String(mio.get("version")), "es");
+  assert.deepEqual(saved, { ok: false, slug: ev.slug, error: "cambiado" });
+  const tipos = await repo.listTicketTypes(ev.id);
+  assert.equal(tipos.find((t) => t.templateSlot === "attendeePaid")?.priceUsdc, 12, "lo suyo sigue");
+  assert.notEqual(tipos.find((t) => t.templateSlot === "attendee")?.name, "Lo mío");
+  // Cambiar solo un nombre de un canje o su puesto también cuenta.
+  const otra = await formularioMostrado(await repo.getEventById(ev.id), "es");
+  const huella = String(otra.get("version"));
+  const canje = (await repo.listBenefits(ev.id)).find((b) => b.templateKey !== "prize");
+  await repo.updateBenefit(canje.id, { station: "Otra mesa" });
+  assert.notEqual(await draftVersion(repo, await repo.getEventById(ev.id)), huella);
 });
 
 test("cambiar la dirección de un borrador no deja afuera a nadie: la vieja lleva a la nueva, la cookie de la clave con el nombre viejo sirve, y otro evento no la puede tomar", async () => {

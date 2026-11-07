@@ -85,7 +85,7 @@ export default async function DraftPage({ params, searchParams }: { params: Para
   // Con un problema de la dirección, el campo vuelve con lo que se probó (y el aviso lo nombra), no con la de antes.
   const tried = slugError && typeof query.direccion === "string" ? query.direccion.slice(0, 80) : null;
   const prefix = await publicPrefix();
-  const version = await draftVersion(repo, event, lang);
+  const version = await draftVersion(repo, event);
 
   return (
     <form className="pantalla armar" action={guardarBorrador}>
