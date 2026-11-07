@@ -776,6 +776,9 @@ div.plegado > p { max-width: 52rem; }
 .sumar-linea { width: 100%; height: 40px; overflow: visible; }
 .sumar-linea path { fill: none; stroke: var(--acento); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .sumar-linea path:first-child { stroke-dasharray: 6 8; }
+/* La flecha acostada va entre las columnas; en una columna va otra parada, dibujada así (girar la acostada la
+   deformaba, porque se estira sin guardar la proporción) */
+.sumar-linea-v { display: none; }
 .sumar-rumbo { padding: 18px; border-radius: var(--radio); background: var(--tarjeta); border: 2px solid var(--acento); box-shadow: var(--sombra-alzada); }
 .sumar-marca { display: flex; align-items: center; gap: 8px; font: 800 1.25rem var(--display); letter-spacing: -0.02em; margin-bottom: 12px; }
 .sumar-marca svg { width: 28px; height: 28px; }
@@ -795,7 +798,8 @@ div.plegado > p { max-width: 52rem; }
 @media (max-width: 860px) {
   .sumar { grid-template-columns: minmax(0, 1fr); }
   .sumar-flujo { grid-template-columns: minmax(0, 1fr); justify-items: stretch; max-width: 460px; }
-  .sumar-linea { width: 40px; height: 48px; justify-self: center; transform: rotate(90deg); }
+  .sumar-linea-h { display: none; }
+  .sumar-linea-v { display: block; width: 40px; height: 56px; justify-self: center; }
 }
 
 /* El informe se arma solo */
