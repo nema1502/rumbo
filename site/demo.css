@@ -48,9 +48,11 @@
 @media (min-width: 561px) and (max-height: 800px) { .pb-escenario { --pb-alto: 560px; } }
 /* En una laptop de 768 px, Chrome y la barra de tareas dejan unos 600 a 635 px de ventana: menos relleno y
    menos aire sobre el aparato, y la cuenta de arriba lo sabe. */
-@media (min-width: 1001px) and (max-height: 800px) { #probar { padding-top: 28px; } .pb-escenario { --pb-arriba: 186px; } }
+@media (min-width: 1001px) and (max-height: 800px) { #probar { padding-top: 28px; } .pb-escenario { --pb-arriba: calc(var(--pb-cab, 69px) + 132px); } }
+/* En una ventana de 650 px o menos, el teléfono baja a 520 en vez de achicarse más: la letra queda en un 85 %
+   y la línea de la maqueta entra también. --pb-cab es el alto de la cabecera, que demo.js mide (una o dos filas). */
 @media (min-width: 1001px) and (max-height: 700px) {
-  .pb-escenario { --pb-arriba: 190px; --pb-aire: 8px; }
+  .pb-escenario { --pb-aire: 8px; --pb-alto: 520px; }
 }
 @media (min-width: 1001px) and (max-width: 1200px) { .pb > .encabezado p { font-size: 1rem; } }
 
@@ -60,7 +62,7 @@
 .pb-cont, .pb-off, .pb-cab, .pb-persona, .pb-comp { justify-content: space-between; }
 .pb-guia-paso::before, .pb-estado::before, .pb-vivo::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .pb-tag, .pb-pend, .pb-vivo, .pb-pronto { padding: 3px 9px; border-radius: 999px; font-size: .78rem; font-weight: 700; white-space: nowrap; }
-.pb-pronto { flex: none; width: fit-content; padding: 2px 8px; background: #f5c451; color: #0f1c2e; font-size: .72rem; }
+.pb-pronto { flex: none; width: fit-content; padding: 2px 8px; background: #f5c451; color: #0f1c2e; font-size: .78rem; }
 .pb-guia, .pb-roles, .pb-correo, .pb-cont, .pb-fil li, .pb-carta, .pb-qr { border: 1px solid var(--linea); border-radius: 14px; background: var(--tarjeta); }
 .pb-rol, .pb-seg, .pb-switch, .pb-atras, .pb-mini-btn { border: 0; background: none; color: var(--tinta-2); font: 600 .9rem var(--texto); cursor: pointer; }
 .pb-i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
@@ -195,6 +197,8 @@
 .pb-seg { min-height: 44px; padding: 0 2px; border-radius: 9px; font-size: .8rem; }
 .pb-seg[aria-pressed="true"] { background: var(--tarjeta); color: var(--tinta); }
 .pb-visor { position: relative; display: grid; place-items: center; width: min(100%, 168px); aspect-ratio: 1; margin: 12px auto 0; border-radius: 20px; overflow: hidden; background: #13223a; }
+/* Sin red, el aviso y la cola ocupan lugar: el visor se achica y el interruptor sigue a la vista */
+.pb-contenido:has(.pb-sinred) .pb-visor { --raya: 80px; width: min(100%, 128px); margin-top: 8px; }
 .pb-visor svg { position: absolute; width: 100%; height: 100%; fill: none; stroke: var(--acento); stroke-width: 2.4; stroke-linecap: round; }
 .pb-visor img { width: 54%; padding: 4px; border-radius: 8px; background: #fff; opacity: 0; rotate: -6deg; }
 .pb-lee img { opacity: 1; }
@@ -323,7 +327,7 @@
 @keyframes pb-crece0 { from { transform: scaleX(0); } }
 @keyframes pb-hoja { from { transform: translateY(100%); } }
 @keyframes pb-ancho { from { transform: scaleX(0); } }
-@keyframes pb-raya { to { transform: translateY(108px); } }
+@keyframes pb-raya { to { transform: translateY(var(--raya, 108px)); } }
 @keyframes pb-latido { from { opacity: .75; transform: scale(1); } to { opacity: 0; transform: scale(1.06, 1.3); } }
 @keyframes pb-onda { from { opacity: 1; transform: scale(.6); } to { opacity: 0; transform: scale(1.6); } }
 @keyframes pb-aprieta { 50% { scale: .82; } }

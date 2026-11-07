@@ -553,6 +553,12 @@ function pintar() {
   if (ci) scrollBy({ top: ci.getBoundingClientRect().top - guia.getBoundingClientRect().bottom - 12, behavior: quieto() ? "auto" : "smooth" });
   pintarMinis();
   pintarGuia();
+  // Lo que la guía pide tocar adentro del teléfono queda a la vista (en escritorio la pantalla tiene scroll propio).
+  const sug = !m && cont.querySelector(".pb-sug");
+  if (sug && cont.scrollHeight > cont.clientHeight) {
+    const r = sug.getBoundingClientRect(), c = cont.getBoundingClientRect();
+    if (r.bottom > c.bottom - 8 || r.top < c.top) cont.scrollTo({ top: cont.scrollTop + r.bottom - c.bottom + 16, behavior: quieto() ? "auto" : "smooth" });
+  }
   const destino = foco || antes, el = destino && raiz.querySelector(`[data-f="${destino}"]`);
   foco = null;
   const f = fx;
@@ -650,6 +656,8 @@ raiz.addEventListener("input", (ev) => {
   const f = ev.target.getAttribute("data-f");
   if (f === "nombre" || f === "evento") e[f] = ev.target.value;
   if (f === "evento") cont.querySelector(".pb-h").textContent = e.evento.trim() || t("evento");
+  // El nombre del evento ya se ve en el panel de al lado mientras se escribe.
+  if (f === "evento") pintarMinis();
 });
 raiz.addEventListener("keydown", (ev) => {
   const k = ev.key;
