@@ -16,6 +16,7 @@ import { explorerUrl, reportNetwork } from "../explorador.ts";
 import { buildEventReportData } from "../informe.ts";
 import { createGate, verifyCreateKey } from "../kit/acceso.ts";
 import { readDraft } from "../kit/borrador.ts";
+import { findEventBySlug } from "../kit/direccion.ts";
 import {
   BATCH_SIZE,
   ImportFormatError,
@@ -96,7 +97,8 @@ const KEY_HINT = "pass organizer_key, or open the session with it (Authorization
 
 /** El evento del slug, si la clave (la del argumento, o la de la sesión) abre su panel. */
 async function resolveEvent(ctx: McpContext, slug: string, key: string | undefined): Promise<{ event: EventRecord; key: string }> {
-  const event = await ctx.repo.getEventBySlug(slug.trim());
+  // También por una dirección que el borrador tuvo antes de cambiarla.
+  const event = (await findEventBySlug(ctx.repo, slug.trim()))?.event;
   if (!event) throw new McpToolError("not_found", `There is no event with slug "${slug}".`);
   const given = key ?? ctx.organizerKey;
   if (!given) throw new McpToolError("unauthorized", `This tool needs the organizer key of "${event.slug}": ${KEY_HINT}.`);
@@ -286,6 +288,7 @@ const PUBLISH_MESSAGES: Record<PublishFailure, string> = {
   no_attendee: "The draft has no attendee credential type.",
   no_free_attendee: "The draft needs a free attendee registration (paid tickets are optional).",
   no_capacity: `The event needs a capacity between 1 and ${MAX_CAPACITY}.`,
+  too_many_contracts: "This draft already created too many contracts while it was being changed mid-publish; leave the prepared passes as they were and publish.",
   deploy_failed: "Deploying a contract on the test network failed",
   busy: "Someone else is publishing this event right now; try again in a moment.",
 };
@@ -325,7 +328,7 @@ export async function publishDraft(ctx: McpContext, args: EventArgs) {
 
 export async function getEvent(ctx: McpContext, args: EventArgs & { lang?: Lang }) {
   const lang = args.lang ?? ctx.lang;
-  const event = await ctx.repo.getEventBySlug(args.event.trim());
+  const event = (await findEventBySlug(ctx.repo, args.event.trim()))?.event;
   if (!event) throw new McpToolError("not_found", `There is no event with slug "${args.event}".`);
   const given = args.organizer_key ?? ctx.organizerKey;
   const organizer = given ? await verifyOrganizerKey(event.id, given) : false;

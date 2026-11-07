@@ -1,7 +1,7 @@
 // "Stands y ruta": donde quien organiza define los stands de quienes auspician, la meta de la ruta y ve los
 // números de cada auspiciante. Entra con la misma clave del panel.
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { AccesoPanel } from "@/components/panel/AccesoPanel.tsx";
 import { AdminStands } from "@/components/stands/AdminStands.tsx";
 import "@/components/stands/stands.css";
@@ -10,6 +10,7 @@ import { pollarEnabled } from "@/server/accounts.ts";
 import { PANEL_KEY_QUERY, panelAccess } from "@/server/panel-sesion.ts";
 import { getRepo } from "@/server/repo.ts";
 import { getAdminStands } from "@/server/stands.ts";
+import { panelEventBySlug } from "@/server/evento-del-panel.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +25,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function StandsAdminPage({ params, searchParams }: { params: Params; searchParams: SearchParams }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
   const repo = getRepo();
-  const event = await repo.getEventBySlug(slug);
-  if (!event) notFound();
+  const event = await panelEventBySlug(slug, "/stands", query);
 
   const key = query[PANEL_KEY_QUERY];
   if (typeof key === "string" && key) redirect(`/api/admin/${slug}/entrar?k=${encodeURIComponent(key)}&next=stands`);

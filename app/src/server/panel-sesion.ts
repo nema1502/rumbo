@@ -6,6 +6,7 @@
 import { cookies, headers } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { eventRole, type EventRole } from "./coorganizar.ts";
+import { findEventBySlug, oldSlugsOf } from "./kit/direccion.ts";
 import { ORGANIZER_COOKIE, organizerFromRequest, resolveOrganizerSession } from "./organizador.ts";
 import { verifyOrganizerKey } from "./panel.ts";
 import { getRepo, type EventRecord, type Organizer } from "./repo.ts";
@@ -98,9 +99,29 @@ export async function resolvePanelAccess(event: EventRecord, organizerToken: str
   return null;
 }
 
+/**
+ * La clave del evento entre las cookies: la de su dirección de ahora o, si quien organiza cambió la dirección del
+ * borrador, la de una que tuvo antes (quien entró con el enlace viejo tiene la cookie con ese nombre).
+ */
+async function eventKeyFromCookies(get: (name: string) => string | undefined, event: EventRecord, first: string | null = null): Promise<string | null> {
+  const now = first ?? get(panelCookieName(event.slug)) ?? null;
+  if (now) return now;
+  for (const old of await oldSlugsOf(event.id)) {
+    const value = get(panelCookieName(old));
+    if (value) return value;
+  }
+  return null;
+}
+
 /** Para las páginas de /admin/<evento> (y la vista previa de /e/<evento>): resolvePanelAccess con las cookies del pedido. */
 export async function panelAccess(event: EventRecord): Promise<PanelAccess | null> {
-  return resolvePanelAccess(event, (await cookies()).get(ORGANIZER_COOKIE)?.value, await panelKeyFromCookies(event.slug));
+  const jar = await cookies();
+  const get = (name: string) => jar.get(name)?.value;
+  const organizerToken = get(ORGANIZER_COOKIE);
+  // La clave se busca solo si la cuenta no alcanza: las direcciones viejas son una consulta más.
+  const viaOrganizer = organizerToken ? await resolvePanelAccess(event, organizerToken, null) : null;
+  if (viaOrganizer) return viaOrganizer;
+  return resolvePanelAccess(event, null, await eventKeyFromCookies(get, event));
 }
 
 type Authorized =
@@ -109,12 +130,14 @@ type Authorized =
 
 /** Para las rutas de la API: el evento si la clave o la sesión sirven, o la respuesta que corresponde (404 o 401). */
 export async function authorizePanelRequest(request: NextRequest, slug: string): Promise<Authorized> {
-  const event = await getRepo().getEventBySlug(slug);
+  // También por una dirección que el borrador tuvo antes: una pestaña abierta antes del cambio sigue andando.
+  const event = (await findEventBySlug(getRepo(), slug))?.event;
   if (!event) return { response: NextResponse.json({ error: "not_found" }, { status: 404 }) };
   // Como en panelAccess: la sesión de la dueña gana sobre la cookie de la clave.
   const organizer = await organizerFromRequest(request);
   const role = organizer ? await eventRole(organizer, event) : null;
   if (organizer && role) return { event, via: "organizer", organizer, role };
-  if (await verifyOrganizerKey(event.id, panelKeyFromRequest(request, slug))) return { event, via: "key", organizer: null, role: null };
+  const key = await eventKeyFromCookies((name) => request.cookies.get(name)?.value, event, panelKeyFromRequest(request, slug));
+  if (await verifyOrganizerKey(event.id, key)) return { event, via: "key", organizer: null, role: null };
   return { response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
 }

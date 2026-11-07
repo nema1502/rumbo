@@ -8,7 +8,7 @@ import { translate, type Lang } from "../../i18n/index.ts";
 import type { CredentialKind } from "../../lib/credential-kinds.ts";
 import type { Benefit, BenefitKind, EventRecord, Repo } from "../repo.ts";
 import { defaultDraft, saveDraft } from "./borrador.ts";
-import { SLUG_MIN, isReservedSlug } from "./direccion.ts";
+import { SLUG_MIN, isReservedSlug, isSlugTaken } from "./direccion.ts";
 
 export const TEMPLATE_IDS = ["devfest", "build-with-ai", "iwd", "hackaton", "meetup", "taller"] as const;
 export type TemplateId = (typeof TEMPLATE_IDS)[number];
@@ -379,7 +379,7 @@ async function uniqueSlug(repo: Repo, base: string): Promise<string> {
   // Un nombre corto ("AI") o que es una ruta de la app ("Nuevo") lleva el sufijo: /admin/nuevo es crear un evento.
   const root = !base ? "mi-evento" : base.length >= SLUG_MIN && !isReservedSlug(base) ? base : `${base}-evento`;
   let slug = root;
-  for (let n = 2; await repo.getEventBySlug(slug); n++) slug = `${root}-${n}`;
+  for (let n = 2; await isSlugTaken(repo, slug); n++) slug = `${root}-${n}`;
   return slug;
 }
 
