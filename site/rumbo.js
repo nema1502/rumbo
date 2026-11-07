@@ -51,7 +51,7 @@ const EN = {
   "portada.titulo": "Your whole event <em>in one QR&nbsp;code</em>.",
   "portada.bajada": "Register people for free or bring your guest list. Event day and the report, sorted.",
   "portada.ver": "See how it works",
-  "portada.confianza": "Signing up is free. The first version already runs on Stellar's test network.",
+  "portada.confianza": "Signing up is free. The first version already works, in test mode.",
 
   "cred.evento": "Community hackathon",
   "cred.tipo": "General admission",
