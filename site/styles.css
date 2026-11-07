@@ -970,7 +970,7 @@ div.plegado > p { max-width: 52rem; }
 @media (prefers-reduced-motion: reduce) { .barra-movil { transition: none !important; } }
 
 /* Con la pantalla muy baja (o el zoom al 200 %), la cabecera no queda fija y no se come la portada */
-@media (max-height: 420px) {
+@media (max-height: 460px) {
   .cabecera { position: static; }
   .portada { padding-top: 12px; }
 }
@@ -994,8 +994,13 @@ a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px soli
   .informe-texto .plegable { order: 4; margin-top: -10px; }
 }
 @media (max-width: 860px) { .sumar-flujo { justify-self: center; width: 100%; } }
-@media (max-height: 420px) {
+@media (max-height: 460px) {
   .nav { display: none; }
   .sello-portada { margin-bottom: 8px; }
   .portada h1 { margin-bottom: 10px; }
+}
+/* Al 200 % de zoom en una laptop (720x450, 640x360, 683x317) el botón "Creá tu evento" quedaba cortado abajo */
+@media (max-height: 460px) and (min-width: 561px) {
+  .portada h1 { font-size: clamp(1.8rem, 3.4vw, 2.4rem); }
+  .portada .bajada { margin-bottom: 14px; }
 }
