@@ -952,12 +952,12 @@ div.plegado > p { max-width: 52rem; }
 .franja-final { padding: clamp(48px, 7vw, 96px) 0; background: radial-gradient(800px 360px at 50% 0%, var(--brillo-1), transparent 70%), var(--acento-suave); border-top: 1px solid var(--linea); text-align: center; }
 .franja-final .contenedor { display: grid; justify-items: center; gap: 14px; }
 .franja-final h2 { font-size: clamp(2rem, 5vw, 3.6rem); }
-.final-lema { margin: 0; font: 800 clamp(1.05rem, 2vw, 1.3rem) var(--display); letter-spacing: -0.01em; color: var(--acento-texto); }
+.final-lema { margin: 0; font: 800 clamp(1.2rem, 2vw, 1.3rem) var(--display); letter-spacing: -0.01em; color: var(--acento-texto); }
 .franja-final h2 em { font-style: normal; color: var(--acento-texto); }
 .franja-final .contenedor > p:not(.sello-stellar):not(.final-entrar):not(.final-lema) { color: var(--tinta-2); font-size: 1.1rem; }
 .franja-final .cta { margin-top: 8px; }
 .final-entrar { color: var(--tinta-2); }
-.final-entrar a { display: inline-flex; align-items: center; min-height: 44px; color: var(--acento-texto); font-weight: 700; }
+.final-entrar a { display: inline-flex; align-items: center; min-height: 44px; color: var(--tinta); font-weight: 700; text-decoration-color: var(--acento); text-decoration-thickness: 2px; text-underline-offset: 4px; }
 
 /* El pie, con el sello */
 .pie-marca { display: grid; gap: 10px; }
