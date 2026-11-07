@@ -59,6 +59,8 @@
 .puesto-nombre { font-weight: 600; display: block; }
 .puesto-donde { color: var(--apagado); font-size: 0.85rem; display: block; }
 .boton-chico { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
+/* En el celular, ningún botón por debajo de los 44 px que pide un dedo */
+@media (max-width: 560px) { .boton-chico { min-height: 44px; } }
 
 .dobles { list-style: none; margin: 0; padding: 0; }
 .doble { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--linea); }

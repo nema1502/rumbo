@@ -17,6 +17,7 @@ import type { PanelVia } from "@/server/panel-sesion.ts";
 import { BotonCopiar } from "./BotonCopiar.tsx";
 import { CerrarSesion } from "./CerrarSesion.tsx";
 import { CompartirPanel } from "./CompartirPanel.tsx";
+import { EnlaceDelEvento } from "./EnlaceDelEvento.tsx";
 import { Contador } from "./Contador.tsx";
 import { TuEquipo } from "./TuEquipo.tsx";
 
@@ -48,7 +49,8 @@ export function PanelCliente({
   slug,
   initial,
   publicado = false,
-  porPreparar = 0,
+  porPreparar = [],
+  recienSumado = false,
   via = "key",
   pollarKey = null,
   equipo = null,
@@ -56,8 +58,10 @@ export function PanelCliente({
   slug: string;
   initial: PanelState;
   publicado?: boolean;
-  /** Cuántas credenciales del equipo quedan por preparar (se cerró la pestaña de publicar antes de terminar). */
-  porPreparar?: number;
+  /** Los nombres de los tipos de credencial del equipo que quedan por preparar (se cerró la pestaña de publicar antes de terminar). */
+  porPreparar?: string[];
+  /** Quien coorganiza acaba de sumarse con una invitación (?equipo=1). */
+  recienSumado?: boolean;
   via?: PanelVia;
   /** Con la cuenta: la clave publicable de Pollar, para cerrar también su sesión en este navegador. */
   pollarKey?: string | null;
@@ -190,10 +194,14 @@ export function PanelCliente({
         </p>
       </header>
 
+      {/* El enlace para compartir, siempre a mano: para la dueña, quien coorganiza y quien entra con la clave. */}
+      <EnlaceDelEvento slug={slug} className="panel-enlace-evento" />
+
       {publicado && <Aviso tono="listo">{t("kit.armar.publicado")}</Aviso>}
-      {porPreparar > 0 && (
+      {recienSumado && <Aviso tono="listo">{t("panel.equipo.yaSos", { evento: event.name })}</Aviso>}
+      {porPreparar.length > 0 && (
         <div className="aviso panel-por-preparar" role="status">
-          <span>{porPreparar === 1 ? t("kit.panel.faltaUna") : t("kit.panel.faltan", { n: porPreparar })}</span>
+          <span>{porPreparar.length === 1 ? t("kit.panel.faltaUna", { tipos: porPreparar[0] }) : t("kit.panel.faltan", { n: porPreparar.length, tipos: porPreparar.join(", ") })}</span>
           <BotonEnlace href={`/admin/${encodeURIComponent(slug)}/publicando`} variante="secundario" className="boton-chico">
             {t("kit.panel.terminar")}
           </BotonEnlace>

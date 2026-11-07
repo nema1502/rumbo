@@ -8,6 +8,7 @@ import Link from "next/link";
 import "@/components/evento/evento.css";
 import { BotonCopiar } from "@/components/panel/BotonCopiar.tsx";
 import { CerrarSesion } from "@/components/panel/CerrarSesion.tsx";
+import { CopiarEnlaceDelEvento } from "@/components/panel/EnlaceDelEvento.tsx";
 import { EntrarOrganizador } from "@/components/panel/EntrarOrganizador.tsx";
 import { BotonEnlace, Chip, Pantalla, Tarjeta, Aviso } from "@/components/ui.tsx";
 import { getLang, getT } from "@/i18n/server.ts";
@@ -98,6 +99,8 @@ export default async function OrganizerHomePage({ searchParams }: { searchParams
                       <BotonEnlace href={event.published ? panel : `${panel}/armar`} variante="secundario">
                         {event.published ? t("panel.cuenta.abrirPanel") : t("panel.cuenta.seguirArmando")}
                       </BotonEnlace>
+                      {/* El enlace para compartir, sin tener que abrir el panel ni acordarse de la dirección. */}
+                      {event.published && <CopiarEnlaceDelEvento slug={event.slug} nombre={event.name} />}
                     </div>
                   </Tarjeta>
                 </li>

@@ -13,9 +13,12 @@ interface BotonCopiarProps extends Omit<ComponentPropsWithoutRef<"button">, "onC
   duracionMs?: number;
   /** Por defecto es un botón chico (el del panel). Con false, del tamaño de los demás. */
   chico?: boolean;
+  /** Secundario por defecto; primario cuando copiar es lo principal de la pantalla (el enlace recién publicado). */
+  variante?: "primario" | "secundario";
+  grande?: boolean;
 }
 
-export function BotonCopiar({ texto, etiqueta, listo, duracionMs = 1800, chico = true, className, ...rest }: BotonCopiarProps) {
+export function BotonCopiar({ texto, etiqueta, listo, duracionMs = 1800, chico = true, variante = "secundario", grande, className, ...rest }: BotonCopiarProps) {
   const [copiado, setCopiado] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -45,7 +48,7 @@ export function BotonCopiar({ texto, etiqueta, listo, duracionMs = 1800, chico =
   }
 
   return (
-    <Boton variante="secundario" className={[chico && "boton-chico", className].filter(Boolean).join(" ")} onClick={copiar} aria-live="polite" {...rest}>
+    <Boton variante={variante} grande={grande} className={[chico && "boton-chico", className].filter(Boolean).join(" ")} onClick={copiar} aria-live="polite" {...rest}>
       {copiado ? listo : etiqueta}
     </Boton>
   );

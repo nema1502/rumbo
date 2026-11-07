@@ -138,3 +138,14 @@
 }
 .armar-vista { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
 
+
+/* El enlace del evento (EnlaceDelEvento.tsx): entero, bajando de renglón si no entra, con Copiar y Ver la página */
+.enlace-evento { display: grid; gap: 8px; }
+.enlace-evento-titulo { margin: 0; font-weight: 700; }
+.enlace-evento-url {
+  margin: 0; padding: 10px 12px; border: 1px solid var(--linea); border-radius: var(--radio-chico); background: var(--papel);
+  color: var(--tinta); font-family: ui-monospace, monospace; font-size: 0.95rem; line-height: 1.4; overflow-wrap: anywhere; word-break: break-all;
+}
+.enlace-evento-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.enlace-evento-acciones .boton-grande { flex: 1 1 240px; }
+.panel-enlace-evento { margin: 0 0 16px; }
