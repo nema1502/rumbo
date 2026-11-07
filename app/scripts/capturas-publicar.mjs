@@ -216,8 +216,8 @@ globalThis.__rumboProvisioner = {
 };
 
 const TEXTOS = {
-  es: { entrar: "Entrar al panel", verComo: "Ver cómo va a quedar", publicado: "Tu evento ya está publicado", equipoListo: "también están listas", tuEquipo: "Tu equipo", crearEnlace: "Crear un enlace de invitación", sumarme: "Sumarme al equipo de este evento", noSirve: "ya no sirve", coorganizas: "Coorganizás", tuCuenta: "Tu cuenta", vista: "Vista previa", entrarPrimero: "Te invitaron a coorganizar" },
-  en: { entrar: "Open my panel", verComo: "See how it will look", publicado: "Your event is published", equipoListo: "ready too", tuEquipo: "Your team", crearEnlace: "Create an invitation link", sumarme: "Join this event's team", noSirve: "no longer works", coorganizas: "Co-organizer", tuCuenta: "Your account", vista: "Preview", entrarPrimero: "You were invited to co-organize" },
+  es: { entrar: "Entrar al panel", verComo: "Ver cómo va a quedar", publicado: "Tu evento ya está publicado", equipoListo: "también están listas", tuEquipo: "Tu equipo", crearEnlace: "Crear un enlace de invitación", sumarme: "Sumarme al equipo de este evento", noSirve: "ya no sirve", coorganizas: "Coorganizás", tuCuenta: "Tu cuenta", vista: "Vista previa", entrarPrimero: "te sumás en un paso", publicar: "Publicar el evento", confirmar: "¿Publicamos tu evento?" },
+  en: { entrar: "Open my panel", verComo: "See how it will look", publicado: "Your event is published", equipoListo: "ready too", tuEquipo: "Your team", crearEnlace: "Create an invitation link", sumarme: "Join this event's team", noSirve: "no longer works", coorganizas: "Co-organizer", tuCuenta: "Your account", vista: "Preview", entrarPrimero: "join in one step", publicar: "Publish the event", confirmar: "Shall we publish your event?" },
 };
 const OTRAS = { camila: { first: "Camila", last: "Rojas", mail: "camila.rojas" }, beto: { first: "Beto", last: "Prueba", mail: "beto.prueba" } };
 
@@ -232,6 +232,8 @@ const plantillaDe = (lang, nombre, organizerId) => ({
   organizerId,
 });
 const bajarA = (selector) => cdp.eval(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return false; el.scrollIntoView({ block: "start" }); window.scrollBy(0, -16); return true; })()`);
+/** El idioma va antes del fragmento: /admin/invitacion?lang=es#<ficha>. */
+const conIdioma = (path, lang) => path.replace("#", `?lang=${lang}#`);
 const salirDeLaCuenta = () => cdp.eval(`fetch("/api/organizador/salir", { method: "POST", redirect: "manual" }).then((r) => r.status)`);
 
 /** Entra como organizador con una llave nueva desde la página abierta (la puerta de /admin o la de una invitación). */
@@ -289,7 +291,15 @@ try {
 
     paso(`${sufijo}: publicar, con el avance a la vista`);
     demora = 3500;
+    // Llegar a /publicando sin venir de "Publicar el evento" (un enlace, la dirección escrita) no publica: pide el botón.
+    const antes = contratos;
     await ir(`${BASE}/admin/${evento.slug}/publicando?lang=${lang}`);
+    const confirmar = await textoVisible(t.confirmar);
+    if (!confirmar.ok) problemas.push(`${sufijo}: /publicando sin venir del borrador no pidió confirmar`);
+    await sleep(1500);
+    if (contratos !== antes || (await repo.getEventById(evento.id)).published) problemas.push(`${sufijo}: /publicando arrancó sola sin venir del borrador`);
+    await capturar(`23a-publicando-confirmar-${sufijo}`, ".pantalla-accion .boton-primario");
+    await clickTexto(t.publicar);
     const medio = await cdp.waitFor(`document.querySelector(".publicando-cifra")`, 20_000);
     if (!medio.ok) problemas.push(`${sufijo}: la pantalla de publicar no mostró el avance`);
     await sleep(600);
@@ -298,10 +308,13 @@ try {
     if (!abierto.ok) problemas.push(`${sufijo}: la pantalla no dijo que el evento quedó publicado`);
     await cdp.waitFor(`document.querySelector(".publicando-equipo .barra")`, 10_000);
     await sleep(300);
-    await capturar(`24-publicado-equipo-en-curso-${sufijo}`, ".pantalla-accion .boton-primario");
+    await capturar(`24-publicado-equipo-en-curso-${sufijo}`, ".enlace-evento .boton-primario");
+    // El enlace entero a la vista: termina con la dirección elegida, sin cortarse.
+    const entero = await cdp.eval(`(() => { const el = document.querySelector(".enlace-evento-url"); return !!el && el.scrollWidth <= el.clientWidth + 1 && el.textContent.endsWith(${JSON.stringify(`/e/${evento.slug}`)}); })()`);
+    if (!entero) problemas.push(`${sufijo}: el enlace publicado no se ve entero`);
     const listo = await cdp.waitFor(`document.body.innerText.includes(${JSON.stringify(t.equipoListo)})`, 60_000);
     if (!listo.ok) problemas.push(`${sufijo}: las credenciales del equipo no terminaron`);
-    await capturar(`25-publicado-final-${sufijo}`, ".pantalla-accion .boton-primario");
+    await capturar(`25-publicado-final-${sufijo}`, ".enlace-evento .boton-primario");
 
     paso(`${sufijo}: el panel con Tu equipo`);
     const ana = await repo.upsertOrganizer({ publicKey: Keypair.random().publicKey(), provider: "pollar", name: lang === "es" ? "Ana Quiroga" : "Ann Quiroga" });
@@ -309,12 +322,16 @@ try {
     await co.createInvite(evento, dueña);
     await co.authorizeAccount(evento, dueña, Keypair.random().publicKey());
     await ir(`${BASE}/admin/${evento.slug}?lang=${lang}`);
+    if (!(await cdp.eval(`!!document.querySelector(".panel-enlace-evento .enlace-evento-url")?.textContent.endsWith(${JSON.stringify(`/e/${evento.slug}`)})`))) {
+      problemas.push(`${sufijo}: el panel no muestra el enlace del evento`);
+    }
+    await capturar(`25b-panel-con-enlace-${sufijo}`, ".panel-enlace-evento .boton");
     await textoVisible(t.tuEquipo);
     await bajarA(".tu-equipo");
     await sleep(300);
     await capturar(`26-panel-tu-equipo-${sufijo}`, ".tu-equipo .boton");
     await clickTexto(t.crearEnlace);
-    const enlace = await cdp.waitFor(`document.querySelector(".tu-equipo .compartir-enlace input")?.value.includes("/admin/invitacion/")`, 15_000);
+    const enlace = await cdp.waitFor(`document.querySelector(".tu-equipo .compartir-enlace input")?.value.includes("/admin/invitacion#")`, 15_000);
     if (!enlace.ok) problemas.push(`${sufijo}: Crear un enlace de invitación no mostró el enlace`);
     await bajarA(".tu-equipo");
     await sleep(300);
@@ -323,7 +340,7 @@ try {
     paso(`${sufijo}: la invitación, sin sesión, con sesión y vencida`);
     const invitacion = await co.createInvite(evento, dueña);
     await salirDeLaCuenta();
-    await ir(`${BASE}${co.invitePath(invitacion.token)}?lang=${lang}`);
+    await ir(`${BASE}${conIdioma(co.invitePath(invitacion.token), lang)}`);
     const puerta = await textoVisible(t.entrarPrimero);
     if (!puerta.ok) problemas.push(`${sufijo}: la invitación sin sesión no ofrece entrar`);
     await capturar(`28-invitacion-sin-sesion-${sufijo}`, ".cuenta-organizador .boton-primario");
@@ -345,7 +362,7 @@ try {
     await ir(`${BASE}/admin?lang=${lang}`);
     const beto = await entrarCon(t, { ...OTRAS.beto, mail: `${OTRAS.beto.mail}.${w}@example.com` });
     if (!beto) throw new Error("la tercera cuenta no quedó en la base");
-    await ir(`${BASE}${co.invitePath(vieja.token)}?lang=${lang}`);
+    await ir(`${BASE}${conIdioma(co.invitePath(vieja.token), lang)}`);
     const vencida = await textoVisible(t.noSirve);
     if (!vencida.ok) problemas.push(`${sufijo}: la invitación vencida no lo dice`);
     await capturar(`30-invitacion-vencida-${sufijo}`, ".pantalla-accion .boton-primario");
@@ -358,6 +375,7 @@ try {
     if (!etiqueta.ok) problemas.push(`${sufijo}: Mis eventos no marca el evento coorganizado`);
     if (!(await cdp.eval(`document.body.innerText.includes(${JSON.stringify(t.tuCuenta)})`))) problemas.push(`${sufijo}: Mis eventos no muestra tu cuenta`);
     await sleep(300);
+    if (!(await cdp.eval(`document.querySelectorAll(".mis-eventos .tarjeta-pie .boton").length > 1`))) problemas.push(`${sufijo}: Mis eventos no ofrece copiar el enlace`);
     await capturar(`31-mis-eventos-coorganizo-${sufijo}`, ".pantalla-accion .boton-primario");
     await salirDeLaCuenta();
   }
