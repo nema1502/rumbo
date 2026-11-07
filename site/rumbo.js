@@ -39,6 +39,7 @@ const EN = {
 
   "sello.hecho": "Built on",
   "etiqueta.anda": "Live now",
+  "etiqueta.parte": "Partly live",
   "etiqueta.pronto": "Coming soon",
   "etiqueta.diciembre": "Coming in December",
   "cta.crear": "Create your event",
@@ -118,7 +119,7 @@ const EN = {
   "informe.a.t": "For sponsors",
   "informe.a.p": "How many checked in and used their benefit, with no names.",
   "informe.b.t": "For Stellar ambassadors",
-  "informe.b.p": "Verified attendance, the minimum of twenty and the chapter row.",
+  "informe.b.p": "Today: the verified count and the minimum of twenty, from your assistant. The report in the dashboard, coming soon.",
   "informe.pronto": "The event wrap-up, in Word to edit and send.",
   "inf.titulo": "Event report",
   "inf.evento": "Chapter meetup, November",
