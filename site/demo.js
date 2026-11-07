@@ -675,10 +675,17 @@ raiz.addEventListener("keydown", (ev) => {
 const ubicar = () => (ancho.matches ? escenario.prepend(roles) : guia.prepend(roles));
 ancho.addEventListener("change", () => (ubicar(), pintar()));
 ubicar();
-// La guía se pega debajo de la cabecera en el celular: su alto cambia con el ancho.
+// La guía se pega debajo de la cabecera en el celular: su alto cambia con el ancho y el idioma. Con la ventana
+// baja la cabecera deja de estar fija, y entonces la guía se pega arriba de todo (si no, quedaba un hueco por
+// donde corría la página).
 const cabecera = document.querySelector(".cabecera");
-const medirCabecera = () => cabecera && raiz.style.setProperty("--pb-cab", cabecera.offsetHeight + "px");
+const medirCabecera = () => {
+  if (!cabecera) return;
+  const fija = getComputedStyle(cabecera).position === "sticky";
+  raiz.style.setProperty("--pb-cab", (fija ? cabecera.offsetHeight : 0) + "px");
+};
 addEventListener("resize", medirCabecera, { passive: true });
+if (cabecera && "ResizeObserver" in window) new ResizeObserver(medirCabecera).observe(cabecera);
 medirCabecera();
 
 // El video de la app real: no tiene archivo hasta que se pide (ni siquiera el cartel), así que no baja nada

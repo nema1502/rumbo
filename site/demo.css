@@ -301,6 +301,19 @@
   .pb-progreso li { height: 4px; }
 }
 
+/* Con la ventana baja (un celular apaisado, o la laptop al 200 % de zoom) la guía pegada de 198 px se comía casi
+   todo el alto: los roles y los botones en una fila, la instrucción en otra y el avance abajo (unos 106 px), y
+   la instrucción y el botón que nombra se ven juntos */
+@media (max-width: 1000px) and (max-height: 500px) {
+  .pb-guia { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "roles . botones" "texto texto texto" "prog prog prog"; gap: 4px 10px; padding: 6px 8px 8px; }
+  .pb-guia > .pb-roles { width: auto; }
+  .pb-guia .pb-rol { padding: 0 10px; font-size: .86rem; }
+  .pb-guia-texto { min-height: 0; font-size: .98rem; }
+  .pb-tira, .pb-guia-paso { display: none; }
+  .pb-auto span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .pb-guia .pb-auto { padding: 0; }
+}
+
 /* El celular: el teléfono crece con lo que tiene adentro, sin scroll propio, así el dedo mueve la página */
 @media (max-width: 560px) {
   .pb-escenario { gap: 12px; min-height: 600px; }
