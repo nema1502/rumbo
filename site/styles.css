@@ -531,6 +531,7 @@ p { margin: 0; }
 @media (max-width: 560px) {
   .portada { padding-top: 20px; padding-bottom: 28px; }
   .portada .contenedor { gap: 20px; }
+  .nav a { padding-inline: 10px; }
   .nav { padding-right: 40px; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
   .llamado p { font-size: 1.1rem; }
 }
@@ -558,6 +559,8 @@ p { margin: 0; }
   .portada .credencial { order: 1; margin: 26px 0 6px; }
   .portada .ver-video { order: 2; margin-top: 14px; }
   .portada .confianza { order: 3; }
+  /* El sello queda de su tamaño: estirado a todo el ancho parecía un campo de texto */
+  .sello-portada { justify-self: start; }
 }
 
 /* Lo plegado: un enlace discreto con una flecha chica que gira al abrir. Funciona sin JS, y lo de
