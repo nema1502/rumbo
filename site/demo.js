@@ -377,7 +377,7 @@ const A = {
     e = nuevo(); prev = { main: {}, asiste: {}, voluntario: {}, organiza: {} }; firma = {}; foco = "reiniciar"; decir(t("reiniciado"));
   },
   auto() {
-    if (quieto()) return void unPaso();
+    if (quieto()) return void (!pasoActual() && e.vioCierre ? (A.reiniciar(), pintar(), gAuto.focus({ preventScroll: true })) : unPaso());
     if (auto) return void (auto.pausa = !auto.pausa);
     if (!pasoActual() || e.vioCierre) A.reiniciar(), pintar();
     correr();
@@ -417,7 +417,7 @@ const pintarGuia = () => {
   gProg.innerHTML = l.map((p) => `<li${p[1] ? ' class="si"' : ""}></li>`).join("");
   const tira = t(e.vivo[0], { n: e.vivo[1] });
   if (gTira.lastChild?.textContent !== tira) gTira.innerHTML = `<b>${t("vivo")}</b><span${fx.vivo && !quieto() ? ' class="pb-entra"' : ""}>${tira}</span>`;
-  const r = quieto(), etiqueta = r ? "autoPaso" : !auto ? (i < 0 ? "autoOtra" : "auto") : auto.pausa ? "autoSeguir" : "autoPausa";
+  const r = quieto(), etiqueta = r ? (i < 0 && e.vioCierre ? "autoOtra" : "autoPaso") : !auto ? (i < 0 ? "autoOtra" : "auto") : auto.pausa ? "autoSeguir" : "autoPausa";
   gAuto.innerHTML = ic(auto && !auto.pausa ? PAUSA : PLAY) + `<span>${t(etiqueta)}</span>`;
   gAuto.setAttribute("aria-label", t(etiqueta));
   gAuto.classList.toggle("pb-andando", !!auto);
