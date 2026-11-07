@@ -137,8 +137,22 @@ p { margin: 0; }
 .boton-entrar svg { width: 18px; height: 18px; }
 /* GitHub queda con su ícono solo (y su nombre en aria-label): así la cabecera, con "Entrar", sigue en una fila */
 .boton-github .texto-boton { display: none; }
-/* En 340 px o menos tampoco entra el botón del tema: queda el del sistema */
-@media (max-width: 340px) { #tema { display: none; } }
+/* Hasta 1140 px la cabecera tiene dos filas (la marca y los botones, y el menú abajo): la primera lleva aire
+   arriba para que los botones no toquen el borde */
+@media (max-width: 1140px) {
+  .cabecera .contenedor { padding-top: 6px; }
+  .nav { padding-bottom: 6px; }
+}
+/* En un celular chico, menos aire entre los botones para que la marca y los cuatro sigan en una fila (a 360 px
+   no entraban por 4 px y la cabecera fija pasaba a tres filas, 141 px) */
+@media (max-width: 400px) {
+  .cabecera .contenedor { column-gap: 8px; }
+  .acciones { gap: 6px; }
+  .marca { gap: 8px; }
+  .boton-entrar { padding: 0 12px 0 10px; }
+}
+/* En 350 px o menos tampoco entra el botón del tema: queda el del sistema */
+@media (max-width: 350px) { #tema { display: none; } }
 :root[data-theme="dark"] .solo-dia, :root:not([data-theme="dark"]) .solo-noche { display: none; }
 
 /* Botones */
@@ -470,7 +484,8 @@ p { margin: 0; }
 
   /* La cabecera se compacta sin cambiar de alto: sube 8 px y su contenido baja 4 */
   .cabecera, .cabecera .contenedor { transition: transform 0.3s var(--suave), box-shadow 0.3s ease, background-color 0.3s ease; }
-  @media (min-width: 861px) {
+  /* Solo con la cabecera de una fila: con dos, subirla recortaba el borde de arriba de los botones */
+  @media (min-width: 1141px) {
     .cabecera.compacta { transform: translateY(-8px); }
     .cabecera.compacta .contenedor { transform: translateY(4px); }
   }
@@ -499,6 +514,8 @@ p { margin: 0; }
 
 /* Los saltos del menú y del botón de la portada dejan la sección debajo de la cabecera, no tapada. */
 .seccion, .demo, .franja-final { scroll-margin-top: 84px; }
+/* Hasta 1140 px la cabecera tiene dos filas (101 a 103 px): el salto deja el antetítulo con aire debajo */
+@media (max-width: 1140px) { .seccion, .demo, .franja-final { scroll-margin-top: 116px; } }
 
 /* En una laptop baja, la portada entera (con su botón) entra en la primera pantalla. */
 @media (max-height: 700px) and (min-width: 861px) {
@@ -508,7 +525,6 @@ p { margin: 0; }
 
 /* En celular: la credencial asoma debajo de los botones, y el menú avisa que sigue hacia la derecha. */
 @media (max-width: 560px) {
-  .seccion, .demo, .franja-final { scroll-margin-top: 104px; }
   .portada { padding-top: 20px; padding-bottom: 28px; }
   .portada .contenedor { gap: 20px; }
   .nav { padding-right: 40px; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
