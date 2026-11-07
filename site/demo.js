@@ -490,7 +490,7 @@ const ruleta = () => {
   e.girando = true;
   const vuelta = () => {
     if (!el.isConnected) return void (e.girando = false);
-    if (i >= 13) {
+    if (i >= 11) {
       e.girando = false;
       el.textContent = final;
       el.classList.add("pb-pop");
@@ -529,6 +529,7 @@ function pintar() {
   const clave = e.rol + e.vista, sc = clave === vistaPrevia ? cont.scrollTop : 0;
   const asiste = e.rol === "asiste", vol = e.rol === "voluntario", org = e.rol === "organiza";
   if (org && clave !== vistaPrevia) fx.corre = 1;
+  const f0 = fx;
   roles.innerHTML = ROLES.map((r) => `<button class="pb-rol" aria-pressed="${e.rol === r}" data-a="rol" data-v="${r}" data-f="tab-${r}">${t(r)}</button>`).join("");
   tel.classList.toggle("pb-ancho", org);
   barra.innerHTML = vBarra(e.rol);
@@ -547,6 +548,9 @@ function pintar() {
     const r = m.getBoundingClientRect();
     if (!ancho.matches && !auto && r.bottom > innerHeight - 12) scrollBy({ top: Math.min(r.bottom - innerHeight + 24, r.top - guia.getBoundingClientRect().bottom - 12), behavior: quieto() ? "auto" : "smooth" });
   }
+  // El cierre en el celular reemplaza la pantalla: se muestra desde arriba, bajo la guía.
+  const ci = f0.cierre && !ancho.matches && capa.querySelector(".pb-cierre");
+  if (ci) scrollBy({ top: ci.getBoundingClientRect().top - guia.getBoundingClientRect().bottom - 12, behavior: quieto() ? "auto" : "smooth" });
   pintarMinis();
   pintarGuia();
   const destino = foco || antes, el = destino && raiz.querySelector(`[data-f="${destino}"]`);
