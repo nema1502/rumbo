@@ -133,7 +133,7 @@ Un contrato en Soroban para pases y vales, una app en Next.js con Supabase debaj
 
 ## Quiénes
 
-Rumbo se hace en Santa Cruz de la Sierra, Bolivia. Lo fundan [Nicolás Emir Mejía Agreda](https://github.com/nema1502), producto y contratos, y [Guido Salazar](https://github.com/GuidoSV7), desarrollo full stack.
+Rumbo se hace en Santa Cruz de la Sierra, Bolivia. Lo fundan [Nicolás Emir Mejía Agreda](https://github.com/nema1502), producto y contratos, y [Guido Salazar](https://github.com/GuidoSV7), desarrollo full stack. En marketing y producto está [María Aguilera](https://www.linkedin.com/in/mar%C3%ADa-aguilera-82a494381/).
 
 Preguntas e ideas: abrí un issue.
 

@@ -133,7 +133,7 @@ A Soroban contract for passes and vouchers, a Next.js app with Supabase undernea
 
 ## Who
 
-Rumbo is made in Santa Cruz de la Sierra, Bolivia, by its two founders: [Nicolás Emir Mejía Agreda](https://github.com/nema1502), product and smart contracts, and [Guido Salazar](https://github.com/GuidoSV7), full-stack development.
+Rumbo is made in Santa Cruz de la Sierra, Bolivia, by its two founders: [Nicolás Emir Mejía Agreda](https://github.com/nema1502), product and smart contracts, and [Guido Salazar](https://github.com/GuidoSV7), full-stack development. [María Aguilera](https://www.linkedin.com/in/mar%C3%ADa-aguilera-82a494381/) works on marketing and product.
 
 Questions and ideas: open an issue.
 
