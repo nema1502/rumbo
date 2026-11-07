@@ -239,7 +239,7 @@ const EN = {
   "paga.c6.p": "Free, with a cap on people per event that is set with the first communities. That is how every community starts, and how the word gets around.",
   "paga.nota": "Prices are set with the first communities that use it, not before.",
   "llamado.p": "Organizing an event in December? We want to build it with you.",
-  "llamado.boton": "Tell us about your event",
+  "llamado.boton": "Tell us on GitHub",
 
   "viene.ante": "What's next",
   "viene.titulo": "The roadmap, out in the open.",
