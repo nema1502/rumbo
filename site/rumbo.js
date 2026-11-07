@@ -975,6 +975,7 @@ function barraMovil() {
   const poner = () => {
     const si = pasoPortada && !veFinal && !veMaqueta && botones.size === 0;
     barra.classList.toggle("visible", si);
+    document.documentElement.classList.toggle("con-crear", si);
     barra.setAttribute("aria-hidden", String(!si));
     enlace.tabIndex = si ? 0 : -1;
   };

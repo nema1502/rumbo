@@ -135,6 +135,10 @@ p { margin: 0; }
 .boton-entrar { border: 1.5px solid var(--acento-texto); color: var(--acento-texto); padding: 0 14px 0 12px; font-weight: 700; }
 .boton-entrar:hover { background: var(--acento-suave); }
 .boton-entrar svg { width: 18px; height: 18px; }
+/* En la computadora, después de la portada, "Creá tu evento" queda a mano en la cabecera (en el celular lo trae
+   la barra de abajo). Se esconde mientras se ve otro botón principal, igual que la barra. */
+.acciones .boton-cabecera { display: none; min-height: 44px; padding: 0 16px; font-size: 0.9rem; }
+@media (min-width: 1001px) { .con-crear .acciones .boton-cabecera { display: inline-flex; } }
 /* GitHub queda con su ícono solo (y su nombre en aria-label): así la cabecera, con "Entrar", sigue en una fila */
 .boton-github .texto-boton { display: none; }
 /* Hasta 1140 px la cabecera tiene dos filas (la marca y los botones, y el menú abajo): la primera lleva aire
