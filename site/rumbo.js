@@ -958,17 +958,20 @@ function huellaViva(quieto) {
 }
 
 // En el celular, una barra fija con "Creá tu evento" aparece después de la portada y se esconde
-// cuando se ve la franja final.
+// cuando se ve la franja final. También se corre mientras el teléfono de Probalo está en pantalla:
+// ahí la guía va pegada arriba y el teléfono necesita todo el alto que queda.
 function barraMovil() {
   const barra = document.getElementById("barra-movil");
   const portada = document.querySelector(".portada .cta");
   const final = document.getElementById("empezar");
+  const maqueta = document.getElementById("pb-escenario");
   if (!barra || !portada || !final || !("IntersectionObserver" in window)) return;
   let pasoPortada = false;
   let veFinal = false;
+  let veMaqueta = false;
   const enlace = barra.querySelector("a");
   const poner = () => {
-    const si = pasoPortada && !veFinal;
+    const si = pasoPortada && !veFinal && !veMaqueta;
     barra.classList.toggle("visible", si);
     barra.setAttribute("aria-hidden", String(!si));
     enlace.tabIndex = si ? 0 : -1;
@@ -978,6 +981,7 @@ function barraMovil() {
     poner();
   }).observe(portada);
   new IntersectionObserver(([e]) => { veFinal = e.isIntersecting; poner(); }).observe(final);
+  if (maqueta) new IntersectionObserver(([e]) => { veMaqueta = e.isIntersecting; poner(); }).observe(maqueta);
 }
 
 // La cabecera se compacta y toma una sombra fina cuando la página bajó más de 40 px.
