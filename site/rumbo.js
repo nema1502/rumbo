@@ -249,7 +249,7 @@ const EN = {
   "viene.v5.t": "Payments with real money",
   "viene.v5.p": "Get paid from any country, with the money already split.",
   "viene.v6.t": "Booths that sell with the same QR code",
-  "viene.v7.t": "Gifts with a one-of-a-kind QR code",
+  "viene.v7.t": "Gifts, each with its own QR code",
   "crece.porque": "Communities bring sponsors, paid events bring networks, and networks bring the platforms that want to build on top.",
   "crece.e1.tag": "First",
   "crece.e1.t": "One community",
