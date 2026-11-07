@@ -959,7 +959,8 @@ function huellaViva(quieto) {
 
 // En el celular, una barra fija con "Creá tu evento" aparece después de la portada y se esconde
 // cuando se ve la franja final. También se corre mientras el teléfono de Probalo está en pantalla:
-// ahí la guía va pegada arriba y el teléfono necesita todo el alto que queda.
+// ahí la guía va pegada arriba y el teléfono necesita todo el alto que queda. Y mientras se ve el botón
+// principal de una sección, para no mostrar el mismo botón dos veces o dos naranjas llenos que compiten.
 function barraMovil() {
   const barra = document.getElementById("barra-movil");
   const portada = document.querySelector(".portada .cta");
@@ -969,9 +970,10 @@ function barraMovil() {
   let pasoPortada = false;
   let veFinal = false;
   let veMaqueta = false;
+  const botones = new Set();
   const enlace = barra.querySelector("a");
   const poner = () => {
-    const si = pasoPortada && !veFinal && !veMaqueta;
+    const si = pasoPortada && !veFinal && !veMaqueta && botones.size === 0;
     barra.classList.toggle("visible", si);
     barra.setAttribute("aria-hidden", String(!si));
     enlace.tabIndex = si ? 0 : -1;
@@ -982,6 +984,11 @@ function barraMovil() {
   }).observe(portada);
   new IntersectionObserver(([e]) => { veFinal = e.isIntersecting; poner(); }).observe(final);
   if (maqueta) new IntersectionObserver(([e]) => { veMaqueta = e.isIntersecting; poner(); }).observe(maqueta);
+  const vigia = new IntersectionObserver((cambios) => {
+    for (const c of cambios) c.isIntersecting ? botones.add(c.target) : botones.delete(c.target);
+    poner();
+  });
+  document.querySelectorAll("main .cta-seccion .boton-primario, main .llamado .boton-primario").forEach((b) => vigia.observe(b));
 }
 
 // La cabecera se compacta y toma una sombra fina cuando la página bajó más de 40 px.
