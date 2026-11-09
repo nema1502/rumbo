@@ -362,6 +362,7 @@ const EN = {
   "equipo.titulo": "The team",
   "equipo.n1.rol": "Product and smart contracts",
   "equipo.n2.rol": "Full-stack development",
+  "equipo.n3.rol": "Marketing and product",
   "principios.titulo": "What Rumbo never does",
   "principios.p1.t": "Hold your money.",
   "principios.p1.p": "It goes straight to the organizer or, once protected payments arrive, sits in the contract.",
