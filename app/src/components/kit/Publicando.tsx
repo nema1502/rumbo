@@ -13,6 +13,8 @@ import type { PublishProgress } from "@/server/kit/publicar.ts";
 
 /** Cuántas veces seguidas se reintenta solo un paso que falló antes de ofrecer "Reintentar". */
 const AUTO_RETRIES = 2;
+/** Lo que tarda de verdad preparar una credencial en la red de prueba (medido: la inscripción de un meetup abre a los 15 s). */
+const SEGUNDOS_POR_CREDENCIAL = 15;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 type Problema = null | "fallo" | "borrador" | "tope" | "sesion";
@@ -98,7 +100,7 @@ export function Publicando({ slug, eventName, initial, autoStart }: { slug: stri
 
   const equipoTotal = avance.total - avance.publicTotal;
   const equipoHechos = avance.done - avance.publicDone;
-  const porcentaje = avance.total > 0 ? Math.round((avance.done / avance.total) * 100) : 0;
+  const porcentajeAbrir = avance.publicTotal > 0 ? Math.round((avance.publicDone / avance.publicTotal) * 100) : 0;
 
   const reintentar = problema === "fallo" && (
     <Boton onClick={() => void seguir()} disabled={corriendo} variante={avance.published ? "secundario" : "primario"} className={avance.published ? "boton-chico" : undefined}>
@@ -119,13 +121,23 @@ export function Publicando({ slug, eventName, initial, autoStart }: { slug: stri
         </header>
         <div className="pantalla-cuerpo">
           {empezado && (
-          <div className="publicando-avance" aria-live="polite">
-            <p className="publicando-cifra">{t("kit.publicando.avance", { hechos: avance.done, total: avance.total })}</p>
-            <div className="importar-barra" role="progressbar" aria-valuemin={0} aria-valuemax={avance.total} aria-valuenow={avance.done} aria-label={t("kit.publicando.titulo")}>
-              <span style={{ width: `${Math.max(porcentaje, corriendo ? 4 : 0)}%` }} />
+            // Antes de abrir cuenta solo lo que falta para abrir: las credenciales de quien se inscribe. Mientras un paso
+            // corre, la barra se mueve (cada paso tarda varios segundos y no tiene avance propio que mostrar).
+            <div className="publicando-avance" aria-live="polite">
+              <p className="publicando-cifra">{t("kit.publicando.abriendo", { hechos: avance.publicDone, total: avance.publicTotal })}</p>
+              <div
+                className={corriendo ? "importar-barra barra-en-curso" : "importar-barra"}
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={avance.publicTotal}
+                aria-valuenow={avance.publicDone}
+                aria-label={t("kit.publicando.abriendo", { hechos: avance.publicDone, total: avance.publicTotal })}
+              >
+                <span style={{ width: `${porcentajeAbrir}%` }} />
+                {corriendo && <i aria-hidden="true" />}
+              </div>
+              <p className="chico apagado">{t("kit.publicando.cuanto", { segundos: SEGUNDOS_POR_CREDENCIAL * Math.max(1, avance.publicTotal - avance.publicDone) })}</p>
             </div>
-            <p className="chico apagado">{t("kit.publicando.cuanto")}</p>
-          </div>
           )}
           {problema === "fallo" && <Aviso tono="alerta">{t("kit.publicando.error")}</Aviso>}
           {problema === "borrador" && <Aviso tono="alerta">{t("kit.publicando.errorBorrador")}</Aviso>}

@@ -77,6 +77,13 @@
 .importar-muestra li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; overflow-wrap: anywhere; }
 .importar-barra { height: 12px; border-radius: 999px; background: var(--linea); overflow: hidden; }
 .importar-barra > span { display: block; height: 100%; border-radius: 999px; background: var(--verde); transition: width 0.4s var(--suave); }
+/* Mientras corre un paso de publicar: una franja que va y viene sobre lo que falta. Quieta si se pidió menos movimiento. */
+.barra-en-curso { position: relative; }
+.barra-en-curso > i { position: absolute; inset-block: 0; left: 0; width: 35%; border-radius: 999px; background: var(--verde); opacity: 0.55; animation: barra-va-y-viene 1.6s ease-in-out infinite; }
+@keyframes barra-va-y-viene { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
+@media (prefers-reduced-motion: reduce) {
+  .barra-en-curso > i { animation: none; transform: none; left: auto; right: 0; width: 100%; opacity: 0.3; }
+}
 .importar-resumen { font-family: var(--display); font-weight: 800; font-size: clamp(1.3rem, 3vw, 1.7rem); line-height: 1.2; text-wrap: balance; }
 .importar-archivo input[type="file"] { padding: 12px 16px; min-height: 60px; background: var(--tarjeta); cursor: pointer; }
 .importar-archivo input[type="file"]::file-selector-button {
