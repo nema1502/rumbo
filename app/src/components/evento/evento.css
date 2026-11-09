@@ -132,3 +132,7 @@
 .credencial-beneficios .chip { margin: 0; flex: none; }
 .chip .check { width: 14px; height: 14px; stroke: currentColor; stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .credencial-ayuda { text-align: center; }
+
+/* La vista previa de un borrador: el aviso de arriba */
+.vista-previa { grid-column: 1 / -1; border-radius: var(--radio-chico, 12px); position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 10px 16px; background: var(--amarillo-suave, var(--acento-suave)); color: var(--tinta); border-bottom: 1px solid var(--linea); font-weight: 600; }
+.vista-previa a { font-weight: 700; }

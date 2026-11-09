@@ -24,6 +24,7 @@ import { csvCell } from "../panel.ts";
 import { emailKey, normalizeEmail, type EventRecord, type ImportRun, type Pass, type Person, type Repo, type TicketType } from "../repo.ts";
 import { isContractError, rumboPass } from "../stellar.ts";
 import { buildImportedEmail } from "./correo.ts";
+import { ensureTicketTypeContract, type ContractProvisioner } from "./publicar.ts";
 import { CsvLimitError, cell, decodeText, detectSource, emailColumn, findColumn, fixCase, nameKey, parseTable, statusColumn, type Table } from "./csv.ts";
 
 // ---------- Leer la lista ----------
@@ -420,7 +421,7 @@ export async function prepareImport(repo: Repo, event: EventRecord, parsed: Pars
     const type = id ? typeById.get(id) : undefined;
     if (!type) throw new ImportOptionsError(id ? "bad_type" : "no_type");
     if (type.priceUsdc > 0) throw new ImportOptionsError("paid_type");
-    if (!(type.contractId ?? event.contractId)) throw new ImportOptionsError("no_contract");
+    // Un tipo del equipo que todavía no tiene contrato (el evento acaba de abrir) no frena: se crea al activar la tanda.
     return type;
   };
   const fallback = resolve(options.defaultTypeId);
@@ -493,6 +494,8 @@ export interface ImportDeps {
   lang: Lang;
   /** De dónde se pidió, para que en desarrollo el enlace del correo abra en el mismo servidor. */
   origin?: string | null;
+  /** Quién crea el contrato de un tipo que todavía no lo tiene (ensureTicketTypeContract). Sin él, el de este proceso. */
+  provisioner?: ContractProvisioner;
 }
 
 declare global {
@@ -569,8 +572,15 @@ type Outcome = "emailed" | "link_only" | "email_failed" | "failed";
 
 async function activateOne(repo: Repo, event: EventRecord, pass: Pass, deps: ImportDeps): Promise<Outcome> {
   const [person, ticketType] = await Promise.all([repo.getPersonById(pass.personId), repo.getTicketType(pass.ticketTypeId)]);
-  const contractId = ticketType?.contractId ?? event.contractId;
-  if (!person || !ticketType || !contractId) return "failed";
+  if (!person || !ticketType) return "failed";
+  let contractId: string;
+  try {
+    // El de su tipo, o uno nuevo ahora si el evento abrió antes de que le llegara el turno (las credenciales del equipo).
+    contractId = await ensureTicketTypeContract(repo, event, ticketType, deps.provisioner);
+  } catch (error) {
+    console.warn(`[importar] El tipo ${ticketType.id} todavía no tiene contrato: ${describeForLog(error)}`);
+    return "failed";
+  }
 
   let account: string;
   let txHash: string | null = null;

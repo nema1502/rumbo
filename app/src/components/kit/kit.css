@@ -77,6 +77,13 @@
 .importar-muestra li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; overflow-wrap: anywhere; }
 .importar-barra { height: 12px; border-radius: 999px; background: var(--linea); overflow: hidden; }
 .importar-barra > span { display: block; height: 100%; border-radius: 999px; background: var(--verde); transition: width 0.4s var(--suave); }
+/* Mientras corre un paso de publicar: una franja que va y viene sobre lo que falta. Quieta si se pidió menos movimiento. */
+.barra-en-curso { position: relative; }
+.barra-en-curso > i { position: absolute; inset-block: 0; left: 0; width: 35%; border-radius: 999px; background: var(--verde); opacity: 0.55; animation: barra-va-y-viene 1.6s ease-in-out infinite; }
+@keyframes barra-va-y-viene { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
+@media (prefers-reduced-motion: reduce) {
+  .barra-en-curso > i { animation: none; transform: none; left: auto; right: 0; width: 100%; opacity: 0.3; }
+}
 .importar-resumen { font-family: var(--display); font-weight: 800; font-size: clamp(1.3rem, 3vw, 1.7rem); line-height: 1.2; text-wrap: balance; }
 .importar-archivo input[type="file"] { padding: 12px 16px; min-height: 60px; background: var(--tarjeta); cursor: pointer; }
 .importar-archivo input[type="file"]::file-selector-button {
@@ -115,3 +122,37 @@
   .importar-tipos li { grid-template-columns: 1fr; }
   .equipo-integrante .kit-form-par { grid-template-columns: 1fr; }
 }
+
+/* Publicar: el avance de a una credencial, y el enlace para compartir apenas abre */
+.publicando { width: min(620px, 100%); }
+.publicando-avance { display: grid; gap: 10px; }
+.publicando-cifra { font-family: var(--display); font-weight: 800; font-size: clamp(1.3rem, 3vw, 1.7rem); line-height: 1.2; font-variant-numeric: tabular-nums; }
+.publicando-enlace input { font-size: 0.95rem; }
+.publicando-equipo { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid var(--linea); }
+.publicando-equipo p { margin: 0; }
+.publicando-equipo .boton { margin-left: 8px; }
+
+/* El borrador: la dirección del evento, con el comienzo fijo y el final editable */
+.direccion-campo { display: flex; align-items: stretch; width: 100%; border: 1px solid var(--linea); border-radius: var(--radio-chico); background: var(--papel); overflow: hidden; }
+.direccion-campo:focus-within { outline: 2px solid var(--acento); outline-offset: 1px; }
+.direccion-prefijo { flex: none; max-width: 60%; display: flex; align-items: center; padding: 0 2px 0 12px; color: var(--apagado); font-family: ui-monospace, monospace; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.direccion-campo input { flex: 1 1 auto; min-width: 0; min-height: 46px; border: 0; outline: 0; padding: 8px 12px 8px 0; background: transparent; color: var(--tinta); font-family: ui-monospace, monospace; font-size: 0.95rem; }
+/* En el celular el comienzo va arriba, entero, y el final que se edita tiene todo el ancho */
+@media (max-width: 560px) {
+  .direccion-campo { flex-wrap: wrap; }
+  .direccion-prefijo { max-width: none; width: 100%; padding: 8px 12px 0; }
+  .direccion-campo input { padding-left: 12px; }
+}
+.armar-vista { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+
+
+/* El enlace del evento (EnlaceDelEvento.tsx): entero, bajando de renglón si no entra, con Copiar y Ver la página */
+.enlace-evento { display: grid; gap: 8px; }
+.enlace-evento-titulo { margin: 0; font-weight: 700; }
+.enlace-evento-url {
+  margin: 0; padding: 10px 12px; border: 1px solid var(--linea); border-radius: var(--radio-chico); background: var(--papel);
+  color: var(--tinta); font-family: ui-monospace, monospace; font-size: 0.95rem; line-height: 1.4; overflow-wrap: anywhere; word-break: break-all;
+}
+.enlace-evento-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.enlace-evento-acciones .boton-grande { flex: 1 1 240px; }
+.panel-enlace-evento { margin: 0 0 16px; }

@@ -12,11 +12,14 @@ import { isManualScannerId } from "@/lib/escaner-api.ts";
 import { formatStationCode, stationCodesExpired } from "@/lib/station-code.ts";
 import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
 import type { ChainSyncSummary, PanelDuplicate, PanelPass, PanelState } from "@/server/panel.ts";
+import type { EventTeam } from "@/server/coorganizar.ts";
 import type { PanelVia } from "@/server/panel-sesion.ts";
 import { BotonCopiar } from "./BotonCopiar.tsx";
 import { CerrarSesion } from "./CerrarSesion.tsx";
 import { CompartirPanel } from "./CompartirPanel.tsx";
+import { EnlaceDelEvento } from "./EnlaceDelEvento.tsx";
 import { Contador } from "./Contador.tsx";
+import { TuEquipo } from "./TuEquipo.tsx";
 
 const POLL_MS = 5000;
 const LOCALES: Record<Lang, string> = { es: "es-BO", en: "en-US" };
@@ -46,15 +49,24 @@ export function PanelCliente({
   slug,
   initial,
   publicado = false,
+  porPreparar = [],
+  recienSumado = false,
   via = "key",
   pollarKey = null,
+  equipo = null,
 }: {
   slug: string;
   initial: PanelState;
   publicado?: boolean;
+  /** Los nombres de los tipos de credencial del equipo que quedan por preparar (se cerró la pestaña de publicar antes de terminar). */
+  porPreparar?: string[];
+  /** Quien coorganiza acaba de sumarse con una invitación (?equipo=1). */
+  recienSumado?: boolean;
   via?: PanelVia;
   /** Con la cuenta: la clave publicable de Pollar, para cerrar también su sesión en este navegador. */
   pollarKey?: string | null;
+  /** Para la dueña del evento: su equipo, con lo que hace falta para sumar y sacar personas. Para el resto, null. */
+  equipo?: EventTeam | null;
 }) {
   const t = useT();
   const lang = useLang();
@@ -182,7 +194,19 @@ export function PanelCliente({
         </p>
       </header>
 
+      {/* El enlace para compartir, siempre a mano: para la dueña, quien coorganiza y quien entra con la clave. */}
+      <EnlaceDelEvento slug={slug} className="panel-enlace-evento" />
+
       {publicado && <Aviso tono="listo">{t("kit.armar.publicado")}</Aviso>}
+      {recienSumado && <Aviso tono="listo">{t("panel.equipo.yaSos", { evento: event.name })}</Aviso>}
+      {porPreparar.length > 0 && (
+        <div className="aviso panel-por-preparar" role="status">
+          <span>{porPreparar.length === 1 ? t("kit.panel.faltaUna", { tipos: porPreparar[0] }) : t("kit.panel.faltan", { n: porPreparar.length, tipos: porPreparar.join(", ") })}</span>
+          <BotonEnlace href={`/admin/${encodeURIComponent(slug)}/publicando`} variante="secundario" className="boton-chico">
+            {t("kit.panel.terminar")}
+          </BotonEnlace>
+        </div>
+      )}
       {conexion === "vencida" && (
         <Aviso tono="alerta">
           {via === "organizer" ? t("panel.sesionVencidaCuenta") : t("panel.sesionVencida")}{" "}
@@ -313,7 +337,9 @@ export function PanelCliente({
         </Tarjeta>
       </div>
 
-      {via === "organizer" && <CompartirPanel slug={slug} />}
+      {/* Sumar o sacar personas es de la dueña: quien coorganiza o entró con la clave no ve esto. */}
+      {equipo && <TuEquipo slug={slug} initial={equipo} />}
+      {equipo && <CompartirPanel slug={slug} />}
 
       <section className="panel-seccion">
         <div className="pases-cabecera">

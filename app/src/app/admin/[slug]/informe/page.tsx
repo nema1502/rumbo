@@ -2,7 +2,7 @@
 // imprime desde el navegador (la hoja de impresión está en ../../panel.css).
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { BotonImprimir } from "@/components/panel/BotonImprimir.tsx";
 import { AccesoPanel } from "@/components/panel/AccesoPanel.tsx";
 import { Contador } from "@/components/panel/Contador.tsx";
@@ -14,6 +14,7 @@ import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
 import { getSponsorReport } from "@/server/panel.ts";
 import { PANEL_KEY_QUERY, panelAccess } from "@/server/panel-sesion.ts";
 import { getRepo } from "@/server/repo.ts";
+import { panelEventBySlug } from "@/server/evento-del-panel.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -30,8 +31,7 @@ const porcentaje = (parte: number, total: number) => (total > 0 ? Math.round((pa
 export default async function InformePage({ params, searchParams }: { params: Params; searchParams: SearchParams }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
   const repo = getRepo();
-  const event = await repo.getEventBySlug(slug);
-  if (!event) notFound();
+  const event = await panelEventBySlug(slug, "/informe", query);
 
   const key = query[PANEL_KEY_QUERY];
   if (typeof key === "string" && key) redirect(`/api/admin/${slug}/entrar?k=${encodeURIComponent(key)}&next=informe`);

@@ -53,3 +53,14 @@ export function fromOwnSite(request: NextRequest): boolean {
   }
   return own.has(claimed);
 }
+
+/** Un texto del cuerpo JSON del pedido ({ <campo>: "..." }), recortado a max; vacío si no viene o no es JSON. */
+export async function readJsonText(request: NextRequest, field: string, max: number): Promise<string> {
+  try {
+    const body = (await request.json()) as Record<string, unknown> | null;
+    const value = body?.[field];
+    return typeof value === "string" ? value.slice(0, max) : "";
+  } catch {
+    return "";
+  }
+}

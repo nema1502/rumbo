@@ -2,10 +2,12 @@
 // lee en las páginas y en las rutas de la API, y la comprobación que usan las páginas y las rutas. Al panel
 // de un evento se entra de dos maneras: con la clave del evento (el enlace ?k=, que queda en su cookie; sirve
 // para compartirla con quien coorganiza y para el servidor MCP) o con la sesión de la cuenta de organizador
-// que lo creó (organizador.ts).
+// que lo creó o lo coorganiza (organizador.ts, coorganizar.ts).
 import { cookies, headers } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
-import { canManageEvent, organizerFromCookies, organizerFromRequest } from "./organizador.ts";
+import { eventRole, type EventRole } from "./coorganizar.ts";
+import { findEventBySlug, oldSlugsOf } from "./kit/direccion.ts";
+import { ORGANIZER_COOKIE, organizerFromRequest, resolveOrganizerSession } from "./organizador.ts";
 import { verifyOrganizerKey } from "./panel.ts";
 import { getRepo, type EventRecord, type Organizer } from "./repo.ts";
 
@@ -72,37 +74,70 @@ export function seeOther(path: string): NextResponse {
   return new NextResponse(null, { status: 303, headers: { Location: path } });
 }
 
-/** Cómo se entró al panel: con la clave del evento, o con la sesión de la cuenta que lo creó. */
+/** Cómo se entró al panel: con la clave del evento, o con la sesión de una cuenta del equipo (la dueña o quien coorganiza). */
 export type PanelVia = "key" | "organizer";
 
 export interface PanelAccess {
   via: PanelVia;
   /** La cuenta de organizador, cuando se entró con ella. */
   organizer: Organizer | null;
+  /** Con la cuenta: si es la dueña o coorganiza. Sumar o sacar personas es solo de la dueña. Con la clave, null. */
+  role: EventRole | null;
 }
 
 /**
- * Para las páginas de /admin/<evento>: cómo entra este pedido al panel del evento, o null si no tiene con qué.
- * Primero la clave del evento (su cookie), después la sesión de organizador si el evento es de esa cuenta.
+ * Cómo entra al panel del evento quien trae esa ficha de sesión de organizador y esa clave del evento (cualquiera de
+ * las dos puede faltar), o null si no tiene con qué. Primero la cuenta, si es la dueña o coorganiza: si la dueña abre
+ * su propio enlace para compartir en el mismo navegador, la cookie de la clave no le cambia el panel a "modo clave"
+ * (sin Mis eventos ni Tu equipo) por treinta días. Después, la clave.
  */
-export async function panelAccess(event: EventRecord): Promise<PanelAccess | null> {
-  // Primero la cuenta: si la dueña abre su propio enlace para compartir en el mismo navegador, la cookie de la
-  // clave no le cambia el panel a "modo clave" (sin Mis eventos ni Compartir) por treinta días.
-  const organizer = await organizerFromCookies();
-  if (organizer && canManageEvent(organizer, event)) return { via: "organizer", organizer };
-  if (await verifyOrganizerKey(event.id, await panelKeyFromCookies(event.slug))) return { via: "key", organizer: null };
+export async function resolvePanelAccess(event: EventRecord, organizerToken: string | null | undefined, panelKey: string | null | undefined, repo = getRepo()): Promise<PanelAccess | null> {
+  const organizer = (await resolveOrganizerSession(repo, organizerToken))?.organizer ?? null;
+  const role = organizer ? await eventRole(organizer, event) : null;
+  if (organizer && role) return { via: "organizer", organizer, role };
+  if (await verifyOrganizerKey(event.id, panelKey)) return { via: "key", organizer: null, role: null };
   return null;
 }
 
-type Authorized = { event: EventRecord; via: PanelVia; response?: undefined } | { event?: undefined; via?: undefined; response: NextResponse };
+/**
+ * La clave del evento entre las cookies: la de su dirección de ahora o, si quien organiza cambió la dirección del
+ * borrador, la de una que tuvo antes (quien entró con el enlace viejo tiene la cookie con ese nombre).
+ */
+async function eventKeyFromCookies(get: (name: string) => string | undefined, event: EventRecord, first: string | null = null): Promise<string | null> {
+  const now = first ?? get(panelCookieName(event.slug)) ?? null;
+  if (now) return now;
+  for (const old of await oldSlugsOf(event.id)) {
+    const value = get(panelCookieName(old));
+    if (value) return value;
+  }
+  return null;
+}
+
+/** Para las páginas de /admin/<evento> (y la vista previa de /e/<evento>): resolvePanelAccess con las cookies del pedido. */
+export async function panelAccess(event: EventRecord): Promise<PanelAccess | null> {
+  const jar = await cookies();
+  const get = (name: string) => jar.get(name)?.value;
+  const organizerToken = get(ORGANIZER_COOKIE);
+  // La clave se busca solo si la cuenta no alcanza: las direcciones viejas son una consulta más.
+  const viaOrganizer = organizerToken ? await resolvePanelAccess(event, organizerToken, null) : null;
+  if (viaOrganizer) return viaOrganizer;
+  return resolvePanelAccess(event, null, await eventKeyFromCookies(get, event));
+}
+
+type Authorized =
+  | ({ event: EventRecord; response?: undefined } & PanelAccess)
+  | { event?: undefined; via?: undefined; organizer?: undefined; role?: undefined; response: NextResponse };
 
 /** Para las rutas de la API: el evento si la clave o la sesión sirven, o la respuesta que corresponde (404 o 401). */
 export async function authorizePanelRequest(request: NextRequest, slug: string): Promise<Authorized> {
-  const event = await getRepo().getEventBySlug(slug);
+  // También por una dirección que el borrador tuvo antes: una pestaña abierta antes del cambio sigue andando.
+  const event = (await findEventBySlug(getRepo(), slug))?.event;
   if (!event) return { response: NextResponse.json({ error: "not_found" }, { status: 404 }) };
   // Como en panelAccess: la sesión de la dueña gana sobre la cookie de la clave.
   const organizer = await organizerFromRequest(request);
-  if (organizer && canManageEvent(organizer, event)) return { event, via: "organizer" };
-  if (await verifyOrganizerKey(event.id, panelKeyFromRequest(request, slug))) return { event, via: "key" };
+  const role = organizer ? await eventRole(organizer, event) : null;
+  if (organizer && role) return { event, via: "organizer", organizer, role };
+  const key = await eventKeyFromCookies((name) => request.cookies.get(name)?.value, event, panelKeyFromRequest(request, slug));
+  if (await verifyOrganizerKey(event.id, key)) return { event, via: "key", organizer: null, role: null };
   return { response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
 }

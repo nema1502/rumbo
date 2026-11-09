@@ -4,16 +4,18 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import "@/components/evento/evento.css";
 import { FilaEntrada } from "@/components/evento/FilaEntrada.tsx";
-import { Aviso, BotonEnlace, Chip } from "@/components/ui.tsx";
+import { Aviso, Boton, BotonEnlace, Chip } from "@/components/ui.tsx";
 import { getLang, getT } from "@/i18n/server.ts";
 import { isPublicKind } from "@/lib/credential-kinds.ts";
 import { isSoldOut, readContractCapacity } from "@/server/evento/cupo.ts";
 import { formatEventWhen, formatEventWhere, joinList } from "@/server/evento/fecha.ts";
+import { panelAccess } from "@/server/panel-sesion.ts";
 import { getRepo, type TicketTypeBenefit } from "@/server/repo.ts";
 
 export const dynamic = "force-dynamic";
 
 type Params = Promise<{ slug: string }>;
+type Search = Promise<Record<string, string | string[] | undefined>>;
 
 /** Hasta cuántas cosas de "Qué incluye" se muestran enteras; con más, se ven dos y el resto se despliega. */
 const INCLUIDOS_ENTEROS = 4;
@@ -31,17 +33,21 @@ function Incluido({ name, detail }: { name: string; detail: string | null }) {
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
   const event = await getRepo().getEventBySlug(slug);
-  if (!event || !event.published) return {};
+  // Un borrador no tiene página: la vista previa de quien organiza no se indexa ni dice nada afuera.
+  if (!event || !event.published) return { robots: { index: false, follow: false } };
   const description = event.description || undefined;
   return { title: event.name, description, openGraph: { title: event.name, description, type: "website" } };
 }
 
-export default async function EventPage({ params }: { params: Params }) {
-  const { slug } = await params;
+export default async function EventPage({ params, searchParams }: { params: Params; searchParams: Search }) {
+  const [{ slug }, query] = await Promise.all([params, searchParams]);
   const repo = getRepo();
   const event = await repo.getEventBySlug(slug);
-  // Un borrador (el evento recién salido de una plantilla) no se ve hasta que se publica.
-  if (!event || !event.published) notFound();
+  if (!event) notFound();
+  // Un borrador (el evento recién salido de una plantilla) no se ve hasta que se publica. Quien tiene acceso a su
+  // panel (la dueña, quien coorganiza, la clave) lo ve con ?vista=1, como va a quedar, con las inscripciones apagadas.
+  const preview = !event.published;
+  if (preview && (query.vista !== "1" || !(await panelAccess(event)))) notFound();
 
   const lang = await getLang();
   const t = await getT();
@@ -56,19 +62,29 @@ export default async function EventPage({ params }: { params: Params }) {
   // Si el contrato de una entrada ya no emite más, la tarjeta dice "Agotada" (se lee una vez por minuto, no en cada carga).
   const cupos = await Promise.all(tickets.map((ticket) => readContractCapacity(ticket.contractId ?? event.contractId)));
 
-  // Qué incluye el evento y con qué entrada viene cada cosa (si no viene con todas).
-  const included = catalog.map((benefit) => {
+  // Qué incluye el evento y con qué entrada viene cada cosa (si no viene con todas). Lo que solo trae una credencial
+  // del equipo (la polera del voluntariado) no se promete a quien se inscribe; el premio del sorteo, sí.
+  const included = catalog.flatMap((benefit) => {
     const withTickets = tickets.filter((ticket) => benefitsByTicket.get(ticket.id)?.some((b) => b.id === benefit.id));
     let detail: string | null = null;
     if (withTickets.length === 0) detail = benefit.kind === "prize" ? t("evento.incluye.sorteo") : null;
     else if (withTickets.length < tickets.length) detail = t("evento.incluye.con", { entrada: joinList(lang, withTickets.map((ticket) => ticket.name)) });
-    return { benefit, detail };
+    if (withTickets.length === 0 && benefit.kind !== "prize") return [];
+    return [{ benefit, detail }];
   });
 
   const visibles = included.length > INCLUIDOS_ENTEROS ? INCLUIDOS_A_LA_VISTA : included.length;
 
   return (
     <section className="evento">
+      {preview && (
+        <p className="vista-previa" role="status">
+          <span>{t("kit.vista.aviso")}</span>
+          <a className="enlace" href={`/admin/${encodeURIComponent(slug)}/armar`}>
+            {t("kit.vista.volver")}
+          </a>
+        </p>
+      )}
       <header className="evento-afiche">
         {hasFree && <Chip estado="listo">{t("inicio.gratis")}</Chip>}
         <h1>{event.name}</h1>
@@ -108,10 +124,16 @@ export default async function EventPage({ params }: { params: Params }) {
               t={t}
               soldOut={isSoldOut(cupos[i] ?? null)}
               secondary={ticket.priceUsdc > 0 && hasFree}
+              preview={preview}
             />
           ))
         )}
-        {event.teamSignup && tickets.length > 0 && (
+        {event.teamSignup && tickets.length > 0 && preview && (
+          <Boton variante="secundario" disabled>
+            {t("kit.equipo.boton")}
+          </Boton>
+        )}
+        {event.teamSignup && tickets.length > 0 && !preview && (
           <BotonEnlace variante="secundario" href={`/e/${encodeURIComponent(slug)}/equipo`}>
             {t("kit.equipo.boton")}
           </BotonEnlace>

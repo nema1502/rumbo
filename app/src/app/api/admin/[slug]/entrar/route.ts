@@ -1,7 +1,9 @@
 // Entrar al panel: con la clave en el enlace (GET ?k=...) o con el formulario de la clave (POST).
 // Si la clave sirve, queda en una cookie y se sigue al panel (o al informe, con next=informe);
-// si no, se vuelve al formulario con el aviso.
+// si no, se vuelve al formulario con el aviso. Con una dirección que el borrador tuvo antes (el enlace para compartir
+// se pasó antes de cambiarla), sigue a la de ahora y la cookie queda con el nombre de la de ahora.
 import type { NextRequest, NextResponse } from "next/server";
+import { findEventBySlug } from "@/server/kit/direccion.ts";
 import { getOrCreateOrganizerKey, verifyOrganizerKey } from "@/server/panel.ts";
 import { PANEL_KEY_QUERY, seeOther, setPanelCookie } from "@/server/panel-sesion.ts";
 import { getRepo } from "@/server/repo.ts";
@@ -13,14 +15,16 @@ type Context = { params: Promise<{ slug: string }> };
 /** A dónde se puede seguir después de entrar. Nada más, para que el enlace no lleve a cualquier lado. */
 const NEXT_PAGES: Record<string, string> = { "": "", informe: "/informe", stands: "/stands", armar: "/armar", importar: "/importar" };
 
-async function enter(request: NextRequest, slug: string, key: string | null, next: string): Promise<NextResponse> {
-  const event = await getRepo().getEventBySlug(slug);
+async function enter(request: NextRequest, requested: string, key: string | null, next: string): Promise<NextResponse> {
+  const found = await findEventBySlug(getRepo(), requested);
+  const event = found?.event ?? null;
+  const slug = event ? encodeURIComponent(event.slug) : requested;
   // La pantalla en vivo cuelga de /vivo, no de /admin, pero se abre con la misma clave de organizador.
   const target = next === "vivo" ? `/vivo/${slug}` : `/admin/${slug}${NEXT_PAGES[next] ?? ""}`;
   if (!event) return seeOther(target);
   if (!(await verifyOrganizerKey(event.id, key))) return seeOther(`${target}?error=clave`);
   const response = seeOther(target);
-  setPanelCookie(response, request, slug, await getOrCreateOrganizerKey(event.id));
+  setPanelCookie(response, request, event.slug, await getOrCreateOrganizerKey(event.id));
   return response;
 }
 

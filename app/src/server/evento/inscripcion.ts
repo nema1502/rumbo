@@ -18,7 +18,8 @@ import { linkResendAttempts, registrationAttempts } from "../limites.ts";
 import { describeForLog } from "../log.ts";
 import { getMailer } from "../mailer.ts";
 import { getRepo, normalizeEmail, type EventRecord, type Pass, type Person, type Repo, type TicketType } from "../repo.ts";
-import { NETWORK_PASSPHRASE, getTestAsset, isContractError, requireContractId, rumboPass, walletChain } from "../stellar.ts";
+import { ensureTicketTypeContract } from "../kit/publicar.ts";
+import { NETWORK_PASSPHRASE, getTestAsset, isContractError, rumboPass, walletChain } from "../stellar.ts";
 import { getOrCreateAccessKey } from "./acceso.ts";
 import { buildPassEmail } from "./correo.ts";
 
@@ -293,7 +294,8 @@ export async function registerForEvent(input: RegistrationInput): Promise<Regist
   let ticketType = await repo.getTicketType(input.ticketTypeId);
   // Las credenciales de oradores, jurado, voluntarios y demás se entregan por invitación: no se piden desde la página.
   if (!ticketType || ticketType.eventId !== event.id || !isPublicKind(ticketType.credentialKind)) throw new RegistrationNotFound("ticket");
-  let contractId = requireContractId(ticketType.contractId ?? event.contractId);
+  // El de la entrada, o el del evento. Si el evento abrió antes de que esta entrada tuviera el suyo, se crea ahora.
+  let contractId = await ensureTicketTypeContract(repo, event, ticketType);
   let paid = ticketType.priceUsdc > 0;
   const email = normalizeEmail(input.email);
   const name = input.name.trim();
@@ -345,7 +347,12 @@ export async function registerForEvent(input: RegistrationInput): Promise<Regist
       if (!own) return failed("misconfigured", `la entrada ${pass.ticketTypeId} de la credencial ${pass.id} no existe`);
       if (own.priceUsdc > 0 && !paid) return failed("ticket_mismatch", `la credencial ${pass.id} es de la entrada paga ${own.id}`);
       ticketType = own;
-      contractId = requireContractId(own.contractId ?? event.contractId);
+      // Una credencial del equipo cuyo tipo todavía no tenía contrato (el evento acaba de abrir): se crea ahora.
+      try {
+        contractId = await ensureTicketTypeContract(repo, event, own);
+      } catch (error) {
+        return failed("network", describe(error));
+      }
       paid = own.priceUsdc > 0;
     }
   }

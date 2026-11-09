@@ -13,6 +13,7 @@ import { cookies } from "next/headers";
 import type { NextRequest, NextResponse } from "next/server";
 import { verifyWalletProof, type ProofCheck, type WalletProof } from "./cuenta-propia.ts";
 import { BUSY, tryExclusive } from "./compartido.ts";
+import { claimAccountGrants, eventRole, type EventRole } from "./coorganizar.ts";
 import { getEnv } from "./env.ts";
 import { checkTemplateInput, createEventFromTemplate, type NewEventFromTemplate } from "./kit/plantillas.ts";
 import { eventCreateAttempts } from "./limites.ts";
@@ -61,6 +62,8 @@ export async function loginOrganizer(repo: Repo, proof: WalletProof, name?: unkn
   const check = await verifyWalletProof(repo, proof);
   if (!check.ok) return check;
   const organizer = await repo.upsertOrganizer({ publicKey: check.publicKey, provider: check.provider, name: cleanOrganizerName(name) });
+  // Si alguna dueña autorizó esta cuenta en su evento, entrar la suma a ese equipo.
+  await claimAccountGrants(organizer);
   const token = randomBytes(16).toString("base64url");
   await repo.createOrganizerSession({ id: sessionIdOf(token), organizerId: organizer.id, expiresAt: new Date(now + SESSION_TTL_MS).toISOString() });
   return { ok: true, organizer, token };
@@ -116,10 +119,12 @@ export async function logoutOrganizer(repo: Repo, token: string | null | undefin
   await repo.deleteOrganizerSession(sessionIdOf(token));
 }
 
-/** Si esa cuenta puede abrir el panel del evento: solo los eventos que creó con ella. */
-export function canManageEvent(organizer: Organizer, event: EventRecord): boolean {
-  return event.organizerId !== null && event.organizerId === organizer.id;
+/** Si esa cuenta puede abrir el panel del evento: los que creó con ella y los que coorganiza (coorganizar.ts). */
+export async function canManageEvent(organizer: Organizer, event: EventRecord): Promise<boolean> {
+  return (await eventRole(organizer, event)) !== null;
 }
+
+export type { EventRole };
 
 // ---------- Crear eventos con la cuenta ----------
 

@@ -59,6 +59,8 @@
 .puesto-nombre { font-weight: 600; display: block; }
 .puesto-donde { color: var(--apagado); font-size: 0.85rem; display: block; }
 .boton-chico { min-height: 40px; padding: 0 14px; font-size: 0.9rem; }
+/* En el celular, ningún botón por debajo de los 44 px que pide un dedo */
+@media (max-width: 560px) { .boton-chico { min-height: 44px; } }
 
 .dobles { list-style: none; margin: 0; padding: 0; }
 .doble { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--linea); }
@@ -188,3 +190,19 @@
 .mis-eventos .proximamente { margin-top: 16px; border-style: dashed; background: transparent; display: grid; gap: 6px; justify-items: start; }
 .mis-eventos .proximamente h2 { font-size: 1.1rem; }
 .mis-eventos .proximamente p { margin: 0; color: var(--tinta-2); max-width: 60ch; }
+/* Lo que quedó por preparar al publicar, con "Terminar de preparar" al lado */
+.panel-por-preparar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.panel-por-preparar > span { flex: 1 1 280px; }
+/* Tu equipo: invitar, autorizar una cuenta, y quienes coorganizan */
+.tu-equipo { display: grid; gap: 14px; }
+.tu-equipo-bloque { display: grid; gap: 8px; justify-items: start; padding-top: 12px; border-top: 1px solid var(--linea); }
+.tu-equipo-bloque h3 { font-size: 1rem; margin: 0; }
+.tu-equipo-bloque .campo { width: 100%; }
+.tu-equipo-bloque .campo input { font-family: ui-monospace, monospace; font-size: 0.9rem; }
+.tu-equipo-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; width: 100%; }
+.tu-equipo-lista li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; min-height: 44px; border-top: 1px solid var(--linea); padding: 6px 0; overflow-wrap: anywhere; }
+.tu-equipo-lista li:first-child { border-top: 0; }
+.tu-equipo-lista button.enlace, .tu-equipo-bloque button.enlace { background: none; border: 0; font: inherit; font-weight: 600; cursor: pointer; min-height: 44px; }
+/* Mis eventos: la cuenta de quien entró, para pasársela a quien la tiene que sumar */
+.mi-cuenta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.mi-cuenta code { font-family: ui-monospace, monospace; font-size: 0.95rem; }

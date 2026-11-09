@@ -111,7 +111,7 @@ The contract started from an [event pass](https://stellar.expert/explorer/testne
 | Built, on testnet | Next | Later |
 |---|---|---|
 | Event page with free or paid registration (USDC on testnet), set up from a template; sign-in with Google or email, with an account of the person's own (pending a run with a real Google account) | Passkeys, and the email with the link to the pass | Bank QR payments in bolivianos on mainnet |
-| Organizer account: sign in with Google or email, see your events, create one without the house key, and open the panel of the events you created (the per-event key still works for co-organizers and the MCP server) | Handing an event to another account, co-organizers with their own account | |
+| Organizer account: sign in with Google or email, see your events, create one without the house key, preview it, choose how its link ends and publish it in seconds with the progress on screen; add your team with an invitation link or by authorizing their account, and each one signs in with their own (the per-event key still works for people without an account and for the MCP server) | Handing an event to another account | |
 | Signed pass with a QR code that changes every 20 seconds, on the phone and printable as SVG | Protected payment with automatic refund | Resale at the original price |
 | Offline scanner for the door, each meal and each booth, with a manual fallback at the door | Prize from a Tinkazo draw landing on the pass | Pay-per-use API with x402 |
 | Organizer dashboard with the check against the ledger, sponsor report, draw list with its fingerprint, event report to print (PDF and certificates from the command line, with XeLaTeX) | Webhooks, calendar and Telegram notices | Payments to speakers |

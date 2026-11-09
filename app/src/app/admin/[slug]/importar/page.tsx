@@ -1,13 +1,13 @@
 // Importar la lista de invitados de Luma o de Bevy al evento. Hay que haber entrado al panel de ese evento
 // (la clave del organizador) y el evento tiene que estar publicado: las credenciales llevan el contrato de su entrada.
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { Importador } from "@/components/kit/Importador.tsx";
 import { AccesoPanel } from "@/components/panel/AccesoPanel.tsx";
 import { getT } from "@/i18n/server.ts";
 import { pollarEnabled } from "@/server/accounts.ts";
 import { PANEL_KEY_QUERY, panelAccess } from "@/server/panel-sesion.ts";
-import { getRepo } from "@/server/repo.ts";
+import { panelEventBySlug } from "@/server/evento-del-panel.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function ImportPage({ params, searchParams }: { params: Params; searchParams: Search }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
-  const event = await getRepo().getEventBySlug(slug);
-  if (!event) notFound();
+  const event = await panelEventBySlug(slug, "/importar", query);
 
   const key = query[PANEL_KEY_QUERY];
   if (typeof key === "string" && key) redirect(`/api/admin/${encodeURIComponent(slug)}/entrar?k=${encodeURIComponent(key)}&next=importar`);

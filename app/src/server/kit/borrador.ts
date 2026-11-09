@@ -3,8 +3,10 @@
 // canjea y cuántos hay) y cómo se guarda. Guardar deja la base igual a lo que dice el formulario: crea lo que
 // falta, cambia lo que cambió y borra lo que se apagó. Los números de canje de cada tipo (0, 1, 2...) se
 // asignan por orden, que es como los pide el contrato de cada entrada.
+import { createHash } from "node:crypto";
 import type { Lang } from "../../i18n/index.ts";
 import type { Benefit, EventRecord, Repo, TicketType } from "../repo.ts";
+import { MAX_DISCARDED, countDiscardedContracts } from "./contratos-del-evento.ts";
 import {
   DEFAULT_PAID_PRICE,
   SLOTS,
@@ -38,7 +40,7 @@ export interface DraftInput {
   benefits: Record<string, DraftBenefitInput>;
 }
 
-export type DraftErrorCode = "published" | "template" | "price" | "stock" | "name";
+export type DraftErrorCode = "published" | "template" | "price" | "stock" | "name" | "preparadas";
 
 export class DraftError extends Error {
   readonly code: DraftErrorCode;
@@ -105,6 +107,18 @@ export async function saveDraft(repo: Repo, event: EventRecord, input: DraftInpu
     wanted.push({ slot, name, price, benefits });
   }
 
+  // Un publicar que quedó a medias pudo preparar algunas credenciales (cada una con su contrato, con el precio y los
+  // canjes fijos). Cambiarles eso, o apagarlas, deja su contrato sin usar y el paso siguiente crea otro: después de
+  // MAX_DISCARDED, lo ya preparado queda como está hasta publicar.
+  let discarding = 0;
+  for (const type of await repo.listTicketTypes(event.id)) {
+    if (!type.templateSlot || !type.contractId) continue;
+    const w = wanted.find((x) => x.slot === type.templateSlot);
+    const benefitCount = w ? w.benefits.filter((key) => benefitDef(key, lang, spec.id)).length : 0;
+    if (!w || type.priceUsdc !== w.price || (await repo.listTicketTypeBenefits(type.id)).length !== benefitCount) discarding++;
+  }
+  if (discarding > 0 && (await countDiscardedContracts(event.id)) + discarding > MAX_DISCARDED) throw new DraftError("preparadas");
+
   // Los beneficios que hacen falta: los que trae algún tipo, y el premio del sorteo.
   const needed = new Set<string>(["prize"]);
   for (const w of wanted) for (const key of w.benefits) needed.add(key);
@@ -132,7 +146,11 @@ export async function saveDraft(repo: Repo, event: EventRecord, input: DraftInpu
     keep.add(w.slot);
     const current = existingTypes.get(w.slot);
     let type: TicketType;
-    if (current) type = await repo.updateTicketType(current.id, { name: w.name, priceUsdc: w.price, sortOrder: index, credentialKind: SLOT_KIND[w.slot] });
+    // Un publicar que quedó a medias pudo crearle el contrato a este tipo: el precio y cuántos canjes trae son fijos
+    // en el contrato, así que si cambian, ese contrato (todavía sin nadie inscripto: es un borrador) se deja y al
+    // publicar se crea otro.
+    const stale = current?.contractId ? current.priceUsdc !== w.price || (await repo.listTicketTypeBenefits(current.id)).length !== w.benefits.filter((key) => benefitByKey.has(key)).length : false;
+    if (current) type = await repo.updateTicketType(current.id, { name: w.name, priceUsdc: w.price, sortOrder: index, credentialKind: SLOT_KIND[w.slot], ...(stale ? { contractId: null } : {}) });
     else type = await repo.createTicketType({ eventId: event.id, name: w.name, priceUsdc: w.price, sortOrder: index, credentialKind: SLOT_KIND[w.slot], templateSlot: w.slot });
     await repo.clearTicketTypeBenefits(type.id);
     for (const [chainIndex, key] of w.benefits.entries()) {
@@ -217,6 +235,27 @@ export async function readDraft(repo: Repo, event: EventRecord, lang: Lang): Pro
     });
   }
   return { template: spec, teamSignup: event.teamSignup, slots, benefits: benefitViews };
+}
+
+/**
+ * La huella del borrador: la dirección y todo lo que el formulario edita, tal como está guardado. Va oculta en el
+ * formulario y guardar la vuelve a calcular: si no coincide, alguien del equipo guardó en el medio y no se pisa lo
+ * suyo. Sale solo de lo guardado, nunca de lo que la plantilla propone para lo que está apagado (eso cambia con el
+ * idioma): cambiar el idioma entre abrir el borrador y guardarlo no es un cambio de nadie.
+ */
+export async function draftVersion(repo: Repo, event: EventRecord): Promise<string> {
+  const [types, benefits] = await Promise.all([repo.listTicketTypes(event.id), repo.listBenefits(event.id)]);
+  const typeRows = [];
+  for (const type of types.filter((t) => t.templateSlot).sort((a, b) => String(a.templateSlot).localeCompare(String(b.templateSlot)))) {
+    const linked = await repo.listTicketTypeBenefits(type.id);
+    typeRows.push([type.templateSlot, type.name, type.priceUsdc, linked.map((b) => b.templateKey ?? b.id)]);
+  }
+  const benefitRows = benefits
+    .filter((b) => b.templateKey)
+    .sort((a, b) => String(a.templateKey).localeCompare(String(b.templateKey)))
+    .map((b) => [b.templateKey, b.name, b.station, b.stock]);
+  const snapshot = { slug: event.slug, teamSignup: event.teamSignup, types: typeRows, benefits: benefitRows };
+  return createHash("sha256").update(JSON.stringify(snapshot), "utf8").digest("hex").slice(0, 32);
 }
 
 // ---------- El formulario ----------
