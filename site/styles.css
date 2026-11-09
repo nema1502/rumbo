@@ -130,13 +130,33 @@ p { margin: 0; }
 }
 .boton-icono:hover { background: var(--acento-suave); }
 .boton-icono svg { width: 18px; height: 18px; }
-/* Entrar a la app: la única acción llena de la cabecera */
-.boton-entrar { background: var(--acento); border-color: transparent; color: #0f1c2e; padding: 0 16px; }
-.boton-entrar:hover { background: var(--acento); filter: brightness(1.06); }
+/* Entrar a la app: con contorno del acento, siempre a la vista; la única acción llena de la primera pantalla
+   es "Creá tu evento" */
+.boton-entrar { border: 1.5px solid var(--acento-texto); color: var(--acento-texto); padding: 0 14px 0 12px; font-weight: 700; }
+.boton-entrar:hover { background: var(--acento-suave); }
+.boton-entrar svg { width: 18px; height: 18px; }
+/* En la computadora, después de la portada, "Creá tu evento" queda a mano en la cabecera (en el celular lo trae
+   la barra de abajo). Se esconde mientras se ve otro botón principal, igual que la barra. */
+.acciones .boton-cabecera { display: none; min-height: 44px; padding: 0 16px; font-size: 0.9rem; }
+@media (min-width: 1001px) { .con-crear .acciones .boton-cabecera { display: inline-flex; } }
 /* GitHub queda con su ícono solo (y su nombre en aria-label): así la cabecera, con "Entrar", sigue en una fila */
 .boton-github .texto-boton { display: none; }
-/* En 340 px o menos tampoco entra el botón del tema: queda el del sistema */
-@media (max-width: 340px) { #tema { display: none; } }
+/* Hasta 1140 px la cabecera tiene dos filas (la marca y los botones, y el menú abajo): la primera lleva aire
+   arriba para que los botones no toquen el borde */
+@media (max-width: 1140px) {
+  .cabecera .contenedor { padding-top: 6px; }
+  .nav { padding-bottom: 6px; }
+}
+/* En un celular chico, menos aire entre los botones para que la marca y los cuatro sigan en una fila (a 360 px
+   no entraban por 4 px y la cabecera fija pasaba a tres filas, 141 px) */
+@media (max-width: 400px) {
+  .cabecera .contenedor { column-gap: 8px; }
+  .acciones { gap: 6px; }
+  .marca { gap: 8px; }
+  .boton-entrar { padding: 0 12px 0 10px; }
+}
+/* En 350 px o menos tampoco entra el botón del tema: queda el del sistema */
+@media (max-width: 350px) { #tema { display: none; } }
 :root[data-theme="dark"] .solo-dia, :root:not([data-theme="dark"]) .solo-noche { display: none; }
 
 /* Botones */
@@ -169,8 +189,10 @@ p { margin: 0; }
 .chip-premio { background: color-mix(in srgb, var(--amarillo) 40%, var(--papel)); color: var(--tinta); }
 .chip-ejemplo { background: var(--linea); color: var(--tinta-2); font-weight: 600; }
 .chip-sorteo { background: var(--linea); color: var(--tinta-2); }
-.estado { display: inline-flex; align-items: flex-start; gap: 8px; color: var(--apagado); font-size: 0.95rem; margin-top: 14px; }
-.estado::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--amarillo); margin-top: 0.5em; }
+/* Una nota chica con un punto: el texto y su enlace corren como una sola frase */
+.estado { display: block; position: relative; padding-left: 16px; color: var(--apagado); font-size: 0.95rem; margin-top: 14px; }
+.estado::before { content: ""; position: absolute; left: 0; top: 0.55em; width: 8px; height: 8px; border-radius: 50%; background: var(--amarillo); }
+.estado a { color: var(--tinta-2); }
 
 /* Portada */
 .portada { padding: clamp(28px, 5vw, 96px) 0 clamp(40px, 6vw, 80px); overflow-x: clip; }
@@ -181,10 +203,6 @@ p { margin: 0; }
 .portada h1 em { font-style: normal; color: var(--acento); }
 .bajada { font-size: clamp(1.1rem, 1.6vw, 1.3rem); color: var(--tinta-2); max-width: 36rem; }
 .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
-.nota-portada { margin-top: 20px; color: var(--apagado); font-size: 0.95rem; }
-.sellos { list-style: none; margin: 24px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }
-.sellos li { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: var(--tarjeta); border: 1px solid var(--linea); font-size: 0.9rem; font-weight: 600; color: var(--tinta-2); }
-.sellos svg { width: 16px; height: 16px; color: var(--acento-texto); flex: none; }
 
 @keyframes flotar {
   0%, 100% { transform: rotate(-2deg) translateY(0); }
@@ -259,14 +277,6 @@ p { margin: 0; }
 }
 .seccion-demo + .seccion { border-top: 0; }
 .demo { margin: 0; }
-.demo-video {
-  display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: var(--radio);
-  border: 1px solid var(--linea); background: #0b1626; box-shadow: var(--sombra);
-}
-.demo-abrir { display: none; position: relative; border-radius: var(--radio); overflow: hidden; border: 1px solid var(--linea); text-decoration: none; color: var(--tinta); }
-.demo-abrir img { width: 100%; height: auto; display: block; }
-.demo-play { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700; background: rgba(11, 22, 38, 0.35); }
-.demo-play svg { width: 44px; height: 44px; padding: 10px; border-radius: 50%; background: var(--acento); color: #0f1c2e; flex: none; }
 .demo-pasos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 18px; color: var(--tinta-2); font-size: 0.95rem; }
 .demo-pasos > span { display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; border-radius: 14px; background: var(--tarjeta); border: 1px solid var(--linea); }
 .demo-pasos b { flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--acento); color: #0f1c2e; font: 700 0.85rem var(--display); display: grid; place-items: center; }
@@ -348,7 +358,7 @@ p { margin: 0; }
 /* Equipo */
 .persona { display: grid; gap: 6px; }
 .persona .avatar { width: 56px; height: 56px; border-radius: 50%; background: var(--acento-suave); color: var(--acento-texto); display: grid; place-items: center; font: 800 1.2rem var(--display); margin-bottom: 10px; }
-.persona a { color: var(--tinta); font-weight: 600; text-decoration: none; display: inline-block; padding: 10px 0; justify-self: start; }
+.persona a { color: var(--tinta); font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; justify-self: start; }
 .persona a:hover { text-decoration: underline; }
 
 /* Pie */
@@ -375,7 +385,7 @@ p { margin: 0; }
   .remate { grid-template-columns: 1fr; }
   .remate strong { max-width: none; }
 }
-@media (max-width: 700px) {
+@media (max-width: 1000px) {
   .arquitectura-svg { display: none; }
   .arquitectura-lista { display: block; }
 }
@@ -390,10 +400,6 @@ p { margin: 0; }
   .boton-github { display: none; }
   .herramienta { flex-direction: column; align-items: flex-start; gap: 4px; }
   .herramienta span:last-child { text-align: left; }
-  .demo-video { display: none; }
-  .demo-video.vertical { display: block; aspect-ratio: 9 / 16; max-width: 380px; margin-inline: auto; }
-  .demo-abrir { display: block; }
-  .demo-abrir[hidden] { display: none; }
   .demo-pasos { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -418,22 +424,19 @@ p { margin: 0; }
 
 @media screen and (prefers-reduced-motion: no-preference) {
   /* La portada entra una sola vez, al cargar */
-  .js .portada:not(.entra) :is(.antetitulo, h1, .cta, .sellos li, .nota-portada, .estado) { opacity: 0; }
-  .portada.entra .antetitulo { animation: subir 0.6s var(--suave) backwards; }
+  .js .portada:not(.entra) :is(.sello-portada, h1, .cta, .ver-video, .confianza) { opacity: 0; }
+  .portada.entra .sello-portada { animation: subir 0.6s var(--suave) backwards; }
   .portada.entra .palabra { display: inline-block; animation: palabra 0.7s var(--suave) backwards; animation-delay: calc(80ms + var(--i) * 70ms); }
   /* La bajada no se oculta nunca: es lo primero grande que se pinta, y solo se acerca */
   .portada.entra .bajada { animation: acercar 0.6s var(--suave) 0.1s backwards; }
   .portada.entra .cta { animation: subir 0.6s var(--suave) 0.47s backwards; }
-  .portada.entra .sellos li { animation: subir 0.5s var(--suave) 0.6s backwards; }
-  .portada.entra .sellos li:nth-child(2) { animation-delay: 0.68s; }
-  .portada.entra .sellos li:nth-child(3) { animation-delay: 0.76s; }
-  .portada.entra :is(.nota-portada, .estado) { animation: aparecer 0.6s ease 0.86s backwards; }
+  .portada.entra :is(.ver-video, .confianza) { animation: aparecer 0.6s ease 0.7s backwards; }
   .js .credencial:not(.entra) { opacity: 0; animation: none; }
   .js .credencial.entra { animation: entrar-cred 0.9s var(--suave) 0.25s backwards, flotar 7s ease-in-out 1.15s infinite; }
 
   /* Al recorrer la página. La misma lista que revelarAlRecorrer, en rumbo.js */
-  .js :is(.encabezado, .tarjeta, .herramienta, .remate, .principios li, .arquitectura-lista li, .demo):not(.visto) { opacity: 0; }
-  .visto:is(.encabezado, .tarjeta, .herramienta, .remate, .principios li, .arquitectura-lista li, .demo) { animation: subir 0.6s var(--suave) backwards; }
+  .js :is(.encabezado, .tarjeta, .herramienta, .remate, .arquitectura-lista li, .demo, .sumar-flujo, .informe-vivo, .franja-final .contenedor):not(.visto) { opacity: 0; }
+  .visto:is(.encabezado, .tarjeta, .herramienta, .remate, .arquitectura-lista li, .demo, .sumar-flujo, .informe-vivo, .franja-final .contenedor) { animation: subir 0.6s var(--suave) backwards; }
 
   /* La credencial: el estado nuevo sube y el viejo se va, el check crece, el punto late */
   .cambia > * { transition: opacity 0.35s ease, transform 0.35s var(--suave), visibility 0s linear 0.35s; }
@@ -485,7 +488,8 @@ p { margin: 0; }
 
   /* La cabecera se compacta sin cambiar de alto: sube 8 px y su contenido baja 4 */
   .cabecera, .cabecera .contenedor { transition: transform 0.3s var(--suave), box-shadow 0.3s ease, background-color 0.3s ease; }
-  @media (min-width: 861px) {
+  /* Solo con la cabecera de una fila: con dos, subirla recortaba el borde de arriba de los botones */
+  @media (min-width: 1141px) {
     .cabecera.compacta { transform: translateY(-8px); }
     .cabecera.compacta .contenedor { transform: translateY(4px); }
   }
@@ -513,12 +517,9 @@ p { margin: 0; }
 .llamado p { margin: 0; font-family: var(--display); font-weight: 700; font-size: 1.25rem; letter-spacing: -0.01em; color: var(--tinta); max-width: 32ch; text-wrap: balance; }
 
 /* Los saltos del menú y del botón de la portada dejan la sección debajo de la cabecera, no tapada. */
-.seccion, .demo { scroll-margin-top: 84px; }
-
-/* En escritorio el video entra entero en la pantalla. */
-@media (min-width: 861px) {
-  .demo-video { width: min(100%, calc((100vh - 170px) * 16 / 9)); margin-inline: auto; }
-}
+.seccion, .demo, .franja-final { scroll-margin-top: 84px; }
+/* Hasta 1140 px la cabecera tiene dos filas (101 a 103 px): el salto deja el antetítulo con aire debajo */
+@media (max-width: 1140px) { .seccion, .demo, .franja-final { scroll-margin-top: 116px; } }
 
 /* En una laptop baja, la portada entera (con su botón) entra en la primera pantalla. */
 @media (max-height: 700px) and (min-width: 861px) {
@@ -528,15 +529,15 @@ p { margin: 0; }
 
 /* En celular: la credencial asoma debajo de los botones, y el menú avisa que sigue hacia la derecha. */
 @media (max-width: 560px) {
-  .seccion, .demo { scroll-margin-top: 104px; }
   .portada { padding-top: 20px; padding-bottom: 28px; }
   .portada .contenedor { gap: 20px; }
+  .nav a { padding-inline: 10px; }
   .nav { padding-right: 40px; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
   .llamado p { font-size: 1.1rem; }
 }
 
 /* El botón para pausar la credencial (y el punto del diagrama): solo aparece cuando hay movimiento. */
-.credencial-pausa { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--linea); background: transparent; color: var(--tinta-2); display: grid; place-items: center; padding: 0; cursor: pointer; }
+.credencial-pausa { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--linea); background: transparent; color: var(--tinta-2); display: grid; place-items: center; padding: 0; cursor: pointer; }
 .credencial-pausa[hidden] { display: none; }
 .credencial-pausa svg { width: 13px; height: 13px; fill: currentColor; }
 .credencial-pausa .seguir, .credencial-pausa[aria-pressed="true"] .pausar { display: none; }
@@ -556,8 +557,10 @@ p { margin: 0; }
   .portada .contenedor { row-gap: 0; }
   .portada-texto { display: contents; }
   .portada .credencial { order: 1; margin: 26px 0 6px; }
-  .portada .sellos { order: 2; margin-top: 18px; }
-  .portada .nota-portada, .portada .estado { order: 3; }
+  .portada .ver-video { order: 2; margin-top: 14px; }
+  .portada .confianza { order: 3; }
+  /* El sello queda de su tamaño: estirado a todo el ancho parecía un campo de texto */
+  .sello-portada { justify-self: start; }
 }
 
 /* Lo plegado: un enlace discreto con una flecha chica que gira al abrir. Funciona sin JS, y lo de
@@ -705,5 +708,315 @@ div.plegado > p { max-width: 52rem; }
   .principios li { padding: 10px 14px; }
   .persona { grid-template-columns: 48px 1fr; column-gap: 14px; row-gap: 0; align-items: center; padding: 16px 18px; }
   .persona .avatar { grid-row: span 2; width: 48px; height: 48px; margin-bottom: 0; }
-  .persona a { padding: 6px 0 2px; }
+  .persona a { min-height: 44px; }
+}
+
+/* ===== La landing que vende (noviembre): sello, reproductor, informe, clips, hoja de ruta y cierre ===== */
+
+/* El sello "Hecho con Stellar": el logo oficial, sin tocar, el negro en el tema claro y el blanco en el oscuro */
+.sello-stellar { display: inline-flex; align-items: center; gap: 10px; margin: 0; font-weight: 600; font-size: 0.95rem; color: var(--tinta-2); }
+.sello-stellar img { height: 30px; width: auto; flex: none; }
+:root[data-theme="dark"] .logo-claro, :root:not([data-theme="dark"]) .logo-oscuro { display: none; }
+.sello-portada { margin-bottom: 18px; padding: 4px 6px 4px 14px; border-radius: 999px; background: var(--tarjeta); border: 1px solid var(--linea); box-shadow: var(--sombra-fina); }
+.sello-portada img { height: 38px; }
+.sello-grande { font-size: 1.05rem; }
+.sello-grande img { height: 46px; }
+
+/* Portada: el enlace chico al video y la línea de confianza */
+.ver-video { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 10px; color: var(--acento-texto); font-weight: 600; text-decoration: none; }
+.ver-video svg { width: 26px; height: 26px; padding: 6px; border-radius: 50%; background: var(--acento-suave); flex: none; }
+.ver-video:hover span { text-decoration: underline; text-underline-offset: 4px; }
+.confianza { display: flex; align-items: flex-start; gap: 8px; margin-top: 10px; color: var(--tinta-2); font-size: 0.95rem; max-width: 34rem; }
+.confianza svg { width: 18px; height: 18px; flex: none; margin-top: 2px; color: var(--verde-chip); }
+
+/* Llamadas al pie de cada sección */
+.cta-seccion { margin-top: clamp(22px, 3vw, 32px); }
+.cta-centro { justify-content: center; }
+.encabezado-centro { text-align: center; }
+.encabezado-centro .antetitulo { justify-content: center; }
+.enlace, .enlace-boton { color: var(--acento-texto); font-weight: 600; }
+.enlace-boton { appearance: none; background: none; border: 0; padding: 0 4px; margin-left: -4px; font: inherit; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; border-radius: 8px; }
+.enlace-boton svg { width: 16px; height: 16px; }
+.enlace-boton:hover span { text-decoration: underline; text-underline-offset: 4px; }
+.enlace-boton[hidden] { display: none; }
+
+/* El reproductor: dos pestañas y el video con su proporción reservada */
+.pestanas { display: flex; justify-content: center; gap: 6px; margin: 0 auto 18px; padding: 5px; width: max-content; max-width: 100%; border-radius: 999px; background: var(--tarjeta); border: 1px solid var(--linea); }
+.pestanas [role="tab"] { appearance: none; border: 0; background: transparent; color: var(--tinta-2); font: 600 0.95rem var(--texto); min-height: 44px; padding: 0 18px; border-radius: 999px; cursor: pointer; }
+.pestanas [role="tab"][aria-selected="true"] { background: var(--acento); color: #0f1c2e; }
+.reproductor[hidden] { display: none; }
+.marco-video { margin-inline: auto; width: 100%; border-radius: var(--radio); overflow: hidden; border: 1px solid var(--linea); background: #0b1626; box-shadow: var(--sombra); }
+.marco-video video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: contain; background: #0b1626; }
+/* Después del salto del menú quedan unos 325 px arriba del video (la cabecera, el aire, el título y las
+   pestañas): el video toma el alto que sobra, así su borde de abajo entra en la pantalla */
+@media (min-width: 861px) {
+  .marco-video { width: min(100%, max(520px, calc((100svh - 345px) * 16 / 9))); }
+}
+@media (min-width: 861px) and (max-width: 1140px) {
+  .marco-video { width: min(100%, max(520px, calc((100svh - 380px) * 16 / 9))); }
+}
+.video-pie { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 18px; margin-top: 10px; text-align: center; }
+.video-nota { color: var(--apagado); font-size: 0.9rem; }
+@media (max-width: 560px) {
+  .pestanas { width: 100%; }
+  .pestanas [role="tab"] { flex: 1; padding: 0 10px; font-size: 0.9rem; line-height: 1.2; }
+  .marco-corte { max-width: 400px; }
+  .marco-corte video.vertical { aspect-ratio: 24 / 25; }
+  .marco-idea { max-width: 360px; }
+  .marco-idea video.vertical { aspect-ratio: 9 / 16; }
+  .corte-pasos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .corte-pasos > span { font-size: 0.88rem; }
+}
+
+/* No tenés que cambiar de plataforma: dos entradas que llegan a Rumbo, y lo que Rumbo resuelve */
+.sumar { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 24px 56px; align-items: center; }
+.sumar .encabezado { margin-bottom: 0; }
+.sumar-flujo { display: grid; grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr); align-items: center; gap: 10px; }
+.sumar-entradas { display: grid; gap: 8px; justify-items: stretch; }
+.sumar-pieza { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 16px; background: var(--tarjeta); border: 1px solid var(--linea); font-weight: 600; line-height: 1.3; }
+.sumar-pieza svg { width: 22px; height: 22px; flex: none; color: var(--acento-texto); }
+.sumar-o { justify-self: center; color: var(--apagado); font-size: 0.9rem; font-weight: 600; }
+.sumar-linea { width: 100%; height: 40px; overflow: visible; }
+.sumar-linea path { fill: none; stroke: var(--acento); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.sumar-linea path:first-child { stroke-dasharray: 6 8; }
+/* La flecha acostada va entre las columnas; en una columna va otra parada, dibujada así (girar la acostada la
+   deformaba, porque se estira sin guardar la proporción) */
+.sumar-linea-v { display: none; }
+.sumar-rumbo { padding: 18px; border-radius: var(--radio); background: var(--tarjeta); border: 2px solid var(--acento); box-shadow: var(--sombra-alzada); }
+.sumar-marca { display: flex; align-items: center; gap: 8px; font: 800 1.25rem var(--display); letter-spacing: -0.02em; margin-bottom: 12px; }
+.sumar-marca svg { width: 28px; height: 28px; }
+.sumar-salidas { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.sumar-salidas li { padding: 8px 10px; border-radius: 12px; background: var(--acento-suave); color: var(--tinta); font-weight: 600; font-size: 0.92rem; text-align: center; line-height: 1.25; }
+.sumar-lector { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@keyframes correr-linea { to { stroke-dashoffset: -28; } }
+@keyframes prender { 0%, 100% { background: var(--acento-suave); } 12%, 30% { background: color-mix(in srgb, var(--acento) 34%, var(--tarjeta)); } }
+@media screen and (prefers-reduced-motion: no-preference) {
+  .sumar-flujo.visto .sumar-linea path:first-child { animation: correr-linea 0.9s linear infinite; }
+  .sumar-flujo.visto .sumar-salidas li { animation: prender 4.8s ease-in-out infinite; }
+  .sumar-flujo.visto .sumar-salidas li:nth-child(2) { animation-delay: 1.2s; }
+  .sumar-flujo.visto .sumar-salidas li:nth-child(3) { animation-delay: 2.4s; }
+  .sumar-flujo.visto .sumar-salidas li:nth-child(4) { animation-delay: 3.6s; }
+  .pausado .sumar-flujo * { animation-play-state: paused !important; }
+}
+@media (max-width: 860px) {
+  .sumar { grid-template-columns: minmax(0, 1fr); }
+  .sumar-flujo { grid-template-columns: minmax(0, 1fr); justify-items: stretch; max-width: 460px; }
+  .sumar-linea-h { display: none; }
+  .sumar-linea-v { display: block; width: 40px; height: 56px; justify-self: center; }
+}
+
+/* El informe se arma solo */
+.informe { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr); gap: 32px 56px; align-items: center; }
+.informe-tarjetas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.informe-tarjeta { padding: 18px 20px; display: grid; gap: 6px; align-content: start; }
+.informe-tarjeta h3 { margin: 4px 0 0; font-size: 1.1rem; }
+.informe-tarjeta .etiqueta { justify-self: start; }
+.pronto { margin-top: 14px; color: var(--tinta-2); }
+.pronto .etiqueta { margin-right: 4px; }
+.informe-texto .plegable { margin-top: 6px; }
+.informe-vivo { margin: 0; }
+.inf-hoja { position: relative; max-width: 440px; margin-inline: auto; padding: 22px; border-radius: 22px; background: var(--tarjeta); border: 1px solid var(--linea); box-shadow: var(--sombra); transform: rotate(1.5deg); }
+.inf-cabeza { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--linea); }
+.inf-titulo { display: block; font: 800 1.2rem var(--display); letter-spacing: -0.02em; }
+.inf-evento { display: block; color: var(--apagado); font-size: 0.9rem; margin-top: 2px; }
+.inf-filas { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 4px; }
+.inf-filas li { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--linea); color: var(--tinta-2); font-size: 0.95rem; }
+.inf-filas b { font: 800 1.3rem var(--display); color: var(--tinta); font-variant-numeric: tabular-nums; min-width: 2.2ch; text-align: right; }
+.inf-barras { display: flex; align-items: flex-end; gap: 10px; height: 64px; margin-top: 14px; padding: 0 2px; }
+.inf-barras span { flex: 1; height: var(--h); border-radius: 6px 6px 2px 2px; background: var(--verde); opacity: 0.85; transform-origin: bottom; }
+.inf-barras span:first-child { background: color-mix(in srgb, var(--verde) 45%, var(--tarjeta)); }
+.inf-sellos { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 6px; }
+.inf-sellos li { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 12px; background: var(--verde-suave); color: var(--verde-chip); font-weight: 700; font-size: 0.9rem; line-height: 1.3; }
+.inf-sellos svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+@keyframes crecer { from { transform: scaleY(0); } }
+@keyframes sellar { from { opacity: 0; transform: scale(1.15); } 70% { opacity: 1; transform: scale(0.98); } to { transform: none; } }
+@media screen and (prefers-reduced-motion: no-preference) {
+  .informe-vivo.espera :is(.inf-filas li, .inf-sellos li) { opacity: 0; }
+  .informe-vivo.espera .inf-barras span { transform: scaleY(0); }
+  .informe-vivo.arma .inf-filas li { animation: subir 0.5s var(--suave) backwards; animation-delay: calc(150ms + var(--n) * 220ms); }
+  .informe-vivo.arma .inf-barras span { animation: crecer 0.9s var(--suave) backwards; animation-delay: calc(400ms + var(--n) * 220ms); }
+  .informe-vivo.arma .inf-sellos li { animation: sellar 0.5s cubic-bezier(0.3, 1.5, 0.5, 1) backwards; animation-delay: calc(1500ms + var(--n) * 350ms); }
+}
+@media (max-width: 1000px) {
+  .informe { grid-template-columns: minmax(0, 1fr); }
+  .inf-hoja { transform: none; }
+}
+@media (max-width: 560px) {
+  .informe-tarjetas { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .inf-hoja { padding: 18px; }
+}
+
+/* Etiquetas de la hoja de ruta: lo que ya anda, lo próximo y lo de diciembre */
+.etiqueta-pronto { background: var(--acento-suave); color: var(--acento-chip); }
+.etiqueta-diciembre { background: color-mix(in srgb, var(--amarillo) 45%, var(--tarjeta)); color: var(--tinta); }
+
+/* Qué hace: cuatro tarjetas con su clip */
+.clips { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.clip { padding: 10px 10px 16px; display: grid; gap: 12px; align-content: start; }
+.clip-marco { border-radius: 14px; overflow: hidden; background: #0b1626; aspect-ratio: 4 / 5; }
+.clip-marco video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.clip h3 { margin: 0 6px; font-size: 1.05rem; line-height: 1.25; text-wrap: balance; }
+#hace .plegable { margin-top: 14px; }
+@media (max-width: 1000px) { .clips { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) {
+  .clips { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 74%; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; margin-inline: -16px; padding: 2px 16px 8px; scroll-padding-inline: 16px; }
+  .clips::-webkit-scrollbar { display: none; }
+  .clip { scroll-snap-align: start; }
+}
+
+/* Cómo se paga: la etiqueta arriba del título */
+.cobros .motivo .etiqueta { margin-bottom: 6px; }
+.plegado-titulo { font-size: 1.15rem; }
+
+/* Lo que viene: siete promesas con su etiqueta; los pagos de diciembre, más anchos */
+.viene { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.viene-item { padding: 18px; display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 8px 12px; align-content: start; align-items: center; }
+.viene-icono { grid-row: span 2; align-self: start; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--acento-suave); color: var(--acento-texto); }
+.viene-icono svg { width: 20px; height: 20px; }
+.viene-item .etiqueta { justify-self: start; }
+.viene-item h3 { margin: 0; font-size: 1.05rem; line-height: 1.2; }
+.viene-item p { grid-column: 2; margin: 0; font-size: 0.95rem; }
+.viene-destacado { grid-column: span 2; background: color-mix(in srgb, var(--amarillo) 14%, var(--tarjeta)); border-color: color-mix(in srgb, var(--amarillo) 70%, transparent); }
+:root[data-theme="dark"] .viene-destacado { background: color-mix(in srgb, var(--amarillo) 6%, var(--tarjeta)); }
+.viene-destacado .viene-icono { background: color-mix(in srgb, var(--amarillo) 40%, transparent); color: var(--tinta); }
+#viene .plegable { margin-top: 10px; }
+@media (max-width: 1140px) { .viene { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .viene { grid-template-columns: minmax(0, 1fr); } .viene-destacado { grid-column: auto; } }
+
+/* Hecho con Stellar: arriba lo que gana cada quien y la huella que se anota; abajo, lo técnico plegado */
+.seccion-stellar .contenedor { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: 28px 56px; align-items: center; }
+.stellar-cabeza h2 { margin-top: 18px; }
+.stellar-cabeza > p:not(.sello-stellar):not(.estado) { margin-top: 10px; color: var(--tinta-2); font-size: 1.05rem; max-width: 40rem; }
+.stellar-gana { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 10px; }
+.stellar-gana li { display: flex; align-items: flex-start; gap: 10px; font-weight: 600; color: var(--tinta); line-height: 1.4; }
+.stellar-gana svg { width: 22px; height: 22px; flex: none; padding: 4px; border-radius: 50%; background: var(--verde-suave); fill: none; stroke: var(--verde-chip); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+.huella { margin: 0; }
+.huella-hoja { max-width: 420px; margin-inline: auto; padding: 22px; border-radius: 22px; background: var(--tarjeta); border: 1px solid var(--linea); box-shadow: var(--sombra); transform: rotate(-1.2deg); }
+.huella-cabeza { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--linea); }
+.huella-titulo { font: 800 1.15rem var(--display); letter-spacing: -0.02em; }
+.huella-filas { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+.huella-filas li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--papel); color: var(--tinta); font-weight: 600; font-size: 0.95rem; line-height: 1.3; }
+.huella-filas .chip { display: inline-flex; align-items: center; gap: 4px; }
+.huella-repetido { outline: 1.5px dashed color-mix(in srgb, var(--acento) 55%, transparent); outline-offset: -1.5px; }
+.huella-pie { margin: 12px 0 0; color: var(--apagado); font-size: 0.9rem; text-align: center; }
+@keyframes anotar { from { opacity: 0; transform: translateY(10px) scale(0.98); } }
+@keyframes negar { 0%, 100% { transform: none; } 25% { transform: translateX(-5px); } 50% { transform: translateX(4px); } 75% { transform: translateX(-2px); } }
+@media screen and (prefers-reduced-motion: no-preference) {
+  .huella.espera .huella-filas li, .huella.espera .huella-pie { opacity: 0; }
+  .huella.arma .huella-filas li { animation: anotar 0.5s var(--suave) backwards; animation-delay: calc(200ms + var(--n) * 520ms); }
+  .huella.arma .huella-repetido { animation: anotar 0.5s var(--suave) 1.76s backwards, negar 0.45s ease-in-out 2.3s; }
+  .huella.arma .huella-pie { animation: anotar 0.5s var(--suave) 2.9s backwards; }
+}
+/* Lo técnico, plegado y en una fila; lo que se abre ocupa todo el ancho para que se lea */
+.stellar-pliegues { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-items: start; }
+.stellar-pliegues > .plegable { padding: 4px 14px; border-radius: 16px; background: var(--tarjeta); border: 1px solid var(--linea); }
+.stellar-pliegues > .plegable[open] { grid-column: 1 / -1; }
+.stellar-pliegues > .plegable > summary { display: flex; justify-content: space-between; width: 100%; margin: 0; color: var(--tinta); font-size: 1rem; }
+.stellar-pliegues > .plegable > summary::after { color: var(--acento-texto); }
+.stellar-pliegues > .plegable > .plegado { padding-bottom: 14px; }
+.seccion-stellar .motivos { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.seccion-stellar .motivo { padding: 14px 16px; }
+.seccion-stellar .datos { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1001px) {
+  .seccion-stellar .datos, .seccion-stellar .motivos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 1000px) {
+  .seccion-stellar .contenedor { grid-template-columns: minmax(0, 1fr); }
+  .huella-hoja { transform: none; }
+}
+@media (max-width: 700px) { .stellar-pliegues { grid-template-columns: minmax(0, 1fr); } }
+
+/* Para cualquier evento: seis tipos, cada uno con algo que se canjea */
+#eventos .encabezado-centro p { margin-inline: auto; }
+.eventos { list-style: none; margin: 0 auto; padding: 0; max-width: 960px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.evento { padding: 16px 18px; display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 6px 14px; align-items: center; }
+.evento h3 { margin: 0; font-size: 1.05rem; line-height: 1.25; align-self: end; }
+.evento-icono { grid-row: span 2; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; background: var(--acento-suave); color: var(--acento-texto); }
+.evento-icono svg { width: 26px; height: 26px; }
+.evento-canje { justify-self: start; align-self: start; display: inline-flex; align-items: center; gap: 4px; }
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .evento { transition: transform 0.25s var(--suave), box-shadow 0.25s var(--suave); }
+  .evento:hover { transform: translateY(-4px); box-shadow: var(--sombra-alzada); }
+  .evento:hover .evento-icono { animation: latido 0.6s var(--suave); }
+}
+@keyframes latido { 40% { transform: scale(1.12) rotate(-6deg); } }
+@media (max-width: 860px) { .eventos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) {
+  .eventos { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .evento { padding: 12px 14px; grid-template-columns: 44px minmax(0, 1fr); column-gap: 12px; }
+  .evento-icono { width: 44px; height: 44px; border-radius: 14px; }
+  .evento-icono svg { width: 22px; height: 22px; }
+}
+
+/* Equipo */
+#principios { margin-top: 12px; }
+
+/* La franja final */
+.franja-final { padding: clamp(48px, 7vw, 96px) 0; background: radial-gradient(800px 360px at 50% 0%, var(--brillo-1), transparent 70%), var(--acento-suave); border-top: 1px solid var(--linea); text-align: center; }
+.franja-final .contenedor { display: grid; justify-items: center; gap: 14px; }
+.franja-final h2 { font-size: clamp(2rem, 5vw, 3.6rem); }
+.final-lema { margin: 0; font: 800 clamp(1.2rem, 2vw, 1.3rem) var(--display); letter-spacing: -0.01em; color: var(--acento-texto); }
+.franja-final h2 em { font-style: normal; color: var(--acento-texto); }
+.franja-final .contenedor > p:not(.sello-stellar):not(.final-entrar):not(.final-lema) { color: var(--tinta-2); font-size: 1.1rem; }
+.franja-final .cta { margin-top: 8px; }
+.final-entrar { color: var(--tinta-2); }
+.final-entrar a { display: inline-flex; align-items: center; min-height: 44px; color: var(--tinta); font-weight: 700; text-decoration-color: var(--acento); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+
+/* El pie, con el sello */
+.pie-marca { display: grid; gap: 10px; }
+.pie .sello-stellar img { height: 26px; }
+
+/* La barra fija del celular: aparece después de la portada y se va al llegar a la franja final */
+.barra-movil { display: none; }
+@media (max-width: 560px) {
+  .barra-movil {
+    display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--papel) 92%, transparent); backdrop-filter: blur(12px);
+    border-top: 1px solid var(--linea); transform: translateY(110%); visibility: hidden;
+    transition: transform 0.3s var(--suave), visibility 0s linear 0.3s;
+  }
+  .barra-movil.visible { transform: none; visibility: visible; transition: transform 0.3s var(--suave), visibility 0s; }
+  .barra-movil .boton { width: 100%; }
+  .pie { padding-bottom: calc(48px + 72px + env(safe-area-inset-bottom)); }
+  .franja-final .cta .boton { width: 100%; }
+  .sello-portada img { height: 28px; }
+  .sello-grande img { height: 38px; }
+}
+@media (prefers-reduced-motion: reduce) { .barra-movil { transition: none !important; } }
+
+/* Con la pantalla muy baja (o el zoom al 200 %), la cabecera no queda fija y no se come la portada */
+@media (max-height: 460px) {
+  .cabecera { position: static; }
+  .portada { padding-top: 12px; }
+}
+
+/* El foco con teclado, visible en todo lo que se toca */
+a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--acento-texto); outline-offset: 2px; }
+.seccion-demo a:focus-visible, .seccion-demo button:focus-visible { outline-color: var(--tinta); }
+
+/* El equipo, compacto: el avatar al lado del nombre */
+.persona { grid-template-columns: 48px 1fr; column-gap: 14px; row-gap: 0; align-items: center; padding: 16px 20px; }
+.persona .avatar { grid-row: span 2; width: 48px; height: 48px; margin-bottom: 0; }
+.sumar-salidas li { display: flex; align-items: center; justify-content: center; min-height: 52px; }
+/* En una columna, el informe que se arma va justo debajo del título: primero se ve, después se lee */
+@media (max-width: 1000px) {
+  .informe { row-gap: 18px; }
+  .informe-texto { display: contents; }
+  .informe .encabezado { order: 0; margin-bottom: 0; }
+  .informe-vivo { order: 1; }
+  .informe-tarjetas { order: 2; }
+  .informe .pronto { order: 3; margin-top: 0; }
+  .informe-texto .plegable { order: 4; margin-top: -10px; }
+}
+@media (max-width: 860px) { .sumar-flujo { justify-self: center; width: 100%; } }
+@media (max-height: 460px) {
+  .nav { display: none; }
+  .sello-portada { margin-bottom: 8px; }
+  .portada h1 { margin-bottom: 10px; }
+}
+/* Al 200 % de zoom en una laptop (720x450, 640x360, 683x317) el botón "Creá tu evento" quedaba cortado abajo */
+@media (max-height: 460px) and (min-width: 561px) {
+  .portada h1 { font-size: clamp(1.8rem, 3.4vw, 2.4rem); }
+  .portada .bajada { margin-bottom: 14px; }
 }
