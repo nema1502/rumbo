@@ -1,6 +1,4 @@
-// El lector de CSV del kit (src/server/kit/csv.ts). Viene del lector de Tinkazo (licencia MIT), y estas son sus
-// pruebas, pasadas de vitest a node:test, menos las del sorteo (filtros de asistencia, lista de nombres, homónimos),
-// que el kit no usa. Se suman las de Bevy y las de encontrar la columna por nombre.
+// El lector de CSV del kit (src/server/kit/csv.ts). Se suman las de Bevy y las de encontrar la columna por nombre.
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 

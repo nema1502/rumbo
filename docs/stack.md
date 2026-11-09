@@ -14,7 +14,7 @@ Qué piezas lleva, por qué esas y qué hace falta para levantarlo. El código e
 | **La credencial** | El QR en el celular, que rota cada 20 segundos, y la exportación en SVG para imprimir; el PDF, por hacer | Plantillas SVG propias y `qrcode-generator`; el PDF con `resvg` en una ruta del servidor, por hacer | Una plantilla SVG se adapta a cada evento sin diseñar de cero |
 | **Los correos** | El enlace personal, el recordatorio, el resultado del sorteo. Por hacer: hoy el enlace queda en la pantalla de confirmación y, al importar una lista, se baja en CSV | Resend con dominio propio (SPF y DKIM), por hacer; la interfaz del correo ya está y dice cuando no hay con qué mandarlo | Para no caer en spam. Nunca llaves ni contraseñas en un correo |
 | **Los pagos** | USDC de la red de prueba primero; mainnet y bolivianos por el QR del banco después | El contrato de USDC (SAC); una rampa con licencia para los bolivianos | Rumbo nunca custodia: `buy` reparte en la misma operación |
-| **El sorteo** | Elegir entre quienes de verdad entraron, y que el premio entre a la credencial. Hoy: la lista de quienes entraron se congela con una huella SHA-256 y el algoritmo publicado; el premio en la credencial, por hacer | Tinkazo, como cualquier integrador, por hacer: recibe la lista y devuelve el comprobante | Son productos distintos: uno elige con justicia, el otro opera el evento |
+| **El sorteo** | Elegir entre quienes de verdad entraron, y que el premio entre a la credencial. Hoy: la lista de quienes entraron se congela con una huella SHA-256 y el algoritmo publicado; el premio en la credencial, por hacer | Una capa de aleatoriedad comprobable, por hacer: recibe la lista y devuelve el comprobante | Elegir con justicia es de esa capa: Rumbo opera el evento |
 | **Lo que se mide** | Credenciales, entradas y canjes, por evento y en total | Por evento, el panel y el informe, con el contraste del espejo contra la cadena. El total entre eventos, un script sobre la base y sobre los eventos del contrato, por hacer | Los números con sus transacciones, para quien auspicia y para quien evalúa |
 | **El asistente** | Armar el evento desde una plantilla contándolo en palabras, cargar la lista y leer los números, el informe y la lista del sorteo desde el asistente que ya usa quien organiza (reenviar los enlaces, cuando el correo exista) | Un servidor MCP con las mismas funciones del servidor que usan las pantallas: por HTTP en la misma app, sin sesiones, y por stdio en la máquina de quien organiza, como puente hacia su propio Rumbo | Una sola lógica que mantener, y la clave de quien organiza viaja solo entre su máquina y su servidor |
 
@@ -50,7 +50,7 @@ En la red de prueba el vale no es plata, pero el almuerzo sí es real: el contra
 - La app ([app/](../app/README.md)): la página del evento, la inscripción gratis o paga, la credencial con el QR que rota, el escáner sin conexión con su respaldo manual, el panel con el contraste contra la cadena, los stands con su ruta y la pantalla en vivo, la lista del sorteo con su huella, el informe (y el PDF y los certificados desde la consola), el kit con sus plantillas y la importación, y el servidor MCP. Las corridas del flujo entero en la red de prueba están en `app/demo/`.
 - Entrar con Google o con el correo por Pollar, en el código, a falta de la prueba manual con una cuenta de Google real.
 - La marca y la landing ([docs/marca.md](marca.md) y la carpeta `site/`).
-- El lector de CSV, que viene del de Tinkazo.
+- El lector de CSV.
 
 ## El orden de obra, en cuatro semanas
 

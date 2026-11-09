@@ -16,9 +16,9 @@
 
 ---
 
-A community event today is six tools and a spreadsheet. Registration lives in Luma. Badges are made in Canva. Lunch vouchers are paper tickets or a column someone ticks by hand. Merch is sold over Instagram messages. Prizes are a photo. And when the event is over, the sponsor report is assembled from memory.
+A community event today is six tools and a spreadsheet. Registration lives in one tool. Badges are made in Canva. Lunch vouchers are paper tickets or a column someone ticks by hand. Merch is sold over Instagram messages. Prizes are a photo. And when the event is over, the sponsor report is assembled from memory.
 
-On top of that, in much of the world the organizer cannot charge for tickets at all: the platforms they already use need a Stripe account, and Stripe does not pay out in their country. Bolivia is one of those countries.
+On top of that, in most of Latin America the platforms organizers already use take cards only through Stripe, which in the region is available only in Brazil and Mexico. Bolivia is one of those countries.
 
 **Rumbo puts the whole event in one place, and lets the organizer get paid in seconds from anywhere.** Tickets are paid in digital dollars (USDC on Stellar) and, next, in Bolivia, with the QR code of the buyer's own bank through a licensed partner. Each attendee gets a pass with a QR code. Volunteers scan it to check people in and to hand out what each person is entitled to: lunch, a t-shirt, a prize. Every redemption happens once, and the sponsor sees exactly what was delivered.
 
@@ -57,7 +57,7 @@ This is the whole product. The table in [Where it stands](#where-it-stands) says
 
 ## How Rumbo is different
 
-Free sign-up is solved: Luma, Bevy and a simple form already do it well. Rumbo starts after the ticket.
+Free sign-up is solved: plenty of tools and a simple form already do it well. Rumbo starts after the ticket.
 
 - **Each pass says what that person gets:** lunch, a t-shirt, a prize. Volunteers redeem each item from their own phones, even offline; each benefit redemption lands once on the ledger.
 - **The draw list has only people who walked in.**
@@ -90,10 +90,6 @@ For counting lunches a database would do. Stellar adds what a database cannot:
 
 Rumbo is not a ticket NFT and not a place to speculate on resale. If the organizer allows resale (later on), it will happen at the original price.
 
-## With Tinkazo
-
-[Tinkazo](https://tinkazo.app) runs draws anyone can check from their phone. Rumbo and Tinkazo are different products that fit together: Tinkazo decides who wins, Rumbo delivers what was won and runs everything else at the event. The plan: the prize from a Tinkazo draw lands on the winner's pass, the draw runs over the people who actually checked in, and entering a draw is always free, whether the event is paid or not. Today Rumbo freezes the list of people who checked in, with a SHA-256 fingerprint anyone can recompute and the algorithm published, so the draw can run over it; the prize landing on the winner's pass comes next.
-
 ## Where it stands
 
 The first column of the table below is built and runs on Stellar's testnet: the [rumbo-pass contract](contracts/rumbo-pass/README.md) (free or paid pass with the split in the same operation, one check-in and one redemption per benefit, with 43 tests) and the [app](app/README.md) (event page, registration, a pass whose QR code is signed with Ed25519 and changes every 20 seconds, offline scanner with a manual fallback at the door (search by name or email, or sign someone up for free on the spot), organizer panel with a check of its records against the ledger, sponsor booths with a route (its prize lands on the pass of whoever completes it) and a live screen, the draw list frozen with a SHA-256 fingerprint and a published algorithm, the event report on the web to print, with the PDF and the verifiable certificates generated from the command line with XeLaTeX, and the kit: templates for a DevFest, Build with AI, International Women's Day, a hackathon, a meetup or a workshop, and importing the guest list from Luma, or from Bevy, whose columns are an inference (its public documentation does not list them) and have not been checked against a real export). The whole flow, run against testnet with its transaction ids, is in [app/demo/e2e-testnet.txt](app/demo/e2e-testnet.txt), and the paid event's contract can be inspected on [stellar.expert](https://stellar.expert/explorer/testnet/contract/CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH).
@@ -113,7 +109,7 @@ The contract started from an [event pass](https://stellar.expert/explorer/testne
 | Event page with free or paid registration (USDC on testnet), set up from a template; sign-in with Google or email, with an account of the person's own (pending a run with a real Google account) | Passkeys, and the email with the link to the pass | Bank QR payments in bolivianos on mainnet |
 | Organizer account: sign in with Google or email, see your events, create one without the house key, preview it, choose how its link ends and publish it in seconds with the progress on screen; add your team with an invitation link or by authorizing their account, and each one signs in with their own (the per-event key still works for people without an account and for the MCP server) | Handing an event to another account | |
 | Signed pass with a QR code that changes every 20 seconds, on the phone and printable as SVG | Protected payment with automatic refund | Resale at the original price |
-| Offline scanner for the door, each meal and each booth, with a manual fallback at the door | Prize from a Tinkazo draw landing on the pass | Pay-per-use API with x402 |
+| Offline scanner for the door, each meal and each booth, with a manual fallback at the door | Prize from a verifiable draw landing on the pass | Pay-per-use API with x402 |
 | Organizer dashboard with the check against the ledger, sponsor report, draw list with its fingerprint, event report to print (PDF and certificates from the command line, with XeLaTeX) | Webhooks, calendar and Telegram notices | Payments to speakers |
 | Luma and Bevy import, pass types (speaker, mentor, judge, volunteer) and teams | Passes in Apple and Google Wallet | Licenses for community networks |
 | MCP server for your assistant: describe the event in plain words and approve the draft, import the list, read the numbers and the report | PDF passes and printing in bulk | |

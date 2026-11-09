@@ -16,9 +16,9 @@
 
 ---
 
-Un evento de comunidad hoy son seis herramientas y una planilla. Las inscripciones viven en Luma. Las credenciales se hacen en Canva. Los vales del almuerzo son tickets de papel o una columna que alguien marca a mano. El merch se vende por mensajes de Instagram. Los premios son una foto. Y cuando el evento termina, el informe para quien auspicia se arma de memoria.
+Un evento de comunidad hoy son seis herramientas y una planilla. Las inscripciones viven en una herramienta. Las credenciales se hacen en Canva. Los vales del almuerzo son tickets de papel o una columna que alguien marca a mano. El merch se vende por mensajes de Instagram. Los premios son una foto. Y cuando el evento termina, el informe para quien auspicia se arma de memoria.
 
-Encima, en buena parte del mundo quien organiza no puede cobrar entradas: las plataformas que ya usa piden una cuenta de Stripe, y Stripe no paga en su país. Bolivia es uno de esos países.
+Encima, en casi toda Latinoamérica las plataformas que ya usa quien organiza cobran con tarjeta solo por Stripe, que en la región está solo en Brasil y México. Bolivia es uno de esos países.
 
 **Rumbo pone todo el evento en un solo lugar, y hace que quien organiza cobre en segundos desde cualquier país.** Las entradas se pagan en dólares digitales (USDC sobre Stellar) y, después, en Bolivia, con el QR del banco de quien compra, a través de un socio con licencia. Cada asistente recibe una credencial con QR. Los voluntarios la escanean para hacer el check-in y para entregar lo que le toca a cada persona: el almuerzo, una polera, un premio. Cada canje ocurre una sola vez, y quien auspicia ve exactamente qué se entregó.
 
@@ -57,7 +57,7 @@ Esto es el producto entero. La tabla de [Dónde está](#dónde-está) dice qué 
 
 ## En qué se distingue Rumbo
 
-La inscripción gratis ya está resuelta: Luma, Bevy y un formulario la hacen bien. Rumbo empieza después de la entrada.
+La inscripción gratis ya está resuelta: varias herramientas y un formulario la hacen bien. Rumbo empieza después de la entrada.
 
 - **Cada credencial dice qué le toca a esa persona:** el almuerzo, la polera, el premio. Quien es voluntario canjea cada cosa desde su propio celular, aunque no haya conexión; cada canje de un beneficio queda anotado una sola vez en la cadena.
 - **La lista del sorteo es solo de quienes entraron.**
@@ -90,10 +90,6 @@ Para contar almuerzos alcanza una base de datos. Stellar suma lo que una base de
 
 Rumbo no es una entrada NFT ni un lugar para especular con la reventa. Si quien organiza la permite (más adelante), la reventa va a ir al precio original.
 
-## Con Tinkazo
-
-[Tinkazo](https://tinkazo.app) hace sorteos que cualquiera puede comprobar desde su celular. Rumbo y Tinkazo son productos distintos que encajan: Tinkazo decide quién gana, Rumbo entrega lo que se ganó y opera todo lo demás del evento. El plan: el premio de un sorteo de Tinkazo entra a la credencial de quien ganó, el sorteo se hace sobre quienes de verdad hicieron el check-in, y participar en el sorteo es gratis siempre, sea el evento pago o no. Hoy Rumbo congela la lista de quienes entraron, con una huella SHA-256 que cualquiera puede recalcular y el algoritmo publicado, para hacer el sorteo sobre ella; el premio entrando a la credencial de quien ganó viene después.
-
 ## Dónde está
 
 La primera columna de la tabla de abajo está hecha y corre en la red de prueba de Stellar: el [contrato rumbo-pass](contracts/rumbo-pass/README.md) (pase gratis o pago con el reparto en la misma operación, una entrada y un canje por beneficio, con 43 pruebas) y la [app](app/README.md) (la página del evento, la inscripción, la credencial con un QR firmado con Ed25519 que cambia cada 20 segundos, el escáner sin conexión con un respaldo manual en la puerta (buscar por nombre o correo, o inscribir gratis en el momento a quien llegó sin credencial), el panel de quien organiza con el contraste de su registro contra la cadena, los stands de quien auspicia con su ruta (su premio entra a la credencial de quien la completa) y su pantalla en vivo, la lista del sorteo congelada con una huella SHA-256 y el algoritmo publicado, el informe del evento en la web para imprimir, con el PDF y los certificados verificables generados desde la consola con XeLaTeX, y el kit: plantillas para un DevFest, un Build with AI, un Día de la Mujer, una hackatón, un meetup o un taller, e importar la lista desde Luma, o desde Bevy, cuyas columnas son una inferencia (su documentación pública no las lista) y todavía no se contrastaron con un export real). El flujo entero, corrido en la red de prueba con los ids de sus transacciones, está en [app/demo/e2e-testnet.txt](app/demo/e2e-testnet.txt), y el contrato del evento pago se puede mirar en [stellar.expert](https://stellar.expert/explorer/testnet/contract/CDKKJV3QFG4RBYLRIRTWMXFBAQVY5NP3THXBNDT7PX7ICWSCN3GCZ5UH).
@@ -113,7 +109,7 @@ El contrato partió de un [pase de evento](https://stellar.expert/explorer/testn
 | Página del evento con inscripción gratis o paga (USDC de prueba), armada desde una plantilla; entrar con Google o con el correo, con una cuenta propia (falta probarlo con una cuenta de Google real) | Passkeys, y el correo con el enlace a la credencial | Pagos con el QR del banco en bolivianos, en mainnet |
 | Cuenta de organizador: entrar con Google o con el correo, ver tus eventos, crear uno sin la clave de la casa, verlo como va a quedar, elegir cómo termina su enlace y publicarlo en segundos, con el avance a la vista; sumar a tu equipo con un enlace de invitación o autorizando su cuenta, y cada quien entra con la suya (la clave por evento sigue para quien no tiene cuenta y para el servidor MCP) | Pasar un evento a otra cuenta | |
 | Credencial firmada, con un QR que cambia cada 20 segundos, en el celular y para imprimir en SVG | Pago protegido con reembolso automático | Reventa al precio original |
-| Escáner sin conexión para la puerta, cada comida y cada stand, con respaldo manual en la puerta | El premio de un sorteo de Tinkazo entrando a la credencial | API pagada por uso con x402 |
+| Escáner sin conexión para la puerta, cada comida y cada stand, con respaldo manual en la puerta | El premio de un sorteo comprobable entrando a la credencial | API pagada por uso con x402 |
 | Panel de quien organiza con el contraste contra la cadena, informe para quien auspicia, lista del sorteo con su huella, informe del evento para imprimir (el PDF y los certificados, desde la consola con XeLaTeX) | Webhooks y avisos por calendario y Telegram | Pagos a oradores |
 | Importar de Luma y de Bevy, tipos de credencial (oradores, mentoría, jurado, voluntariado) y equipos | Credencial en Apple y Google Wallet | Licencias para redes de comunidades |
 | Servidor MCP para tu asistente: describir el evento en palabras y aprobar el borrador, importar la lista, leer los números y el informe | Credencial en PDF e impresión en tanda | |

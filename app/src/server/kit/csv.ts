@@ -1,11 +1,9 @@
 /**
  * Lectura de CSV: la tabla que exporta Luma, Bevy, Meetup o una hoja de cálculo.
  *
- * Viene del lector de CSV de Tinkazo (src/ui/csv.ts), del mismo equipo y con
- * licencia MIT, que ya leyó exports reales de Luma de 35 columnas. Se copió lo
- * que sirve acá (parseTable y sus arreglos, findColumn, la detección del origen
- * y la decodificación del archivo) y se le sumó el reconocimiento de Bevy
- * (gdg.community.dev). Lo propio del sorteo (filtros de asistencia, lista de
+ * Ya leyó exports reales de Luma de 35 columnas: parseTable y sus arreglos,
+ * findColumn, la detección del origen y la decodificación del archivo, más el
+ * reconocimiento de Bevy (gdg.community.dev). Lo propio del sorteo (filtros de asistencia, lista de
  * nombres para el protocolo, homónimos) se dejó afuera.
  *
  * Licencia MIT, la misma de este repositorio (ver LICENSE).

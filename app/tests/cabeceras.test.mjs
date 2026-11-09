@@ -14,7 +14,7 @@ test("cada ruta privada manda sin referente, sin indexar, sin adivinar el tipo y
   const de = (source) => Object.fromEntries(reglas.filter((r) => r.source === source).flatMap((r) => r.headers).map((h) => [h.key, h.value]));
   for (const source of PRIVADAS) {
     const h = de(source);
-    assert.equal(h["Referrer-Policy"], "no-referrer", source);
+    assert.equal(h["Referrer-Policy"], source === "/admin/:path*" ? "same-origin" : "no-referrer", source);
     assert.equal(h["X-Robots-Tag"], "noindex, nofollow", source);
     assert.equal(h["X-Content-Type-Options"], "nosniff", source);
     assert.equal(h["X-Frame-Options"], "DENY", source);

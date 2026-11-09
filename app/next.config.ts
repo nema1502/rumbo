@@ -27,6 +27,9 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       ...PRIVATE_PATHS.map((source) => ({ source, headers: PRIVATE_HEADERS })),
+      // /admin tiene formularios que se pueden mandar antes de que cargue la página. Con no-referrer el navegador los
+      // manda con Origin: null, y Next contesta 500. same-origin manda el origen a la propia app y nada a otros sitios.
+      { source: "/admin/:path*", headers: [{ key: "Referrer-Policy", value: "same-origin" }] },
       // La vista previa de un borrador (/e/<evento>?vista=1) es solo para quien organiza: como las páginas privadas.
       { source: "/e/:slug", has: [{ type: "query" as const, key: "vista" }], headers: PRIVATE_HEADERS },
       // La credencial solo muestra imágenes propias (el QR va dibujado, el logo de un stand es una ruta de la app):

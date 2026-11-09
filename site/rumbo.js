@@ -41,7 +41,7 @@ const EN = {
   "etiqueta.anda": "Live now",
   "etiqueta.parte": "Partly live",
   "etiqueta.pronto": "Coming soon",
-  "etiqueta.diciembre": "Coming in December",
+  "etiqueta.diciembre": "Coming later",
   "cta.crear": "Create your event",
   "cta.probar": "Try the real thing",
 
@@ -206,7 +206,7 @@ const EN = {
   "pagos.m1.t": "With your bank's QR code, in bolivianos (coming soon)",
   "pagos.m1.p": "People will pay the way they pay for everything: by scanning their bank's QR code. A licensed ramp converts the bolivianos and the organizer receives USDC on the spot. Bolivia first, then each country with its own ramp.",
   "pagos.m2.t": "In USDC, from any country",
-  "pagos.m2.p": "With the account that creates itself when you sign in with Google or your email. No card, no XLM and no bank account on the other side. Today it runs on the test network; real payments arrive in December.",
+  "pagos.m2.p": "With the account that creates itself when you sign in with Google or your email. No card, no XLM and no bank account on the other side. Today it runs on the test network. Real-money payments come later.",
   "pagos.m3.t": "No money in the middle",
   "pagos.m3.p": "The contract splits the organizer's share and the fee in the same operation. Rumbo never holds the money, and if the event is cancelled, protected payment (coming next) will refund it on its own.",
   "pagos.bajada": "In much of Latin America you cannot charge through card gateways, and local ones ask for a company, paperwork and days of waiting. Here the money goes from the buyer to the organizer in a single operation.",
@@ -238,7 +238,7 @@ const EN = {
   "paga.c6.t": "Small communities",
   "paga.c6.p": "Free, with a cap on people per event that is set with the first communities. That is how every community starts, and how the word gets around.",
   "paga.nota": "Prices are set with the first communities that use it, not before.",
-  "llamado.p": "Organizing an event in December? We want to build it with you.",
+  "llamado.p": "Organizing an event in 2027? We want to build it with you.",
   "llamado.boton": "Tell us on GitHub",
 
   "viene.ante": "What's next",
