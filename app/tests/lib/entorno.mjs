@@ -67,10 +67,6 @@ export function entornoDePrueba() {
   return datos;
 }
 
-/**
- * Mañana a las 09:00 en Bolivia (-04:00), contado desde el día en que corren las pruebas. Con una fecha escrita, los
- * códigos de puesto vencían 36 horas después de ella y desde ahí las pruebas del escáner fallaban en cualquier clon.
- */
 export function mananaALas9() {
   const bolivia = new Date(Date.now() - 4 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000);
   return `${bolivia.toISOString().slice(0, 10)}T09:00:00-04:00`;
