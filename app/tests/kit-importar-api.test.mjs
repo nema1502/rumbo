@@ -15,6 +15,7 @@ const { getOrCreateOrganizerKey } = await import("../src/server/panel.ts");
 const { POST: importar } = await import("../src/app/api/admin/[slug]/importar/route.ts");
 const { GET: asistencia } = await import("../src/app/api/admin/[slug]/asistencia/route.ts");
 const { GET: enlaces } = await import("../src/app/api/admin/[slug]/enlaces/route.ts");
+const { POST: enlace } = await import("../src/app/api/admin/[slug]/enlace/route.ts");
 const stellar = await import("../src/server/stellar.ts");
 const { registerForEvent } = await import("../src/server/evento/inscripcion.ts");
 const { addAtDoor } = await import("../src/server/puerta.ts");
@@ -205,4 +206,38 @@ test("todos los enlaces: una fila por credencial emitida, de cada importación, 
   assert.match(res.headers.get("content-disposition"), new RegExp(`filename="${event.slug}-todos-los-enlaces-\\d{4}-\\d{2}-\\d{2}\\.csv"`));
   assert.equal(res.headers.get("cache-control"), "no-store");
   assert.equal((await bajar(false)).status, 401);
+});
+
+test("el enlace de una persona, de a uno: sin acceso 401, de otro evento o pendiente 404, y el que da abre su credencial", async () => {
+  const event = await evento("API un enlace");
+  const otro = await evento("API un enlace, otro evento");
+  const clave = await getOrCreateOrganizerKey(event.id);
+  const pedir = async (passId, { conClave = true } = {}) => {
+    const request = new NextRequest(`http://localhost/api/admin/${event.slug}/enlace${conClave ? `?k=${clave}` : ""}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ passId }) });
+    const res = await enlace(request, { params: Promise.resolve({ slug: event.slug }) });
+    return { status: res.status, cuerpo: await res.json(), cache: res.headers.get("cache-control") };
+  };
+
+  const enPuerta = await addAtDoor(repo, event, { name: "Sin Su Enlace", email: "sin.enlace@example.com", lang: "es", origin: "http://localhost:3000", clientKey: "10.0.2.1" });
+  assert.equal(enPuerta.kind, "added", JSON.stringify(enPuerta));
+  const passId = enPuerta.match.passId;
+
+  assert.equal((await pedir(passId, { conClave: false })).status, 401);
+
+  const ok = await pedir(passId);
+  assert.equal(ok.status, 200);
+  assert.equal(ok.cache, "no-store");
+  const url = new URL(ok.cuerpo.url);
+  assert.equal(url.pathname, `/p/${passId}`);
+  assert.equal(await verifyAccessKey(passId, url.searchParams.get("k")), true);
+  assert.equal((await pedir(passId)).cuerpo.url, ok.cuerpo.url, "pedirlo otra vez da el mismo enlace");
+
+  const ajeno = await addAtDoor(repo, otro, { name: "De Otro Evento", email: "otro.evento@example.com", lang: "es", origin: "http://localhost:3000", clientKey: "10.0.2.2" });
+  assert.equal((await pedir(ajeno.match.passId)).status, 404);
+  const tipo = (await repo.listTicketTypes(event.id)).find((t) => t.priceUsdc === 0 && t.credentialKind === "attendee");
+  const persona = await repo.upsertPerson({ name: "A Medias", email: "a.medias@example.com" });
+  const pendiente = await repo.createPass({ eventId: event.id, personId: persona.id, ticketTypeId: tipo.id, status: "pending" });
+  assert.equal((await pedir(pendiente.id)).status, 404);
+  assert.equal((await pedir("NOEXISTE")).status, 404);
+  assert.equal((await pedir(42)).status, 400);
 });
