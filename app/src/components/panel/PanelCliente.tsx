@@ -376,7 +376,7 @@ export function PanelCliente({
         ) : (
           <ul className="tabla-pases">
             {visibles.map((pass) => (
-              <FilaPase key={pass.id} pass={pass} />
+              <FilaPase key={pass.id} pass={pass} slug={slug} onVencida={() => setConexion("vencida")} />
             ))}
           </ul>
         )}
@@ -600,7 +600,7 @@ function SumarCanje({ slug, tipos, onGuardado, onVencida }: { slug: string; tipo
   );
 }
 
-function FilaPase({ pass }: { pass: PanelPass }) {
+function FilaPase({ pass, slug, onVencida }: { pass: PanelPass; slug: string; onVencida: () => void }) {
   const t = useT();
   return (
     <li className="pase-fila">
@@ -629,7 +629,49 @@ function FilaPase({ pass }: { pass: PanelPass }) {
           );
         })}
       </span>
+      {pass.status !== "pending" && (
+        <span className="pase-accion">
+          <CopiarEnlace passId={pass.id} nombre={pass.name} slug={slug} onVencida={onVencida} />
+        </span>
+      )}
     </li>
+  );
+}
+
+function CopiarEnlace({ passId, nombre, slug, onVencida }: { passId: string; nombre: string; slug: string; onVencida: () => void }) {
+  const t = useT();
+  const [estado, setEstado] = useState<"listo" | "copiando" | "copiado" | "error">("listo");
+
+  async function pedirEnlace(): Promise<string> {
+    const res = await fetch(`/api/admin/${slug}/enlace`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ passId }), cache: "no-store" });
+    if (res.status === 401) {
+      onVencida();
+      throw new Error("401");
+    }
+    if (!res.ok) throw new Error(String(res.status));
+    return ((await res.json()) as { url: string }).url;
+  }
+
+  async function copiar() {
+    setEstado("copiando");
+    try {
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+        const blob = pedirEnlace().then((url) => new Blob([url], { type: "text/plain" }));
+        await navigator.clipboard.write([new ClipboardItem({ "text/plain": blob })]);
+      } else {
+        await navigator.clipboard.writeText(await pedirEnlace());
+      }
+      setEstado("copiado");
+      setTimeout(() => setEstado("listo"), 1800);
+    } catch {
+      setEstado("error");
+    }
+  }
+
+  return (
+    <Boton variante="secundario" className="boton-chico" onClick={() => void copiar()} disabled={estado === "copiando"} aria-live="polite" aria-label={estado === "listo" ? t("panel.pase.copiarEnlaceAria", { nombre }) : undefined}>
+      {estado === "copiado" ? t("panel.pase.enlaceCopiado") : estado === "error" ? t("panel.pase.enlaceError") : t("panel.pase.copiarEnlace")}
+    </Boton>
   );
 }
 
