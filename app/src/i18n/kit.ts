@@ -179,6 +179,10 @@ export const kit = {
     "kit.panel.agotado": "Se acabó",
     "kit.panel.pasadas": "Pasadas por {n}",
     "kit.panel.sinTope": "Sin tope",
+    "kit.panel.cambiarCanje": "Cambiar {canje}",
+    "kit.panel.topeDebajo": "Ya se entregaron {entregados}: con un tope de {tope}, la mesa va a decir que se acabó.",
+    "kit.panel.errorTope": "Cuántos hay tiene que ser un número entero entre 1 y 100.000, o quedar vacío.",
+    "kit.panel.errorCanje": "No se pudo guardar el cambio. Probá de nuevo.",
     "kit.panel.equipo": "Equipo {nombre}",
 
     // Importar la lista
@@ -465,6 +469,10 @@ export const kit = {
     "kit.panel.agotado": "Sold out",
     "kit.panel.pasadas": "Over by {n}",
     "kit.panel.sinTope": "No limit",
+    "kit.panel.cambiarCanje": "Change {canje}",
+    "kit.panel.topeDebajo": "{entregados} have already been handed out: with a limit of {tope}, the table will say it ran out.",
+    "kit.panel.errorTope": "How many there are must be a whole number between 1 and 100,000, or empty.",
+    "kit.panel.errorCanje": "The change could not be saved. Try again.",
     "kit.panel.equipo": "Team {nombre}",
 
     // Importing the list

@@ -53,7 +53,7 @@ export class DraftError extends Error {
   }
 }
 
-const NAME_MAX = 60;
+export const NAME_MAX = 60;
 export const PRICE_MAX = 1000;
 export const STOCK_MAX = 100_000;
 
@@ -72,7 +72,7 @@ export function defaultDraft(spec: TemplateSpec, lang: Lang): DraftInput {
   return { teamSignup: spec.teamSignup, slots, benefits };
 }
 
-function cleanText(text: string | undefined, fallback: string): string {
+export function cleanText(text: string | undefined, fallback: string): string {
   const clean = (text ?? "").replace(/\s+/g, " ").trim().slice(0, NAME_MAX);
   return clean || fallback;
 }
