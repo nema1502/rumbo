@@ -348,6 +348,9 @@ export function PanelCliente({
             <a className="boton boton-secundario boton-chico" href={`/api/admin/${slug}/csv`} download>
               {t("panel.pases.exportar")}
             </a>
+            <a className="boton boton-secundario boton-chico" href={`/api/admin/${slug}/enlaces`} download>
+              {t("panel.pases.todosLosEnlaces")}
+            </a>
             <a className="boton boton-secundario boton-chico" href={`/api/admin/${slug}/asistencia`} download>
               {t("kit.panel.asistencia")}
             </a>

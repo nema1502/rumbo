@@ -14,6 +14,12 @@ const { publishEvent } = await import("../src/server/kit/publicar.ts");
 const { getOrCreateOrganizerKey } = await import("../src/server/panel.ts");
 const { POST: importar } = await import("../src/app/api/admin/[slug]/importar/route.ts");
 const { GET: asistencia } = await import("../src/app/api/admin/[slug]/asistencia/route.ts");
+const { GET: enlaces } = await import("../src/app/api/admin/[slug]/enlaces/route.ts");
+const stellar = await import("../src/server/stellar.ts");
+const { registerForEvent } = await import("../src/server/evento/inscripcion.ts");
+const { addAtDoor } = await import("../src/server/puerta.ts");
+const { verifyAccessKey } = await import("../src/server/evento/acceso.ts");
+const { parseTable } = await import("../src/server/kit/csv.ts");
 
 const repo = getRepo();
 
@@ -28,6 +34,8 @@ globalThis.__rumboKitChain = {
   register: async () => ({ hash: `h-${++numero}`, ledger: 1, returnValue: numero, number: numero }),
   status: async () => ({ has_pass: true, number: 1, checked_in: false, redeemed: [] }),
 };
+stellar.rumboPass.register = async () => ({ hash: `h-${++numero}`, ledger: 1, returnValue: numero, number: numero });
+stellar.rumboPass.status = async () => ({ has_pass: true, number: 1, checked_in: false, redeemed: [] });
 const correos = [];
 globalThis.__rumboMailer = { kind: "dev", send: async (mail) => (correos.push(mail), { id: String(correos.length) }) };
 
@@ -140,4 +148,61 @@ test("la asistencia pide la clave y baja el CSV con su nombre de archivo", async
   assert.match(con.headers.get("content-type"), /text\/csv/);
   assert.match(con.headers.get("content-disposition"), new RegExp(`filename="${event.slug}-asistencia-\\d{4}-\\d{2}-\\d{2}\\.csv"`));
   assert.match(await con.text(), /First Name,Last Name,Email,Ticket Type,Attended/);
+});
+
+test("todos los enlaces: una fila por credencial emitida, de cada importación, de la página y de la puerta, sin las pendientes", async () => {
+  const event = await evento("API todos los enlaces");
+  const clave = await getOrCreateOrganizerKey(event.id);
+  const bajar = (conClave = true) =>
+    enlaces(new NextRequest(`http://localhost/api/admin/${event.slug}/enlaces${conClave ? `?k=${clave}` : ""}`), { params: Promise.resolve({ slug: event.slug }) });
+  const filas = async () => {
+    const tabla = parseTable(await (await bajar()).text());
+    return [tabla.columns, ...tabla.rows];
+  };
+  const importarTodo = async (archivo) => {
+    const { preview } = (await llamar(event, { accion: "vista", archivo: archivo() })).cuerpo;
+    const estados = Object.entries(preview.buckets).filter(([, b]) => b.valid > 0).map(([k]) => k);
+    const tipos = Object.fromEntries(preview.tickets.map((e) => [e.key, e.suggestedTypeId]));
+    const r = await llamar(event, { accion: "importar", archivo: archivo(), estados: JSON.stringify(estados), tipos: JSON.stringify(tipos), tipoPorDefecto: preview.defaultTypeId });
+    assert.equal(r.status, 200, JSON.stringify(r.cuerpo));
+    return r.cuerpo.runId;
+  };
+  const tanda = async (runId) => (await llamar(event, { accion: "tanda", importacion: runId })).cuerpo.result;
+
+  const luma = await importarTodo(archivoLuma);
+  while ((await tanda(luma)).remaining > 0);
+  const archivoBevy = () => new File([readFileSync(join(APP_DIR, "tests", "fixtures", "bevy-asistentes.csv.txt"))], "asistentes.csv", { type: "text/csv" });
+  const bevy = await importarTodo(archivoBevy);
+  assert.ok((await tanda(bevy)).remaining > 0, "la de Bevy queda cortada");
+
+  const emitidas = async () => (await repo.listPasses(event.id)).filter((p) => p.status !== "pending");
+  const cortada = await filas();
+  assert.deepEqual(cortada[0], ["nombre", "correo", "tipo de credencial", "entró", "enlace"]);
+  assert.equal(cortada.length - 1, (await emitidas()).length);
+  assert.ok((await repo.listPasses(event.id)).some((p) => p.status === "pending"), "quedan pendientes, y no salen");
+
+  while ((await tanda(bevy)).remaining > 0);
+  const tipo = (await repo.listTicketTypes(event.id)).find((t) => t.priceUsdc === 0 && t.credentialKind === "attendee");
+  const pagina = await registerForEvent({ slug: event.slug, ticketTypeId: tipo.id, name: "Desde La Página", email: "pagina.enlaces@example.com", lang: "es", origin: "http://localhost:3000", clientKey: "10.0.1.1" });
+  assert.equal(pagina.kind, "created", JSON.stringify(pagina));
+  const puerta = await addAtDoor(repo, event, { name: "Llega A La Puerta", email: "puerta.enlaces@example.com", lang: "es", origin: "http://localhost:3000", clientKey: "10.0.1.2" });
+  assert.equal(puerta.kind, "added", JSON.stringify(puerta));
+
+  const todas = (await filas()).slice(1);
+  assert.equal(todas.length, (await emitidas()).length);
+  assert.equal((await repo.listPasses(event.id)).filter((p) => p.status === "pending").length, 0);
+  const nombres = todas.map((f) => f[0]);
+  assert.ok(nombres.includes("Desde La Página") && nombres.includes("Llega A La Puerta"));
+  for (const fila of todas) {
+    const url = new URL(fila[4]);
+    const passId = url.pathname.split("/p/")[1];
+    assert.equal(await verifyAccessKey(passId, url.searchParams.get("k")), true, fila[4]);
+    assert.ok(["sí", "no"].includes(fila[3]));
+  }
+  assert.equal(new Set(todas.map((f) => f[4])).size, todas.length);
+
+  const res = await bajar();
+  assert.match(res.headers.get("content-disposition"), new RegExp(`filename="${event.slug}-todos-los-enlaces-\\d{4}-\\d{2}-\\d{2}\\.csv"`));
+  assert.equal(res.headers.get("cache-control"), "no-store");
+  assert.equal((await bajar(false)).status, 401);
 });
