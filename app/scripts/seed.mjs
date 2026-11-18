@@ -23,14 +23,20 @@ const organizerAccount = deploy?.accounts.organizer ?? (process.env.STELLAR_ORGA
 const refresh = process.argv.includes("--refresh");
 const SLUG = "hackaton-comunidad";
 
+// Mañana de 09:00 a 19:00 en Bolivia (-04:00), contado desde el día en que se corre: con una fecha escrita, el evento
+// de muestra quedaba como pasado y sus códigos de puesto vencidos.
+const manana = new Date(Date.now() - 4 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+const startsAt = `${manana}T09:00:00-04:00`;
+const endsAt = `${manana}T19:00:00-04:00`;
+
 let event = await repo.getEventBySlug(SLUG);
 if (!event) {
   event = await repo.createEvent({
     slug: SLUG,
     name: "Hackatón de la comunidad",
     description: "Un día entero para construir en equipo. Inscribite gratis, o sumá el almuerzo.",
-    startsAt: "2026-11-22T09:00:00-04:00",
-    endsAt: "2026-11-22T19:00:00-04:00",
+    startsAt,
+    endsAt,
     timezone: "America/La_Paz",
     place: "Santa Cruz de la Sierra",
     venue: null,
@@ -44,6 +50,8 @@ if (!event) {
   const patch = {};
   if ((!event.contractId || refresh) && freeContract && event.contractId !== freeContract) patch.contractId = freeContract;
   if (!event.organizerAccount && organizerAccount) patch.organizerAccount = organizerAccount;
+  // Si ya pasó, vuelve a ser mañana.
+  if (Date.parse(event.endsAt ?? event.startsAt) < Date.now()) Object.assign(patch, { startsAt, endsAt });
   if (Object.keys(patch).length > 0) event = await repo.updateEvent(event.id, patch);
   console.log(`El evento ya existía: ${event.name} (/e/${event.slug})`);
 }
@@ -66,7 +74,7 @@ for (const [ticket, contract] of [[freeTicket, freeContract], [paidTicket, paidC
 
 let benefits = await repo.listBenefits(event.id);
 if (benefits.length === 0) {
-  // El almuerzo sin día (el evento es un domingo); la polera con tope, así el panel muestra "Quedan N".
+  // El almuerzo sin día; la polera con tope, así el panel muestra "Quedan N".
   await repo.createBenefit({ eventId: event.id, name: "Almuerzo", kind: "lunch", station: "Mesa del almuerzo", sortOrder: 0 });
   await repo.createBenefit({ eventId: event.id, name: "Polera talle M", kind: "merch", station: "Stand de la comunidad", sortOrder: 1, stock: 25 });
   await repo.createBenefit({ eventId: event.id, name: "Premio del sorteo", kind: "prize", station: "Escenario", sortOrder: 2 });
