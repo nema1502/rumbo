@@ -156,7 +156,6 @@ export function PanelCliente({
     }
   }
 
-  // Sin mayúsculas ni tildes, como el buscador de la Puerta: "maria" encuentra a "María" y "pena" a "Peña".
   const q = normalizeSearch(query);
   const visibles = useMemo(
     () => (q ? state.passes.filter((p) => normalizeSearch(p.name).includes(q) || p.id.toLowerCase().includes(q)) : state.passes),
