@@ -8,6 +8,7 @@ import { Aviso, Boton, BotonEnlace, Chip, Tarjeta } from "@/components/ui.tsx";
 import { useLang, useT } from "@/i18n/client.tsx";
 import type { Lang } from "@/i18n/index.ts";
 import { kindLabelKey } from "@/lib/credential-kinds.ts";
+import { normalizeSearch } from "@/lib/busqueda.ts";
 import { isManualScannerId } from "@/lib/escaner-api.ts";
 import { formatStationCode, stationCodesExpired } from "@/lib/station-code.ts";
 import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
@@ -155,9 +156,10 @@ export function PanelCliente({
     }
   }
 
-  const q = query.trim().toLowerCase();
+  // Sin mayúsculas ni tildes, como el buscador de la Puerta: "maria" encuentra a "María" y "pena" a "Peña".
+  const q = normalizeSearch(query);
   const visibles = useMemo(
-    () => (q ? state.passes.filter((p) => p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)) : state.passes),
+    () => (q ? state.passes.filter((p) => normalizeSearch(p.name).includes(q) || p.id.toLowerCase().includes(q)) : state.passes),
     [state.passes, q],
   );
   const nombreDe = (passId: string) => state.passes.find((p) => p.id === passId)?.name ?? passId;
