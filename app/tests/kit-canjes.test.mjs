@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { entornoDePrueba, eventoDePrueba, pedido } from "./lib/entorno.mjs";
+import { entornoDePrueba, eventoDePrueba, paseDePrueba, pedido, qrImpreso } from "./lib/entorno.mjs";
 
 entornoDePrueba();
 const { getRepo } = await import("../src/server/repo.ts");
@@ -8,7 +8,9 @@ const { createEventFromTemplate } = await import("../src/server/kit/plantillas.t
 const { publishStep } = await import("../src/server/kit/publicar.ts");
 const { NAME_MAX } = await import("../src/server/kit/borrador.ts");
 const { ensureStationCodes, getOrCreateOrganizerKey, getPanelState, resolveStationCode } = await import("../src/server/panel.ts");
-const { buildSnapshot } = await import("../src/server/escaner.ts");
+const { buildSnapshot, processScanItems, stationOf } = await import("../src/server/escaner.ts");
+const { addBenefit } = await import("../src/server/kit/canjes.ts");
+const { CONTRACT_BENEFIT_SLOTS } = await import("../src/server/kit/publicar.ts");
 const { POST: canjes } = await import("../src/app/api/admin/[slug]/canjes/route.ts");
 
 const repo = getRepo();
@@ -105,4 +107,74 @@ test("sin acceso al panel contesta 401, y un canje de otro evento contesta 404 s
   const intacto = await repo.getBenefit(otro.lunch.id);
   assert.deepEqual([intacto.name, intacto.stock], ["Almuerzo", null]);
   assert.equal((await editar(event, { action: "edit", benefitId: "no-existe", stock: null })).status, 404);
+});
+
+const sinRed = async () => CONTRACT_BENEFIT_SLOTS;
+
+test("sumar un canje con el evento publicado: número siguiente, credenciales de antes y de después, puesto, tope y el número que va al contrato", async () => {
+  const event = await eventoPublicado();
+  const tipos = (await repo.listTicketTypes(event.id)).filter((t) => t.credentialKind === "attendee");
+  const otros = (await repo.listTicketTypes(event.id)).filter((t) => t.credentialKind !== "attendee");
+  const gratis = tipos.find((t) => t.priceUsdc === 0);
+  const antes = await paseDePrueba(repo, { event, ticket: gratis }, { name: "Llegó Antes" });
+  const otroTipo = await paseDePrueba(repo, { event, ticket: otros[0] }, { name: "De Otro Tipo" });
+  const mayorAntes = new Map();
+  for (const t of tipos) mayorAntes.set(t.id, Math.max(-1, ...(await repo.listTicketTypeBenefits(t.id)).map((b) => b.chainIndex)));
+
+  const r = await addBenefit(repo, event, { name: "Foto profesional", station: "Estudio", stock: 50, ticketTypeIds: tipos.map((t) => t.id) }, sinRed);
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal(r.benefit.kind, "other");
+  for (const t of tipos) {
+    const enlazado = (await repo.listTicketTypeBenefits(t.id)).find((b) => b.id === r.benefit.id);
+    assert.equal(enlazado.chainIndex, mayorAntes.get(t.id) + 1, t.name);
+  }
+  assert.ok((await repo.listPassBenefits(antes.pass.id)).some((b) => b.id === r.benefit.id), "quien ya tenía credencial lo tiene");
+  assert.ok(!(await repo.listPassBenefits(otroTipo.pass.id)).some((b) => b.id === r.benefit.id), "otro tipo no lo recibe");
+  const despues = await paseDePrueba(repo, { event, ticket: gratis }, { name: "Llegó Después" });
+  assert.ok((await repo.listPassBenefits(despues.pass.id)).some((b) => b.id === r.benefit.id), "quien se inscribe después también");
+
+  const codigo = (await ensureStationCodes(event, repo)).find((c) => c.benefitId === r.benefit.id);
+  assert.ok(codigo, "tiene su código de puesto");
+  const access = await resolveStationCode(codigo.code, repo);
+  const foto = await buildSnapshot(repo, access);
+  assert.deepEqual([foto.station.name, foto.station.place, foto.stock?.total], ["Foto profesional", "Estudio", 50]);
+
+  const pedidos = [];
+  const red = {
+    redeem: async (contractId, account, benefit, hooks) => (pedidos.push({ contractId, account, benefit }), await hooks?.onSubmitted?.("tx"), { hash: "tx" }),
+    checkIn: async (_c, _a, hooks) => (await hooks?.onSubmitted?.("tx1"), { hash: "tx1" }),
+    outcome: async () => "success",
+  };
+  const item = { clientId: `foto-${n}`, action: "redeem", passId: antes.pass.id, benefitId: r.benefit.id, scannedAt: new Date().toISOString(), scannerId: "estudio", qr: await qrImpreso(event.id, antes.pass.id) };
+  const [resultado] = await processScanItems(repo, event, stationOf(access), [item], red);
+  assert.equal(resultado.status, "synced", JSON.stringify(resultado));
+  assert.deepEqual(pedidos, [{ contractId: gratis.contractId, account: antes.pass.account, benefit: mayorAntes.get(gratis.id) + 1 }]);
+  assert.equal((await getPanelState(event, repo)).benefits.find((b) => b.id === r.benefit.id).remaining, 49);
+});
+
+test("sumar un canje se niega si el contrato de un tipo no tiene lugar, sin crear ni enlazar nada", async () => {
+  const event = await eventoPublicado();
+  const tipos = (await repo.listTicketTypes(event.id)).filter((t) => t.credentialKind === "attendee");
+  const pago = tipos.find((t) => t.priceUsdc > 0) ?? tipos[0];
+  const ocupados = (await repo.listTicketTypeBenefits(pago.id)).length;
+  const antes = (await repo.listBenefits(event.id)).length;
+  const lleno = async (contractId) => (contractId === pago.contractId ? ocupados : CONTRACT_BENEFIT_SLOTS);
+  const r = await addBenefit(repo, event, { name: "Cupón por publicar tu flujo", stock: 50, ticketTypeIds: tipos.map((t) => t.id) }, lleno);
+  assert.deepEqual(r, { ok: false, error: "full", ticketTypeName: pago.name });
+  assert.equal((await repo.listBenefits(event.id)).length, antes);
+  assert.equal((await repo.listTicketTypeBenefits(pago.id)).length, ocupados);
+});
+
+test("sumar un canje pide nombre, al menos un tipo del evento y un tope válido; por la ruta, sin acceso 401", async () => {
+  const event = await eventoPublicado();
+  const tipo = (await repo.listTicketTypes(event.id))[0];
+  const otro = await eventoDePrueba(repo);
+  assert.deepEqual(await addBenefit(repo, event, { name: "  ", stock: null, ticketTypeIds: [tipo.id] }, sinRed), { ok: false, error: "name" });
+  assert.deepEqual(await addBenefit(repo, event, { name: "Foto", stock: 0, ticketTypeIds: [tipo.id] }, sinRed), { ok: false, error: "stock" });
+  assert.deepEqual(await addBenefit(repo, event, { name: "Foto", stock: null, ticketTypeIds: [] }, sinRed), { ok: false, error: "types" });
+  assert.deepEqual(await addBenefit(repo, event, { name: "Foto", stock: null, ticketTypeIds: [otro.ticket.id] }, sinRed), { ok: false, error: "not_found" });
+  const sinAcceso = await editar(event, { action: "add", name: "Foto", stock: null, ticketTypeIds: [tipo.id] }, { conClave: false });
+  assert.equal(sinAcceso.status, 401);
+  assert.equal((await editar(event, { action: "add", name: "Foto", stock: null, ticketTypeIds: "todos" })).status, 400);
+  assert.equal((await editar(event, { action: "add", name: "Foto", stock: null, ticketTypeIds: [otro.ticket.id] })).status, 404);
 });
