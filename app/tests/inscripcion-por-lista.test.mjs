@@ -9,7 +9,7 @@ import { randomBytes } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { beforeEach, test } from "node:test";
-import { APP_DIR, capturarConsola, entornoDePrueba, pedido } from "./lib/entorno.mjs";
+import { APP_DIR, capturarConsola, entornoDePrueba, mananaALas9, pedido } from "./lib/entorno.mjs";
 
 entornoDePrueba();
 process.env.RUMBO_TRUSTED_IP_HEADER = "x-real-ip";
@@ -109,7 +109,7 @@ beforeEach(async () => {
 let contratos = 0;
 /** Una hackatón publicada (se inscribe sola o por equipos), con una entrada paga además de la gratis. */
 async function hackaton(nombre, { direccion, publicar = true } = {}) {
-  let event = await createEventFromTemplate(repo, { template: "hackaton", lang: "es", name: nombre, startsAtLocal: "2026-12-05T09:00", place: "Santa Cruz", organizerName: "La comunidad" });
+  let event = await createEventFromTemplate(repo, { template: "hackaton", lang: "es", name: nombre, startsAtLocal: mananaALas9().slice(0, 16), place: "Santa Cruz", organizerName: "La comunidad" });
   const vieja = event.slug;
   if (direccion) {
     // La dirección se cambia mientras es un borrador; la de antes queda anotada como dirección vieja del evento.

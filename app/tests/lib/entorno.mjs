@@ -67,9 +67,18 @@ export function entornoDePrueba() {
   return datos;
 }
 
+/**
+ * Mañana a las 09:00 en Bolivia (-04:00), contado desde el día en que corren las pruebas. Con una fecha escrita, los
+ * códigos de puesto vencían 36 horas después de ella y desde ahí las pruebas del escáner fallaban en cualquier clon.
+ */
+export function mananaALas9() {
+  const bolivia = new Date(Date.now() - 4 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000);
+  return `${bolivia.toISOString().slice(0, 10)}T09:00:00-04:00`;
+}
+
 /** Un evento con una entrada (gratis o paga), su contrato de mentira y, si se pide, un beneficio canjeable. */
 export async function eventoDePrueba(repo, { slug = `prueba-${Date.now().toString(36)}`, precio = 0, beneficio = true } = {}) {
-  const event = await repo.createEvent({ slug, name: "Evento de prueba", startsAt: "2026-11-22T09:00:00-04:00", place: "Santa Cruz", organizerName: "La comunidad", contractId: "CPRUEBA" });
+  const event = await repo.createEvent({ slug, name: "Evento de prueba", startsAt: mananaALas9(), place: "Santa Cruz", organizerName: "La comunidad", contractId: "CPRUEBA" });
   const ticket = await repo.createTicketType({ eventId: event.id, name: precio ? "Con almuerzo" : "Inscripción", priceUsdc: precio, contractId: "CPRUEBA" });
   let lunch = null;
   if (beneficio) {
