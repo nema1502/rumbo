@@ -680,3 +680,21 @@ export async function buildImportLinksCsv(repo: Repo, event: EventRecord, runId:
   }
   return `﻿${[header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n")}\r\n`;
 }
+
+export async function buildAllLinksCsv(repo: Repo, event: EventRecord, lang: Lang, origin?: string | null): Promise<string> {
+  const t = (key: string) => translate(lang, key);
+  const typeName = new Map((await repo.listTicketTypes(event.id)).map((type) => [type.id, type.name] as const));
+  const header = [t("panel.csv.nombre"), t("panel.csv.correo"), t("panel.csv.tipo"), t("panel.csv.entro"), t("kit.importar.csv.enlace")];
+  const rows: string[][] = [];
+  for (const { pass, person } of await repo.listPassesWithPerson(event.id)) {
+    if (pass.status === "pending") continue;
+    rows.push([
+      person.name,
+      person.email,
+      typeName.get(pass.ticketTypeId) ?? "",
+      pass.status === "checked_in" ? t("panel.csv.si") : t("panel.csv.no"),
+      passUrl(pass.id, await getOrCreateAccessKey(pass.id), lang, origin),
+    ]);
+  }
+  return `﻿${[header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n")}\r\n`;
+}
