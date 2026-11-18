@@ -3,8 +3,8 @@
 // (cuando la pestaña está a la vista). "Verificar el registro del evento" contrasta el espejo con el
 // contrato y trae lo que falte.
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Aviso, Boton, BotonEnlace, Chip, Tarjeta } from "@/components/ui.tsx";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { Aviso, Boton, BotonEnlace, Campo, Chip, Tarjeta } from "@/components/ui.tsx";
 import { useLang, useT } from "@/i18n/client.tsx";
 import type { Lang } from "@/i18n/index.ts";
 import { kindLabelKey } from "@/lib/credential-kinds.ts";
@@ -12,7 +12,7 @@ import { normalizeSearch } from "@/lib/busqueda.ts";
 import { isManualScannerId } from "@/lib/escaner-api.ts";
 import { formatStationCode, stationCodesExpired } from "@/lib/station-code.ts";
 import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
-import type { ChainSyncSummary, PanelDuplicate, PanelPass, PanelState } from "@/server/panel.ts";
+import type { ChainSyncSummary, PanelBenefitRow, PanelDuplicate, PanelPass, PanelState } from "@/server/panel.ts";
 import type { EventTeam } from "@/server/coorganizar.ts";
 import type { PanelVia } from "@/server/panel-sesion.ts";
 import { BotonCopiar } from "./BotonCopiar.tsx";
@@ -264,25 +264,9 @@ export function PanelCliente({
           <h2>{t("kit.panel.franjas")}</h2>
           <p className="chico">{t("kit.panel.franjasAyuda")}</p>
           <ul className="panel-franjas">
-            {state.benefits.map((b) => {
-              const porcentaje = b.granted > 0 ? Math.min(100, Math.round((b.redeemed / b.granted) * 100)) : 0;
-              return (
-                <li key={b.id} className="panel-franja">
-                  <span className="panel-franja-nombre">{b.name}</span>
-                  <span className="panel-franja-cifra">{t("kit.panel.canjeados", { canjeados: b.redeemed, otorgados: b.granted })}</span>
-                  <div className="barra barra-verde" role="img" aria-label={`${b.name}: ${porcentaje}%`}>
-                    <span style={{ width: `${porcentaje}%` }} />
-                  </div>
-                  {b.stock !== null && b.remaining !== null && (
-                    <span className="panel-franja-stock">
-                      <Chip estado={b.remaining === 0 ? "alerta" : b.remaining <= Math.ceil(b.stock / 10) ? "pendiente" : "neutro"}>
-                        {b.exceeded > 0 ? t("kit.panel.pasadas", { n: b.exceeded }) : b.remaining === 0 ? t("kit.panel.agotado") : t("kit.panel.quedan", { n: b.remaining, total: b.stock })}
-                      </Chip>
-                    </span>
-                  )}
-                </li>
-              );
-            })}
+            {state.benefits.map((b) => (
+              <FilaCanje key={b.id} benefit={b} slug={slug} onGuardado={setState} onVencida={() => setConexion("vencida")} />
+            ))}
           </ul>
         </Tarjeta>
       )}
@@ -414,6 +398,108 @@ export function PanelCliente({
         </Boton>
       </div>
     </section>
+  );
+}
+
+function FilaCanje({ benefit: b, slug, onGuardado, onVencida }: { benefit: PanelBenefitRow; slug: string; onGuardado: (state: PanelState) => void; onVencida: () => void }) {
+  const t = useT();
+  const [editando, setEditando] = useState(false);
+  const [nombre, setNombre] = useState(b.name);
+  const [mesa, setMesa] = useState(b.station ?? "");
+  const [tope, setTope] = useState(b.stock === null ? "" : String(b.stock));
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<"stock" | "general" | null>(null);
+  const porcentaje = b.granted > 0 ? Math.min(100, Math.round((b.redeemed / b.granted) * 100)) : 0;
+  const topeNuevo = tope.trim() === "" ? null : Number(tope);
+  const debajo = topeNuevo !== null && Number.isFinite(topeNuevo) && topeNuevo < b.redeemed;
+
+  function abrir() {
+    setNombre(b.name);
+    setMesa(b.station ?? "");
+    setTope(b.stock === null ? "" : String(b.stock));
+    setError(null);
+    setEditando(true);
+  }
+
+  async function guardar(e: FormEvent) {
+    e.preventDefault();
+    if (topeNuevo !== null && !Number.isInteger(topeNuevo)) {
+      setError("stock");
+      return;
+    }
+    setGuardando(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/${slug}/canjes`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "edit", benefitId: b.id, name: nombre, station: mesa, stock: topeNuevo }),
+      });
+      if (res.status === 401) {
+        onVencida();
+        return;
+      }
+      if (!res.ok) {
+        setError(((await res.json().catch(() => ({}))) as { error?: string }).error === "stock" ? "stock" : "general");
+        return;
+      }
+      onGuardado(((await res.json()) as { state: PanelState }).state);
+      setEditando(false);
+    } catch {
+      setError("general");
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <li className="panel-franja">
+      <span className="panel-franja-nombre">{b.name}</span>
+      <span className="panel-franja-cifra">{t("kit.panel.canjeados", { canjeados: b.redeemed, otorgados: b.granted })}</span>
+      <div className="barra barra-verde" role="img" aria-label={`${b.name}: ${porcentaje}%`}>
+        <span style={{ width: `${porcentaje}%` }} />
+      </div>
+      <span className="panel-franja-stock">
+        {b.stock !== null && b.remaining !== null && (
+          <Chip estado={b.remaining === 0 ? "alerta" : b.remaining <= Math.ceil(b.stock / 10) ? "pendiente" : "neutro"}>
+            {b.exceeded > 0 ? t("kit.panel.pasadas", { n: b.exceeded }) : b.remaining === 0 ? t("kit.panel.agotado") : t("kit.panel.quedan", { n: b.remaining, total: b.stock })}
+          </Chip>
+        )}
+        {!editando && (
+          <Boton variante="secundario" className="boton-chico" onClick={abrir} aria-label={t("kit.panel.cambiarCanje", { canje: b.name })}>
+            {t("panel.puestos.cambiar")}
+          </Boton>
+        )}
+      </span>
+      {editando && (
+        <form className="panel-franja-editar" onSubmit={(e) => void guardar(e)}>
+          <Campo id={`canje-nombre-${b.id}`} etiqueta={t("kit.armar.benNombre")} value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={60} required />
+          <Campo id={`canje-mesa-${b.id}`} etiqueta={t("kit.armar.benPuesto")} value={mesa} onChange={(e) => setMesa(e.target.value)} maxLength={60} />
+          <Campo
+            id={`canje-tope-${b.id}`}
+            etiqueta={t("kit.armar.benStock")}
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={100000}
+            value={tope}
+            onChange={(e) => setTope(e.target.value)}
+            placeholder={t("kit.panel.sinTope")}
+            error={error === "stock" ? t("kit.panel.errorTope") : undefined}
+          />
+          {debajo && <Aviso tono="alerta">{t("kit.panel.topeDebajo", { tope: topeNuevo, entregados: b.redeemed })}</Aviso>}
+          {error === "general" && <Aviso tono="alerta">{t("kit.panel.errorCanje")}</Aviso>}
+          <div className="panel-franja-acciones">
+            <Boton type="submit" className="boton-chico" disabled={guardando}>
+              {t("accion.guardar")}
+            </Boton>
+            <Boton variante="secundario" className="boton-chico" onClick={() => setEditando(false)} disabled={guardando}>
+              {t("accion.cancelar")}
+            </Boton>
+          </div>
+        </form>
+      )}
+    </li>
   );
 }
 

@@ -115,6 +115,8 @@
 .panel-franja-nombre { font-weight: 600; overflow-wrap: anywhere; }
 .panel-franja-cifra { font-variant-numeric: tabular-nums; color: var(--tinta-2); font-size: 0.95rem; white-space: nowrap; }
 .panel-franja-stock { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; color: var(--apagado); font-size: 0.85rem; }
+.panel-franja-editar { grid-column: 1 / -1; display: grid; gap: 8px; margin-top: 8px; }
+.panel-franja-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
 
 @media (max-width: 560px) {
   .kit-form-par { grid-template-columns: 1fr; }
