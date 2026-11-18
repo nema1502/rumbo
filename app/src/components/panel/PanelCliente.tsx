@@ -12,7 +12,7 @@ import { normalizeSearch } from "@/lib/busqueda.ts";
 import { isManualScannerId } from "@/lib/escaner-api.ts";
 import { formatStationCode, stationCodesExpired } from "@/lib/station-code.ts";
 import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
-import type { ChainSyncSummary, PanelBenefitRow, PanelDuplicate, PanelPass, PanelState } from "@/server/panel.ts";
+import type { ChainSyncSummary, PanelBenefitRow, PanelDuplicate, PanelPass, PanelState, PanelTicketTypeRow } from "@/server/panel.ts";
 import type { EventTeam } from "@/server/coorganizar.ts";
 import type { PanelVia } from "@/server/panel-sesion.ts";
 import { BotonCopiar } from "./BotonCopiar.tsx";
@@ -268,6 +268,7 @@ export function PanelCliente({
               <FilaCanje key={b.id} benefit={b} slug={slug} onGuardado={setState} onVencida={() => setConexion("vencida")} />
             ))}
           </ul>
+          <SumarCanje slug={slug} tipos={state.ticketTypes} onGuardado={setState} onVencida={() => setConexion("vencida")} />
         </Tarjeta>
       )}
 
@@ -503,6 +504,99 @@ function FilaCanje({ benefit: b, slug, onGuardado, onVencida }: { benefit: Panel
         </form>
       )}
     </li>
+  );
+}
+
+function SumarCanje({ slug, tipos, onGuardado, onVencida }: { slug: string; tipos: PanelTicketTypeRow[]; onGuardado: (state: PanelState) => void; onVencida: () => void }) {
+  const t = useT();
+  const [abierto, setAbierto] = useState(false);
+  const [nombre, setNombre] = useState("");
+  const [mesa, setMesa] = useState("");
+  const [tope, setTope] = useState("");
+  const [elegidos, setElegidos] = useState<string[]>([]);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function abrir() {
+    setNombre("");
+    setMesa("");
+    setTope("");
+    setElegidos([]);
+    setError(null);
+    setAbierto(true);
+  }
+
+  async function guardar(e: FormEvent) {
+    e.preventDefault();
+    const stock = tope.trim() === "" ? null : Number(tope);
+    if (stock !== null && !Number.isInteger(stock)) return setError(t("kit.panel.errorTope"));
+    if (elegidos.length === 0) return setError(t("kit.panel.sumarSinTipos"));
+    setGuardando(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/${slug}/canjes`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "add", name: nombre, station: mesa, stock, ticketTypeIds: elegidos }),
+      });
+      if (res.status === 401) return onVencida();
+      if (!res.ok) {
+        const cuerpo = (await res.json().catch(() => ({}))) as { error?: string; ticketTypeName?: string };
+        const mensajes: Record<string, string> = {
+          name: t("kit.panel.sumarSinNombre"),
+          stock: t("kit.panel.errorTope"),
+          types: t("kit.panel.sumarSinTipos"),
+          full: t("kit.panel.sumarSinLugar", { tipo: cuerpo.ticketTypeName ?? "" }),
+          busy: t("kit.panel.sumarOcupado"),
+        };
+        return setError(mensajes[cuerpo.error ?? ""] ?? t("kit.panel.errorCanje"));
+      }
+      onGuardado(((await res.json()) as { state: PanelState }).state);
+      setAbierto(false);
+    } catch {
+      setError(t("kit.panel.errorCanje"));
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  if (!abierto) {
+    return (
+      <Boton variante="secundario" className="boton-chico panel-sumar-canje" onClick={abrir}>
+        {t("kit.panel.sumarCanje")}
+      </Boton>
+    );
+  }
+  return (
+    <form className="panel-franja-editar" onSubmit={(e) => void guardar(e)}>
+      <h3>{t("kit.panel.sumarCanje")}</h3>
+      <Campo id="sumar-nombre" etiqueta={t("kit.armar.benNombre")} value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={60} required />
+      <Campo id="sumar-mesa" etiqueta={t("kit.armar.benPuesto")} value={mesa} onChange={(e) => setMesa(e.target.value)} maxLength={60} />
+      <Campo id="sumar-tope" etiqueta={t("kit.armar.benStock")} type="number" inputMode="numeric" min={1} max={100000} value={tope} onChange={(e) => setTope(e.target.value)} placeholder={t("kit.panel.sinTope")} />
+      <fieldset className="armar-trae">
+        <legend>{t("kit.panel.sumarQuienes")}</legend>
+        {tipos.map((tipo) => (
+          <label key={tipo.id}>
+            <input
+              type="checkbox"
+              checked={elegidos.includes(tipo.id)}
+              onChange={(e) => setElegidos((antes) => (e.target.checked ? [...antes, tipo.id] : antes.filter((id) => id !== tipo.id)))}
+            />
+            <span>{tipo.name}</span>
+          </label>
+        ))}
+      </fieldset>
+      <p className="chico apagado">{t("kit.panel.sumarAyuda")}</p>
+      {error && <Aviso tono="alerta">{error}</Aviso>}
+      <div className="panel-franja-acciones">
+        <Boton type="submit" className="boton-chico" disabled={guardando}>
+          {t("kit.panel.sumarGuardar")}
+        </Boton>
+        <Boton variante="secundario" className="boton-chico" onClick={() => setAbierto(false)} disabled={guardando}>
+          {t("accion.cancelar")}
+        </Boton>
+      </div>
+    </form>
   );
 }
 

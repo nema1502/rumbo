@@ -183,6 +183,14 @@ export const kit = {
     "kit.panel.topeDebajo": "Ya se entregaron {entregados}: con un tope de {tope}, la mesa va a decir que se acabó.",
     "kit.panel.errorTope": "Cuántos hay tiene que ser un número entero entre 1 y 100.000, o quedar vacío.",
     "kit.panel.errorCanje": "No se pudo guardar el cambio. Probá de nuevo.",
+    "kit.panel.sumarCanje": "Sumar un canje",
+    "kit.panel.sumarQuienes": "Quiénes lo reciben",
+    "kit.panel.sumarAyuda": "Lo reciben en el acto las credenciales que ya están y las que lleguen después. No se puede borrar: revisá el nombre antes de guardar.",
+    "kit.panel.sumarGuardar": "Sumar el canje",
+    "kit.panel.sumarSinNombre": "Escribí qué se entrega.",
+    "kit.panel.sumarSinTipos": "Elegí al menos un tipo de credencial.",
+    "kit.panel.sumarSinLugar": "Las credenciales de {tipo} no tienen lugar para más canjes: este evento se publicó antes de que se pudieran sumar. Probá sin ese tipo.",
+    "kit.panel.sumarOcupado": "Otro cambio del evento se está guardando en este momento. Probá en unos segundos.",
     "kit.panel.equipo": "Equipo {nombre}",
 
     // Importar la lista
@@ -473,6 +481,14 @@ export const kit = {
     "kit.panel.topeDebajo": "{entregados} have already been handed out: with a limit of {tope}, the table will say it ran out.",
     "kit.panel.errorTope": "How many there are must be a whole number between 1 and 100,000, or empty.",
     "kit.panel.errorCanje": "The change could not be saved. Try again.",
+    "kit.panel.sumarCanje": "Add a redemption",
+    "kit.panel.sumarQuienes": "Who gets it",
+    "kit.panel.sumarAyuda": "Passes already issued get it right away, and so do the ones that come later. It cannot be deleted: check the name before saving.",
+    "kit.panel.sumarGuardar": "Add the redemption",
+    "kit.panel.sumarSinNombre": "Write what is handed out.",
+    "kit.panel.sumarSinTipos": "Choose at least one pass type.",
+    "kit.panel.sumarSinLugar": "{tipo} passes have no room for more redemptions: this event was published before they could be added. Try without that type.",
+    "kit.panel.sumarOcupado": "Another change to the event is being saved right now. Try again in a few seconds.",
     "kit.panel.equipo": "Team {nombre}",
 
     // Importing the list
