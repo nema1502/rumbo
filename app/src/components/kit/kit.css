@@ -117,6 +117,8 @@
 .panel-franja-stock { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; color: var(--apagado); font-size: 0.85rem; }
 .panel-franja-editar { grid-column: 1 / -1; display: grid; gap: 8px; margin-top: 8px; }
 .panel-franja-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+.panel-sumar-canje { margin-top: 12px; }
+.panel-franja-editar h3 { margin: 12px 0 0; font-size: 1rem; }
 
 @media (max-width: 560px) {
   .kit-form-par { grid-template-columns: 1fr; }
