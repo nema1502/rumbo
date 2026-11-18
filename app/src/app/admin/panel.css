@@ -79,14 +79,15 @@
 }
 .pase-fila {
   display: grid; gap: 8px 14px; align-items: center; padding: 12px 18px; border-top: 1px solid var(--linea);
-  grid-template-columns: minmax(140px, 1.1fr) minmax(110px, 0.7fr) auto minmax(0, 1.8fr);
-  grid-template-areas: "nombre entrada estado canjes";
+  grid-template-columns: minmax(140px, 1.1fr) minmax(110px, 0.7fr) auto minmax(0, 1.8fr) auto;
+  grid-template-areas: "nombre entrada estado canjes accion";
 }
 .pase-fila:first-child { border-top: 0; }
 .pase-nombre { grid-area: nombre; font-weight: 600; overflow-wrap: anywhere; }
 .pase-entrada { grid-area: entrada; color: var(--tinta-2); font-size: 0.95rem; }
 .pase-estado { grid-area: estado; }
 .pase-canjes { grid-area: canjes; display: flex; flex-wrap: wrap; gap: 6px; }
+.pase-accion { grid-area: accion; }
 
 /* La acción principal abajo, fija, con un degradado corto que no tapa el contenido (el informe: Imprimir) */
 .panel-accion {
@@ -150,7 +151,7 @@
 @media (max-width: 720px) {
   .pase-fila {
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas: "nombre estado" "entrada estado" "canjes canjes";
+    grid-template-areas: "nombre estado" "entrada estado" "canjes canjes" "accion accion";
   }
 }
 @media (max-width: 560px) {
