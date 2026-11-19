@@ -23,6 +23,7 @@ export const panel = {
     "panel.contador.deCupo": "de {total} lugares",
     "panel.contador.de": "de {total}",
     "panel.contador.sinCupo": "sin cupo fijado",
+    "panel.contador.sinPreparar": "Sin terminar de preparar: {n}",
     "panel.contador.pendientesDePago": "Pendientes de pago: {n}",
     "panel.contador.ninguno": "Todavía ninguno",
 
@@ -258,6 +259,7 @@ export const panel = {
     "panel.contador.deCupo": "of {total} seats",
     "panel.contador.de": "of {total}",
     "panel.contador.sinCupo": "no cap set",
+    "panel.contador.sinPreparar": "Not set up yet: {n}",
     "panel.contador.pendientesDePago": "Payment pending: {n}",
     "panel.contador.ninguno": "None yet",
 

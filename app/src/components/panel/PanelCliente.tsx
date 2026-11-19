@@ -232,7 +232,19 @@ export function PanelCliente({
           valor={counters.issued}
           total={counters.capacity}
           detalle={counters.capacity ? t("panel.contador.deCupo", { total: counters.capacity }) : t("panel.contador.sinCupo")}
-          extra={counters.pending > 0 ? t("panel.contador.pendientesDePago", { n: counters.pending }) : undefined}
+          extra={
+            counters.pendingFree > 0 || counters.pendingPaid > 0 ? (
+              <>
+                {counters.pendingFree > 0 && (
+                  <>
+                    {t("panel.contador.sinPreparar", { n: counters.pendingFree })}
+                    {counters.pendingPaid > 0 && <br />}
+                  </>
+                )}
+                {counters.pendingPaid > 0 && t("panel.contador.pendientesDePago", { n: counters.pendingPaid })}
+              </>
+            ) : undefined
+          }
         />
         <Contador
           etiqueta={t("panel.contador.entraron")}

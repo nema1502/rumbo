@@ -274,7 +274,11 @@ export interface Tally {
 export interface PanelCounters {
   /** Credenciales emitidas: pases activos o que ya entraron. */
   issued: number;
-  /** Pases que todavía no se activaron (el pago no terminó). */
+  /** Pases gratis que todavía no se terminaron de preparar. */
+  pendingFree: number;
+  /** Pases pagos cuyo pago todavía no terminó. */
+  pendingPaid: number;
+  /** Total de pases pendientes, conservado para los informes existentes. */
   pending: number;
   capacity: number | null;
   checkedIn: number;
@@ -449,6 +453,12 @@ async function collect(event: EventRecord, repo: Repo): Promise<Collected> {
     counters: {
       issued: issuedPasses.length,
       pending: panelPasses.length - issuedPasses.length,
+      pendingFree: ticketTypeRows
+        .filter((ticketType) => ticketType.priceUsdc === 0)
+        .reduce((total, ticketType) => total + ticketType.pending, 0),
+      pendingPaid: ticketTypeRows
+        .filter((ticketType) => ticketType.priceUsdc > 0)
+        .reduce((total, ticketType) => total + ticketType.pending, 0),
       capacity,
       checkedIn: panelPasses.filter((p) => p.status === "checked_in").length,
       lunch: tally("lunch"),
