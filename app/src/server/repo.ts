@@ -1118,7 +1118,8 @@ export class SqlRepo implements Repo {
   async grantTicketBenefits(passId: string): Promise<PassBenefit[]> {
     const pass = await this.getPass(passId);
     if (!pass) throw new Error(`No existe el pase ${passId}`);
-    for (const benefit of await this.listTicketTypeBenefits(pass.ticketTypeId)) await this.grantBenefit(passId, benefit.id, "ticket");
+    // Los premios no vienen con la entrada: se ganan (el sorteo, la ruta de stands, un equipo que gana).
+    for (const benefit of await this.listTicketTypeBenefits(pass.ticketTypeId)) if (benefit.kind !== "prize") await this.grantBenefit(passId, benefit.id, "ticket");
     return this.listPassBenefits(passId);
   }
 

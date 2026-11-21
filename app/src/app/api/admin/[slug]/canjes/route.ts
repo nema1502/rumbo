@@ -36,7 +36,7 @@ export async function POST(request: NextRequest, { params }: Context) {
   if (body.action === "add") {
     const { ticketTypeIds } = body;
     if (typeof name !== "string" || !Array.isArray(ticketTypeIds) || !ticketTypeIds.every((id) => typeof id === "string")) return NextResponse.json({ error: "bad_request" }, { status: 400 });
-    const result = await addBenefit(repo, auth.event, { name, station, stock, ticketTypeIds });
+    const result = await addBenefit(repo, auth.event, { name, station, stock, ticketTypeIds, prize: body.prize === true });
     if (!result.ok) {
       const status = result.error === "not_found" ? 404 : result.error === "full" || result.error === "busy" ? 409 : 400;
       return NextResponse.json({ error: result.error, ticketTypeName: result.ticketTypeName }, { status });

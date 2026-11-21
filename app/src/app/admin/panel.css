@@ -214,3 +214,6 @@
 .panel-equipo-detalle { margin: 0.25rem 0 0; }
 .panel-equipo-integrantes { list-style: none; margin: 0.35rem 0 0; padding: 0; display: grid; gap: 0.3rem; }
 .panel-equipo-integrantes li { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+
+.panel-equipo-premio { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.4rem; }
+.panel-equipo-premio select { min-height: 2.2rem; border-radius: 8px; padding: 0 0.5rem; max-width: 100%; }

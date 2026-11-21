@@ -516,6 +516,7 @@ function SumarCanje({ slug, tipos, onGuardado, onVencida }: { slug: string; tipo
   const [mesa, setMesa] = useState("");
   const [tope, setTope] = useState("");
   const [elegidos, setElegidos] = useState<string[]>([]);
+  const [premio, setPremio] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -539,7 +540,7 @@ function SumarCanje({ slug, tipos, onGuardado, onVencida }: { slug: string; tipo
       const res = await fetch(`/api/admin/${slug}/canjes`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "add", name: nombre, station: mesa, stock, ticketTypeIds: elegidos }),
+        body: JSON.stringify({ action: "add", name: nombre, station: mesa, stock, ticketTypeIds: elegidos, prize: premio }),
       });
       if (res.status === 401) return onVencida();
       if (!res.ok) {
@@ -588,7 +589,10 @@ function SumarCanje({ slug, tipos, onGuardado, onVencida }: { slug: string; tipo
           </label>
         ))}
       </fieldset>
-      <p className="chico apagado">{t("kit.panel.sumarAyuda")}</p>
+      <label className="chico">
+        <input type="checkbox" checked={premio} onChange={(e) => setPremio(e.target.checked)} /> {t("kit.panel.sumarPremio")}
+      </label>
+      <p className="chico apagado">{premio ? t("kit.panel.sumarPremioAyuda") : t("kit.panel.sumarAyuda")}</p>
       {error && <Aviso tono="alerta">{error}</Aviso>}
       <div className="panel-franja-acciones">
         <Boton type="submit" className="boton-chico" disabled={guardando}>
@@ -740,7 +744,27 @@ function EquiposPanel({ state, slug, onGuardado, onVencida }: { state: PanelStat
   const t = useT();
   const [sacando, setSacando] = useState<string | null>(null);
   const [error, setError] = useState(false);
+  const [premioDe, setPremioDe] = useState<Record<string, string>>({});
   const nombreDinamica = new Map(state.dynamics.map((d) => [d.id, d.name] as const));
+  const premios = state.benefits.filter((b) => b.kind === "prize");
+
+  async function darPremio(teamId: string, equipo: string) {
+    const benefitId = premioDe[teamId] ?? premios[0]?.id;
+    const premio = premios.find((b) => b.id === benefitId);
+    if (!premio || !window.confirm(t("panel.equipos.darPremioConfirmar", { premio: premio.name, equipo }))) return;
+    setSacando(teamId);
+    setError(false);
+    try {
+      const res = await fetch(`/api/admin/${slug}/equipos`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "prize", teamId, benefitId }) });
+      if (res.status === 401) return onVencida();
+      if (!res.ok) return setError(true);
+      onGuardado(((await res.json()) as { state: PanelState }).state);
+    } catch {
+      setError(true);
+    } finally {
+      setSacando(null);
+    }
+  }
 
   async function sacar(passId: string, nombre: string, equipo: string) {
     if (!window.confirm(t("panel.equipos.sacarConfirmar", { nombre, equipo }))) return;
@@ -777,6 +801,21 @@ function EquiposPanel({ state, slug, onGuardado, onVencida }: { state: PanelStat
                 <span className="apagado chico">{t("panel.equipos.codigo", { codigo: team.code })}</span>
               </div>
               {detalle && <p className="chico panel-equipo-detalle">{detalle}</p>}
+              {team.prizes.length > 0 && <p className="chico panel-equipo-detalle">{t("panel.equipos.premios", { premios: team.prizes.join(", ") })}</p>}
+              {premios.length > 0 && (
+                <div className="panel-equipo-premio">
+                  <select aria-label={t("panel.equipos.elegirPremio", { equipo: team.name })} value={premioDe[team.id] ?? premios[0].id} onChange={(e) => setPremioDe({ ...premioDe, [team.id]: e.target.value })}>
+                    {premios.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                  <Boton variante="secundario" className="boton-chico" onClick={() => void darPremio(team.id, team.name)} disabled={sacando !== null}>
+                    {t("panel.equipos.darPremio")}
+                  </Boton>
+                </div>
+              )}
               <ul className="panel-equipo-integrantes">
                 {team.members.map((m) => (
                   <li key={m.passId}>

@@ -343,6 +343,8 @@ export interface PanelTeamRow {
   byDynamic: Record<string, number>;
   /** El total de dinámicas canjeadas por el equipo. */
   dynamicsWon: number;
+  /** Los premios que ganó el equipo (los nombres), dados desde el panel. */
+  prizes: string[];
 }
 
 function toPanelEvent(event: EventRecord): PanelEvent {
@@ -470,10 +472,11 @@ async function collect(event: EventRecord, repo: Repo): Promise<Collected> {
   const passById = new Map(panelPasses.map((p) => [p.id, p] as const));
   const teamsById = new Map<string, PanelTeamRow>();
   for (const { passId, team } of passTeams) {
-    const row = teamsById.get(team.id) ?? { id: team.id, name: team.name, code: teamCode(team.id), members: [], byDynamic: {}, dynamicsWon: 0 };
+    const row = teamsById.get(team.id) ?? { id: team.id, name: team.name, code: teamCode(team.id), members: [], byDynamic: {}, dynamicsWon: 0, prizes: [] };
     teamsById.set(team.id, row);
     const pass = passById.get(passId);
     row.members.push({ passId, name: pass?.name ?? "" });
+    for (const pb of pass?.benefits ?? []) if (pb.kind === "prize" && !row.prizes.includes(pb.name)) row.prizes.push(pb.name);
     for (const d of dynamics) {
       if (pass?.benefits.some((pb) => pb.benefitId === d.id && pb.redeemed)) {
         row.byDynamic[d.id] = (row.byDynamic[d.id] ?? 0) + 1;

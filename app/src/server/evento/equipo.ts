@@ -161,3 +161,27 @@ export async function removeFromTeamByPanel(repo: Repo, event: EventRecord, pass
   if ((await repo.listTeamPasses(team.id)).length === 0) await repo.deleteTeam(team.id);
   return true;
 }
+
+export type PrizeGrantResult = { ok: true; granted: number } | { ok: false; error: "not_found" | "not_prize" };
+
+/**
+ * Desde el panel: le da un premio (un canje de tipo premio, sumado para los equipos que ganan) a cada integrante del
+ * equipo. Solo a las credenciales activas cuyo tipo tiene lugar para ese premio en su contrato, así cada una lo retira
+ * en la mesa como cualquier canje y queda en la red. Darlo dos veces no lo duplica.
+ */
+export async function grantPrizeToTeam(repo: Repo, event: EventRecord, teamId: string, benefitId: string): Promise<PrizeGrantResult> {
+  const team = await repo.getTeam(teamId);
+  const benefit = await repo.getBenefit(benefitId);
+  if (!team || team.eventId !== event.id || !benefit || benefit.eventId !== event.id) return { ok: false, error: "not_found" };
+  if (benefit.kind !== "prize") return { ok: false, error: "not_prize" };
+  let granted = 0;
+  for (const pass of await repo.listTeamPasses(team.id)) {
+    if (pass.status === "pending") continue;
+    const linked = (await repo.listTicketTypeBenefits(pass.ticketTypeId)).some((b) => b.id === benefit.id);
+    if (!linked) continue;
+    if ((await repo.listPassBenefits(pass.id)).some((b) => b.id === benefit.id)) continue;
+    await repo.grantBenefit(pass.id, benefit.id, "manual");
+    granted++;
+  }
+  return { ok: true, granted };
+}

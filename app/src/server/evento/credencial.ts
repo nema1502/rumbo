@@ -129,7 +129,8 @@ export async function loadCredentialUnchecked(passId: string): Promise<Credentia
   const granted = new Set(view.benefits.map((b) => b.id));
   const routePrize = (await getRouteGoal(view.event.id))?.prizeBenefitId;
   for (const b of catalog) {
-    if (b.kind === "prize" && b.id !== routePrize && !granted.has(b.id)) benefits.push({ id: b.id, name: b.name, kind: b.kind, state: "sorteo", redeemed: false, inDraw: true });
+    // Solo el premio que vino con la plantilla (el del sorteo): un premio sumado para los equipos aparece cuando se gana.
+    if (b.kind === "prize" && b.templateKey !== null && b.id !== routePrize && !granted.has(b.id)) benefits.push({ id: b.id, name: b.name, kind: b.kind, state: "sorteo", redeemed: false, inDraw: true });
   }
 
   return {

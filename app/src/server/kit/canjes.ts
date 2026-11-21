@@ -29,6 +29,8 @@ export interface BenefitAdd {
   station?: string;
   stock: number | null;
   ticketTypeIds: string[];
+  /** Un premio (para los equipos que ganan): tiene su lugar en el contrato de esos tipos, pero no se le da a nadie hasta que se gana. */
+  prize?: boolean;
 }
 
 export type BenefitAddError = "name" | "stock" | "types" | "not_found" | "full" | "busy";
@@ -61,10 +63,12 @@ export async function addBenefit(repo: Repo, event: EventRecord, add: BenefitAdd
       next.set(type.id, index);
     }
     const sortOrder = (await repo.listBenefits(event.id)).reduce((max, b) => Math.max(max, b.sortOrder), -1) + 1;
-    const benefit = await repo.createBenefit({ eventId: event.id, name, kind: "other", station: cleanText(add.station, "") || null, sortOrder, stock });
+    const benefit = await repo.createBenefit({ eventId: event.id, name, kind: add.prize ? "prize" : "other", station: cleanText(add.station, "") || null, sortOrder, stock });
     for (const [typeId, index] of next) await repo.linkBenefit(typeId, benefit.id, index);
-    for (const pass of await repo.listPasses(event.id)) {
-      if (pass.status !== "pending" && next.has(pass.ticketTypeId)) await repo.grantBenefit(pass.id, benefit.id, "ticket");
+    if (!add.prize) {
+      for (const pass of await repo.listPasses(event.id)) {
+        if (pass.status !== "pending" && next.has(pass.ticketTypeId)) await repo.grantBenefit(pass.id, benefit.id, "ticket");
+      }
     }
     await ensureStationCodes(event, repo);
     return { ok: true, benefit, chainIndexes: Object.fromEntries(next) };

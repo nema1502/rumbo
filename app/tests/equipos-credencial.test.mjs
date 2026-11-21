@@ -169,3 +169,47 @@ test("el panel junta los equipos con sus dinámicas: solo los canjes que sumó q
   const despues = await getPanelState(d.event, repo);
   assert.deepEqual(despues.teams.map((t) => [t.name, t.dynamicsWon]), [["Equipo A", 1], ["Equipo B", 1]]);
 });
+
+test("premios para equipos: no se le dan a nadie hasta que el panel se lo da a un equipo, y cuentan aparte de las dinámicas", async () => {
+  const { addBenefit } = await import("../src/server/kit/canjes.ts");
+  const { grantPrizeToTeam } = await import("../src/server/evento/equipo.ts");
+  const { getOrCreateOrganizerKey } = await import("../src/server/panel.ts");
+  const { POST: equipos } = await import("../src/app/api/admin/[slug]/equipos/route.ts");
+  const d = await hackaton();
+  const [ana, bea, otra] = [await persona(d, "Ana Gana"), await persona(d, "Bea Gana"), await persona(d, "Otra Pierde")];
+  const { state } = await createTeamFor(repo, d.event, ana.pass, "Ganadoras");
+  await joinTeamFor(repo, d.event, bea.pass, state.team.code);
+  await createTeamFor(repo, d.event, otra.pass, "Otras");
+  const conLugar = async () => 64;
+  const r = await addBenefit(repo, d.event, { name: "Primer lugar", station: "Mesa de premios", stock: 5, ticketTypeIds: [d.participante.id], prize: true }, conLugar);
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal(r.benefit.kind, "prize");
+  assert.ok((await repo.listTicketTypeBenefits(d.participante.id)).some((b) => b.id === r.benefit.id && b.chainIndex !== null), "tiene su lugar en el contrato");
+  for (const p of [ana, bea, otra]) assert.ok(!(await repo.listPassBenefits(p.pass.id)).some((b) => b.id === r.benefit.id), "nadie lo tiene todavía");
+  const despues = await persona(d, "Llega Despues");
+  assert.ok(!(await repo.listPassBenefits(despues.pass.id)).some((b) => b.id === r.benefit.id), "activar una credencial no da premios");
+
+  const equipo = (await repo.listTeams(d.event.id)).find((t) => t.name === "Ganadoras");
+  assert.deepEqual(await grantPrizeToTeam(repo, d.event, equipo.id, r.benefit.id), { ok: true, granted: 2 });
+  assert.deepEqual(await grantPrizeToTeam(repo, d.event, equipo.id, r.benefit.id), { ok: true, granted: 0 }, "dos veces no lo duplica");
+  assert.ok((await repo.listPassBenefits(ana.pass.id)).some((b) => b.id === r.benefit.id));
+  assert.ok(!(await repo.listPassBenefits(otra.pass.id)).some((b) => b.id === r.benefit.id), "otro equipo no");
+  const comun = await addBenefit(repo, d.event, { name: "Sticker", station: "", stock: null, ticketTypeIds: [d.participante.id] }, conLugar);
+  assert.deepEqual(await grantPrizeToTeam(repo, d.event, equipo.id, comun.benefit.id), { ok: false, error: "not_prize" });
+  const otroEvento = await hackaton();
+  assert.deepEqual(await grantPrizeToTeam(repo, otroEvento.event, equipo.id, r.benefit.id), { ok: false, error: "not_found" });
+
+  const panel = await getPanelState(d.event, repo);
+  assert.ok(!panel.dynamics.some((x) => x.id === r.benefit.id), "un premio no es una dinámica");
+  assert.deepEqual(panel.teams.find((t) => t.name === "Ganadoras").prizes, ["Primer lugar"]);
+  assert.deepEqual(panel.teams.find((t) => t.name === "Otras").prizes, []);
+
+  const clave = await getOrCreateOrganizerKey(d.event.id);
+  const ruta = { params: Promise.resolve({ slug: d.event.slug }) };
+  const otraEquipo = (await repo.listTeams(d.event.id)).find((t) => t.name === "Otras");
+  const ok = await equipos(await pedido(`http://localhost/api/admin/${d.event.slug}/equipos?k=${clave}`, { body: { action: "prize", teamId: otraEquipo.id, benefitId: r.benefit.id } }), ruta);
+  assert.equal(ok.status, 200);
+  assert.deepEqual((await ok.json()).state.teams.find((t) => t.name === "Otras").prizes, ["Primer lugar"]);
+  assert.equal((await equipos(await pedido(`http://localhost/api/admin/${d.event.slug}/equipos`, { body: { action: "prize", teamId: otraEquipo.id, benefitId: r.benefit.id } }), ruta)).status, 401);
+  assert.equal((await equipos(await pedido(`http://localhost/api/admin/${d.event.slug}/equipos?k=${clave}`, { body: { action: "prize", teamId: otraEquipo.id } }), ruta)).status, 400);
+});

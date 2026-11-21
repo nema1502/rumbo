@@ -10,6 +10,7 @@ import { getLang, getT } from "@/i18n/server.ts";
 import { QrRotante } from "@/components/evento/QrRotante.tsx";
 import { EquipoCredencial } from "@/components/evento/EquipoCredencial.tsx";
 import { AliadosEvento } from "@/components/evento/AliadosEvento.tsx";
+import { InsigniaLinkedIn } from "@/components/evento/InsigniaLinkedIn.tsx";
 import { eventAllies } from "@/server/evento/aliados.ts";
 import { passTeamState, type PassTeamState } from "@/server/evento/equipo.ts";
 import { getRepo } from "@/server/repo.ts";
@@ -64,6 +65,19 @@ export default async function PassPage({ params, searchParams }: { params: Param
         {allies && <AliadosEvento grupos={allies} etiqueta={t("evento.aliados.titulo")} />}
         {route && <RutaCredencial passId={view.pass.id} accessKey={key} initial={route} />}
         {team?.allowed && <EquipoCredencial passId={view.pass.id} accessKey={key} initial={team} />}
+        {allies && (
+          <InsigniaLinkedIn
+            passId={view.pass.id}
+            accessKey={key}
+            evento={view.event.name}
+            fecha={when.date}
+            lugar={formatEventWhere(view.event)}
+            persona={view.person.name}
+            tipo={view.ticketType.name}
+            logos={allies.flatMap((g) => g.logos)}
+            conEquipos={Boolean(team?.allowed)}
+          />
+        )}
       </div>
       <div className="pantalla-accion">
         <a className="boton boton-primario boton-grande" href={download} download={`credencial-${view.pass.id}.svg`}>
