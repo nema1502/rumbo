@@ -8,6 +8,11 @@ import { RutaCredencial } from "@/components/stands/RutaCredencial.tsx";
 import "@/components/stands/stands.css";
 import { getLang, getT } from "@/i18n/server.ts";
 import { QrRotante } from "@/components/evento/QrRotante.tsx";
+import { EquipoCredencial } from "@/components/evento/EquipoCredencial.tsx";
+import { AliadosEvento } from "@/components/evento/AliadosEvento.tsx";
+import { eventAllies } from "@/server/evento/aliados.ts";
+import { passTeamState, type PassTeamState } from "@/server/evento/equipo.ts";
+import { getRepo } from "@/server/repo.ts";
 import { loadCredential } from "@/server/evento/credencial.ts";
 import { formatEventWhen, formatEventWhere } from "@/server/evento/fecha.ts";
 import { getPassRoute } from "@/server/stands.ts";
@@ -35,6 +40,14 @@ export default async function PassPage({ params, searchParams }: { params: Param
   const download = `/api/pase/${encodeURIComponent(view.pass.id)}/svg?k=${encodeURIComponent(key)}&lang=${lang}`;
   // La ruta de stands, si el evento tiene stands: la credencial recibe ahí la pregunta de permiso de cada uno.
   const route = await getPassRoute(view.pass.id);
+  // El equipo de la hackatón, si el evento lo trae. Si algo falla al leerlo, la credencial sale igual, sin la tarjeta.
+  const allies = eventAllies(view.event);
+  let team: PassTeamState | null = null;
+  try {
+    team = await passTeamState(getRepo(), view.event, view.pass);
+  } catch (error) {
+    console.warn("[equipo] No se pudo leer el equipo de la credencial:", error instanceof Error ? error.message : error);
+  }
 
   return (
     <section className="pantalla credencial-pantalla">
@@ -48,7 +61,9 @@ export default async function PassPage({ params, searchParams }: { params: Param
       <div className="pantalla-cuerpo">
         <Credencial view={view} t={t} qr={<QrRotante grant={view.live} />} />
         <p className="apagado chico credencial-ayuda">{t("evento.credencial.mostra")}</p>
+        {allies && <AliadosEvento grupos={allies} etiqueta={t("evento.aliados.titulo")} />}
         {route && <RutaCredencial passId={view.pass.id} accessKey={key} initial={route} />}
+        {team?.allowed && <EquipoCredencial passId={view.pass.id} accessKey={key} initial={team} />}
       </div>
       <div className="pantalla-accion">
         <a className="boton boton-primario boton-grande" href={download} download={`credencial-${view.pass.id}.svg`}>

@@ -136,3 +136,19 @@
 /* La vista previa de un borrador: el aviso de arriba */
 .vista-previa { grid-column: 1 / -1; border-radius: var(--radio-chico, 12px); position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 10px 16px; background: var(--amarillo-suave, var(--acento-suave)); color: var(--tinta); border-bottom: 1px solid var(--linea); font-weight: 600; }
 .vista-previa a { font-weight: 700; }
+
+/* Tu equipo: la credencial del grupo, debajo de la credencial de la persona */
+.equipo-credencial { margin-top: 1rem; display: grid; gap: 0.75rem; }
+.equipo-titulo { font-size: 1.1rem; margin: 0; }
+.equipo-nombre { font-size: 1.3rem; font-weight: 700; margin: 0; overflow-wrap: anywhere; }
+.equipo-codigo { display: grid; gap: 0.15rem; }
+.equipo-codigo-valor { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 1.7rem; letter-spacing: 0.18em; }
+.equipo-integrantes { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.2rem; }
+.equipo-form { display: grid; gap: 0.5rem; }
+.equipo-acciones { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+
+/* Los aliados del evento: tarjeta blanca también de noche, así cada logo va en su versión para fondo claro */
+.aliados-evento { margin-top: 1rem; background: #ffffff; color: #1f2937; border-radius: 16px; padding: 16px; display: grid; gap: 20px; }
+.aliados-rol { margin: 0 0 8px; font-size: 0.85rem; color: #4b5563; }
+.aliados-logos { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.aliados-logos img { height: 40px; width: auto; max-width: 100%; }
