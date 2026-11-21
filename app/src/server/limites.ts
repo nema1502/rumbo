@@ -300,6 +300,15 @@ export function stationCodeAttempts(): Limiter {
 }
 
 /**
+ * Los códigos de equipo equivocados desde una credencial: diez por credencial en diez minutos (se cuenta por
+ * credencial y no por IP, así el wifi compartido de un evento no traba a nadie). Con códigos de seis letras de un
+ * alfabeto de 31, ni a ese ritmo ni desde muchas credenciales se adivina el de un equipo ajeno durante un evento.
+ */
+export function teamCodeAttempts(): Limiter {
+  return limiter("team-code", { windowMs: 10 * MINUTE, perKey: 10, global: 300, lockMs: 10 * MINUTE, maxLockMs: 2 * HOUR, forgetMs: 2 * HOUR });
+}
+
+/**
  * Las inscripciones que crean una cuenta nueva (cada una la fondea, le abre la línea de confianza, le da
  * saldo y manda una transacción, todo pagado por el servidor): sesenta pedidos por IP en diez minutos,
  * generoso para la fila de un evento que se inscribe en la puerta detrás del mismo wifi, y seiscientos en total.

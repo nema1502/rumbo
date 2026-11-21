@@ -272,6 +272,8 @@ export function PanelCliente({
         </Tarjeta>
       )}
 
+      {(state.teams?.length ?? 0) > 0 && <EquiposPanel state={state} slug={slug} onGuardado={setState} onVencida={() => setConexion("vencida")} />}
+
       <div className="panel-columnas">
         <Tarjeta>
           <h2>{t("panel.puestos.titulo")}</h2>
@@ -729,6 +731,66 @@ function DetalleCadena({ cadena, nombreDe, timezone }: { cadena: EstadoCadena; n
           </ul>
         </>
       )}
+    </Tarjeta>
+  );
+}
+
+/** Los equipos de la hackatón: de más dinámicas canjeadas a menos, con quién está en cada uno y su código. */
+function EquiposPanel({ state, slug, onGuardado, onVencida }: { state: PanelState; slug: string; onGuardado: (state: PanelState) => void; onVencida: () => void }) {
+  const t = useT();
+  const [sacando, setSacando] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+  const nombreDinamica = new Map(state.dynamics.map((d) => [d.id, d.name] as const));
+
+  async function sacar(passId: string, nombre: string, equipo: string) {
+    if (!window.confirm(t("panel.equipos.sacarConfirmar", { nombre, equipo }))) return;
+    setSacando(passId);
+    setError(false);
+    try {
+      const res = await fetch(`/api/admin/${slug}/equipos`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "remove", passId }) });
+      if (res.status === 401) return onVencida();
+      if (!res.ok) return setError(true);
+      onGuardado(((await res.json()) as { state: PanelState }).state);
+    } catch {
+      setError(true);
+    } finally {
+      setSacando(null);
+    }
+  }
+
+  return (
+    <Tarjeta className="panel-equipos">
+      <h2>{t("panel.equipos.titulo", { n: state.teams.length })}</h2>
+      <p className="chico">{state.dynamics.length > 0 ? t("panel.equipos.ayuda") : t("panel.equipos.sinDinamicas")}</p>
+      {error && <Aviso tono="alerta">{t("panel.equipos.error")}</Aviso>}
+      <ol className="panel-equipos-lista">
+        {state.teams.map((team) => {
+          const detalle = Object.entries(team.byDynamic)
+            .filter(([, n]) => n > 0)
+            .map(([id, n]) => `${nombreDinamica.get(id) ?? ""} ${n}`)
+            .join(", ");
+          return (
+            <li key={team.id} className="panel-equipo">
+              <div className="panel-equipo-cabeza">
+                <strong>{team.name}</strong>
+                <Chip estado={team.dynamicsWon > 0 ? "ganado" : "neutro"}>{t("panel.equipos.dinamicas", { n: team.dynamicsWon })}</Chip>
+                <span className="apagado chico">{t("panel.equipos.codigo", { codigo: team.code })}</span>
+              </div>
+              {detalle && <p className="chico panel-equipo-detalle">{detalle}</p>}
+              <ul className="panel-equipo-integrantes">
+                {team.members.map((m) => (
+                  <li key={m.passId}>
+                    <span>{m.name}</span>
+                    <Boton variante="secundario" className="boton-chico" onClick={() => void sacar(m.passId, m.name, team.name)} disabled={sacando !== null} aria-label={t("panel.equipos.sacarA", { nombre: m.name })}>
+                      {t("panel.equipos.sacar")}
+                    </Boton>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          );
+        })}
+      </ol>
     </Tarjeta>
   );
 }

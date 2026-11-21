@@ -507,6 +507,12 @@ export interface Repo {
   listTeamPasses(teamId: string): Promise<Pass[]>;
   /** El equipo de cada credencial del evento que tiene uno. */
   listPassTeams(eventId: string): Promise<Array<{ passId: string; team: Team }>>;
+  /** Saca la credencial de su equipo, si estaba en uno. */
+  removePassTeam(passId: string): Promise<void>;
+  /** Borra el equipo (sus integrantes quedan sin equipo). */
+  deleteTeam(teamId: string): Promise<void>;
+  /** Cambia el nombre del equipo. Si otro equipo del evento ya se llama así, la base lo rechaza. */
+  renameTeam(teamId: string, name: string): Promise<Team | null>;
 
   // Importaciones de lista
   createImportRun(input: { eventId: string; source: string; summary: Record<string, unknown> }): Promise<ImportRun>;
@@ -1413,6 +1419,20 @@ export class SqlRepo implements Repo {
   async listPassTeams(eventId: string): Promise<Array<{ passId: string; team: Team }>> {
     const rows = await this.db.all("SELECT pt.pass_id, t.* FROM pass_teams pt JOIN teams t ON t.id = pt.team_id WHERE t.event_id = ?", [eventId]);
     return rows.map((row) => ({ passId: str(row.pass_id), team: rowToTeam(row) }));
+  }
+
+  async removePassTeam(passId: string): Promise<void> {
+    await this.db.run("DELETE FROM pass_teams WHERE pass_id = ?", [passId]);
+  }
+
+  async deleteTeam(teamId: string): Promise<void> {
+    await this.db.run("DELETE FROM pass_teams WHERE team_id = ?", [teamId]);
+    await this.db.run("DELETE FROM teams WHERE id = ?", [teamId]);
+  }
+
+  async renameTeam(teamId: string, name: string): Promise<Team | null> {
+    const row = await this.db.one("UPDATE teams SET name = ? WHERE id = ? RETURNING *", [name.trim(), teamId]);
+    return row ? rowToTeam(row) : null;
   }
 
   // Importaciones de lista

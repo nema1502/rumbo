@@ -3,6 +3,7 @@
 // que salen del espejo en la base y el contraste con la cadena (status, attendees e info del contrato).
 // No importa nada de Next, así los scripts también lo pueden usar; lo que depende del pedido HTTP
 // (la cookie, las respuestas) está en panel-sesion.ts. Las tablas propias están en migrations/003-panel.sql.
+import { teamCode } from "./evento/equipo.ts";
 import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { translate, type Lang } from "../i18n/index.ts";
 import type { CredentialKind } from "../lib/credential-kinds.ts";
@@ -321,6 +322,27 @@ export interface PanelState {
   lastChainSync: ChainSyncSummary | null;
   /** El evento entra solo por lista (RUMBO_LIST_ONLY_EVENTS): nadie se inscribe por su cuenta, y el panel lo dice. */
   listOnly: boolean;
+  /** Los canjes que cuentan como dinámicas: los que sumó quien organiza, los que no vienen de la plantilla. */
+  dynamics: PanelDynamic[];
+  /** Los equipos de la hackatón, de más dinámicas canjeadas a menos. */
+  teams: PanelTeamRow[];
+}
+
+export interface PanelDynamic {
+  id: string;
+  name: string;
+}
+
+export interface PanelTeamRow {
+  id: string;
+  name: string;
+  /** El código con que se suma alguien desde su credencial. */
+  code: string;
+  members: Array<{ passId: string; name: string }>;
+  /** Cuántas veces canjeó el equipo cada dinámica, por id de canje. Sin dobles. */
+  byDynamic: Record<string, number>;
+  /** El total de dinámicas canjeadas por el equipo. */
+  dynamicsWon: number;
 }
 
 function toPanelEvent(event: EventRecord): PanelEvent {
@@ -443,6 +465,25 @@ async function collect(event: EventRecord, repo: Repo): Promise<Collected> {
   // "de 200 lugares": el cupo de la base, o el del contrato si es menor (se recuerda un minuto, no se lee en cada pedido).
   const capacity = smallestCapacity(event.capacity, ...(await Promise.all(ticketTypes.map((t) => readContractCapacity(t.contractId ?? event.contractId)))));
 
+  // Las dinámicas son los canjes que sumó quien organiza (no vienen de la plantilla y no son el premio del sorteo).
+  const dynamics: PanelDynamic[] = benefits.filter((b) => b.templateKey === null && b.kind !== "prize").map((b) => ({ id: b.id, name: b.name }));
+  const passById = new Map(panelPasses.map((p) => [p.id, p] as const));
+  const teamsById = new Map<string, PanelTeamRow>();
+  for (const { passId, team } of passTeams) {
+    const row = teamsById.get(team.id) ?? { id: team.id, name: team.name, code: teamCode(team.id), members: [], byDynamic: {}, dynamicsWon: 0 };
+    teamsById.set(team.id, row);
+    const pass = passById.get(passId);
+    row.members.push({ passId, name: pass?.name ?? "" });
+    for (const d of dynamics) {
+      if (pass?.benefits.some((pb) => pb.benefitId === d.id && pb.redeemed)) {
+        row.byDynamic[d.id] = (row.byDynamic[d.id] ?? 0) + 1;
+        row.dynamicsWon++;
+      }
+    }
+  }
+  const teams = [...teamsById.values()].sort((a, b) => b.dynamicsWon - a.dynamicsWon || a.name.localeCompare(b.name, "es"));
+  for (const team of teams) team.members.sort((a, b) => a.name.localeCompare(b.name, "es"));
+
   const state: PanelState = {
     generatedAt: now(),
     event: toPanelEvent(event),
@@ -463,6 +504,8 @@ async function collect(event: EventRecord, repo: Repo): Promise<Collected> {
     stations,
     lastChainSync: await getLastChainSync(event.id),
     listOnly: isListOnly(event),
+    dynamics,
+    teams,
   };
   return { state, emails };
 }
